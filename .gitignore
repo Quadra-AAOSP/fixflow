@@ -37,3 +37,8 @@ Frontend/Web/dist/
 Frontend/Web/public/
 .cursor/
 .DS_Store
+.env
+.env.*
+!.env.example
+Backend/.env
+Backend/.env.*
