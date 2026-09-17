@@ -4,6 +4,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
@@ -31,6 +32,13 @@ public class GlobalExceptionHandler {
 				.collect(Collectors.joining("; "));
 		return ResponseEntity.badRequest().body(
 				ApiError.of(400, "Bad Request", message, request.getRequestURI())
+		);
+	}
+
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex, HttpServletRequest request) {
+		return ResponseEntity.badRequest().body(
+				ApiError.of(400, "Bad Request", "Invalid request body", request.getRequestURI())
 		);
 	}
 

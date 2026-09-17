@@ -61,9 +61,9 @@ Fixflow/
 | `technician_contracts` | Multi-site technician contracts |
 | `technician_availability` | Self-toggled availability |
 | `technician_skills` | Trade (`category`) + specialty + proficiency (stretch recommendation) |
-| `reports` | Tickets, dual urgency, category/specialty, status, **current** assignee |
+| `reports` | Tickets, dual urgency (`low`/`medium`/`high`/`critical`), category from `site_rules`, status, **current** assignee |
 | `report_photos` | Up to 5 images per report (≤5MB), MinIO keys |
-| `report_reporters` | Manual merge (many users ↔ one report) |
+| `report_reporters` | Manual merge (many users ↔ one report); creator is always inserted on create |
 | `report_reassignments` | Append-only history of previous technician ids on reassign |
 | `status_history` | Status transition audit trail |
 
@@ -71,6 +71,10 @@ Fixflow/
 `open` → `routed` → `assigned` → `in_progress` → `resolved_pending_confirmation` → `confirmed` / `reopened` (+ `escalated` when marketplace has no techs)
 
 **Reassignment:** when the assigned tech (or staff/admin) reassigns, insert into `report_reassignments` (`from_technician_id`, `to_technician_id`, `reassigned_by_user_id`) **before** updating `reports.assigned_technician_id`. History is never overwritten.
+
+**Privacy:** peer reporters at a site can list reports, but `address` and submitter identity are masked. Staff, admin, assigned technician, and users attached via `report_reporters` see the full fields.
+
+**Urgency:** `ai_urgency` / `reporter_urgency` / `final_urgency` are `low | medium | high | critical` (not free text). `reporter_urgency` on a staff/admin filing may be proxied — there is no `on_behalf_of_user_id`.
 
 Apply schema (with MySQL running):
 

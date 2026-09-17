@@ -83,10 +83,12 @@ CREATE TABLE users (
 
 -- ---------------------------------------------------------------------------
 -- technician_contracts — multi-site contracts; absence ⇒ marketplace-eligible
+-- technician_id FK cannot enforce role = technician — application must reject
+-- writes unless users.role is technician.
 -- ---------------------------------------------------------------------------
 CREATE TABLE technician_contracts (
     id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    technician_id  BIGINT UNSIGNED NOT NULL,
+    technician_id  BIGINT UNSIGNED NOT NULL COMMENT 'Must be users.role = technician (app-enforced)',
     site_id        BIGINT UNSIGNED NOT NULL,
     created_at     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -104,7 +106,7 @@ CREATE TABLE technician_contracts (
 -- technician_availability — self-toggled availability for routing/claim pools
 -- ---------------------------------------------------------------------------
 CREATE TABLE technician_availability (
-    technician_id  BIGINT UNSIGNED NOT NULL,
+    technician_id  BIGINT UNSIGNED NOT NULL COMMENT 'Must be users.role = technician (app-enforced)',
     status         ENUM('available', 'unavailable') NOT NULL DEFAULT 'unavailable',
     updated_at     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (technician_id),
@@ -119,7 +121,7 @@ CREATE TABLE technician_availability (
 -- ---------------------------------------------------------------------------
 CREATE TABLE technician_skills (
     id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    technician_id  BIGINT UNSIGNED NOT NULL,
+    technician_id  BIGINT UNSIGNED NOT NULL COMMENT 'Must be users.role = technician (app-enforced)',
     category       VARCHAR(128)    NOT NULL COMMENT 'Trade: plumbing, electrical, hvac, …',
     specialty      VARCHAR(128)    NULL COMMENT 'Sub-skill: waste_plumbing, water_supply, …; NULL = generalist',
     proficiency    TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT '1–5 depth within this skill',
@@ -135,19 +137,24 @@ CREATE TABLE technician_skills (
 
 -- ---------------------------------------------------------------------------
 -- reports — maintenance tickets (dual urgency + lifecycle)
+-- category must exist in site_rules for sites.type (app-enforced; MySQL cannot
+-- FK a composite site_type+category without extra plumbing).
+-- address is masked from peer reporters in API responses (staff/admin/assigned
+-- tech/attached reporters see it). No on_behalf_of_user_id — created_by_user_id
+-- is who filed; reporter_urgency may be staff-proxied.
 -- ---------------------------------------------------------------------------
 CREATE TABLE reports (
     id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     site_id                 BIGINT UNSIGNED NOT NULL,
-    created_by_user_id      BIGINT UNSIGNED NOT NULL,
+    created_by_user_id      BIGINT UNSIGNED NOT NULL COMMENT 'Who filed; staff/admin filings are proxied',
     description             TEXT            NOT NULL,
-    address                 VARCHAR(512)    NULL,
-    category                VARCHAR(128)    NOT NULL COMMENT 'Trade / top-level, e.g. plumbing',
-    specialty               VARCHAR(128)    NULL COMMENT 'Optional sub-type, e.g. waste_plumbing',
-    ai_urgency              VARCHAR(32)     NULL,
-    reporter_urgency        VARCHAR(32)     NOT NULL,
+    address                 VARCHAR(512)    NULL COMMENT 'Room-level; mask from peer reporters in API',
+    category                VARCHAR(128)    NOT NULL COMMENT 'Must match site_rules.category for this site type',
+    specialty               VARCHAR(128)    NULL COMMENT 'Optional sub-type, e.g. waste_plumbing; not in site_rules',
+    ai_urgency              ENUM('low', 'medium', 'high', 'critical') NULL,
+    reporter_urgency        ENUM('low', 'medium', 'high', 'critical') NOT NULL,
     reporter_reason         TEXT            NULL,
-    final_urgency           VARCHAR(32)     NULL COMMENT 'Staff/admin override; null until overridden',
+    final_urgency           ENUM('low', 'medium', 'high', 'critical') NULL COMMENT 'Staff/admin override; null until overridden',
     status                  ENUM(
                                 'open',
                                 'routed',
@@ -158,7 +165,7 @@ CREATE TABLE reports (
                                 'reopened',
                                 'escalated'
                             )               NOT NULL DEFAULT 'open',
-    assigned_technician_id  BIGINT UNSIGNED NULL,
+    assigned_technician_id  BIGINT UNSIGNED NULL COMMENT 'Must be users.role = technician (app-enforced)',
     editable                TINYINT(1)      NOT NULL DEFAULT 1,
     reopen_count            INT UNSIGNED    NOT NULL DEFAULT 0,
     created_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -204,6 +211,8 @@ CREATE TABLE report_photos (
 
 -- ---------------------------------------------------------------------------
 -- report_reporters — manual merge (many users ↔ one report)
+-- Always insert the creator (created_by_user_id) at report create time.
+-- List-reporters queries use this table only — do not UNION created_by_user_id.
 -- ---------------------------------------------------------------------------
 CREATE TABLE report_reporters (
     report_id  BIGINT UNSIGNED NOT NULL,
