@@ -11,7 +11,7 @@ Multi-site maintenance reporting platform (school / hostel / hotel) with AI-assi
 | Layer | Tech |
 |---|---|
 | Backend | Java 21, Spring Boot, JPA, Security, Session (JDBC), WebSockets |
-| Frontend | Vue 3 + Vite (`Frontend/Web`) |
+| Frontend | Vue 3 + Vite (`Frontend/Web`); Expo React Native (`Frontend/Mobile`) |
 | Database | MySQL 8 |
 | Object storage | MinIO (Docker, persistent volume) |
 | AI | Gemini (primary); Ollama fallback (stretch/spike) |
@@ -29,7 +29,8 @@ Fixflow/
 │   └── src/main/resources/
 │       └── db/schema.sql    # Domain DDL (authoritative)
 ├── Frontend/
-│   └── Web/                 # Vue 3 web client
+│   ├── Web/                 # Vue 3 web client
+│   └── Mobile/              # Expo Router React Native (reporter-first)
 ├── Database/                # Reserved for DB scripts / seeds
 ├── Testing/                 # Test notes / records
 └── README.md
@@ -116,13 +117,32 @@ cd Backend
 ./mvnw spring-boot:run
 ```
 
-### 4. Run frontend
+### 4. Run frontend (web)
 
 ```bash
 cd Frontend/Web
 npm install
 npm run dev
 ```
+
+### 5. Run mobile (Expo)
+
+```bash
+cd Frontend/Mobile
+npm install
+npx expo start
+```
+
+Scan the QR code with Expo Go (iOS/Android). The UI follows system light/dark appearance.
+
+Set the API base URL if the device cannot reach `127.0.0.1:8080` (physical phone / Android emulator):
+
+```bash
+# example: your machine LAN IP, or 10.0.2.2 for Android emulator
+EXPO_PUBLIC_API_URL=http://192.168.1.10:8080 npx expo start
+```
+
+Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login, tabs are Home / Reports / Profile.
 
 ### Secrets
 
