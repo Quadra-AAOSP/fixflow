@@ -11,7 +11,7 @@ Multi-site maintenance reporting platform (school / hostel / hotel) with AI-assi
 | Layer | Tech |
 |---|---|
 | Backend | Java 21, Spring Boot, JPA, Security, Session (JDBC), WebSockets |
-| Frontend | Vue 3 + Vite (`Frontend/Web`); Expo React Native (`Frontend/Mobile`) |
+| Frontend | Vue 3 + Vite + TypeScript + Tailwind (`Frontend/Web`); Expo React Native (`Frontend/Mobile`) |
 | Database | MySQL 8 |
 | Object storage | MinIO (Docker, persistent volume) |
 | AI | Gemini (primary); Ollama fallback (stretch/spike) |
@@ -29,7 +29,7 @@ Fixflow/
 │   └── src/main/resources/
 │       └── db/schema.sql    # Domain DDL (authoritative)
 ├── Frontend/
-│   ├── Web/                 # Vue 3 web client
+│   ├── Web/                 # Vue 3 web client (reporter-first, auth parity)
 │   └── Mobile/              # Expo Router React Native (reporter-first)
 ├── Database/                # Reserved for DB scripts / seeds
 ├── Testing/                 # Test notes / records
@@ -125,6 +125,10 @@ npm install
 npm run dev
 ```
 
+Opens at `http://localhost:5173`. Copy `.env.example` to `.env` if needed (`VITE_API_URL=http://localhost:8080`).
+
+Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login: Home / Reports / Profile (same shell as Mobile).
+
 ### 5. Run mobile (Expo)
 
 ```bash
@@ -135,7 +139,7 @@ npx expo start
 
 Scan the QR code with Expo Go (iOS/Android). The UI follows system light/dark appearance.
 
-Set the API base URL if the device cannot reach `127.0.0.1:8080` (physical phone / Android emulator):
+Set the API base URL if the device cannot reach `localhost:8080` (physical phone / Android emulator):
 
 ```bash
 # example: your machine LAN IP, or 10.0.2.2 for Android emulator
