@@ -1,0 +1,59 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'Backend/**'
+
+  build:
+    needs: changes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v4
+        if: needs.changes.outputs.backend == 'true'
+
+      - name: Set up JDK 21
+        if: needs.changes.outputs.backend == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Lint (Checkstyle)
+        if: needs.changes.outputs.backend == 'true'
+        run: ./mvnw -B checkstyle:check
+
+      - name: Test
+        if: needs.changes.outputs.backend == 'true'
+        run: ./mvnw -B test
+
+      - name: Build
+        if: needs.changes.outputs.backend == 'true'
+        run: ./mvnw -B package -DskipTests
+
+      - name: Docker build (compose)
+        if: needs.changes.outputs.backend == 'true'
+        run: docker compose -f compose.yaml build
+
+      - name: No backend changes
+        if: needs.changes.outputs.backend != 'true'
+        run: echo "No changes under Backend/ — skipping."

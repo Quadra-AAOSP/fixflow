@@ -1,0 +1,59 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'Frontend/Web/**'
+
+  build:
+    needs: changes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend/Web
+    steps:
+      - uses: actions/checkout@v4
+        if: needs.changes.outputs.frontend == 'true'
+
+      - name: Set up Node
+        if: needs.changes.outputs.frontend == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Frontend/Web/package-lock.json
+
+      - name: Install
+        if: needs.changes.outputs.frontend == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: needs.changes.outputs.frontend == 'true'
+        run: npm run lint
+
+      - name: Test
+        if: needs.changes.outputs.frontend == 'true'
+        run: npm run test -- --run
+
+      - name: Build
+        if: needs.changes.outputs.frontend == 'true'
+        run: npm run build
+
+      - name: No frontend changes
+        if: needs.changes.outputs.frontend != 'true'
+        run: echo "No changes under Frontend/Web/ — skipping."
