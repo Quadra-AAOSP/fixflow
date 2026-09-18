@@ -1,21 +1,18 @@
-<script setup>
-// This starter template is using Vue 3 <script setup> SFCs
-// Check out https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup
-import HelloWorld from './components/HelloWorld.vue'
+<script setup lang="ts">
+import { useAuth } from '@/composables/useAuth';
+
+const { isLoading } = useAuth();
 </script>
 
 <template>
-  <img alt="Vue logo" src="./assets/logo.png" />
-  <HelloWorld msg="Hello Vue 3 + Vite" />
+  <div
+    v-if="isLoading"
+    class="flex min-h-screen items-center justify-center bg-surface dark:bg-surface-dark"
+  >
+    <span
+      class="inline-block h-8 w-8 animate-spin rounded-full border-2 border-primary border-r-transparent dark:border-primary-dark"
+      aria-label="Loading"
+    />
+  </div>
+  <RouterView v-else />
 </template>
-
-<style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
-</style>

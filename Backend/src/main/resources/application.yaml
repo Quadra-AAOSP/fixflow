@@ -1,10 +1,12 @@
 spring:
   application:
     name: fixflow
+  config:
+    import: optional:file:.env[.properties]
   datasource:
-    url: jdbc:mysql://localhost:3306/mydatabase
-    username: myuser
-    password: secret
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:fixflow}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:}
   jpa:
     open-in-view: false
     hibernate:
@@ -40,15 +42,17 @@ spring:
 
 fixflow:
   bootstrap:
-    super-admin-email: admin@fixflow.local
-    super-admin-password: changeme
+    super-admin-email: ${FIXFLOW_SUPER_ADMIN_EMAIL:admin@fixflow.local}
+    super-admin-password: ${FIXFLOW_SUPER_ADMIN_PASSWORD:changeme}
   minio:
-    endpoint: http://localhost:9000
-    access-key: minioadmin
-    secret-key: minioadmin
-    bucket: fixflow-photos
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket: ${MINIO_BUCKET:fixflow-photos}
+
 
 server:
+  max-http-request-header-size: 64KB
   servlet:
     session:
       cookie:

@@ -42,3 +42,4 @@ Frontend/Web/public/
 !.env.example
 Backend/.env
 Backend/.env.*
+!Backend/.env.example
