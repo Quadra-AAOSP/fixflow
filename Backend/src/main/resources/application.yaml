@@ -50,6 +50,10 @@ fixflow:
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket: ${MINIO_BUCKET:fixflow-photos}
 
+openrouter:
+  api-key: ${OPENROUTER_API_KEY:}
+  model: ${OPENROUTER_MODEL:openrouter/free}
+
 
 server:
   max-http-request-header-size: 64KB

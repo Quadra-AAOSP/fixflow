@@ -43,3 +43,8 @@ Frontend/Web/public/
 Backend/.env
 Backend/.env.*
 !Backend/.env.example
+fixflow-project-plan-v2(1).md
+.gitignore
+Backend/AI_PROVIDER_DOCUMENTATION.md
+fixflow-task-prd.md
+Backend/VISION_MODEL_INVESTIGATION.md
