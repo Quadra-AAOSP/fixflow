@@ -38,6 +38,7 @@ spring:
       - org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration
       - org.springframework.ai.model.ollama.autoconfigure.OllamaChatAutoConfiguration
       - org.springframework.ai.model.ollama.autoconfigure.OllamaEmbeddingAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
 
 fixflow:
