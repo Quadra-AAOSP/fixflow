@@ -23,14 +23,22 @@ export type LoginPayload = {
   password: string;
 };
 
-export type RegisterPayload = {
+export type AccountDetails = {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
   phone?: string;
   address?: string;
-  role: 'reporter';
+};
+
+export type RegisterPayload = AccountDetails & (
+  | { role: 'reporter'; siteId: number }
+  | { role: 'technician'; siteId: null }
+);
+
+export type ProvisionUserPayload = AccountDetails & {
+  role: 'admin' | 'staff';
   siteId: number;
 };
 

@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter, useRoute } from 'vue-router';
 import { Wrench } from '@lucide/vue';
 
 import Button from '@/components/ui/Button.vue';
 import TextField from '@/components/ui/TextField.vue';
 import { useAuth } from '@/composables/useAuth';
 import { ApiError } from '@/services/auth';
+
+const router = useRouter();
+const route = useRoute();
 
 const { login } = useAuth();
 
@@ -26,6 +29,8 @@ async function onSubmit() {
   submitting.value = true;
   try {
     await login({ email: trimmedEmail, password: password.value });
+    const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') && !route.query.redirect.startsWith('//') ? route.query.redirect : '/';
+    await router.replace(redirect);
   } catch (err) {
     if (err instanceof ApiError) {
       error.value =

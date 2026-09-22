@@ -5,17 +5,23 @@ import { User } from '@lucide/vue';
 
 import Button from '@/components/ui/Button.vue';
 import { useAuth } from '@/composables/useAuth';
+import { errorMessage } from '@/services/api';
+import { roleLabels } from '@/constants/access';
 import { colors } from '@/constants/theme';
 
 const router = useRouter();
 const { user, logout } = useAuth();
 const loggingOut = ref(false);
+const error = ref('');
 
 async function onLogout() {
   loggingOut.value = true;
+  error.value = '';
   try {
     await logout();
     await router.replace({ name: 'login' });
+  } catch (err) {
+    error.value = errorMessage(err);
   } finally {
     loggingOut.value = false;
   }
@@ -45,7 +51,7 @@ async function onLogout() {
       <div class="mb-3 flex items-center justify-between">
         <span class="text-sm text-muted dark:text-muted-dark">Role</span>
         <span class="text-sm font-medium capitalize text-ink dark:text-ink-dark">
-          {{ user.role }}
+          {{ roleLabels[user.role] }}
         </span>
       </div>
       <div class="mb-3 flex items-center justify-between">
@@ -62,6 +68,12 @@ async function onLogout() {
       </div>
     </div>
 
+    <section v-if="user?.role === 'technician'" class="dashboard-card mb-5">
+      <h2 class="font-semibold">Site contracts are optional</h2>
+      <p class="dialog-intro">Your account ID is {{ user.id }}. Share it with a site administrator when arranging a contract. A site ID does not represent your contract list.</p>
+      <RouterLink to="/contracts" class="text-action">View contract options →</RouterLink>
+    </section>
+    <p v-if="error" role="alert" class="live-error">{{ error }}</p>
     <Button
       label="Sign out"
       variant="secondary"

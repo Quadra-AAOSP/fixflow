@@ -259,3 +259,73 @@
 }
 .avatar-portrait { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .draft-error { color: #a0434d; font-size: 12px; }
+/* Live data states and report workflows. */
+.live-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 15px; color: #62798b; font-size: 11px; }
+.live-sync { display: flex; align-items: center; gap: 8px; font-size: 10px; }
+.site-selector { display: flex; align-items: center; gap: 10px; }
+.site-selector select, .report-filters select, .draft-form select { border: 1px solid #dbe5e0; padding: 8px 10px; border-radius: 7px; background: #fff; max-width: 100%; }
+.live-error { padding: 13px 15px; margin-bottom: 15px; border-radius: 8px; background: #fbe8e7; color: #943e46; font-size: 12px; line-height: 1.7; }
+.live-error button { margin-left: 9px; text-decoration: underline; font-weight: 600; }
+.live-empty { padding: 30px 15px; text-align: center; font-size: 12px; color: #788a98; line-height: 1.8; }
+.live-page { padding: 25px; min-height: 260px; }
+.live-page h1 { font-size: 26px; font-weight: 650; letter-spacing: -.7px; }
+.live-page h2 { font-size: 18px; font-weight: 600; }
+.report-form-page { max-width: 790px; margin: 0 auto; }
+.report-form-page>h1 { margin-top: 18px; }
+.report-fields { display: grid; gap: 20px; min-width: 0; }
+.report-fields:disabled { opacity: .65; }
+.form-two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.report-fields .report-issue-button { justify-self: start; }
+.report-filters { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 20px 0; color: #62798b; font-size: 12px; }
+.report-filters label { display: flex; align-items: center; gap: 10px; }
+.report-summary { display: grid; gap: 4px; max-width: 230px; }
+.report-summary strong { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.report-summary small { font-weight: 400; color: #7a8b99; font-size: 9px; }
+.live-report-table td { padding-block: 14px; }
+.chart-empty { font-size: 10px; color: #7a8b99; text-align: center; margin-top: 14px; }
+.report-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding: 20px 0 30px; }
+.report-detail-grid dt { font-size: 11px; color: #7a8b99; margin-bottom: 6px; }
+.report-detail-grid dd { font-size: 13px; overflow-wrap: anywhere; }
+.report-description { white-space: pre-wrap; overflow-wrap: anywhere; }
+.detail-section { padding: 22px 0; border-top: 1px solid #e9edf0; }
+.reporter-list { margin: 15px 0; display: grid; gap: 12px; }
+.reporter-list li { display: flex; gap: 20px; justify-content: space-between; }
+.reporter-list span { color: #7a8b99; font-size: 11px; }
+.assignment-form { display: flex; align-items: flex-end; gap: 15px; }
+.assignment-form label { display: grid; gap: 8px; font-size: 12px; }
+.assignment-form input { border: 1px solid #dbe5e0; border-radius: 8px; padding: 14px; min-width: 0; width: 100%; }
+.site-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 18px; }
+.site-card { max-width: 500px; }
+.site-card>img, .site-image-placeholder { width: 100%; height: 160px; border-radius: 8px; margin-bottom: 18px; object-fit: cover; }
+.site-image-placeholder { display: grid; place-items: center; background: #e2f4eb; color: #57947e; }
+.site-card .text-action { margin-top: 20px; }
+.connection-state { font-size: 13px; color: #526f68; }
+.action-grid a { display: flex; align-items: center; gap: 12px; padding: 11px 12px; background: #f8f9fb; border: 1px solid #e8ecf0; border-radius: 8px; text-align: left; font-size: 10px; font-weight: 550; }
+.action-grid a svg { flex-shrink: 0; }
+.action-grid a:hover { border-color: #82ccba; }
+.stat-card:disabled { cursor: default; }
+.report-issue-button:disabled { opacity: .55; cursor: wait; }
+@media (max-width: 700px) {
+  .live-toolbar { flex-wrap: wrap; }
+  .live-page { padding: 18px 13px; }
+  .live-page h1 { font-size: 22px; }
+  .report-detail-grid { grid-template-columns: 1fr 1fr; }
+  .report-summary { max-width: 180px; }
+}
+@media (max-width: 420px) {
+  .form-two-columns { grid-template-columns: 1fr; }
+  .assignment-form { flex-direction: column; align-items: stretch; }
+  .reporter-list li { flex-direction: column; gap: 3px; }
+}
+.site-card-actions { display: flex; justify-content: space-between; gap: 20px; }
+.technician-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 22px 0; }
+.technician-grid h2 { font-size: 20px; font-weight: 600; margin: 18px 0 10px; }
+.technician-grid p, .contract-choice p { font-size: 13px; color: #6d807b; line-height: 1.9; margin-bottom: 20px; }
+.contract-choice { padding: 25px 0; border-top: 1px solid #e7ece7; }
+.contract-choice h2 { margin-bottom: 12px; }
+.availability-note { background: #f3f5e8; padding: 13px; border-radius: 8px; }
+.draft-form .consent-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 1.7; }
+.consent-row input { width: 17px; height: 17px; margin-top: 2px; flex-shrink: 0; }
+.access-policy-summary { margin-top: 25px; }
+@media(max-width:650px) { .technician-grid { grid-template-columns: 1fr; } }
+.contract-choice .report-issue-button:disabled { cursor: not-allowed; }
