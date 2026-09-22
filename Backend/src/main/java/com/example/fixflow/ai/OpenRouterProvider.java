@@ -73,14 +73,18 @@ public class OpenRouterProvider implements AIProvider {
         try {
             OpenRouterRequest openRouterRequest = buildOpenRouterRequest(request);
             
-            OpenRouterResponse response = webClient.post()
-                    .bodyValue(openRouterRequest)
+            String responseBody = webClient.post()
+                    .bodyValue(objectMapper.writeValueAsString(openRouterRequest))
                     .retrieve()
-                    .bodyToMono(OpenRouterResponse.class)
+                    .bodyToMono(String.class)
                     .timeout(timeout)
                     .retryWhen(Retry.backoff(maxRetries, retryBackoff)
-                            .filter(throwable -> isRetryable(throwable)))
+                    .filter(throwable -> isRetryable(throwable)))
                     .block();
+
+            OpenRouterResponse response = responseBody == null
+                    ? null
+                    : objectMapper.readValue(responseBody, OpenRouterResponse.class);
 
             if (response == null || response.getChoices() == null || response.getChoices().isEmpty()) {
                 throw new AIProviderException("Invalid response from OpenRouter: empty or null response",
