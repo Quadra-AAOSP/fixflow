@@ -1,37 +1,37 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
-  darkMode: 'media',
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#0F766E',
-          foreground: '#F0FDFA',
+          DEFAULT: '#E27979',
+          foreground: '#302C29',
           dark: '#2DD4BF',
         },
         surface: {
-          DEFAULT: '#F8FAFC',
-          dark: '#0F172A',
+          DEFAULT: '#F8F7F2',
+          dark: '#302C29',
         },
         card: {
           DEFAULT: '#FFFFFF',
           dark: '#1E293B',
         },
         ink: {
-          DEFAULT: '#0F172A',
-          dark: '#F8FAFC',
+          DEFAULT: '#302C29',
+          dark: '#F8F7F2',
         },
         muted: {
-          DEFAULT: '#64748B',
+          DEFAULT: '#716F68',
           dark: '#94A3B8',
         },
         border: {
-          DEFAULT: '#E2E8F0',
+          DEFAULT: '#E5E4DC',
           dark: '#334155',
         },
         urgency: {
-          low: '#64748B',
+          low: '#716F68',
           medium: '#0EA5E9',
           high: '#F59E0B',
           critical: '#DC2626',

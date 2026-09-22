@@ -8,6 +8,11 @@ import { useAuthStore } from '@/stores/auth';
 
 const routes: RouteRecordRaw[] = [
   {
+    path: '/preview',
+    component: () => import('@/layouts/AppLayout.vue'),
+    children: [{ path: '', name: 'dashboard-preview', component: () => import('@/views/app/HomeView.vue') }],
+  },
+  {
     path: '/login',
     component: () => import('@/layouts/AuthLayout.vue'),
     meta: { guest: true },
@@ -62,6 +67,10 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to) {
+    if (to.hash) return { el: to.hash, behavior: 'smooth' };
+    return { top: 0 };
+  },
 });
 
 router.beforeEach((to) => {
