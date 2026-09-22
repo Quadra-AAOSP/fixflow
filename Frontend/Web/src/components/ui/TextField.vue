@@ -7,6 +7,10 @@ defineProps<{
   autocomplete?: string;
   placeholder?: string;
   required?: boolean;
+  minlength?: number;
+  maxlength?: number;
+  min?: number;
+  step?: number;
 }>();
 
 defineEmits<{
@@ -25,6 +29,10 @@ defineEmits<{
       :autocomplete="autocomplete"
       :placeholder="placeholder"
       :required="required"
+      :minlength="minlength"
+      :maxlength="maxlength"
+      :min="min"
+      :step="step"
       class="w-full rounded-lg border bg-card px-3 py-3 text-base text-ink outline-none ring-primary focus:ring-2 dark:bg-card-dark dark:text-ink-dark"
       :class="
         error
