@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -24,26 +24,40 @@ import java.util.List;
  * OpenRouter implementation of AI provider for text classification.
  * Uses openrouter/free model for normal text AI requests.
  */
-@Component
 public class OpenRouterProvider implements AIProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenRouterProvider.class);
-    private static final String OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-    private static final String DEFAULT_MODEL = "openrouter/free";
-    private static final Duration TIMEOUT = Duration.ofSeconds(30);
-
     private final WebClient webClient;
     private final String apiKey;
     private final String model;
     private final ObjectMapper objectMapper;
+    private final Duration timeout;
+    private final long maxRetries;
+    private final Duration retryBackoff;
+    private final double temperature;
+    private final int maxTokens;
 
-    public OpenRouterProvider(ObjectMapper objectMapper) {
+    public OpenRouterProvider(
+            ObjectMapper objectMapper,
+            @Value("${openrouter.api-key:}") String apiKey,
+            @Value("${openrouter.model}") String model,
+            @Value("${openrouter.base-url}") String baseUrl,
+            @Value("${openrouter.timeout-seconds}") long timeoutSeconds,
+            @Value("${openrouter.max-retries}") long maxRetries,
+            @Value("${openrouter.retry-backoff-seconds}") long retryBackoffSeconds,
+            @Value("${openrouter.temperature}") double temperature,
+            @Value("${openrouter.max-tokens}") int maxTokens) {
         this.objectMapper = objectMapper;
-        this.apiKey = System.getenv("OPENROUTER_API_KEY");
-        this.model = System.getenv().getOrDefault("OPENROUTER_MODEL", DEFAULT_MODEL);
-        
+        this.apiKey = apiKey;
+        this.model = model;
+        this.timeout = Duration.ofSeconds(timeoutSeconds);
+        this.maxRetries = maxRetries;
+        this.retryBackoff = Duration.ofSeconds(retryBackoffSeconds);
+        this.temperature = temperature;
+        this.maxTokens = maxTokens;
+
         this.webClient = WebClient.builder()
-                .baseUrl(OPENROUTER_API_URL)
+                .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                 .build();
@@ -63,8 +77,8 @@ public class OpenRouterProvider implements AIProvider {
                     .bodyValue(openRouterRequest)
                     .retrieve()
                     .bodyToMono(OpenRouterResponse.class)
-                    .timeout(TIMEOUT)
-                    .retryWhen(Retry.backoff(2, Duration.ofSeconds(1))
+                    .timeout(timeout)
+                    .retryWhen(Retry.backoff(maxRetries, retryBackoff)
                             .filter(throwable -> isRetryable(throwable)))
                     .block();
 
@@ -104,8 +118,8 @@ public class OpenRouterProvider implements AIProvider {
                                 .content(userPrompt)
                                 .build()
                 ))
-                .temperature(0.7)
-                .maxTokens(1000)
+                .temperature(temperature)
+                .maxTokens(maxTokens)
                 .build();
     }
 

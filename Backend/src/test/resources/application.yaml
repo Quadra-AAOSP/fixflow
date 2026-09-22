@@ -6,6 +6,11 @@ spring:
     username: sa
     password:
     driver-class-name: org.h2.Driver
+  sql:
+    init:
+      # Integration tests use the entity model to create their H2 schema.
+      # The production MySQL script is initialized only during normal startup.
+      mode: never
   docker:
     compose:
       enabled: false
