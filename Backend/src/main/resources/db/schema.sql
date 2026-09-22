@@ -1,28 +1,13 @@
 -- FixFlow domain schema (MySQL 8+)
 -- Source of truth aligned with fixflow-project-plan-v2.md §2
--- Apply: mysql -u ... -p mydatabase < schema.sql
+-- This script is run by Spring Boot at application startup. It is deliberately
+-- idempotent: it creates an empty database schema but never removes existing data.
 
 SET NAMES utf8mb4;
-SET FOREIGN_KEY_CHECKS = 0;
-
-DROP TABLE IF EXISTS status_history;
-DROP TABLE IF EXISTS report_reassignments;
-DROP TABLE IF EXISTS report_reporters;
-DROP TABLE IF EXISTS report_photos;
-DROP TABLE IF EXISTS reports;
-DROP TABLE IF EXISTS technician_skills;
-DROP TABLE IF EXISTS technician_availability;
-DROP TABLE IF EXISTS technician_contracts;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS site_rules;
-DROP TABLE IF EXISTS sites;
-
-SET FOREIGN_KEY_CHECKS = 1;
-
 -- ---------------------------------------------------------------------------
 -- sites — physical locations (school / hostel / hotel)
 -- ---------------------------------------------------------------------------
-CREATE TABLE sites (
+CREATE TABLE IF NOT EXISTS sites (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     name             VARCHAR(255)    NOT NULL,
     type             ENUM('school', 'hostel', 'hotel') NOT NULL,
@@ -40,7 +25,7 @@ CREATE TABLE sites (
 -- ---------------------------------------------------------------------------
 -- site_rules — fixed category + urgency taxonomy per site type
 -- ---------------------------------------------------------------------------
-CREATE TABLE site_rules (
+CREATE TABLE IF NOT EXISTS site_rules (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     site_type       ENUM('school', 'hostel', 'hotel') NOT NULL,
     category        VARCHAR(128)    NOT NULL,
@@ -54,7 +39,7 @@ CREATE TABLE site_rules (
 -- ---------------------------------------------------------------------------
 -- users — all accounts; role + optional site scope
 -- ---------------------------------------------------------------------------
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     email          VARCHAR(255)    NOT NULL,
     password_hash  VARCHAR(255)    NOT NULL,
@@ -86,7 +71,7 @@ CREATE TABLE users (
 -- technician_id FK cannot enforce role = technician — application must reject
 -- writes unless users.role is technician.
 -- ---------------------------------------------------------------------------
-CREATE TABLE technician_contracts (
+CREATE TABLE IF NOT EXISTS technician_contracts (
     id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     technician_id  BIGINT UNSIGNED NOT NULL COMMENT 'Must be users.role = technician (app-enforced)',
     site_id        BIGINT UNSIGNED NOT NULL,
@@ -105,7 +90,7 @@ CREATE TABLE technician_contracts (
 -- ---------------------------------------------------------------------------
 -- technician_availability — self-toggled availability for routing/claim pools
 -- ---------------------------------------------------------------------------
-CREATE TABLE technician_availability (
+CREATE TABLE IF NOT EXISTS technician_availability (
     technician_id  BIGINT UNSIGNED NOT NULL COMMENT 'Must be users.role = technician (app-enforced)',
     status         ENUM('available', 'unavailable') NOT NULL DEFAULT 'unavailable',
     updated_at     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -119,7 +104,7 @@ CREATE TABLE technician_availability (
 -- technician_skills — stretch: trade + specialty for recommendation scoring
 -- e.g. category=plumbing, specialty=waste_plumbing
 -- ---------------------------------------------------------------------------
-CREATE TABLE technician_skills (
+CREATE TABLE IF NOT EXISTS technician_skills (
     id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     technician_id  BIGINT UNSIGNED NOT NULL COMMENT 'Must be users.role = technician (app-enforced)',
     category       VARCHAR(128)    NOT NULL COMMENT 'Trade: plumbing, electrical, hvac, …',
@@ -143,7 +128,7 @@ CREATE TABLE technician_skills (
 -- tech/attached reporters see it). No on_behalf_of_user_id — created_by_user_id
 -- is who filed; reporter_urgency may be staff-proxied.
 -- ---------------------------------------------------------------------------
-CREATE TABLE reports (
+CREATE TABLE IF NOT EXISTS reports (
     id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     site_id                 BIGINT UNSIGNED NOT NULL,
     created_by_user_id      BIGINT UNSIGNED NOT NULL COMMENT 'Who filed; staff/admin filings are proxied',
@@ -189,7 +174,7 @@ CREATE TABLE reports (
 -- ---------------------------------------------------------------------------
 -- report_photos — max 5 images per report (≤5MB each); MinIO object keys
 -- ---------------------------------------------------------------------------
-CREATE TABLE report_photos (
+CREATE TABLE IF NOT EXISTS report_photos (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     report_id        BIGINT UNSIGNED NOT NULL,
     object_key       VARCHAR(512)    NOT NULL,
@@ -214,7 +199,7 @@ CREATE TABLE report_photos (
 -- Always insert the creator (created_by_user_id) at report create time.
 -- List-reporters queries use this table only — do not UNION created_by_user_id.
 -- ---------------------------------------------------------------------------
-CREATE TABLE report_reporters (
+CREATE TABLE IF NOT EXISTS report_reporters (
     report_id  BIGINT UNSIGNED NOT NULL,
     user_id    BIGINT UNSIGNED NOT NULL,
     joined_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -232,7 +217,7 @@ CREATE TABLE report_reporters (
 -- report_reassignments — append-only prior technician ids on reassign
 -- Insert BEFORE updating reports.assigned_technician_id
 -- ---------------------------------------------------------------------------
-CREATE TABLE report_reassignments (
+CREATE TABLE IF NOT EXISTS report_reassignments (
     id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     report_id              BIGINT UNSIGNED NOT NULL,
     from_technician_id     BIGINT UNSIGNED NOT NULL,
@@ -260,7 +245,7 @@ CREATE TABLE report_reassignments (
 -- ---------------------------------------------------------------------------
 -- status_history — append-only audit of status transitions
 -- ---------------------------------------------------------------------------
-CREATE TABLE status_history (
+CREATE TABLE IF NOT EXISTS status_history (
     id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     report_id           BIGINT UNSIGNED NOT NULL,
     from_status         VARCHAR(64)     NULL,

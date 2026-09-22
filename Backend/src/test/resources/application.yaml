@@ -6,6 +6,11 @@ spring:
     username: sa
     password:
     driver-class-name: org.h2.Driver
+  sql:
+    init:
+      # Integration tests use the entity model to create their H2 schema.
+      # The production MySQL script is initialized only during normal startup.
+      mode: never
   docker:
     compose:
       enabled: false
@@ -23,6 +28,11 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.batch.BatchAutoConfiguration
       - org.springframework.boot.autoconfigure.webservices.WebServicesAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingConnectionAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiTextEmbeddingAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.image.GoogleGenAiImageAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.image.GoogleGenAiImageConnectionAutoConfiguration
       - org.springframework.ai.model.ollama.autoconfigure.OllamaChatAutoConfiguration
       - org.springframework.ai.model.ollama.autoconfigure.OllamaEmbeddingAutoConfiguration
       - org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration

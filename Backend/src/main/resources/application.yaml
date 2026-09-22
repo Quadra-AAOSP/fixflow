@@ -4,9 +4,17 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:fixflow}
+    # MySQL creates the named database when it is absent; the startup SQL below
+    # then creates its tables. The configured user needs CREATE DATABASE permission.
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:fixflow}?createDatabaseIfNotExist=true
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:}
+  sql:
+    init:
+      # schema.sql is kept under db/ rather than Spring Boot's default location.
+      # Run it for MySQL as well as embedded databases when the application starts.
+      mode: always
+      schema-locations: classpath:db/schema.sql
   jpa:
     open-in-view: false
     hibernate:
@@ -33,6 +41,11 @@ spring:
       lifecycle-management: start-only
   autoconfigure:
     exclude:
+      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingConnectionAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiTextEmbeddingAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.image.GoogleGenAiImageAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.image.GoogleGenAiImageConnectionAutoConfiguration
       - org.springframework.boot.autoconfigure.batch.BatchAutoConfiguration
       - org.springframework.boot.autoconfigure.webservices.WebServicesAutoConfiguration
       - org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration
@@ -53,6 +66,12 @@ fixflow:
 openrouter:
   api-key: ${OPENROUTER_API_KEY:}
   model: ${OPENROUTER_MODEL:openrouter/free}
+  base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1/chat/completions}
+  timeout-seconds: ${OPENROUTER_TIMEOUT_SECONDS:30}
+  max-retries: ${OPENROUTER_MAX_RETRIES:2}
+  retry-backoff-seconds: ${OPENROUTER_RETRY_BACKOFF_SECONDS:1}
+  temperature: ${OPENROUTER_TEMPERATURE:0.7}
+  max-tokens: ${OPENROUTER_MAX_TOKENS:1000}
 
 
 server:
