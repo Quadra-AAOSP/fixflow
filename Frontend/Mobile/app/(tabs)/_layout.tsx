@@ -36,6 +36,9 @@ export default function TabLayout() {
           name="reports"
           options={{
             title: 'Reports',
+            // The nested Reports stack owns its own header so `new` and `[id]`
+            // get back buttons. Leaving this on would double the headers.
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <ClipboardList color={color} size={size} />
             ),

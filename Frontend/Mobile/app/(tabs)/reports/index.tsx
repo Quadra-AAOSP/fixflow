@@ -1,6 +1,6 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { ClipboardList } from 'lucide-react-native';
 
 import { Screen } from '@/components/ui/Screen';
@@ -15,6 +15,7 @@ import { useCurrentSite } from '@/stores/site';
 
 export default function ReportsScreen() {
   const palette = themeColors();
+  const router = useRouter();
   const { user } = useAuth();
   const { site, loading: siteLoading } = useCurrentSite();
 
@@ -37,12 +38,11 @@ export default function ReportsScreen() {
     } finally {
       setLoading(false);
     }
-    // We intentionally re-key on the site id only.
+    // Intentionally re-key on the site id only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [site?.id]);
 
-  // Refresh when the tab comes into focus (e.g. after returning from
-  // `/reports/new`) so the user always sees the latest data.
+  // Refresh on focus so returning from `new` or `[id]` shows current data.
   useFocusEffect(
     useCallback(() => {
       void load();
@@ -69,14 +69,13 @@ export default function ReportsScreen() {
   if (error && !reports) {
     return (
       <Screen className="items-center justify-center px-6">
-        <Text className="text-sm text-tone-danger">{error}</Text>
+        <Text className="text-center text-sm text-tone-danger">{error}</Text>
       </Screen>
     );
   }
 
   return (
     <Screen className="px-5 pt-4">
-      <Text className="mb-4 text-2xl font-bold text-ink">Your reports</Text>
       <FlatList
         data={reports ?? []}
         keyExtractor={(item) => String(item.id)}
@@ -93,7 +92,9 @@ export default function ReportsScreen() {
           <View className="items-center py-16">
             <ClipboardList color={palette.muted} size={40} />
             <Text className="mt-3 text-center text-sm text-muted">
-              {loading ? 'Loading…' : 'No reports yet. Tap "New report" on Home to file one.'}
+              {loading
+                ? 'Loading…'
+                : 'No reports yet. Tap "New report" on Home to file one.'}
             </Text>
           </View>
         }
@@ -101,6 +102,7 @@ export default function ReportsScreen() {
           <ReportCard
             report={item}
             isCreator={user != null && item.createdByUserId === user.id}
+            onPress={() => router.push(`/reports/${item.id}`)}
           />
         )}
       />
@@ -111,18 +113,24 @@ export default function ReportsScreen() {
 function ReportCard({
   report,
   isCreator,
+  onPress,
 }: {
   report: Report;
   isCreator: boolean;
+  onPress: () => void;
 }) {
-  // Show final → ai → reporter in that order. `final_urgency` is set when
-  // staff/admin override; otherwise the AI label (when present) wins over
-  // the reporter's pick to surface the platform's classification.
+  // final → ai → reporter. `finalUrgency` is set when staff/admin override;
+  // otherwise the AI label (when present) wins over the reporter's pick so
+  // the platform's classification is what surfaces at a glance.
   const visibleUrgency: Urgency =
     report.finalUrgency ?? report.aiUrgency ?? report.reporterUrgency;
 
   return (
-    <View className="rounded-xl border border-border bg-card p-4">
+    <Pressable
+      onPress={onPress}
+      className="rounded-xl border border-border bg-card p-4 active:opacity-80"
+      accessibilityRole="button"
+    >
       <View className="mb-2 flex-row items-center justify-between">
         <Text className="text-xs font-medium uppercase tracking-wide text-muted">
           {report.category}
@@ -138,13 +146,12 @@ function ReportCard({
           {new Date(report.createdAt).toLocaleString()}
         </Text>
       </View>
-      {/* `address` and `reporterReason` are server-masked for peer
-          reporters and non-assigned technicians. We only render them when
-          the API actually delivered them, so masked `null`s never surface
-          a placeholder row that leaks their existence. */}
+      {/* `address` and `reporterReason` are server-masked for peer reporters
+          and non-assigned technicians. Render only when the API actually
+          delivered them, so masked nulls never leak a placeholder row. */}
       {isCreator && report.address ? (
         <Text className="mt-2 text-xs text-muted">{report.address}</Text>
       ) : null}
-    </View>
+    </Pressable>
   );
 }

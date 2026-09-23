@@ -146,7 +146,6 @@ export default function NewReportScreen() {
           contentContainerClassName="px-5 py-6"
           keyboardShouldPersistTaps="handled"
         >
-          <Text className="mb-1 text-2xl font-bold text-ink">New report</Text>
           <Text className="mb-6 text-sm text-muted">
             Filing against {site.name} · {site.type}
           </Text>
