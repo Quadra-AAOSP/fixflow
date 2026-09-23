@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Modal,
   Platform,
@@ -11,6 +11,14 @@ import {
 export type PickerOption = {
   value: string;
   label: string;
+  /** Optional second line rendered under the label in the option list. */
+  subtitle?: string;
+};
+
+type TriggerArgs = {
+  selected: PickerOption | null;
+  open: () => void;
+  disabled: boolean;
 };
 
 type PickerProps = {
@@ -21,13 +29,20 @@ type PickerProps = {
   placeholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
+  /**
+   * Replaces the default labeled-field trigger when the trigger needs a
+   * different visual (e.g. the inline site switcher on Home). The modal and
+   * option list are still owned by this component, so there is one sheet
+   * implementation to maintain.
+   */
+  renderTrigger?: (args: TriggerArgs) => ReactNode;
 };
 
 /**
  * Modal-driven single-select picker. Opens a sheet of options on tap. Used
- * for taxonomy-derived choices (categories, specialties, eventually a site
- * switcher for super_admin). Wraps the native `<Modal>` rather than pulling
- * in a heavier library until we outgrow the basics.
+ * for taxonomy-derived choices (categories) and the super_admin site
+ * switcher. Wraps the native `<Modal>` rather than pulling in a heavier
+ * library until we outgrow the basics.
  */
 export function Picker({
   label,
@@ -37,37 +52,44 @@ export function Picker({
   placeholder = 'Select…',
   emptyMessage = 'No options available',
   disabled,
+  renderTrigger,
 }: PickerProps) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value) ?? null;
 
+  const openSheet = () => {
+    if (!disabled) setOpen(true);
+  };
+
   return (
-    <View className="mb-4">
-      <Text className="mb-1.5 text-sm font-medium text-ink">{label}</Text>
-      <Pressable
-        onPress={() => {
-          if (!disabled) setOpen(true);
-        }}
-        className={`rounded-lg border bg-card px-3 py-3 ${
-          disabled ? 'border-border opacity-50' : 'border-border'
-        }`}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !!disabled }}
-      >
-        <Text
-          className={
-            selected ? 'text-base text-ink' : 'text-base text-muted'
-          }
-        >
-          {selected ? selected.label : placeholder}
-        </Text>
-      </Pressable>
+    <>
+      {renderTrigger ? (
+        renderTrigger({ selected, open: openSheet, disabled: !!disabled })
+      ) : (
+        <View className="mb-4">
+          <Text className="mb-1.5 text-sm font-medium text-ink">{label}</Text>
+          <Pressable
+            onPress={openSheet}
+            className={`rounded-lg border bg-card px-3 py-3 ${
+              disabled ? 'border-border opacity-50' : 'border-border'
+            }`}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !!disabled }}
+          >
+            <Text
+              className={
+                selected ? 'text-base text-ink' : 'text-base text-muted'
+              }
+            >
+              {selected ? selected.label : placeholder}
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       <Modal
         animationType="slide"
-        presentationStyle={
-          Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'
-        }
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
         visible={open}
         onRequestClose={() => setOpen(false)}
       >
@@ -107,13 +129,16 @@ export function Picker({
                   >
                     <Text
                       className={`text-base ${
-                        isSelected
-                          ? 'font-semibold text-primary'
-                          : 'text-ink'
+                        isSelected ? 'font-semibold text-primary' : 'text-ink'
                       }`}
                     >
                       {option.label}
                     </Text>
+                    {option.subtitle ? (
+                      <Text className="mt-0.5 text-xs text-muted">
+                        {option.subtitle}
+                      </Text>
+                    ) : null}
                   </Pressable>
                 );
               })}
@@ -121,6 +146,6 @@ export function Picker({
           )}
         </View>
       </Modal>
-    </View>
+    </>
   );
 }

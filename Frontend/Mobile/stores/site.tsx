@@ -17,14 +17,13 @@ import { useAuth } from '@/hooks/useAuth';
 export type SiteContextValue = {
   /**
    * The site the user is currently viewing. For reporter / technician /
-   * staff / admin this is the user's own site; for super_admin Phase 9 will
-   * add a switcher backed by `sites`.
+   * staff / admin this is the user's own site; for super_admin it is
+   * whichever site is currently selected via `setActiveSite`.
    */
   site: Site | null;
   /**
-   * All sites visible to the caller. For non-super_admin actors this is a
-   * single-element array; for super_admin it lists every site. Exposed so a
-   * future switcher (Phase 9) can be added without changing this provider.
+   * All sites visible to the caller. Exactly one for non-super_admin actors,
+   * every site for super_admin (`SiteService.list`).
    */
   sites: Site[];
   /** True while the initial fetch (or an explicit refresh) is in flight. */
@@ -33,6 +32,11 @@ export type SiteContextValue = {
   error: Error | null;
   /** Re-fetch the list of sites for the current user. */
   refresh: () => Promise<void>;
+  /**
+   * Selects which entry in `sites` is active. Only meaningful when more than
+   * one site is visible (super_admin) — see `SiteSwitcher`.
+   */
+  setActiveSite: (siteId: number) => void;
 };
 
 const SiteContext = createContext<SiteContextValue | undefined>(undefined);
@@ -45,11 +49,17 @@ const SiteContext = createContext<SiteContextValue | undefined>(undefined);
  * intentionally not implemented — backend dependency #5 (no public
  * `GET /api/sites` endpoint before login). The Register screen therefore
  * asks the user to type the numeric site ID supplied by their admin.
+ *
+ * The super_admin selection is in-memory: it resets on app restart and on
+ * identity change. Persisting it would need either a storage dependency or a
+ * backend preference endpoint (neither exists yet); the derived `site` below
+ * means a stale selection can never surface the wrong site.
  */
 export function SiteProvider({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
 
   const [sites, setSites] = useState<Site[]>([]);
+  const [activeSiteId, setActiveSiteId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -86,21 +96,45 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
+    // Drop any previous actor's selection so a super_admin selection never
+    // carries across a sign-out / sign-in.
+    setActiveSiteId(null);
     if (user) {
       void refresh();
     } else {
       setSites([]);
       setError(null);
     }
-    // We intentionally key off `user?.id` (not the whole user) so we don't
-    // re-fetch on every user-object reference change.
+    // Intentionally keyed on `user?.id` (not the whole user object) so we do
+    // not re-fetch on every user-object reference change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  const setActiveSite = useCallback((siteId: number) => {
+    setActiveSiteId(siteId);
+  }, []);
+
   const value = useMemo<SiteContextValue>(() => {
-    const site = sites.length > 0 ? sites[0] : null;
-    return { site, sites, loading, error, refresh };
-  }, [sites, loading, error, refresh]);
+    // Resolve defensively: an unknown/stale `activeSiteId` (e.g. the site was
+    // deleted, or the list has not loaded yet) falls through to the first
+    // entry rather than resolving to null.
+    let site: Site | null = null;
+    if (sites.length > 0) {
+      site =
+        (activeSiteId !== null
+          ? sites.find((candidate) => candidate.id === activeSiteId)
+          : undefined) ?? sites[0];
+    }
+
+    return {
+      site,
+      sites,
+      loading,
+      error,
+      refresh,
+      setActiveSite,
+    };
+  }, [sites, activeSiteId, loading, error, refresh, setActiveSite]);
 
   return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>;
 }

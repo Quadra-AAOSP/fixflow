@@ -105,8 +105,11 @@ export default function NewReportScreen() {
         category,
         reporterUrgency: urgency,
         reporterReason: reason.trim() || undefined,
-        // siteId intentionally omitted: backend resolves the actor's own
-        // site for non-super_admin actors (`ReportService.create`).
+        // Always send the active site. `ReportService.resolveSiteForCreate`
+        // *requires* siteId from super_admin, and for every other role it
+        // only validates that the value matches the actor's own site — which
+        // it always does here, since their site list has exactly one entry.
+        siteId: site.id,
       });
       // Hand off to the reports list so the user immediately sees the
       // new entry. `replace` (not `back`) avoids leaving a stale form on

@@ -4,6 +4,7 @@ import { Wrench } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
+import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,16 +13,8 @@ import { useCurrentSite } from '@/stores/site';
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { site, loading: siteLoading, error: siteError } = useCurrentSite();
+  const { site } = useCurrentSite();
   const palette = themeColors();
-
-  const siteLine = site
-    ? `${site.name} · ${site.type}`
-    : siteLoading
-      ? 'Loading site…'
-      : siteError
-        ? 'Could not load site'
-        : 'No site linked';
 
   const canCreate = !!site;
 
@@ -35,11 +28,7 @@ export default function HomeScreen() {
           <Text className="text-2xl font-bold text-ink">
             Hello{user ? `, ${user.firstName}` : ''}
           </Text>
-          <Text
-            className={`text-sm ${siteError ? 'text-tone-danger' : 'text-muted'}`}
-          >
-            {siteLine}
-          </Text>
+          <SiteSwitcher />
         </View>
       </View>
 

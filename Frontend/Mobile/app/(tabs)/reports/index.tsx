@@ -17,7 +17,7 @@ export default function ReportsScreen() {
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
-  const { site, loading: siteLoading } = useCurrentSite();
+  const { site, sites, loading: siteLoading } = useCurrentSite();
 
   const [reports, setReports] = useState<Report[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,6 +76,13 @@ export default function ReportsScreen() {
 
   return (
     <Screen className="px-5 pt-4">
+      {/* Multi-site callers (super_admin) need to know which site this list
+          is scoped to, since the switcher lives on Home. */}
+      {sites.length > 1 && site ? (
+        <Text className="mb-3 text-xs uppercase tracking-wide text-muted">
+          {site.name}
+        </Text>
+      ) : null}
       <FlatList
         data={reports ?? []}
         keyExtractor={(item) => String(item.id)}
