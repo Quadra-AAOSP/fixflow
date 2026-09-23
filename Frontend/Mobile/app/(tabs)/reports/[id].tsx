@@ -1,9 +1,11 @@
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { ClipboardList } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
+import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { TextField } from '@/components/ui/TextField';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
@@ -134,24 +136,36 @@ export default function ReportDetailScreen() {
 
   if (loading && !report) {
     return (
-      <Screen className="items-center justify-center">
-        <Text className="text-sm text-muted">Loading report…</Text>
+      <Screen>
+        <StateView variant="loading" title="Loading report…" />
       </Screen>
     );
   }
 
   if (loadError && !report) {
     return (
-      <Screen className="items-center justify-center px-6">
-        <Text className="text-center text-sm text-tone-danger">{loadError}</Text>
+      <Screen>
+        <StateView
+          variant="error"
+          title="Could not load report"
+          description={loadError}
+          actionLabel="Retry"
+          onAction={() => {
+            void load();
+          }}
+        />
       </Screen>
     );
   }
 
   if (!report) {
     return (
-      <Screen className="items-center justify-center px-6">
-        <Text className="text-sm text-muted">Report unavailable.</Text>
+      <Screen>
+        <StateView
+          variant="empty"
+          icon={ClipboardList}
+          title="Report unavailable"
+        />
       </Screen>
     );
   }

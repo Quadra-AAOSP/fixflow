@@ -1,9 +1,10 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { ClipboardList } from 'lucide-react-native';
+import { ClipboardList, House } from 'lucide-react-native';
 
 import { Screen } from '@/components/ui/Screen';
+import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
 import { themeColors } from '@/constants/theme';
@@ -17,7 +18,13 @@ export default function ReportsScreen() {
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
-  const { site, sites, loading: siteLoading } = useCurrentSite();
+  const {
+    site,
+    sites,
+    loading: siteLoading,
+    error: siteError,
+    refresh: refreshSite,
+  } = useCurrentSite();
 
   const [reports, setReports] = useState<Report[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,18 +65,53 @@ export default function ReportsScreen() {
     }
   }
 
-  if (!site && siteLoading) {
+  if (!site) {
+    if (siteLoading) {
+      return (
+        <Screen>
+          <StateView variant="loading" title="Loading site…" />
+        </Screen>
+      );
+    }
+    if (siteError) {
+      return (
+        <Screen>
+          <StateView
+            variant="error"
+            title="Could not load site"
+            description={siteError.message}
+            actionLabel="Retry"
+            onAction={() => {
+              void refreshSite();
+            }}
+          />
+        </Screen>
+      );
+    }
     return (
-      <Screen className="items-center justify-center">
-        <Text className="text-sm text-muted">Loading site…</Text>
+      <Screen>
+        <StateView
+          variant="empty"
+          icon={House}
+          title="No site linked"
+          description="Your account is not assigned to a site yet, so there are no reports to show."
+        />
       </Screen>
     );
   }
 
   if (error && !reports) {
     return (
-      <Screen className="items-center justify-center px-6">
-        <Text className="text-center text-sm text-tone-danger">{error}</Text>
+      <Screen>
+        <StateView
+          variant="error"
+          title="Could not load reports"
+          description={error}
+          actionLabel="Retry"
+          onAction={() => {
+            void load();
+          }}
+        />
       </Screen>
     );
   }
@@ -78,7 +120,7 @@ export default function ReportsScreen() {
     <Screen className="px-5 pt-4">
       {/* Multi-site callers (super_admin) need to know which site this list
           is scoped to, since the switcher lives on Home. */}
-      {sites.length > 1 && site ? (
+      {sites.length > 1 ? (
         <Text className="mb-3 text-xs uppercase tracking-wide text-muted">
           {site.name}
         </Text>
@@ -86,7 +128,7 @@ export default function ReportsScreen() {
       <FlatList
         data={reports ?? []}
         keyExtractor={(item) => String(item.id)}
-        contentContainerClassName="pb-6"
+        contentContainerClassName="grow pb-6"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -96,14 +138,16 @@ export default function ReportsScreen() {
         }
         ItemSeparatorComponent={() => <View className="h-3" />}
         ListEmptyComponent={
-          <View className="items-center py-16">
-            <ClipboardList color={palette.muted} size={40} />
-            <Text className="mt-3 text-center text-sm text-muted">
-              {loading
-                ? 'Loading…'
-                : 'No reports yet. Tap "New report" on Home to file one.'}
-            </Text>
-          </View>
+          loading ? (
+            <StateView variant="loading" title="Loading reports…" />
+          ) : (
+            <StateView
+              variant="empty"
+              icon={ClipboardList}
+              title="No reports yet"
+              description={'Tap "New report" on Home to file one.'}
+            />
+          )
         }
         renderItem={({ item }) => (
           <ReportCard

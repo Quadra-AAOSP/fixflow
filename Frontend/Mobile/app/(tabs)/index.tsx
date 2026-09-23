@@ -16,7 +16,17 @@ export default function HomeScreen() {
   const { site } = useCurrentSite();
   const palette = themeColors();
 
-  const canCreate = !!site;
+  const hasSite = site !== null;
+  // `ReportService.create` permits reporter / staff / admin / super_admin and
+  // rejects technicians outright, so the form must not be offered to them.
+  const roleCanFile = user !== null && user.role !== 'technician';
+  const canFile = hasSite && roleCanFile;
+
+  const caption = !hasSite
+    ? 'A site must be linked before you can file reports.'
+    : !roleCanFile
+      ? 'Technician accounts resolve reports rather than file them.'
+      : 'File a maintenance issue at your site.';
 
   return (
     <Screen className="px-5 pt-4">
@@ -45,17 +55,13 @@ export default function HomeScreen() {
       </View>
 
       <Button
-        label={canCreate ? 'New report' : 'Site required'}
-        disabled={!canCreate}
+        label="New report"
+        disabled={!canFile}
         onPress={() => {
           router.push('/reports/new');
         }}
       />
-      <Text className="mt-3 text-center text-xs text-muted">
-        {canCreate
-          ? 'File a maintenance issue at your site.'
-          : 'A site must be linked to file reports.'}
-      </Text>
+      <Text className="mt-3 text-center text-xs text-muted">{caption}</Text>
     </Screen>
   );
 }

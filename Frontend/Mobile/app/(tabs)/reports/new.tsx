@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 
+import { House } from 'lucide-react-native';
+
 import { Button } from '@/components/ui/Button';
 import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
@@ -15,6 +17,7 @@ import {
   SegmentedControl,
   type SegmentedOption,
 } from '@/components/ui/SegmentedControl';
+import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
 import { ApiError } from '@/lib/apiClient';
 import { createReport } from '@/services/reports';
@@ -31,7 +34,12 @@ const URGENCY_OPTIONS: SegmentedOption<Urgency>[] = [
 
 export default function NewReportScreen() {
   const router = useRouter();
-  const { site } = useCurrentSite();
+  const {
+    site,
+    loading: siteLoading,
+    error: siteError,
+    refresh: refreshSite,
+  } = useCurrentSite();
 
   const [rules, setRules] = useState<SiteRule[]>([]);
   const [rulesLoading, setRulesLoading] = useState(false);
@@ -126,10 +134,40 @@ export default function NewReportScreen() {
     }
   }
 
+  // Home gates this route behind a linked site, but a deep link or a stale
+  // selection can still land here — handle all three states rather than
+  // rendering a form that cannot submit.
   if (!site) {
+    if (siteLoading) {
+      return (
+        <Screen>
+          <StateView variant="loading" title="Loading site…" />
+        </Screen>
+      );
+    }
+    if (siteError) {
+      return (
+        <Screen>
+          <StateView
+            variant="error"
+            title="Could not load site"
+            description={siteError.message}
+            actionLabel="Retry"
+            onAction={() => {
+              void refreshSite();
+            }}
+          />
+        </Screen>
+      );
+    }
     return (
-      <Screen className="items-center justify-center px-6">
-        <Text className="text-sm text-muted">Loading site…</Text>
+      <Screen>
+        <StateView
+          variant="empty"
+          icon={House}
+          title="No site linked"
+          description="A site must be linked before you can file a report."
+        />
       </Screen>
     );
   }
