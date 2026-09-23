@@ -5,6 +5,8 @@ import {
   type PressableProps,
 } from 'react-native';
 
+import { colors } from '@/constants/theme';
+
 type ButtonProps = Omit<PressableProps, 'children'> & {
   label: string;
   variant?: 'primary' | 'secondary';
@@ -26,25 +28,22 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       className={`min-h-12 flex-row items-center justify-center rounded-lg px-4 py-3 active:opacity-80 ${
-        isPrimary
-          ? 'bg-primary dark:bg-primary-dark'
-          : 'border border-border bg-card dark:border-border-dark dark:bg-card-dark'
+        isPrimary ? 'bg-primary' : 'border border-border bg-card'
       } ${isDisabled ? 'opacity-50' : ''} ${className ?? ''}`}
       {...props}
     >
       {loading ? (
         <ActivityIndicator
-          color={isPrimary ? '#F0FDFA' : '#0F766E'}
+          color={isPrimary ? colors.primaryForeground : colors.primary}
           className="mr-2"
         />
       ) : null}
       <Text
         className={`text-base font-semibold ${
-          isPrimary
-            ? 'text-primary-foreground dark:text-surface-dark'
-            : 'text-ink dark:text-ink-dark'
+          isPrimary ? 'text-primary-foreground' : 'text-ink'
         }`}
       >
         {label}

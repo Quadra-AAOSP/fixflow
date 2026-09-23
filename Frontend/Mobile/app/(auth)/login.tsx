@@ -14,12 +14,11 @@ import { Screen } from '@/components/ui/Screen';
 import { TextField } from '@/components/ui/TextField';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { ApiError } from '@/services/auth';
 
 export default function LoginScreen() {
   const { login, isAuthenticated, isLoading } = useAuth();
-  const palette = themeColors(useColorScheme());
+  const palette = themeColors();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -67,13 +66,11 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View className="mb-8 items-center">
-            <View className="mb-4 rounded-2xl bg-primary/15 p-4 dark:bg-primary-dark/20">
+            <View className="mb-4 rounded-2xl bg-primary/15 p-4">
               <Wrench color={palette.primary} size={36} />
             </View>
-            <Text className="text-3xl font-bold text-ink dark:text-ink-dark">
-              FixFlow
-            </Text>
-            <Text className="mt-2 text-center text-sm text-muted dark:text-muted-dark">
+            <Text className="text-3xl font-bold text-ink">FixFlow</Text>
+            <Text className="mt-2 text-center text-sm text-muted">
               Sign in to report and track site maintenance
             </Text>
           </View>
@@ -100,17 +97,15 @@ export default function LoginScreen() {
           />
 
           {error ? (
-            <Text className="mb-3 text-sm text-urgency-critical">{error}</Text>
+            <Text className="mb-3 text-sm text-tone-danger">{error}</Text>
           ) : null}
 
           <Button label="Sign in" loading={submitting} onPress={onSubmit} />
 
           <View className="mt-6 flex-row justify-center">
-            <Text className="text-sm text-muted dark:text-muted-dark">
-              No account?{' '}
-            </Text>
+            <Text className="text-sm text-muted">No account?{' '}</Text>
             <Link href="/(auth)/register">
-              <Text className="text-sm font-semibold text-primary dark:text-primary-dark">
+              <Text className="text-sm font-semibold text-primary">
                 Register
               </Text>
             </Link>

@@ -4,15 +4,28 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Switch,
   Text,
   View,
 } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
+import {
+  SegmentedControl,
+  type SegmentedOption,
+} from '@/components/ui/SegmentedControl';
 import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/services/auth';
+import type { RegisterPayload } from '@/types';
+
+type Role = RegisterPayload['role'];
+
+const ROLE_OPTIONS: SegmentedOption<Role>[] = [
+  { value: 'reporter', label: 'Reporter' },
+  { value: 'technician', label: 'Technician' },
+];
 
 export default function RegisterScreen() {
   const { register, isAuthenticated, isLoading } = useAuth();
@@ -21,6 +34,8 @@ export default function RegisterScreen() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<Role>('reporter');
+  const [technicianHasSite, setTechnicianHasSite] = useState(false);
   const [siteId, setSiteId] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -30,13 +45,18 @@ export default function RegisterScreen() {
     return <Redirect href="/(tabs)" />;
   }
 
+  // Site ID is mandatory for reporters and optional for technicians
+  // (technicians without a site are marketplace-eligible).
+  const requiresSiteId = role === 'reporter' || technicianHasSite;
+
   async function onSubmit() {
     setError(null);
 
     const trimmedEmail = email.trim();
     const trimmedFirst = firstName.trim();
     const trimmedLast = lastName.trim();
-    const parsedSiteId = Number(siteId.trim());
+    const trimmedSiteId = siteId.trim();
+    const parsedSiteId = Number(trimmedSiteId);
 
     if (!trimmedFirst || !trimmedLast || !trimmedEmail || !password) {
       setError('First name, last name, email, and password are required.');
@@ -46,8 +66,15 @@ export default function RegisterScreen() {
       setError('Password must be at least 8 characters.');
       return;
     }
-    if (!Number.isInteger(parsedSiteId) || parsedSiteId <= 0) {
-      setError('Enter a valid site ID from your site administrator.');
+    if (
+      requiresSiteId &&
+      (!trimmedSiteId || !Number.isInteger(parsedSiteId) || parsedSiteId <= 0)
+    ) {
+      setError(
+        role === 'reporter'
+          ? 'Site ID is required for reporter accounts.'
+          : 'Enter a valid site ID, or turn off "Assigned to a specific site".',
+      );
       return;
     }
 
@@ -59,8 +86,8 @@ export default function RegisterScreen() {
         firstName: trimmedFirst,
         lastName: trimmedLast,
         phone: phone.trim() || undefined,
-        role: 'reporter',
-        siteId: parsedSiteId,
+        role,
+        siteId: requiresSiteId ? parsedSiteId : undefined,
       });
     } catch (err) {
       if (err instanceof ApiError) {
@@ -83,12 +110,22 @@ export default function RegisterScreen() {
           contentContainerClassName="flex-grow justify-center px-5 py-8"
           keyboardShouldPersistTaps="handled"
         >
-          <Text className="mb-1 text-3xl font-bold text-ink dark:text-ink-dark">
+          <Text className="mb-1 text-3xl font-bold text-ink">
             Create account
           </Text>
-          <Text className="mb-6 text-sm text-muted dark:text-muted-dark">
-            Register as a reporter for your school, hostel, or hotel site.
+          <Text className="mb-6 text-sm text-muted">
+            Register to report or fix maintenance issues at your site.
           </Text>
+
+          <Text className="mb-2 text-sm font-medium text-ink">
+            Account type
+          </Text>
+          <SegmentedControl
+            options={ROLE_OPTIONS}
+            value={role}
+            onChange={setRole}
+            className="mb-5"
+          />
 
           <View className="flex-row gap-3">
             <TextField
@@ -131,17 +168,41 @@ export default function RegisterScreen() {
             autoComplete="new-password"
             placeholder="At least 8 characters"
           />
-          <TextField
-            label="Site ID"
-            value={siteId}
-            onChangeText={setSiteId}
-            keyboardType="number-pad"
-            placeholder="e.g. 1"
-          />
-          <Text className="-mt-2 mb-4 text-xs text-muted dark:text-muted-dark">
-            Ask your site admin for the numeric site ID. Sites are not listed
-            publicly before login.
-          </Text>
+
+          {role === 'technician' ? (
+            <View className="mb-4 flex-row items-center justify-between rounded-md bg-card px-3 py-3">
+              <View className="flex-1 pr-3">
+                <Text className="text-sm font-medium text-ink">
+                  Assigned to a specific site
+                </Text>
+                <Text className="mt-0.5 text-xs text-muted">
+                  Turn off to register as an on-call technician available
+                  across sites.
+                </Text>
+              </View>
+              <Switch
+                value={technicianHasSite}
+                onValueChange={setTechnicianHasSite}
+              />
+            </View>
+          ) : null}
+
+          {requiresSiteId ? (
+            <>
+              <TextField
+                label="Site ID"
+                value={siteId}
+                onChangeText={setSiteId}
+                keyboardType="number-pad"
+                placeholder="e.g. 1"
+              />
+              <Text className="-mt-2 mb-4 text-xs text-muted">
+                Ask your site admin for the numeric site ID. Sites are not
+                listed publicly before login.
+              </Text>
+            </>
+          ) : null}
+
           <TextField
             label="Phone (optional)"
             value={phone}
@@ -152,7 +213,7 @@ export default function RegisterScreen() {
           />
 
           {error ? (
-            <Text className="mb-3 text-sm text-urgency-critical">{error}</Text>
+            <Text className="mb-3 text-sm text-tone-danger">{error}</Text>
           ) : null}
 
           <Button
@@ -162,11 +223,11 @@ export default function RegisterScreen() {
           />
 
           <View className="mt-6 flex-row justify-center">
-            <Text className="text-sm text-muted dark:text-muted-dark">
+            <Text className="text-sm text-muted">
               Already registered?{' '}
             </Text>
             <Link href="/(auth)/login">
-              <Text className="text-sm font-semibold text-primary dark:text-primary-dark">
+              <Text className="text-sm font-semibold text-primary">
                 Sign in
               </Text>
             </Link>

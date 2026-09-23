@@ -1,3 +1,53 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * FixFlow design tokens — light theme only.
+ *
+ * Every color is stored here as space-separated RGB channels and consumed by
+ * Tailwind through `rgb(var(--x) / <alpha-value>)` (see tailwind.config.js).
+ * That keeps opacity utilities such as `bg-primary/15` working while making
+ * the whole palette swappable from this single block.
+ *
+ * The same values are mirrored as literal rgb() strings in
+ * constants/theme.ts for the few places a className cannot be used (lucide
+ * icon props, placeholderTextColor, the navigation theme, the status bar).
+ * Keep the two files in sync.
+ *
+ * Dark mode is deliberately NOT implemented (light-first decision). Because
+ * all component styling resolves through these variables, adding it later is
+ * a one-block override here (plus a dark set in constants/theme.ts) — no
+ * component, screen, or `dark:` variant needs to be introduced.
+ */
+@layer base {
+  :root {
+    /* Neutral scaffolding */
+    --color-surface: 251 247 248;
+    --color-card: 255 255 255;
+    --color-ink: 42 30 35;
+    --color-muted: 122 106 112;
+    --color-border: 239 230 233;
+
+    /* Brand */
+    --color-primary: 226 121 150;
+    --color-primary-foreground: 59 36 44;
+    --color-accent: 121 226 205;
+    --color-accent-foreground: 30 59 52;
+    --color-lime: 220 226 121;
+    --color-lime-foreground: 58 63 20;
+
+    /* Urgency — reporter-declared severity */
+    --color-urgency-low: 85 99 111;
+    --color-urgency-medium: 37 99 235;
+    --color-urgency-high: 180 83 9;
+    --color-urgency-critical: 190 18 60;
+
+    /* Semantic status tones — mapped from ReportStatus */
+    --color-tone-neutral: 85 99 111;
+    --color-tone-info: 37 99 235;
+    --color-tone-success: 18 121 92;
+    --color-tone-warning: 180 83 9;
+    --color-tone-danger: 190 18 60;
+  }
+}
