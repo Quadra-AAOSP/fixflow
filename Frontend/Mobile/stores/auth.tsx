@@ -19,6 +19,13 @@ type AuthContextValue = {
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
+  /**
+   * Re-reads the session from `GET /api/auth/me`.
+   *
+   * Rejects if the call fails for any reason other than an expired session, so
+   * the caller can surface offline / server errors. A 401 is *not* an error:
+   * it clears `user` (signing the app out) and resolves normally.
+   */
   refresh: () => Promise<void>;
 };
 
@@ -33,11 +40,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await authApi.getMe();
       setUser(me);
     } catch (error) {
+      // Only an explicit 401 proves the session is gone. Treating every
+      // failure as a sign-out would drop the user to the login screen on a
+      // transient network blip or a 5xx, so anything else is re-thrown for
+      // the caller to handle while the current identity is left intact.
       if (error instanceof ApiError && error.status === 401) {
         setUser(null);
         return;
       }
-      setUser(null);
+      throw error;
     }
   }, []);
 
@@ -51,6 +62,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(me);
         }
       } catch {
+        // Bootstrap cannot distinguish "no session" from "server unreachable"
+        // without a second round-trip, and blocking the splash on a retry is
+        // worse than showing the signed-out shell. `refresh` is the path that
+        // reports failures properly once the app is interactive.
         if (!cancelled) {
           setUser(null);
         }

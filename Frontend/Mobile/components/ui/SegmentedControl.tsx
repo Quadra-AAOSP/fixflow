@@ -25,7 +25,7 @@ export function SegmentedControl<T extends string>({
 }: SegmentedControlProps<T>) {
   return (
     <View
-      className={`flex-row rounded-md border border-border bg-card p-1 ${className ?? ''}`}
+      className={`flex-row rounded-md border border-border bg-surface p-1 ${className ?? ''}`}
     >
       {options.map((option) => {
         const selected = option.value === value;
@@ -41,7 +41,7 @@ export function SegmentedControl<T extends string>({
           >
             <Text
               className={`text-sm font-semibold ${
-                selected ? 'text-primary-foreground' : 'text-muted'
+                selected ? 'text-primary-foreground' : 'text-muted-foreground'
               }`}
             >
               {option.label}

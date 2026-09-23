@@ -185,18 +185,18 @@ export default function ReportDetailScreen() {
       <Stack.Screen options={{ title: `Report #${report.id}` }} />
       <ScrollView contentContainerClassName="px-5 py-5">
         <View className="mb-3 flex-row items-start justify-between gap-3">
-          <Text className="flex-1 text-xs font-medium uppercase tracking-wide text-muted">
+          <Text className="flex-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {report.category}
           </Text>
           <StatusBadge status={report.status} />
         </View>
 
-        <Text className="mb-5 text-base leading-6 text-ink">
+        <Text className="mb-5 text-base leading-6 text-foreground">
           {report.description}
         </Text>
 
-        <View className="mb-4 rounded-xl border border-border bg-card p-4">
-          <Text className="mb-3 text-sm font-medium text-muted">Urgency</Text>
+        <View className="mb-4 rounded-xl border border-border bg-surface p-4">
+          <Text className="mb-3 text-sm font-medium text-muted-foreground">Urgency</Text>
           <UrgencyRow label="Reporter" level={report.reporterUrgency} />
           {report.aiUrgency ? (
             <UrgencyRow label="AI" level={report.aiUrgency} />
@@ -205,13 +205,13 @@ export default function ReportDetailScreen() {
             <UrgencyRow label="Final" level={report.finalUrgency} />
           ) : null}
           {report.reporterReason ? (
-            <Text className="mt-2 text-xs italic text-muted">
+            <Text className="mt-2 text-xs italic text-muted-foreground">
               “{report.reporterReason}”
             </Text>
           ) : null}
         </View>
 
-        <View className="mb-4 rounded-xl border border-border bg-card p-4">
+        <View className="mb-4 rounded-xl border border-border bg-surface p-4">
           {report.specialty ? (
             <MetaRow label="Specialty" value={report.specialty} />
           ) : null}
@@ -241,8 +241,8 @@ export default function ReportDetailScreen() {
         </View>
 
         {!isParticipant ? (
-          <View className="mb-4 rounded-xl border border-border bg-card p-4">
-            <Text className="text-xs text-muted">
+          <View className="mb-4 rounded-xl border border-border bg-surface p-4">
+            <Text className="text-xs text-muted-foreground">
               Some details (location and submitter) are hidden for reports you
               did not file. Join the report if you are affected by the same
               issue.
@@ -260,8 +260,8 @@ export default function ReportDetailScreen() {
         ) : null}
 
         {isParticipant && reporters ? (
-          <View className="mb-4 rounded-xl border border-border bg-card p-4">
-            <Text className="mb-2 text-sm font-medium text-muted">
+          <View className="mb-4 rounded-xl border border-border bg-surface p-4">
+            <Text className="mb-2 text-sm font-medium text-muted-foreground">
               Reporters ({reporters.length})
             </Text>
             {reporters.map((row) => (
@@ -269,11 +269,11 @@ export default function ReportDetailScreen() {
                 key={row.userId}
                 className="flex-row items-center justify-between py-1"
               >
-                <Text className="text-sm text-ink">
+                <Text className="text-sm text-foreground">
                   User #{row.userId}
                   {user != null && row.userId === user.id ? ' (you)' : ''}
                 </Text>
-                <Text className="text-xs text-muted">
+                <Text className="text-xs text-muted-foreground">
                   {new Date(row.joinedAt).toLocaleDateString()}
                 </Text>
               </View>
@@ -282,8 +282,8 @@ export default function ReportDetailScreen() {
         ) : null}
 
         {canAssign ? (
-          <View className="mb-4 rounded-xl border border-border bg-card p-4">
-            <Text className="mb-3 text-sm font-medium text-muted">
+          <View className="mb-4 rounded-xl border border-border bg-surface p-4">
+            <Text className="mb-3 text-sm font-medium text-muted-foreground">
               Assign technician
             </Text>
             <TextField
@@ -297,7 +297,7 @@ export default function ReportDetailScreen() {
                   : 'e.g. 12'
               }
             />
-            <Text className="-mt-2 mb-3 text-xs text-muted">
+            <Text className="-mt-2 mb-3 text-xs text-muted-foreground">
               The technician directory is not exposed by the backend yet, so
               this takes a numeric user ID. A picker replaces this field once
               the endpoint lands.
@@ -316,11 +316,11 @@ export default function ReportDetailScreen() {
         ) : null}
 
         {actionError ? (
-          <Text className="mb-3 text-sm text-tone-danger">{actionError}</Text>
+          <Text className="mb-3 text-sm text-error">{actionError}</Text>
         ) : null}
 
         {isCreator ? (
-          <Text className="text-center text-xs text-muted">
+          <Text className="text-center text-xs text-muted-foreground">
             Filed by you
           </Text>
         ) : null}
@@ -334,7 +334,7 @@ export default function ReportDetailScreen() {
 function UrgencyRow({ label, level }: { label: string; level: Urgency }) {
   return (
     <View className="mb-2 flex-row items-center justify-between">
-      <Text className="text-sm text-ink">{label}</Text>
+      <Text className="text-sm text-foreground">{label}</Text>
       <UrgencyChip level={level} />
     </View>
   );
@@ -343,8 +343,8 @@ function UrgencyRow({ label, level }: { label: string; level: Urgency }) {
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
     <View className="mb-2 flex-row items-start justify-between gap-4">
-      <Text className="text-sm text-muted">{label}</Text>
-      <Text className="flex-1 text-right text-sm text-ink">{value}</Text>
+      <Text className="text-sm text-muted-foreground">{label}</Text>
+      <Text className="flex-1 text-right text-sm text-foreground">{value}</Text>
     </View>
   );
 }

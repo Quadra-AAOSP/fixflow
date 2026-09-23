@@ -45,7 +45,7 @@ export function StateView({
         <ActivityIndicator size="large" color={palette.primary} />
       ) : Icon ? (
         <Icon
-          color={variant === 'error' ? palette.tone.danger : palette.muted}
+          color={variant === 'error' ? palette.error : palette.mutedForeground}
           size={40}
         />
       ) : null}
@@ -53,7 +53,7 @@ export function StateView({
       {title ? (
         <Text
           className={`mt-3 text-center text-sm font-medium ${
-            variant === 'error' ? 'text-tone-danger' : 'text-ink'
+            variant === 'error' ? 'text-error' : 'text-foreground'
           }`}
         >
           {title}
@@ -61,7 +61,7 @@ export function StateView({
       ) : null}
 
       {description ? (
-        <Text className="mt-1 text-center text-xs text-muted">
+        <Text className="mt-1 text-center text-xs text-muted-foreground">
           {description}
         </Text>
       ) : null}

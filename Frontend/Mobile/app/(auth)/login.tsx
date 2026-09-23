@@ -69,8 +69,8 @@ export default function LoginScreen() {
             <View className="mb-4 rounded-2xl bg-primary/15 p-4">
               <Wrench color={palette.primary} size={36} />
             </View>
-            <Text className="text-3xl font-bold text-ink">FixFlow</Text>
-            <Text className="mt-2 text-center text-sm text-muted">
+            <Text className="text-3xl font-bold text-foreground">FixFlow</Text>
+            <Text className="mt-2 text-center text-sm text-muted-foreground">
               Sign in to report and track site maintenance
             </Text>
           </View>
@@ -97,13 +97,13 @@ export default function LoginScreen() {
           />
 
           {error ? (
-            <Text className="mb-3 text-sm text-tone-danger">{error}</Text>
+            <Text className="mb-3 text-sm text-error">{error}</Text>
           ) : null}
 
           <Button label="Sign in" loading={submitting} onPress={onSubmit} />
 
           <View className="mt-6 flex-row justify-center">
-            <Text className="text-sm text-muted">No account?{' '}</Text>
+            <Text className="text-sm text-muted-foreground">No account?{' '}</Text>
             <Link href="/(auth)/register">
               <Text className="text-sm font-semibold text-primary">
                 Register

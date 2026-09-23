@@ -21,22 +21,22 @@ export function SiteSwitcher() {
 
   if (error) {
     return (
-      <Text className="text-sm text-tone-danger">Could not load site</Text>
+      <Text className="text-sm text-error">Could not load site</Text>
     );
   }
 
   if (loading && !site) {
-    return <Text className="text-sm text-muted">Loading site…</Text>;
+    return <Text className="text-sm text-muted-foreground">Loading site…</Text>;
   }
 
   if (!site) {
-    return <Text className="text-sm text-muted">No site linked</Text>;
+    return <Text className="text-sm text-muted-foreground">No site linked</Text>;
   }
 
   const caption = `${site.name} · ${site.type}`;
 
   if (sites.length <= 1) {
-    return <Text className="text-sm text-muted">{caption}</Text>;
+    return <Text className="text-sm text-muted-foreground">{caption}</Text>;
   }
 
   return (
@@ -56,8 +56,8 @@ export function SiteSwitcher() {
           accessibilityRole="button"
           accessibilityHint="Opens the list of sites you can work on"
         >
-          <Text className="text-sm text-muted">{caption}</Text>
-          <ChevronDown color={palette.muted} size={14} />
+          <Text className="text-sm text-muted-foreground">{caption}</Text>
+          <ChevronDown color={palette.mutedForeground} size={14} />
         </Pressable>
       )}
     />

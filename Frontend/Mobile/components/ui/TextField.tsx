@@ -16,16 +16,16 @@ export function TextField({
 }: TextFieldProps) {
   return (
     <View className={`mb-4 ${className ?? ''}`}>
-      <Text className="mb-1.5 text-sm font-medium text-ink">{label}</Text>
+      <Text className="mb-1.5 text-sm font-medium text-foreground">{label}</Text>
       <TextInput
-        placeholderTextColor={colors.muted}
-        className={`rounded-lg border bg-card px-3 py-3 text-base text-ink ${
-          error ? 'border-tone-danger' : 'border-border'
+        placeholderTextColor={colors.mutedForeground}
+        className={`rounded-lg border bg-surface px-3 py-3 text-base text-foreground ${
+          error ? 'border-error' : 'border-border'
         }`}
         {...props}
       />
       {error ? (
-        <Text className="mt-1 text-xs text-tone-danger">{error}</Text>
+        <Text className="mt-1 text-xs text-error">{error}</Text>
       ) : null}
     </View>
   );

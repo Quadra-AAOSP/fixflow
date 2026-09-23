@@ -9,13 +9,17 @@
  *   /api/site-rules
  *   /api/reports, /api/reports/{id}, /api/reports/{id}/join,
  *   /api/reports/{id}/reporters, /api/reports/{id}/assign
+ *   /api/technician-skills (create only)
  *
  * Endpoints NOT implemented on the backend and intentionally NOT exposed
  * here: photo upload, status transitions, urgency override, reassignment,
  * technician availability self-toggle, claimable/assigned-to-me queues,
- * public site directory. Track in the project audit until the backend ships.
+ * public site directory, and every technician-skills / technician-contracts
+ * READ endpoint. Track in the project audit until the backend ships.
+ *
+ * The missing skill/contract READ endpoints are why the technician skill
+ * screen cannot show what is already declared — see `app/technician/skills.tsx`.
  */
-
 export const endpoints = {
   auth: {
     login: '/api/auth/login',
@@ -36,5 +40,8 @@ export const endpoints = {
     join: (id: number | string) => `/api/reports/${id}/join`,
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
+  },
+  technicianSkills: {
+    create: '/api/technician-skills',
   },
 } as const;

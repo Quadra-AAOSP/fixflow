@@ -31,7 +31,7 @@ export function Button({
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       className={`min-h-12 flex-row items-center justify-center rounded-lg px-4 py-3 active:opacity-80 ${
-        isPrimary ? 'bg-primary' : 'border border-border bg-card'
+        isPrimary ? 'bg-primary' : 'border border-border bg-surface'
       } ${isDisabled ? 'opacity-50' : ''} ${className ?? ''}`}
       {...props}
     >
@@ -43,7 +43,7 @@ export function Button({
       ) : null}
       <Text
         className={`text-base font-semibold ${
-          isPrimary ? 'text-primary-foreground' : 'text-ink'
+          isPrimary ? 'text-primary-foreground' : 'text-foreground'
         }`}
       >
         {label}

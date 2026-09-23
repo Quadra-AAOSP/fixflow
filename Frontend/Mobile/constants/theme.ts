@@ -1,21 +1,21 @@
 /**
  * FixFlow design tokens for the few places a className cannot be used:
- * lucide icon `color` props, `placeholderTextColor`, the navigation theme,
- * and the status bar.
+ * lucide icon `color` props, `placeholderTextColor`, the React Navigation
+ * theme, and the system status bar.
  *
  * These mirror the CSS custom properties in global.css — keep them in sync.
  *
- * Dark mode is not implemented (light-first). When it is, add a `dark`
- * palette here and return it from `themeColors()` based on the active scheme,
- * plus a variable-override block in global.css. No component, screen, or
- * `dark:` variant needs to change.
+ * Dark mode is not implemented (light-first). When it is, add a `dark` palette
+ * here and return it from `themeColors()` based on the active scheme, plus a
+ * variable-override block in global.css. No component, screen, or `dark:`
+ * variant needs to change.
  */
 
 export const colors = {
-  surface: 'rgb(251, 247, 248)',
-  card: 'rgb(255, 255, 255)',
-  ink: 'rgb(42, 30, 35)',
-  muted: 'rgb(122, 106, 112)',
+  background: 'rgb(251, 247, 248)',
+  surface: 'rgb(255, 255, 255)',
+  foreground: 'rgb(42, 30, 35)',
+  mutedForeground: 'rgb(122, 106, 112)',
   border: 'rgb(239, 230, 233)',
 
   primary: 'rgb(226, 121, 150)',
@@ -32,13 +32,12 @@ export const colors = {
     critical: 'rgb(190, 18, 60)',
   },
 
-  tone: {
-    neutral: 'rgb(85, 99, 111)',
-    info: 'rgb(37, 99, 235)',
-    success: 'rgb(18, 121, 92)',
-    warning: 'rgb(180, 83, 9)',
-    danger: 'rgb(190, 18, 60)',
-  },
+  /** Semantic states, mirrored from `--color-*` in global.css. */
+  neutral: 'rgb(85, 99, 111)',
+  info: 'rgb(37, 99, 235)',
+  success: 'rgb(18, 121, 92)',
+  warning: 'rgb(180, 83, 9)',
+  error: 'rgb(190, 18, 60)',
 
   tabIconDefault: 'rgb(122, 106, 112)',
   tabIconSelected: 'rgb(226, 121, 150)',

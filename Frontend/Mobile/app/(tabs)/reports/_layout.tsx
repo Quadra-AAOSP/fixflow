@@ -14,10 +14,10 @@ export default function ReportsStackLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: palette.card },
-        headerTintColor: palette.ink,
-        headerTitleStyle: { color: palette.ink },
-        contentStyle: { backgroundColor: palette.surface },
+        headerStyle: { backgroundColor: palette.surface },
+        headerTintColor: palette.foreground,
+        headerTitleStyle: { color: palette.foreground },
+        contentStyle: { backgroundColor: palette.background },
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Reports' }} />

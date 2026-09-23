@@ -17,9 +17,11 @@ import {
   SegmentedControl,
   type SegmentedOption,
 } from '@/components/ui/SegmentedControl';
+import { PhotoPicker } from '@/components/ui/PhotoPicker';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
 import { ApiError } from '@/lib/apiClient';
+import type { SelectedPhoto } from '@/lib/photos';
 import { createReport } from '@/services/reports';
 import { listSiteRules } from '@/services/siteRules';
 import type { SiteRule, Urgency } from '@/types';
@@ -50,6 +52,7 @@ export default function NewReportScreen() {
   const [category, setCategory] = useState<string | null>(null);
   const [urgency, setUrgency] = useState<Urgency>('medium');
   const [reason, setReason] = useState('');
+  const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -187,7 +190,7 @@ export default function NewReportScreen() {
           contentContainerClassName="px-5 py-6"
           keyboardShouldPersistTaps="handled"
         >
-          <Text className="mb-6 text-sm text-muted">
+          <Text className="mb-6 text-sm text-muted-foreground">
             Filing against {site.name} · {site.type}
           </Text>
 
@@ -220,7 +223,7 @@ export default function NewReportScreen() {
             disabled={rulesLoading || rules.length === 0}
           />
 
-          <Text className="mb-2 text-sm font-medium text-ink">Urgency</Text>
+          <Text className="mb-2 text-sm font-medium text-foreground">Urgency</Text>
           <SegmentedControl
             options={URGENCY_OPTIONS}
             value={urgency}
@@ -237,8 +240,16 @@ export default function NewReportScreen() {
             placeholder="Add context for the technician."
           />
 
+          <PhotoPicker photos={photos} onChange={setPhotos} />
+          {photos.length > 0 ? (
+            <Text className="-mt-2 mb-4 text-xs text-muted-foreground">
+              Photo upload is not available yet, so this report will be filed
+              without the selected images.
+            </Text>
+          ) : null}
+
           {error ? (
-            <Text className="mb-3 text-sm text-tone-danger">{error}</Text>
+            <Text className="mb-3 text-sm text-error">{error}</Text>
           ) : null}
 
           <Button

@@ -67,10 +67,10 @@ export function Picker({
         renderTrigger({ selected, open: openSheet, disabled: !!disabled })
       ) : (
         <View className="mb-4">
-          <Text className="mb-1.5 text-sm font-medium text-ink">{label}</Text>
+          <Text className="mb-1.5 text-sm font-medium text-foreground">{label}</Text>
           <Pressable
             onPress={openSheet}
-            className={`rounded-lg border bg-card px-3 py-3 ${
+            className={`rounded-lg border bg-surface px-3 py-3 ${
               disabled ? 'border-border opacity-50' : 'border-border'
             }`}
             accessibilityRole="button"
@@ -78,7 +78,7 @@ export function Picker({
           >
             <Text
               className={
-                selected ? 'text-base text-ink' : 'text-base text-muted'
+                selected ? 'text-base text-foreground' : 'text-base text-muted-foreground'
               }
             >
               {selected ? selected.label : placeholder}
@@ -93,9 +93,9 @@ export function Picker({
         visible={open}
         onRequestClose={() => setOpen(false)}
       >
-        <View className="flex-1 bg-surface pt-4">
+        <View className="flex-1 bg-background pt-4">
           <View className="flex-row items-center justify-between border-b border-border px-5 pb-3">
-            <Text className="text-lg font-semibold text-ink">{label}</Text>
+            <Text className="text-lg font-semibold text-foreground">{label}</Text>
             <Pressable
               onPress={() => setOpen(false)}
               className="px-2 py-1"
@@ -106,7 +106,7 @@ export function Picker({
           </View>
           {options.length === 0 ? (
             <View className="flex-1 items-center justify-center px-6">
-              <Text className="text-center text-sm text-muted">
+              <Text className="text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </Text>
             </View>
@@ -129,13 +129,13 @@ export function Picker({
                   >
                     <Text
                       className={`text-base ${
-                        isSelected ? 'font-semibold text-primary' : 'text-ink'
+                        isSelected ? 'font-semibold text-primary' : 'text-foreground'
                       }`}
                     >
                       {option.label}
                     </Text>
                     {option.subtitle ? (
-                      <Text className="mt-0.5 text-xs text-muted">
+                      <Text className="mt-0.5 text-xs text-muted-foreground">
                         {option.subtitle}
                       </Text>
                     ) : null}

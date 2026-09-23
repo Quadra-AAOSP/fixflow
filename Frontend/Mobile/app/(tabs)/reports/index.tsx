@@ -121,7 +121,7 @@ export default function ReportsScreen() {
       {/* Multi-site callers (super_admin) need to know which site this list
           is scoped to, since the switcher lives on Home. */}
       {sites.length > 1 ? (
-        <Text className="mb-3 text-xs uppercase tracking-wide text-muted">
+        <Text className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">
           {site.name}
         </Text>
       ) : null}
@@ -179,21 +179,21 @@ function ReportCard({
   return (
     <Pressable
       onPress={onPress}
-      className="rounded-xl border border-border bg-card p-4 active:opacity-80"
+      className="rounded-xl border border-border bg-surface p-4 active:opacity-80"
       accessibilityRole="button"
     >
       <View className="mb-2 flex-row items-center justify-between">
-        <Text className="text-xs font-medium uppercase tracking-wide text-muted">
+        <Text className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {report.category}
         </Text>
         <StatusBadge status={report.status} />
       </View>
-      <Text className="mb-3 text-sm text-ink" numberOfLines={3}>
+      <Text className="mb-3 text-sm text-foreground" numberOfLines={3}>
         {report.description}
       </Text>
       <View className="flex-row items-center justify-between">
         <UrgencyChip level={visibleUrgency} />
-        <Text className="text-xs text-muted">
+        <Text className="text-xs text-muted-foreground">
           {new Date(report.createdAt).toLocaleString()}
         </Text>
       </View>
@@ -201,7 +201,7 @@ function ReportCard({
           and non-assigned technicians. Render only when the API actually
           delivered them, so masked nulls never leak a placeholder row. */}
       {isCreator && report.address ? (
-        <Text className="mt-2 text-xs text-muted">{report.address}</Text>
+        <Text className="mt-2 text-xs text-muted-foreground">{report.address}</Text>
       ) : null}
     </Pressable>
   );

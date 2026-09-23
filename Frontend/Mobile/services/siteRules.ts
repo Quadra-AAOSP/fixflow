@@ -12,3 +12,14 @@ export function listSiteRules(siteType: SiteType): Promise<SiteRule[]> {
     `${endpoints.siteRules.list}?siteType=${encodeURIComponent(siteType)}`,
   );
 }
+
+/**
+ * Lists every site rule across all site types (`siteType` omitted).
+ *
+ * Needed where the caller has no single site type to filter by: a
+ * marketplace-eligible technician has `siteId = null` and therefore no site
+ * type, but still needs the trade list to declare skills against.
+ */
+export function listAllSiteRules(): Promise<SiteRule[]> {
+  return api.get<SiteRule[]>(endpoints.siteRules.list);
+}

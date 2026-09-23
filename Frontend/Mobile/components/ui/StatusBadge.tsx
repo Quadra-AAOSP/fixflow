@@ -3,25 +3,25 @@ import { Text, View } from 'react-native';
 import type { ReportStatus } from '@/types';
 
 const containerStyles: Record<ReportStatus, string> = {
-  open: 'bg-tone-info/15',
-  routed: 'bg-tone-info/15',
+  open: 'bg-info/15',
+  routed: 'bg-info/15',
   assigned: 'bg-primary/15',
   in_progress: 'bg-primary/15',
-  resolved_pending_confirmation: 'bg-tone-warning/15',
-  confirmed: 'bg-tone-success/15',
-  reopened: 'bg-tone-warning/15',
-  escalated: 'bg-tone-danger/15',
+  resolved_pending_confirmation: 'bg-warning/15',
+  confirmed: 'bg-success/15',
+  reopened: 'bg-warning/15',
+  escalated: 'bg-error/15',
 };
 
 const textStyles: Record<ReportStatus, string> = {
-  open: 'text-tone-info',
-  routed: 'text-tone-info',
+  open: 'text-info',
+  routed: 'text-info',
   assigned: 'text-primary',
   in_progress: 'text-primary',
-  resolved_pending_confirmation: 'text-tone-warning',
-  confirmed: 'text-tone-success',
-  reopened: 'text-tone-warning',
-  escalated: 'text-tone-danger',
+  resolved_pending_confirmation: 'text-warning',
+  confirmed: 'text-success',
+  reopened: 'text-warning',
+  escalated: 'text-error',
 };
 
 const labels: Record<ReportStatus, string> = {

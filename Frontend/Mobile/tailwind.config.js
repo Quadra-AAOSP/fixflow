@@ -5,6 +5,13 @@
  * Wrapping each token in `rgb(var(--x) / <alpha-value>)` keeps opacity
  * utilities (`bg-primary/15`) working, and lets a future dark theme be
  * swapped in by overriding the variables alone — no className churn.
+ *
+ * Token names are semantic, never screen-specific. global.css holds the
+ * authoritative values; constants/theme.ts mirrors them for the cases where a
+ * className cannot be used.
+ *
+ * Dark mode is intentionally NOT configured (light-first decision) and no
+ * `dark:` variant exists anywhere in the app.
  */
 const token = (name) => `rgb(var(--color-${name}) / <alpha-value>)`;
 
@@ -16,14 +23,13 @@ module.exports = {
     './lib/**/*.{js,jsx,ts,tsx}',
   ],
   presets: [require('nativewind/preset')],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
+        background: token('background'),
         surface: token('surface'),
-        card: token('card'),
-        ink: token('ink'),
-        muted: token('muted'),
+        foreground: token('foreground'),
+        'muted-foreground': token('muted-foreground'),
         border: token('border'),
 
         primary: token('primary'),
@@ -40,13 +46,11 @@ module.exports = {
           critical: token('urgency-critical'),
         },
 
-        tone: {
-          neutral: token('tone-neutral'),
-          info: token('tone-info'),
-          success: token('tone-success'),
-          warning: token('tone-warning'),
-          danger: token('tone-danger'),
-        },
+        neutral: token('neutral'),
+        info: token('info'),
+        success: token('success'),
+        warning: token('warning'),
+        error: token('error'),
       },
     },
   },

@@ -110,14 +110,14 @@ export default function RegisterScreen() {
           contentContainerClassName="flex-grow justify-center px-5 py-8"
           keyboardShouldPersistTaps="handled"
         >
-          <Text className="mb-1 text-3xl font-bold text-ink">
+          <Text className="mb-1 text-3xl font-bold text-foreground">
             Create account
           </Text>
-          <Text className="mb-6 text-sm text-muted">
+          <Text className="mb-6 text-sm text-muted-foreground">
             Register to report or fix maintenance issues at your site.
           </Text>
 
-          <Text className="mb-2 text-sm font-medium text-ink">
+          <Text className="mb-2 text-sm font-medium text-foreground">
             Account type
           </Text>
           <SegmentedControl
@@ -170,12 +170,12 @@ export default function RegisterScreen() {
           />
 
           {role === 'technician' ? (
-            <View className="mb-4 flex-row items-center justify-between rounded-md bg-card px-3 py-3">
+            <View className="mb-4 flex-row items-center justify-between rounded-md bg-surface px-3 py-3">
               <View className="flex-1 pr-3">
-                <Text className="text-sm font-medium text-ink">
+                <Text className="text-sm font-medium text-foreground">
                   Assigned to a specific site
                 </Text>
-                <Text className="mt-0.5 text-xs text-muted">
+                <Text className="mt-0.5 text-xs text-muted-foreground">
                   Turn off to register as an on-call technician available
                   across sites.
                 </Text>
@@ -196,7 +196,7 @@ export default function RegisterScreen() {
                 keyboardType="number-pad"
                 placeholder="e.g. 1"
               />
-              <Text className="-mt-2 mb-4 text-xs text-muted">
+              <Text className="-mt-2 mb-4 text-xs text-muted-foreground">
                 Ask your site admin for the numeric site ID. Sites are not
                 listed publicly before login.
               </Text>
@@ -213,7 +213,7 @@ export default function RegisterScreen() {
           />
 
           {error ? (
-            <Text className="mb-3 text-sm text-tone-danger">{error}</Text>
+            <Text className="mb-3 text-sm text-error">{error}</Text>
           ) : null}
 
           <Button
@@ -223,7 +223,7 @@ export default function RegisterScreen() {
           />
 
           <View className="mt-6 flex-row justify-center">
-            <Text className="text-sm text-muted">
+            <Text className="text-sm text-muted-foreground">
               Already registered?{' '}
             </Text>
             <Link href="/(auth)/login">

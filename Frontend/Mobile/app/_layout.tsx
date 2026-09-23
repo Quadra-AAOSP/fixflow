@@ -51,17 +51,17 @@ function RootLayoutNav() {
   const palette = themeColors();
 
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync(palette.surface);
-  }, [palette.surface]);
+    SystemUI.setBackgroundColorAsync(palette.background);
+  }, [palette.background]);
 
   const navigationTheme = {
     ...DefaultTheme,
     colors: {
       ...DefaultTheme.colors,
       primary: palette.primary,
-      background: palette.surface,
-      card: palette.card,
-      text: palette.ink,
+      background: palette.background,
+      card: palette.surface,
+      text: palette.foreground,
       border: palette.border,
     },
   };
@@ -96,7 +96,7 @@ function AuthNavigator() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-surface">
+      <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator size="large" color={palette.primary} />
       </View>
     );
@@ -110,6 +110,7 @@ function AuthNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="technician" />
     </Stack>
   );
 }

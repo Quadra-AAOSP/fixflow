@@ -10,6 +10,10 @@
  * That keeps opacity utilities such as `bg-primary/15` working while making
  * the whole palette swappable from this single block.
  *
+ * Names are semantic, not screen-specific: `background` is the page, `surface`
+ * is a raised container, `foreground` / `muted-foreground` are text. Never add
+ * a token named after one screen.
+ *
  * The same values are mirrored as literal rgb() strings in
  * constants/theme.ts for the few places a className cannot be used (lucide
  * icon props, placeholderTextColor, the navigation theme, the status bar).
@@ -17,16 +21,16 @@
  *
  * Dark mode is deliberately NOT implemented (light-first decision). Because
  * all component styling resolves through these variables, adding it later is
- * a one-block override here (plus a dark set in constants/theme.ts) — no
+ * a one-block override here plus a dark set in constants/theme.ts — no
  * component, screen, or `dark:` variant needs to be introduced.
  */
 @layer base {
   :root {
     /* Neutral scaffolding */
-    --color-surface: 251 247 248;
-    --color-card: 255 255 255;
-    --color-ink: 42 30 35;
-    --color-muted: 122 106 112;
+    --color-background: 251 247 248;
+    --color-surface: 255 255 255;
+    --color-foreground: 42 30 35;
+    --color-muted-foreground: 122 106 112;
     --color-border: 239 230 233;
 
     /* Brand */
@@ -43,11 +47,11 @@
     --color-urgency-high: 180 83 9;
     --color-urgency-critical: 190 18 60;
 
-    /* Semantic status tones — mapped from ReportStatus */
-    --color-tone-neutral: 85 99 111;
-    --color-tone-info: 37 99 235;
-    --color-tone-success: 18 121 92;
-    --color-tone-warning: 180 83 9;
-    --color-tone-danger: 190 18 60;
+    /* Semantic states — mapped from ReportStatus */
+    --color-neutral: 85 99 111;
+    --color-info: 37 99 235;
+    --color-success: 18 121 92;
+    --color-warning: 180 83 9;
+    --color-error: 190 18 60;
   }
 }

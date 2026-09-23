@@ -15,13 +15,13 @@ export default function TabLayout() {
           tabBarActiveTintColor: palette.tabIconSelected,
           tabBarInactiveTintColor: palette.tabIconDefault,
           tabBarStyle: {
-            backgroundColor: palette.card,
+            backgroundColor: palette.surface,
             borderTopColor: palette.border,
           },
           headerStyle: {
-            backgroundColor: palette.card,
+            backgroundColor: palette.surface,
           },
-          headerTintColor: palette.ink,
+          headerTintColor: palette.foreground,
           headerShown: useClientOnlyValue(false, true),
         }}
       >

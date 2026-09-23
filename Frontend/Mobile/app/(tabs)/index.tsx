@@ -35,15 +35,15 @@ export default function HomeScreen() {
           <Wrench color={palette.primary} size={28} />
         </View>
         <View className="flex-1">
-          <Text className="text-2xl font-bold text-ink">
+          <Text className="text-2xl font-bold text-foreground">
             Hello{user ? `, ${user.firstName}` : ''}
           </Text>
           <SiteSwitcher />
         </View>
       </View>
 
-      <View className="mb-6 rounded-xl border border-border bg-card p-4">
-        <Text className="mb-3 text-sm font-medium text-muted">
+      <View className="mb-6 rounded-xl border border-border bg-surface p-4">
+        <Text className="mb-3 text-sm font-medium text-muted-foreground">
           Urgency levels
         </Text>
         <View className="flex-row flex-wrap gap-2">
@@ -61,7 +61,7 @@ export default function HomeScreen() {
           router.push('/reports/new');
         }}
       />
-      <Text className="mt-3 text-center text-xs text-muted">{caption}</Text>
+      <Text className="mt-3 text-center text-xs text-muted-foreground">{caption}</Text>
     </Screen>
   );
 }

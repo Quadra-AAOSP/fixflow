@@ -7,7 +7,7 @@ export default function NotFoundScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Not found' }} />
-      <View className="flex-1 bg-surface">
+      <View className="flex-1 bg-background">
         <StateView
           variant="empty"
           title="This screen doesn't exist"

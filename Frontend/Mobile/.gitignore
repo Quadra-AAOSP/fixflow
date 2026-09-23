@@ -9,6 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
+# throwaway `expo export` output (safe to delete)
+.verify-export/
+
 # Native
 .kotlin/
 *.orig.*

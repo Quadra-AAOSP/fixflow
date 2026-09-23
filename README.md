@@ -156,11 +156,54 @@ Mobile screens implemented against the current backend:
 | Home (active site, urgency legend, file report entry) | ✅ |
 | Reports list (site-scoped, pull-to-refresh, privacy masking) | ✅ |
 | Report create (taxonomy-driven category, dual urgency) | ✅ |
+| Photo selection (permission → pick → preview → replace / remove) | ✅ selection only; transfer not wired |
 | Report detail (privacy-gated fields, join, assign) | ✅ |
 | Profile (read-only account, working site, sign out) | ✅ |
 | `super_admin` site switcher | ✅ |
+| Technician trades (declare skills) | ✅ technician self-service; admin / super_admin may declare on behalf |
 
-Not implemented (blocked on backend endpoints — see *Audit dependencies* below): photo upload, status transitions, urgency override, reassignment, technician directory, claimable/assigned-to-me queues.
+### Mobile design system
+
+Two files hold every token and must be kept in sync: `global.css` is authoritative (CSS custom properties consumed by Tailwind), and `constants/theme.ts` mirrors the same values for the cases a className cannot reach — lucide `color` props, `placeholderTextColor`, the React Navigation theme, and the status bar.
+
+Names are semantic and never screen-specific:
+
+| Token | Class | Use |
+|---|---|---|
+| `background` | `bg-background` | page background |
+| `surface` | `bg-surface` | raised container (cards, inputs, bars) |
+| `foreground` | `text-foreground` | primary text |
+| `muted-foreground` | `text-muted-foreground` | secondary text |
+| `border` | `border-border` | hairlines and outlines |
+| `primary` / `primary-foreground` | `bg-primary`, `text-primary-foreground` | brand and on-brand |
+| `accent`, `lime` (+ `-foreground`) | `bg-accent`, `bg-lime` | secondary accents |
+| `urgency-{low,medium,high,critical}` | `text-urgency-high` | `reporterUrgency` scale |
+| `neutral`, `info`, `success`, `warning`, `error` | `bg-info/15`, `text-error` | `ReportStatus` states |
+
+Primitives live in `components/ui/`: `Screen`, `Button`, `TextField`, `Picker`, `SegmentedControl`, `StateView` (loading / empty / error with retry), `StatusBadge`, `UrgencyChip`, `SiteSwitcher`, `PhotoPicker`.
+
+Dark mode is not implemented and no `dark:` variant exists anywhere in the app; adding it means one override block in `global.css` plus a dark return in `themeColors()`.
+
+Photo **selection** is complete and independent of the backend: `lib/photos.ts` owns permission + picker + validation, `components/ui/PhotoPicker.tsx` owns the UI, and enforcement mirrors the `report_photos` DDL (5 images, 5 MiB each). Only the **transfer** is missing — there is no upload endpoint, so selected photos stay local and the create screen says so explicitly rather than appearing to attach them.
+
+Not implemented, because the backend exposes no endpoint for them. The complete API surface today is: `/api/auth` (register, login, logout, me), `/api/sites` (CRUD), `/api/site-rules` (CRUD), `/api/reports` (create, list, get, join, reporters, assign), `/api/technician-skills` (create only), `/api/technician-contracts` (create only), `/api/admin/users` (create only).
+
+| Missing capability | Endpoint that would be needed |
+|---|---|
+| Photo transfer (≤5 per report, ≤5MB) | `POST /api/reports/{id}/photos`, `DELETE /api/reports/{id}/photos/{photoId}` |
+| Status transitions (incl. two-step resolution) | `PATCH /api/reports/{id}/status`, `POST /api/reports/{id}/confirm`, `POST /api/reports/{id}/reopen` |
+| Urgency override (re-triggers routing) | `PATCH /api/reports/{id}/urgency` |
+| Reassignment (+ `report_reassignments` trail) | `POST /api/reports/{id}/reassign` |
+| Technician directory | `GET /api/technicians` |
+| Technician queues | `GET /api/reports/assigned-to-me`, `GET /api/reports/claimable` |
+| Technician availability | `GET` / `PUT /api/technicians/me/availability` |
+| Skills / contracts read-back (recommendation scoring) | `GET /api/technician-skills`, `GET /api/technician-contracts` |
+| Duplicate skill rejection | a pre-check in `TechnicianSkillService` or a `DataIntegrityViolationException` handler — today a `uq_tech_skill` violation returns an unmapped **500** |
+| Live updates | no WebSocket configuration exists in the backend |
+
+As a consequence the `technician` role can register, sign in, and declare the trades it works on, but has no queue, claim, or status workflow — those depend on the endpoints above.
+
+The trade screen (`app/technician/skills.tsx`) is deliberately explicit about the read-back gap: with no `GET`, it cannot show or remove saved skills, so it lists only what was added during the current visit and labels it as such. Trades are picked from `site_rules` rather than typed free-hand, because routing matches a report's `category` against a skill's `category`, and a report's category must itself come from `site_rules` — a free-text trade could never match anything. Contracts remain admin-only (`TechnicianContractService` rejects technicians), so no self-service contract screen exists.
 
 ### Secrets
 

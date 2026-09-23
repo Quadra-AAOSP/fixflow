@@ -7,3 +7,4 @@ export * from './common';
 export * from './user';
 export * from './site';
 export * from './report';
+export * from './technician';
