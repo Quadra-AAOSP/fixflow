@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Bell, House, FileText, MapPin, Users, Search, ChevronDown, Heart, Menu, X, RefreshCw, ShieldCheck, Handshake, Wrench } from '@lucide/vue';
+import { Bell, House, FileText, MapPin, Users, Search, ChevronDown, Heart, Menu, X, RefreshCw, ShieldCheck, Handshake, Wrench, ShoppingBag } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
 import { canProvision } from '@/constants/access';
@@ -25,6 +25,7 @@ const links = computed(() => {
   if (!technician || data.selectedSite) items.push({ to: '/reports', label: 'Reports', icon: FileText }, { to: '/sites', label: 'Sites', icon: MapPin }, { to: '/assignments', label: 'Assignments', icon: Users });
   if (technician || canProvision(user.value?.role)) items.push({ to: '/contracts', label: 'Site contracts', icon: Handshake });
   if (canProvision(user.value?.role)) items.push({ to: '/team-access', label: 'Team access', icon: ShieldCheck });
+  items.push({ to: '/shop', label: 'Shop', icon: ShoppingBag });
   return items;
 });
 watch(() => route.query.q, value => { search.value = String(value || ''); });
