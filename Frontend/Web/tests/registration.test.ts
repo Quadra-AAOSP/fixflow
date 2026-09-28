@@ -7,13 +7,20 @@ import type { UserRole } from '../src/types';
 
 const form: RegistrationInput = {
   firstName: ' Test ', lastName: ' Technician ', email: 'test@example.invalid',
-  password: 'a unique long passphrase', phone: '', role: 'technician', siteId: '71',
+  password: 'a unique long passphrase', phone: '+1 202 555 0100', address: 'Business correspondence address', role: 'technician', siteId: '71',
 };
 afterEach(() => vi.unstubAllGlobals());
 
 describe('role-based public registration', () => {
   it('always clears a technician site, even if a reporter site is left in form input', () => {
     expect(buildRegistrationPayload(form)).toMatchObject({ role: 'technician', siteId: null, firstName: 'Test' });
+  });
+  it('requires technician contact details without affecting reporter requirements', () => {
+    expect(() => buildRegistrationPayload({ ...form, phone: '' })).toThrow('phone');
+    expect(() => buildRegistrationPayload({ ...form, address: '' })).toThrow('address');
+    expect(() => buildRegistrationPayload({ ...form, address: 'x'.repeat(513) })).toThrow('512');
+    expect(buildRegistrationPayload(form).address).toBe(form.address);
+    expect(buildRegistrationPayload({ ...form, role: 'reporter', phone: '', address: '' }).role).toBe('reporter');
   });
   it('requires a valid reporter site ID and keeps the actual supplied ID', () => {
     expect(buildRegistrationPayload({ ...form, role: 'reporter' }).siteId).toBe(71);

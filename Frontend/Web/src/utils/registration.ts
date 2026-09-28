@@ -2,7 +2,7 @@ import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, canProvisionRole } from '@/co
 import type { AccountDetails, ProvisionUserPayload, RegisterPayload, UserRole } from '@/types';
 
 export interface RegistrationInput {
-  firstName: string; lastName: string; email: string; password: string; phone: string; role: UserRole; siteId: string;
+  firstName: string; lastName: string; email: string; password: string; phone: string; role: UserRole; siteId: string; address?: string;
 }
 export function validateAccount(input: Omit<RegistrationInput, 'role' | 'siteId'>): AccountDetails {
   if (![input.firstName, input.lastName, input.email].every(value => value.trim()) || !input.password) throw new Error('First name, last name, email, and password are required.');
@@ -23,6 +23,12 @@ export function positiveId(value: string) {
 export function buildRegistrationPayload(input: RegistrationInput): RegisterPayload {
   if (input.role !== 'reporter' && input.role !== 'technician') throw new Error('This role requires administrator provisioning and cannot self-register.');
   const account = validateAccount(input);
+  if (input.role === 'technician') {
+    if (!input.phone.trim() || input.phone.replace(/\D/g, '').length < 7) throw new Error('Enter a contact phone number for technician registration.');
+    if (!input.address?.trim()) throw new Error('Enter your business or correspondence address.');
+    if (input.address.trim().length > 512) throw new Error('Address must be 512 characters or fewer.');
+    account.address = input.address.trim();
+  }
   // Never carry a reporter's previous site selection into technician registration.
   return input.role === 'technician' ? { ...account, role: 'technician', siteId: null } : { ...account, role: 'reporter', siteId: positiveId(input.siteId) };
 }
