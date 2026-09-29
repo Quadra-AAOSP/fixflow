@@ -67,6 +67,10 @@ Fixflow/
 | `report_reporters` | Manual merge (many users ↔ one report); creator is always inserted on create |
 | `report_reassignments` | Append-only history of previous technician ids on reassign |
 | `status_history` | Status transition audit trail |
+| `shop_products` | Shop catalogue (string ids, price in minor units, stock) |
+| `shop_orders` | Customer orders with idempotency + shipping snapshot |
+| `shop_order_items` | Order line snapshots |
+| `shop_payments` | Hosted checkout session (`stripe` or local `dev`) |
 
 **Status flow:**  
 `open` → `routed` → `assigned` → `in_progress` → `resolved_pending_confirmation` → `confirmed` / `reopened` (+ `escalated` when marketplace has no techs)
@@ -125,9 +129,17 @@ npm install
 npm run dev
 ```
 
-Opens at `http://localhost:5173`. Copy `.env.example` to `.env` if needed (`VITE_API_URL=http://localhost:8080`).
+Opens at `http://localhost:5173`. Copy `.env.example` to `.env` if needed. Set `VITE_SHOP_CATALOG_PATH=/api/shop/catalog` to connect the storefront.
 
-Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login: Home / Reports / Profile (same shell as Mobile).
+Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login: Home / Reports / Profile (same shell as Mobile). Public **Shop** is at `/shop` (sidebar link when signed in).
+
+### Shop (web)
+
+- Public catalogue: `GET /api/shop/catalog` (no login).
+- Checkout / orders require a signed-in session; basket stays in the browser until checkout.
+- Without `STRIPE_SECRET_KEY`, payment uses the local **dev** provider (order is marked paid immediately after create).
+- With Stripe keys in `Backend/.env`, checkout opens Stripe Checkout; configure `STRIPE_WEBHOOK_SECRET` for `POST /api/shop/payments/webhook`.
+- Admin product CRUD: `/api/admin/shop/products` (`ADMIN` / `SUPER_ADMIN`).
 
 ### 5. Run mobile (Expo)
 
@@ -137,7 +149,7 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with Expo Go (iOS/Android). The UI follows system light/dark appearance.
+Scan the QR code with Expo Go (iOS/Android). The UI is **light-first** — a dark variant is not implemented; the token layer (`global.css` + `constants/theme.ts`) is structured so one can be added without touching screens.
 
 Set the API base URL if the device cannot reach `localhost:8080` (physical phone / Android emulator):
 
@@ -146,7 +158,21 @@ Set the API base URL if the device cannot reach `localhost:8080` (physical phone
 EXPO_PUBLIC_API_URL=http://192.168.1.10:8080 npx expo start
 ```
 
-Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login, tabs are Home / Reports / Profile.
+Auth screens: **Sign in** / **Register**. Registration supports **reporter** and **technician** accounts; technicians may omit the site ID to become marketplace-eligible. Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login, tabs are Home / Reports / Profile; reports support list → detail → join, and staff/admin can assign a technician. A `super_admin` gets a site switcher on Home and Profile.
+
+Mobile screens implemented against the current backend:
+
+| Area | Status |
+|---|---|
+| Auth (login, register, session bootstrap) | ✅ |
+| Home (active site, urgency legend, file report entry) | ✅ |
+| Reports list (site-scoped, pull-to-refresh, privacy masking) | ✅ |
+| Report create (taxonomy-driven category, dual urgency) | ✅ |
+| Report detail (privacy-gated fields, join, assign) | ✅ |
+| Profile (read-only account, working site, sign out) | ✅ |
+| `super_admin` site switcher | ✅ |
+
+Not implemented (blocked on backend endpoints — see *Audit dependencies* below): photo upload, status transitions, urgency override, reassignment, technician directory, claimable/assigned-to-me queues.
 
 ### Secrets
 
