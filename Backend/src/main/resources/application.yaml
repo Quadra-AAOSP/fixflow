@@ -62,6 +62,14 @@ fixflow:
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket: ${MINIO_BUCKET:fixflow-photos}
+  shop:
+    currency: ${SHOP_CURRENCY:SGD}
+    minor-unit-digits: ${SHOP_MINOR_UNIT_DIGITS:2}
+    flat-shipping-minor: ${SHOP_FLAT_SHIPPING_MINOR:500}
+    checkout-success-url: ${SHOP_CHECKOUT_SUCCESS_URL:http://localhost:5173/shop}
+    checkout-cancel-url: ${SHOP_CHECKOUT_CANCEL_URL:http://localhost:5173/shop}
+    stripe-secret-key: ${STRIPE_SECRET_KEY:}
+    stripe-webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 
 openrouter:
   api-key: ${OPENROUTER_API_KEY:}
