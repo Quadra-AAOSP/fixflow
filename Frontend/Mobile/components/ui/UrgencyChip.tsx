@@ -1,22 +1,22 @@
 import { Text, View } from 'react-native';
 
-export type UrgencyLevel = 'low' | 'medium' | 'high' | 'critical';
+import type { Urgency } from '@/types';
 
-const containerStyles: Record<UrgencyLevel, string> = {
+const containerStyles: Record<Urgency, string> = {
   low: 'bg-urgency-low/15',
   medium: 'bg-urgency-medium/15',
   high: 'bg-urgency-high/15',
   critical: 'bg-urgency-critical/15',
 };
 
-const textStyles: Record<UrgencyLevel, string> = {
+const textStyles: Record<Urgency, string> = {
   low: 'text-urgency-low',
   medium: 'text-urgency-medium',
   high: 'text-urgency-high',
   critical: 'text-urgency-critical',
 };
 
-const urgencyLabels: Record<UrgencyLevel, string> = {
+const urgencyLabels: Record<Urgency, string> = {
   low: 'Low',
   medium: 'Medium',
   high: 'High',
@@ -24,7 +24,7 @@ const urgencyLabels: Record<UrgencyLevel, string> = {
 };
 
 type UrgencyChipProps = {
-  level: UrgencyLevel;
+  level: Urgency;
 };
 
 export function UrgencyChip({ level }: UrgencyChipProps) {

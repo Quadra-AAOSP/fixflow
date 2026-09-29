@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth';
 
 const routes: RouteRecordRaw[] = [
+  { path: '/shop', component: () => import('@/layouts/ShopLayout.vue'), children: [{ path: '', name: 'shop', component: () => import('@/views/app/ShopView.vue') }] },
   { path: '/preview', redirect: '/' },
   { path: '/access-policy', component: () => import('@/layouts/AuthLayout.vue'), children: [{ path: '', name: 'access-policy', component: () => import('@/views/auth/AccessPolicyView.vue') }] },
   { path: '/login', component: () => import('@/layouts/AuthLayout.vue'), meta: { guest: true }, children: [

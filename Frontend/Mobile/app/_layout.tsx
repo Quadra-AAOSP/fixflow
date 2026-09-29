@@ -1,5 +1,5 @@
 import { Redirect, Stack, useRouter, useSegments } from 'expo-router';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
+import { DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
@@ -11,7 +11,6 @@ import '../global.css';
 
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from '@/stores/auth';
 
 export { ErrorBoundary } from 'expo-router';
@@ -49,41 +48,27 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-  const palette = themeColors(colorScheme);
+  const palette = themeColors();
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(palette.surface);
   }, [palette.surface]);
 
-  const navigationTheme =
-    colorScheme === 'dark'
-      ? {
-          ...DarkTheme,
-          colors: {
-            ...DarkTheme.colors,
-            primary: palette.primary,
-            background: palette.surface,
-            card: palette.card,
-            text: palette.ink,
-            border: palette.border,
-          },
-        }
-      : {
-          ...DefaultTheme,
-          colors: {
-            ...DefaultTheme.colors,
-            primary: palette.primary,
-            background: palette.surface,
-            card: palette.card,
-            text: palette.ink,
-            border: palette.border,
-          },
-        };
+  const navigationTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: palette.primary,
+      background: palette.surface,
+      card: palette.card,
+      text: palette.ink,
+      border: palette.border,
+    },
+  };
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
       <AuthNavigator />
     </ThemeProvider>
   );
@@ -93,6 +78,7 @@ function AuthNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const palette = themeColors();
 
   useEffect(() => {
     if (isLoading) {
@@ -110,8 +96,8 @@ function AuthNavigator() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-surface dark:bg-surface-dark">
-        <ActivityIndicator size="large" color="#0F766E" />
+      <View className="flex-1 items-center justify-center bg-surface">
+        <ActivityIndicator size="large" color={palette.primary} />
       </View>
     );
   }

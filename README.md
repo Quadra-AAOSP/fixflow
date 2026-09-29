@@ -137,7 +137,7 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with Expo Go (iOS/Android). The UI follows system light/dark appearance.
+Scan the QR code with Expo Go (iOS/Android). The UI is **light-first** — a dark variant is not implemented; the token layer (`global.css` + `constants/theme.ts`) is structured so one can be added without touching screens.
 
 Set the API base URL if the device cannot reach `localhost:8080` (physical phone / Android emulator):
 
@@ -146,7 +146,21 @@ Set the API base URL if the device cannot reach `localhost:8080` (physical phone
 EXPO_PUBLIC_API_URL=http://192.168.1.10:8080 npx expo start
 ```
 
-Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login, tabs are Home / Reports / Profile.
+Auth screens: **Sign in** / **Register**. Registration supports **reporter** and **technician** accounts; technicians may omit the site ID to become marketplace-eligible. Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login, tabs are Home / Reports / Profile; reports support list → detail → join, and staff/admin can assign a technician. A `super_admin` gets a site switcher on Home and Profile.
+
+Mobile screens implemented against the current backend:
+
+| Area | Status |
+|---|---|
+| Auth (login, register, session bootstrap) | ✅ |
+| Home (active site, urgency legend, file report entry) | ✅ |
+| Reports list (site-scoped, pull-to-refresh, privacy masking) | ✅ |
+| Report create (taxonomy-driven category, dual urgency) | ✅ |
+| Report detail (privacy-gated fields, join, assign) | ✅ |
+| Profile (read-only account, working site, sign out) | ✅ |
+| `super_admin` site switcher | ✅ |
+
+Not implemented (blocked on backend endpoints — see *Audit dependencies* below): photo upload, status transitions, urgency override, reassignment, technician directory, claimable/assigned-to-me queues.
 
 ### Secrets
 
