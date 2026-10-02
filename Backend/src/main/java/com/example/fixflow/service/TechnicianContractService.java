@@ -46,6 +46,9 @@ public class TechnicianContractService {
 		roleIntegrityService.requireTechnician(technician);
 		Site site = siteRepository.findById(request.siteId())
 				.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found"));
+        if (actor.getRole() == UserRole.admin && !site.getId().equals(actor.getSiteId())) {
+            throw new ApiException(403, "Site admins can only create contracts for their own site");
+        }
 		if (technicianContractRepository.existsByTechnician_IdAndSite_Id(technician.getId(), site.getId())) {
 			throw new ApiException(HttpStatus.CONFLICT.value(), "Contract already exists");
 		}

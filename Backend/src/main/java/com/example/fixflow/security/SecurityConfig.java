@@ -27,8 +27,13 @@ import jakarta.servlet.http.HttpServletResponse;
 public class SecurityConfig {
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain securityFilterChain(HttpSecurity http,
+            org.springframework.core.env.Environment environment) throws Exception {
 		http
+                .addFilterBefore(new SessionExpiryFilter(
+                        org.springframework.boot.convert.DurationStyle.detectAndParse(
+                                environment.getProperty("fixflow.session.absolute-timeout", "12h"))),
+                        org.springframework.security.web.context.SecurityContextHolderFilter.class)
 				.csrf(csrf -> csrf.disable())
 				.cors(Customizer.withDefaults())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
@@ -44,13 +49,23 @@ public class SecurityConfig {
 				.logout(logout -> logout.disable())
 				.exceptionHandling(ex -> ex
 						.authenticationEntryPoint((request, response, authException) ->
-								response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+                                writeSecurityError(response, 401, "Unauthorized", "Authentication required", request.getRequestURI()))
 						.accessDeniedHandler((request, response, accessDeniedException) ->
-								response.sendError(HttpServletResponse.SC_FORBIDDEN))
+                                writeSecurityError(response, 403, "Forbidden", "Access denied", request.getRequestURI()))
 				);
 
 		return http.build();
 	}
+
+    private static void writeSecurityError(HttpServletResponse response, int status, String error,
+            String message, String path) throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
+                java.util.Map.of("timestamp", java.time.Instant.now().toString(), "status", status,
+                        "error", error, "message", message, "path", path)));
+    }
 
 	@Bean
 	PasswordEncoder passwordEncoder() {

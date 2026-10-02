@@ -32,6 +32,7 @@ public class ReportService {
 	private final SiteRepository siteRepository;
 	private final CategoryTaxonomyService categoryTaxonomyService;
 	private final RoleIntegrityService roleIntegrityService;
+    private final com.example.fixflow.repository.SubsiteRepository subsiteRepository;
 
 	public ReportService(
 			ReportRepository reportRepository,
@@ -39,7 +40,8 @@ public class ReportService {
 			UserRepository userRepository,
 			SiteRepository siteRepository,
 			CategoryTaxonomyService categoryTaxonomyService,
-			RoleIntegrityService roleIntegrityService
+			RoleIntegrityService roleIntegrityService,
+            com.example.fixflow.repository.SubsiteRepository subsiteRepository
 	) {
 		this.reportRepository = reportRepository;
 		this.reportReporterRepository = reportReporterRepository;
@@ -47,6 +49,7 @@ public class ReportService {
 		this.siteRepository = siteRepository;
 		this.categoryTaxonomyService = categoryTaxonomyService;
 		this.roleIntegrityService = roleIntegrityService;
+        this.subsiteRepository = subsiteRepository;
 	}
 
 	@Transactional
@@ -64,6 +67,14 @@ public class ReportService {
 
 		Report report = new Report();
 		report.setSite(site);
+        if (request.subsiteId() != null) {
+            com.example.fixflow.domain.Subsite subsite = subsiteRepository.findById(request.subsiteId())
+                    .orElseThrow(() -> new ApiException(400, "Subsite not found"));
+            if (!subsite.getSite().getId().equals(site.getId())) {
+                throw new ApiException(400, "Subsite must belong to the report's site");
+            }
+            report.setSubsite(subsite);
+        }
 		report.setCreatedBy(filer);
 		report.setDescription(request.description().trim());
 		report.setAddress(blankToNull(request.address()));
@@ -100,6 +111,9 @@ public class ReportService {
 
 	@Transactional
 	public ReportResponse join(Long id, AppUserDetails actor) {
+        if (actor.getRole() != UserRole.reporter) {
+            throw new ApiException(403, "Only reporters can join reports");
+        }
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());

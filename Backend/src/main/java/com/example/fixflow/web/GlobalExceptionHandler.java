@@ -16,6 +16,19 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> handleUnsupportedMedia(Exception ex, HttpServletRequest request) {
+        return ResponseEntity.status(415).body(ApiError.of(415, "Unsupported Media Type", "This endpoint requires JSON; uploads are not supported", request.getRequestURI()));
+    }
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleConflict(Exception ex, HttpServletRequest request) {
+        return ResponseEntity.status(409).body(ApiError.of(409, "Conflict", "Conflicting or duplicate data", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleInvalidParameter(Exception ex, HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", "Invalid request parameter", request.getRequestURI()));
+    }
 
 	@ExceptionHandler(ApiException.class)
 	public ResponseEntity<ApiError> handleApiException(ApiException ex, HttpServletRequest request) {
