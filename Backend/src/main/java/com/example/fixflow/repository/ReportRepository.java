@@ -16,6 +16,7 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 			join fetch r.site
 			join fetch r.createdBy
 			left join fetch r.assignedTechnician
+            left join fetch r.subsite
 			where r.site.id = :siteId
 			order by r.createdAt desc
 			""")
@@ -26,6 +27,7 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 			join fetch r.site
 			join fetch r.createdBy
 			left join fetch r.assignedTechnician
+            left join fetch r.subsite
 			where r.id = :id
 			""")
 	Optional<Report> findDetailedById(@Param("id") Long id);

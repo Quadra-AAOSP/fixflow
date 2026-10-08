@@ -34,6 +34,10 @@ public class Report {
 	@JoinColumn(name = "site_id", nullable = false)
 	private Site site;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subsite_id")
+    private Subsite subsite;
+
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "created_by_user_id", nullable = false)
 	private User createdBy;

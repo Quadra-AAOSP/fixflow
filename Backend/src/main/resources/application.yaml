@@ -25,6 +25,7 @@ spring:
           time_zone: UTC
   session:
     store-type: jdbc
+    timeout: ${SESSION_IDLE_TIMEOUT:30m}
     jdbc:
       initialize-schema: always
   data:
@@ -54,6 +55,8 @@ spring:
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
 
 fixflow:
+  session:
+    absolute-timeout: ${SESSION_ABSOLUTE_TIMEOUT:12h}
   bootstrap:
     super-admin-email: ${FIXFLOW_SUPER_ADMIN_EMAIL:admin@fixflow.local}
     super-admin-password: ${FIXFLOW_SUPER_ADMIN_PASSWORD:changeme}
@@ -89,6 +92,7 @@ server:
       cookie:
         same-site: lax
         http-only: true
+        secure: ${SESSION_COOKIE_SECURE:true}
 
 logging:
   level:

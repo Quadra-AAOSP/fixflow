@@ -9,6 +9,7 @@ import com.example.fixflow.domain.Urgency;
 public record ReportResponse(
 		Long id,
 		Long siteId,
+        Long subsiteId,
 		Long createdByUserId,
 		String createdByName,
 		String description,
@@ -38,6 +39,7 @@ public record ReportResponse(
 		return new ReportResponse(
 				report.getId(),
 				report.getSite() != null ? report.getSite().getId() : null,
+                report.getSubsite() != null ? report.getSubsite().getId() : null,
 				createdById,
 				createdByName,
 				report.getDescription(),
