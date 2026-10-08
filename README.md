@@ -67,6 +67,10 @@ Fixflow/
 | `report_reporters` | Manual merge (many users ↔ one report); creator is always inserted on create |
 | `report_reassignments` | Append-only history of previous technician ids on reassign |
 | `status_history` | Status transition audit trail |
+| `shop_products` | Shop catalogue (string ids, price in minor units, stock) |
+| `shop_orders` | Customer orders with idempotency + shipping snapshot |
+| `shop_order_items` | Order line snapshots |
+| `shop_payments` | Hosted checkout session (`stripe` or local `dev`) |
 
 **Status flow:**  
 `open` → `routed` → `assigned` → `in_progress` → `resolved_pending_confirmation` → `confirmed` / `reopened` (+ `escalated` when marketplace has no techs)
@@ -125,9 +129,17 @@ npm install
 npm run dev
 ```
 
-Opens at `http://localhost:5173`. Copy `.env.example` to `.env` if needed (`VITE_API_URL=http://localhost:8080`).
+Opens at `http://localhost:5173`. Copy `.env.example` to `.env` if needed. Set `VITE_SHOP_CATALOG_PATH=/api/shop/catalog` to connect the storefront.
 
-Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login: Home / Reports / Profile (same shell as Mobile).
+Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `SESSION` cookie (`credentials: 'include'`). After login: Home / Reports / Profile (same shell as Mobile). Public **Shop** is at `/shop` (sidebar link when signed in).
+
+### Shop (web)
+
+- Public catalogue: `GET /api/shop/catalog` (no login).
+- Checkout / orders require a signed-in session; basket stays in the browser until checkout.
+- Without `STRIPE_SECRET_KEY`, payment uses the local **dev** provider (order is marked paid immediately after create).
+- With Stripe keys in `Backend/.env`, checkout opens Stripe Checkout; configure `STRIPE_WEBHOOK_SECRET` for `POST /api/shop/payments/webhook`.
+- Admin product CRUD: `/api/admin/shop/products` (`ADMIN` / `SUPER_ADMIN`).
 
 ### 5. Run mobile (Expo)
 

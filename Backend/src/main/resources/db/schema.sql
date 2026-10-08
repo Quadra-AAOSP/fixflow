@@ -316,3 +316,104 @@ CREATE TABLE IF NOT EXISTS status_history (
         FOREIGN KEY (changed_by_user_id) REFERENCES users (id)
         ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_products — catalogue items for the FixFlow shop
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_products (
+    id            VARCHAR(64)     NOT NULL,
+    name          VARCHAR(255)    NOT NULL,
+    description   TEXT            NOT NULL,
+    category      VARCHAR(128)    NOT NULL,
+    brand         VARCHAR(128)    NULL,
+    image_url     VARCHAR(1024)   NULL,
+    price_minor   INT UNSIGNED    NOT NULL,
+    stock         INT UNSIGNED    NOT NULL DEFAULT 0,
+    active        TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_shop_products_active (active),
+    KEY idx_shop_products_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_orders — customer orders (server-authoritative pricing)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_orders (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id           VARCHAR(36)     NOT NULL,
+    user_id             BIGINT UNSIGNED NOT NULL,
+    status              ENUM(
+                            'pending_payment',
+                            'paid',
+                            'cancelled',
+                            'refunded',
+                            'fulfilled'
+                        )               NOT NULL DEFAULT 'pending_payment',
+    currency            CHAR(3)         NOT NULL,
+    minor_unit_digits   TINYINT UNSIGNED NOT NULL DEFAULT 2,
+    subtotal_minor      INT UNSIGNED    NOT NULL,
+    shipping_minor      INT UNSIGNED    NOT NULL DEFAULT 0,
+    tax_minor           INT UNSIGNED    NOT NULL DEFAULT 0,
+    total_minor         INT UNSIGNED    NOT NULL,
+    shipping_name       VARCHAR(255)    NOT NULL,
+    shipping_phone      VARCHAR(64)     NULL,
+    shipping_address    VARCHAR(512)    NOT NULL,
+    idempotency_key     VARCHAR(128)    NOT NULL,
+    created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_shop_orders_public_id (public_id),
+    UNIQUE KEY uq_shop_orders_user_idempotency (user_id, idempotency_key),
+    KEY idx_shop_orders_user_id (user_id),
+    KEY idx_shop_orders_status (status),
+    CONSTRAINT fk_shop_orders_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_order_items — line snapshots at purchase time
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_order_items (
+    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id          BIGINT UNSIGNED NOT NULL,
+    product_id        VARCHAR(64)     NOT NULL,
+    name              VARCHAR(255)    NOT NULL,
+    unit_price_minor  INT UNSIGNED    NOT NULL,
+    quantity          INT UNSIGNED    NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_shop_order_items_order_id (order_id),
+    CONSTRAINT fk_shop_order_items_order
+        FOREIGN KEY (order_id) REFERENCES shop_orders (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT chk_shop_order_items_quantity
+        CHECK (quantity > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_payments — hosted checkout session tracking
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_payments (
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id      BIGINT UNSIGNED NOT NULL,
+    provider      ENUM('stripe', 'dev') NOT NULL,
+    provider_ref  VARCHAR(255)    NULL,
+    status        ENUM(
+                      'requires_action',
+                      'succeeded',
+                      'failed',
+                      'cancelled'
+                  )               NOT NULL DEFAULT 'requires_action',
+    checkout_url  VARCHAR(2048)   NULL,
+    raw_event     TEXT            NULL,
+    created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_shop_payments_order_id (order_id),
+    KEY idx_shop_payments_provider_ref (provider_ref),
+    CONSTRAINT fk_shop_payments_order
+        FOREIGN KEY (order_id) REFERENCES shop_orders (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

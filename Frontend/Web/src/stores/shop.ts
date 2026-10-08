@@ -31,9 +31,12 @@ export const useShopStore = defineStore('shop', () => {
     if (!product || !Number.isSafeInteger(quantity) || quantity < 0 || quantity > product.stock || error.value || loading.value) return;
     quantities.value = { ...quantities.value, [id]: quantity };
   }
+  function clearBasket() {
+    quantities.value = {};
+  }
   function money(amount: number) {
     if (!catalog.value) return '';
     return new Intl.NumberFormat(undefined, { style: 'currency', currency: catalog.value.currency, minimumFractionDigits: catalog.value.minorUnitDigits, maximumFractionDigits: catalog.value.minorUnitDigits }).format(amount / 10 ** catalog.value.minorUnitDigits);
   }
-  return { catalog, loading, error, quantities, lines, count, subtotal, reset, refresh, setQuantity, money };
+  return { catalog, loading, error, quantities, lines, count, subtotal, reset, refresh, setQuantity, clearBasket, money };
 });
