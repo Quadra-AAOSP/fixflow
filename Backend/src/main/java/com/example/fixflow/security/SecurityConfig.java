@@ -78,9 +78,11 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	CorsConfigurationSource corsConfigurationSource() {
+	CorsConfigurationSource corsConfigurationSource(org.springframework.core.env.Environment environment) {
 		CorsConfiguration config = new CorsConfiguration();
-		config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+		config.setAllowedOriginPatterns(java.util.Arrays.stream(environment.getProperty(
+                "fixflow.cors.allowed-origin-patterns", "http://localhost:*,http://127.0.0.1:*")
+                .split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList());
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setAllowCredentials(true);

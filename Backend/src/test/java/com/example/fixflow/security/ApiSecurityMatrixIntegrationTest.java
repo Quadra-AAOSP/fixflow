@@ -80,7 +80,10 @@ class ApiSecurityMatrixIntegrationTest {
                 "GET /api/reports/1/reporters", "POST /api/reports/1/assign", "POST /api/technician-contracts",
                 "POST /api/technician-skills", "GET /api/technician-contract-requests", "POST /api/technician-contract-requests",
                 "POST /api/technician-contract-requests/1/decision", "GET /api/sites/1/subsites", "POST /api/sites/1/subsites",
-                "GET /api/sites/1/subsite-requests", "POST /api/sites/1/subsite-requests", "POST /api/sites/1/subsite-requests/1/resolve");
+                "GET /api/sites/1/subsite-requests", "POST /api/sites/1/subsite-requests", "POST /api/sites/1/subsite-requests/1/resolve",
+                "POST /api/reports/1/classify", "PUT /api/sites/1/subsites/1", "POST /api/sites/1/subsites/1/archive",
+                "GET /api/technician-terms/me", "GET /api/technician-terms/1", "POST /api/technician-terms/accept",
+                "GET /api/sites/1/reporting-setup");
     }
 
     @ParameterizedTest @MethodSource("protectedRoutes")

@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS subsites (
     label VARCHAR(64) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT NULL,
+    archived_at TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_subsite_site_label (site_id, label),
     CONSTRAINT fk_subsites_site FOREIGN KEY (site_id) REFERENCES sites(id)
@@ -165,6 +166,16 @@ CREATE TABLE IF NOT EXISTS technician_contract_requests (
     FOREIGN KEY (technician_id) REFERENCES users(id),
     FOREIGN KEY (site_id) REFERENCES sites(id),
     FOREIGN KEY (decided_by_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS technician_terms_acceptances (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    terms_version VARCHAR(64) NOT NULL,
+    document_url VARCHAR(1024) NOT NULL,
+    accepted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_technician_terms_version (technician_id, terms_version),
+    FOREIGN KEY (technician_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS reports (
@@ -226,6 +237,14 @@ SET @subsite_migration = IF(
 PREPARE subsite_statement FROM @subsite_migration;
 EXECUTE subsite_statement;
 DEALLOCATE PREPARE subsite_statement;
+
+SET @archive_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'subsites' AND column_name = 'archived_at') = 0,
+    'ALTER TABLE subsites ADD COLUMN archived_at TIMESTAMP NULL', 'SELECT 1');
+PREPARE archive_statement FROM @archive_migration;
+EXECUTE archive_statement;
+DEALLOCATE PREPARE archive_statement;
 
 CREATE TABLE IF NOT EXISTS report_photos (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

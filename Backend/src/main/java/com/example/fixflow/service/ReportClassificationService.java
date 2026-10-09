@@ -63,7 +63,7 @@ public class ReportClassificationService {
                     .build());
             applyValidatedClassification(report, siteType, response);
         } catch (AIProviderException | RuntimeException exception) {
-            applyFallback(report, siteType, "Invalid or unavailable AI classification: " + exception.getMessage());
+            applyFallback(report, siteType, "Invalid or unavailable AI classification");
         }
     }
 
@@ -79,9 +79,11 @@ public class ReportClassificationService {
             return;
         }
 
+        // Validate urgency before mutating the last valid category.
+        Urgency aiUrgency = Urgency.valueOf(urgency);
         report.setCategory(category);
         report.setSpecialty(truncate(normalize(response.getSpecialty()), 128));
-        report.setAiUrgency(Urgency.valueOf(urgency));
+        report.setAiUrgency(aiUrgency);
     }
 
     private void applyFallback(Report report, SiteType siteType, String reason) {

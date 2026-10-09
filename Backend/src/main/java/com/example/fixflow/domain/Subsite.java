@@ -44,6 +44,9 @@ public class Subsite {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "archived_at")
+    private Instant archivedAt;
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
