@@ -44,3 +44,11 @@ fixflow:
   bootstrap:
     super-admin-email: admin@fixflow.local
     super-admin-password: test-admin-pass
+  shop:
+    currency: SGD
+    minor-unit-digits: 2
+    flat-shipping-minor: 500
+    checkout-success-url: http://localhost:5173/shop
+    checkout-cancel-url: http://localhost:5173/shop
+    stripe-secret-key:
+    stripe-webhook-secret:

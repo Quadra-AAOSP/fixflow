@@ -20,15 +20,18 @@ public class TechnicianSkillService {
 	private final TechnicianSkillRepository technicianSkillRepository;
 	private final UserRepository userRepository;
 	private final RoleIntegrityService roleIntegrityService;
+    private final com.example.fixflow.repository.TechnicianContractRepository contracts;
 
 	public TechnicianSkillService(
 			TechnicianSkillRepository technicianSkillRepository,
 			UserRepository userRepository,
-			RoleIntegrityService roleIntegrityService
+			RoleIntegrityService roleIntegrityService,
+            com.example.fixflow.repository.TechnicianContractRepository contracts
 	) {
 		this.technicianSkillRepository = technicianSkillRepository;
 		this.userRepository = userRepository;
 		this.roleIntegrityService = roleIntegrityService;
+        this.contracts = contracts;
 	}
 
 	@Transactional
@@ -44,6 +47,10 @@ public class TechnicianSkillService {
 		User technician = userRepository.findById(request.technicianId())
 				.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "User not found"));
 		roleIntegrityService.requireTechnician(technician);
+        if (actor.getRole() == UserRole.admin && (actor.getSiteId() == null
+                || !contracts.existsByTechnician_IdAndSite_Id(technician.getId(), actor.getSiteId()))) {
+            throw new ApiException(403, "Site admins can only manage skills of their contracted technicians");
+        }
 		TechnicianSkill skill = new TechnicianSkill();
 		skill.setTechnician(technician);
 		skill.setCategory(request.category().trim().toLowerCase());

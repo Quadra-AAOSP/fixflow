@@ -103,6 +103,8 @@ public class AuthService {
 		context.setAuthentication(authentication);
 		SecurityContextHolder.setContext(context);
 		HttpSession session = httpRequest.getSession(true);
+		httpRequest.changeSessionId();
+		session.setAttribute(com.example.fixflow.security.SessionExpiryFilter.AUTHENTICATED_AT, java.time.Instant.now());
 		session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
 
 		AppUserDetails principal = (AppUserDetails) authentication.getPrincipal();
@@ -171,11 +173,10 @@ public class AuthService {
 				yield null;
 			}
 			case technician -> {
-				if (siteId == null) {
-					yield null;
+				if (siteId != null) {
+					throw new ApiException(400, "Technicians start without a site; request a contract instead");
 				}
-				yield siteRepository.findById(siteId)
-						.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found: " + siteId));
+				yield null;
 			}
 		};
 	}

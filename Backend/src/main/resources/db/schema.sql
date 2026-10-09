@@ -128,9 +128,49 @@ CREATE TABLE IF NOT EXISTS technician_skills (
 -- tech/attached reporters see it). No on_behalf_of_user_id — created_by_user_id
 -- is who filed; reporter_urgency may be staff-proxied.
 -- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS subsites (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    site_id BIGINT UNSIGNED NOT NULL,
+    label VARCHAR(64) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_subsite_site_label (site_id, label),
+    CONSTRAINT fk_subsites_site FOREIGN KEY (site_id) REFERENCES sites(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS subsite_requests (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    site_id BIGINT UNSIGNED NOT NULL,
+    requested_by_user_id BIGINT UNSIGNED NOT NULL,
+    note TEXT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP NULL,
+    FOREIGN KEY (site_id) REFERENCES sites(id),
+    FOREIGN KEY (requested_by_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS technician_contract_requests (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    site_id BIGINT UNSIGNED NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    note VARCHAR(1000) NULL,
+    decision_reason VARCHAR(1000) NULL,
+    decided_by_user_id BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    decided_at TIMESTAMP NULL,
+    UNIQUE KEY uq_contract_request (technician_id, site_id),
+    FOREIGN KEY (technician_id) REFERENCES users(id),
+    FOREIGN KEY (site_id) REFERENCES sites(id),
+    FOREIGN KEY (decided_by_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS reports (
     id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     site_id                 BIGINT UNSIGNED NOT NULL,
+    subsite_id              BIGINT UNSIGNED NULL,
     created_by_user_id      BIGINT UNSIGNED NOT NULL COMMENT 'Who filed; staff/admin filings are proxied',
     description             TEXT            NOT NULL,
     address                 VARCHAR(512)    NULL COMMENT 'Room-level; mask from peer reporters in API',
@@ -163,6 +203,8 @@ CREATE TABLE IF NOT EXISTS reports (
     CONSTRAINT fk_reports_site
         FOREIGN KEY (site_id) REFERENCES sites (id)
         ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reports_subsite FOREIGN KEY (subsite_id) REFERENCES subsites(id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_reports_created_by
         FOREIGN KEY (created_by_user_id) REFERENCES users (id)
         ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -174,6 +216,17 @@ CREATE TABLE IF NOT EXISTS reports (
 -- ---------------------------------------------------------------------------
 -- report_photos — max 5 images per report (≤5MB each); MinIO object keys
 -- ---------------------------------------------------------------------------
+-- Preserve existing installations: CREATE TABLE IF NOT EXISTS alone does not
+-- add columns. Prepared SQL keeps this additive migration restart-safe on MySQL 8.
+SET @subsite_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'subsite_id') = 0,
+    'ALTER TABLE reports ADD COLUMN subsite_id BIGINT UNSIGNED NULL, ADD CONSTRAINT fk_reports_subsite FOREIGN KEY (subsite_id) REFERENCES subsites(id) ON DELETE RESTRICT ON UPDATE CASCADE',
+    'SELECT 1');
+PREPARE subsite_statement FROM @subsite_migration;
+EXECUTE subsite_statement;
+DEALLOCATE PREPARE subsite_statement;
+
 CREATE TABLE IF NOT EXISTS report_photos (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     report_id        BIGINT UNSIGNED NOT NULL,
@@ -262,4 +315,105 @@ CREATE TABLE IF NOT EXISTS status_history (
     CONSTRAINT fk_status_history_user
         FOREIGN KEY (changed_by_user_id) REFERENCES users (id)
         ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_products — catalogue items for the FixFlow shop
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_products (
+    id            VARCHAR(64)     NOT NULL,
+    name          VARCHAR(255)    NOT NULL,
+    description   TEXT            NOT NULL,
+    category      VARCHAR(128)    NOT NULL,
+    brand         VARCHAR(128)    NULL,
+    image_url     VARCHAR(1024)   NULL,
+    price_minor   INT UNSIGNED    NOT NULL,
+    stock         INT UNSIGNED    NOT NULL DEFAULT 0,
+    active        TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_shop_products_active (active),
+    KEY idx_shop_products_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_orders — customer orders (server-authoritative pricing)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_orders (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id           VARCHAR(36)     NOT NULL,
+    user_id             BIGINT UNSIGNED NOT NULL,
+    status              ENUM(
+                            'pending_payment',
+                            'paid',
+                            'cancelled',
+                            'refunded',
+                            'fulfilled'
+                        )               NOT NULL DEFAULT 'pending_payment',
+    currency            CHAR(3)         NOT NULL,
+    minor_unit_digits   TINYINT UNSIGNED NOT NULL DEFAULT 2,
+    subtotal_minor      INT UNSIGNED    NOT NULL,
+    shipping_minor      INT UNSIGNED    NOT NULL DEFAULT 0,
+    tax_minor           INT UNSIGNED    NOT NULL DEFAULT 0,
+    total_minor         INT UNSIGNED    NOT NULL,
+    shipping_name       VARCHAR(255)    NOT NULL,
+    shipping_phone      VARCHAR(64)     NULL,
+    shipping_address    VARCHAR(512)    NOT NULL,
+    idempotency_key     VARCHAR(128)    NOT NULL,
+    created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_shop_orders_public_id (public_id),
+    UNIQUE KEY uq_shop_orders_user_idempotency (user_id, idempotency_key),
+    KEY idx_shop_orders_user_id (user_id),
+    KEY idx_shop_orders_status (status),
+    CONSTRAINT fk_shop_orders_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_order_items — line snapshots at purchase time
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_order_items (
+    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id          BIGINT UNSIGNED NOT NULL,
+    product_id        VARCHAR(64)     NOT NULL,
+    name              VARCHAR(255)    NOT NULL,
+    unit_price_minor  INT UNSIGNED    NOT NULL,
+    quantity          INT UNSIGNED    NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_shop_order_items_order_id (order_id),
+    CONSTRAINT fk_shop_order_items_order
+        FOREIGN KEY (order_id) REFERENCES shop_orders (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT chk_shop_order_items_quantity
+        CHECK (quantity > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_payments — hosted checkout session tracking
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_payments (
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id      BIGINT UNSIGNED NOT NULL,
+    provider      ENUM('stripe', 'dev') NOT NULL,
+    provider_ref  VARCHAR(255)    NULL,
+    status        ENUM(
+                      'requires_action',
+                      'succeeded',
+                      'failed',
+                      'cancelled'
+                  )               NOT NULL DEFAULT 'requires_action',
+    checkout_url  VARCHAR(2048)   NULL,
+    raw_event     TEXT            NULL,
+    created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_shop_payments_order_id (order_id),
+    KEY idx_shop_payments_provider_ref (provider_ref),
+    CONSTRAINT fk_shop_payments_order
+        FOREIGN KEY (order_id) REFERENCES shop_orders (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

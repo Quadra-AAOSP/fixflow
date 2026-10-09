@@ -32,7 +32,7 @@ public class ReportController {
 		this.reportService = reportService;
 	}
 
-	@PostMapping
+	@PostMapping(consumes = "application/json")
 	public ResponseEntity<ReportResponse> create(
 			@Valid @RequestBody CreateReportRequest request,
 			@AuthenticationPrincipal AppUserDetails principal
