@@ -34,7 +34,7 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-						.requestMatchers(HttpMethod.GET, "/api/sites/**", "/api/site-rules/**").authenticated()
+						.requestMatchers(HttpMethod.GET, "/api/sites/**", "/api/site-rules/**").permitAll()
 						.requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 						.requestMatchers("/api/**").authenticated()
 						.anyRequest().permitAll()
