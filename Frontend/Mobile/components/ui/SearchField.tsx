@@ -11,7 +11,16 @@ type SearchFieldProps = {
   autoFocus?: boolean;
 };
 
-/** Search input with a leading icon and a clear affordance. */
+/**
+ * Search input matching the web's `.dashboard-search`:
+ *   - 1px `#dce2e9` border, 8px radius
+ *   - leading Search icon in the slate muted
+ *   - clear (X) affordance when there's a value
+ *   - `fcfdfc` background, 13px text
+ *
+ * We use `border-border` (which now resolves to `#e9edf0`, the same
+ * family as the web's `#dce2e9`) and a 13px-equivalent text size.
+ */
 export function SearchField({
   value,
   onChangeText,
@@ -27,7 +36,7 @@ export function SearchField({
         className ?? ''
       }`}
     >
-      <Search color={palette.muted} size={18} />
+      <Search color={palette.muted} size={16} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -37,7 +46,7 @@ export function SearchField({
         autoCorrect={false}
         autoCapitalize="none"
         returnKeyType="search"
-        className="flex-1 py-3 text-base text-ink"
+        className="flex-1 py-2.5 text-[13px] text-ink"
         accessibilityLabel={placeholder}
       />
       {value.length > 0 ? (
@@ -47,7 +56,7 @@ export function SearchField({
           accessibilityLabel="Clear search"
           className="p-1"
         >
-          <X color={palette.muted} size={16} />
+          <X color={palette.muted} size={14} />
         </Pressable>
       ) : null}
     </View>

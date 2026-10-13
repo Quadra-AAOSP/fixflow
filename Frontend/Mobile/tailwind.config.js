@@ -25,6 +25,10 @@ module.exports = {
         ink: token('ink'),
         muted: token('muted'),
         border: token('border'),
+        line: token('line'),
+        subtitle: token('subtitle'),
+        caption: token('caption'),
+        navy: token('navy'),
 
         primary: token('primary'),
         'primary-foreground': token('primary-foreground'),
@@ -32,6 +36,27 @@ module.exports = {
         'accent-foreground': token('accent-foreground'),
         lime: token('lime'),
         'lime-foreground': token('lime-foreground'),
+
+        /* Status-group tones — see `.coral`/`.mint`/`.citron` in
+           `Frontend/Web/src/styles/dashboard.css`. `DEFAULT`/`deep`/`link`
+           are the auth-chrome coral (see the auth block in global.css);
+           they are merged into this single object because a duplicate
+           `coral` key below would silently drop `bg`/`ink`. */
+        coral: {
+          DEFAULT: token('coral'),
+          bg: token('coral-bg'),
+          ink: token('coral-ink'),
+          deep: token('coral-deep'),
+          link: token('coral-link'),
+        },
+        mint: {
+          bg: token('mint-bg'),
+          ink: token('mint-ink'),
+        },
+        citron: {
+          bg: token('citron-bg'),
+          ink: token('citron-ink'),
+        },
 
         urgency: {
           low: token('urgency-low'),
@@ -48,12 +73,6 @@ module.exports = {
           danger: token('tone-danger'),
         },
 
-        /* Auth chrome — see the auth block in global.css. */
-        coral: {
-          DEFAULT: token('coral'),
-          deep: token('coral-deep'),
-          link: token('coral-link'),
-        },
         auth: {
           bg: token('auth-bg'),
           ink: token('auth-ink'),

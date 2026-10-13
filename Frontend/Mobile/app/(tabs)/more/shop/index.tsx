@@ -10,8 +10,11 @@ import {
   View,
 } from 'react-native';
 import {
+  ArrowRight,
   PackageSearch,
+  ShoppingBag,
   ShoppingBasket,
+  Wrench,
 } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -24,10 +27,9 @@ import { SearchField } from '@/components/ui/SearchField';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/hooks/useAuth';
-import { themeColors } from '@/constants/theme';
+import { dashboardColors, themeColors } from '@/constants/theme';
 import { ApiError } from '@/lib/apiClient';
 import {
-  completeDevPayment,
   createOrder,
   loadCatalog,
   listOrders,
@@ -50,7 +52,7 @@ import {
   sortProducts,
   toCartPayload,
 } from '@/utils/shop';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatMoney, fullName } from '@/utils/format';
 
 const ALL_CATEGORIES = 'all';
 
@@ -140,6 +142,17 @@ export default function ShopIndexScreen() {
     if (ordersSheetOpen) void loadOrders();
   }, [ordersSheetOpen, loadOrders]);
 
+  // Pre-fill the shipping fields from the signed-in user — the web seeds
+  // name / phone / address the same way (`ShopView.vue`).
+  useEffect(() => {
+    if (!user) return;
+    setShippingName((current) =>
+      current.length === 0 ? fullName(user.firstName, user.lastName) : current,
+    );
+    setShippingPhone((current) => current.length === 0 ? user.phone ?? '' : current);
+    setShippingAddress((current) => current.length === 0 ? user.address ?? '' : current);
+  }, [user]);
+
   const products = catalog?.products ?? [];
   const categories = useMemo(
     () => [ALL_CATEGORIES, ...productCategories(products)],
@@ -188,6 +201,12 @@ export default function ShopIndexScreen() {
 
   async function openCheckout() {
     if (!catalog || basketLines.length === 0) return;
+    // Same gate the web applies: anonymous browsers can browse, but the
+    // checkout path requires a session ("Sign in to checkout").
+    if (!user) {
+      setBasketError('Sign in to place an order.');
+      return;
+    }
     setCheckoutQuoting(true);
     setBasketError(null);
     try {
@@ -248,42 +267,99 @@ export default function ShopIndexScreen() {
 
   return (
     <Screen className="px-0 pt-0">
-      <View className="absolute right-5 top-4 z-10">
-        <Pressable
-          onPress={() => setOrdersSheetOpen(true)}
-          accessibilityRole="button"
-          className="rounded-full border border-border bg-card px-3 py-1.5 active:opacity-80"
-        >
-          <Text className="text-xs font-medium text-primary">My orders</Text>
-        </Pressable>
-      </View>
-
-      <View className="px-5 pt-4">
-        <View className="mb-3 flex-row items-center gap-2">
-          <View className="flex-1">
-            <SearchField
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search products…"
-            />
-          </View>
+      {/* Title bar — mirrors the web's `.shop-titlebar`: eyebrow +
+          "A little care starts here." headline, with the Orders button and
+          the "Your basket" pill on the right. */}
+      <View className="flex-row items-start justify-between gap-3 px-5 pb-2 pt-4">
+        <View className="flex-1 pr-3">
+          <Text
+            className="text-[10px] font-semibold uppercase tracking-[1.4px] text-dashboard-caption"
+            style={{ letterSpacing: 1.4 }}
+          >
+            THE FIXFLOW SHOP
+          </Text>
+          <Text
+            className="mt-1 text-[22px] font-semibold leading-tight text-ink"
+            style={{ letterSpacing: -0.5 }}
+          >
+            A little care starts here.
+          </Text>
+        </View>
+        <View className="flex-row items-center gap-2">
+          {user ? (
+            <Pressable
+              onPress={() => setOrdersSheetOpen(true)}
+              accessibilityRole="button"
+              className="rounded-full border border-dashboard-card-line bg-dashboard-card-bg px-3 py-2 active:opacity-80"
+            >
+              <Text
+                className="text-[11px] font-semibold"
+                style={{ color: dashboardColors.teal }}
+              >
+                Orders
+              </Text>
+            </Pressable>
+          ) : null}
           <Pressable
             onPress={() => setBasketSheetOpen(true)}
             accessibilityRole="button"
             accessibilityLabel={`Open basket, ${basketTotalCount} ${
               basketTotalCount === 1 ? 'item' : 'items'
             }`}
-            className="relative h-12 w-12 items-center justify-center rounded-lg border border-border bg-card active:opacity-80"
+            className="flex-row items-center gap-1.5 rounded-full border px-3 py-2 active:opacity-80"
+            style={{
+              backgroundColor: dashboardColors.ctaBg,
+              borderColor: dashboardColors.ctaBorder,
+            }}
           >
-            <ShoppingBasket color={palette.primary} size={20} />
-            {basketTotalCount > 0 ? (
-              <View className="absolute -right-1 -top-1 min-w-5 items-center justify-center rounded-full bg-primary px-1.5">
-                <Text className="text-[10px] font-bold text-primary-foreground">
-                  {basketTotalCount}
-                </Text>
-              </View>
-            ) : null}
+            <ShoppingBag color={dashboardColors.ctaText} size={15} />
+            <Text
+              className="text-[11px] font-semibold"
+              style={{ color: dashboardColors.ctaText }}
+            >
+              Basket
+            </Text>
+            <View
+              className="ml-0.5 min-w-5 items-center justify-center rounded-full px-1.5"
+              style={{ backgroundColor: dashboardColors.ctaText }}
+            >
+              <Text
+                className="text-[10px] font-bold"
+                style={{ color: dashboardColors.ctaBg }}
+              >
+                {basketTotalCount}
+              </Text>
+            </View>
           </Pressable>
+        </View>
+      </View>
+
+      {/* Values row — mirrors the web's `.shop-values` strip. */}
+      <View className="mb-3 flex-row flex-wrap gap-x-4 gap-y-1 px-5">
+        <ValuePill
+          icon={Wrench}
+          color={dashboardColors.statMintDeep}
+          label="Tools for the task"
+        />
+        <ValuePill
+          icon={ShoppingBasket}
+          color={dashboardColors.statCoralDeep}
+          label="Parts for the little fixes"
+        />
+        <ValuePill
+          icon={ArrowRight}
+          color={dashboardColors.statCitronDeep}
+          label="Care for shared spaces"
+        />
+      </View>
+
+      <View className="px-5">
+        <View className="mb-3">
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search tools, parts, and supplies…"
+          />
         </View>
 
         <ScrollView
@@ -297,13 +373,13 @@ export default function ShopIndexScreen() {
             accessibilityState={{ selected: inStockOnly }}
             className={`rounded-full border px-3 py-2 active:opacity-80 ${
               inStockOnly
-                ? 'border-primary bg-primary'
-                : 'border-border bg-card'
+                ? 'border-dashboard-teal bg-dashboard-teal'
+                : 'border-dashboard-card-line bg-dashboard-card-bg'
             }`}
           >
             <Text
-              className={`text-xs font-medium ${
-                inStockOnly ? 'text-primary-foreground' : 'text-muted'
+              className={`text-[11px] font-semibold ${
+                inStockOnly ? 'text-card' : 'text-dashboard-subtitle'
               }`}
             >
               In stock only
@@ -319,16 +395,16 @@ export default function ShopIndexScreen() {
                 accessibilityState={{ selected }}
                 className={`rounded-full border px-3 py-2 active:opacity-80 ${
                   selected
-                    ? 'border-primary bg-primary'
-                    : 'border-border bg-card'
+                    ? 'border-dashboard-teal bg-dashboard-teal'
+                    : 'border-dashboard-card-line bg-dashboard-card-bg'
                 }`}
               >
                 <Text
-                  className={`text-xs font-medium ${
-                    selected ? 'text-primary-foreground' : 'text-muted'
+                  className={`text-[11px] font-semibold ${
+                    selected ? 'text-card' : 'text-dashboard-subtitle'
                   }`}
                 >
-                  {value === ALL_CATEGORIES ? 'All' : value}
+                  {value === ALL_CATEGORIES ? 'All products' : value}
                 </Text>
               </Pressable>
             );
@@ -336,7 +412,7 @@ export default function ShopIndexScreen() {
         </ScrollView>
 
         <View className="mb-3 flex-row items-end justify-between">
-          <Text className="mb-3 text-xs text-muted">
+          <Text className="text-[10px] uppercase tracking-wide text-dashboard-caption">
             {filtered.length} {filtered.length === 1 ? 'product' : 'products'}
           </Text>
           <View className="w-44">
@@ -370,6 +446,12 @@ export default function ShopIndexScreen() {
           icon={PackageSearch}
           title="No products match"
           description="Try a different category, clear the search, or disable the stock filter."
+          actionLabel="Clear filters"
+          onAction={() => {
+            setQuery('');
+            setCategory(ALL_CATEGORIES);
+            setInStockOnly(false);
+          }}
         />
       ) : (
         <FlatList
@@ -393,11 +475,19 @@ export default function ShopIndexScreen() {
           <Pressable
             onPress={() => setBasketSheetOpen(true)}
             accessibilityRole="button"
-            className="flex-row items-center justify-between rounded-full bg-primary px-5 py-3 active:opacity-80"
+            className="flex-row items-center justify-between rounded-full px-5 py-3 active:opacity-90"
+            style={{
+              backgroundColor: dashboardColors.ctaBg,
+              borderColor: dashboardColors.ctaBorder,
+              borderWidth: 1,
+            }}
           >
             <View className="flex-row items-center gap-2">
-              <ShoppingBasket color={palette.primaryForeground} size={18} />
-              <Text className="text-sm font-semibold text-primary-foreground">
+              <ShoppingBasket color={dashboardColors.ctaText} size={18} />
+              <Text
+                className="text-sm font-semibold"
+                style={{ color: dashboardColors.ctaText }}
+              >
                 {basketTotalCount}{' '}
                 {basketTotalCount === 1 ? 'item' : 'items'} ·{' '}
                 {catalog
@@ -409,7 +499,10 @@ export default function ShopIndexScreen() {
                   : ''}
               </Text>
             </View>
-            <Text className="text-sm font-semibold text-primary-foreground">
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: dashboardColors.ctaText }}
+            >
               Review →
             </Text>
           </Pressable>
@@ -468,19 +561,6 @@ export default function ShopIndexScreen() {
           setCheckoutError(null);
         }}
         onPlace={placeOrder}
-        onDevComplete={async (orderId) => {
-          try {
-            await completeDevPayment(orderId);
-            setBasket({});
-            router.replace(`/more/shop/${orderId}`);
-          } catch (err) {
-            setCheckoutError(
-              err instanceof ApiError
-                ? err.message
-                : 'Could not complete the dev payment.',
-            );
-          }
-        }}
       />
     </Screen>
   );
@@ -611,10 +691,24 @@ function BasketSheet({
                       )
                     : ''}
                 </Text>
+                <Pressable
+                  onPress={() => onChangeQuantity(line.product.id, 0)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${line.product.name} from basket`}
+                  className="mt-1 self-start active:opacity-70"
+                >
+                  <Text className="text-[11px] font-medium text-tone-danger underline">
+                    Remove
+                  </Text>
+                </Pressable>
               </View>
               <QuantityStepper
                 value={line.quantity}
                 onChange={(value) => onChangeQuantity(line.product.id, value)}
+                // min = 0 so a line can be stepped down to nothing — the
+                // stepper then removes it from the basket, matching the
+                // web's per-line "Remove" affordance.
+                min={0}
                 max={Math.max(1, line.product.stock)}
               />
             </View>
@@ -739,7 +833,6 @@ type CheckoutSheetProps = {
   onChangeAddress: (value: string) => void;
   onClose: () => void;
   onPlace: () => void;
-  onDevComplete: (orderId: string) => Promise<void>;
 };
 
 function CheckoutSheet({
@@ -755,13 +848,7 @@ function CheckoutSheet({
   onChangeAddress,
   onClose,
   onPlace,
-  onDevComplete,
 }: CheckoutSheetProps) {
-  // The dev-complete button is only shown after the order is placed (the
-  // caller passes the `onDevComplete` handler that handles the redirect).
-  // Because the sheet closes once the order exists, the button is wired via
-  // the parent. We expose a helper prop here so the type stays explicit.
-  void onDevComplete;
   if (!visible || !quote) return null;
   return (
     <ModalSheet
@@ -892,6 +979,28 @@ function SummaryRow({
       >
         {value}
       </Text>
+    </View>
+  );
+}
+
+/**
+ * Small icon + label pair used in the values strip beneath the title bar
+ * (mirrors the web's `.shop-values` row). Stays inline so the strip can
+ * wrap on narrow phones.
+ */
+function ValuePill({
+  icon: Icon,
+  color,
+  label,
+}: {
+  icon: typeof ShoppingBasket;
+  color: string;
+  label: string;
+}) {
+  return (
+    <View className="flex-row items-center gap-1.5">
+      <Icon color={color} size={13} strokeWidth={1.8} />
+      <Text className="text-[10px] text-dashboard-banner-values">{label}</Text>
     </View>
   );
 }

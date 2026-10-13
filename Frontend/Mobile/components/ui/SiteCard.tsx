@@ -1,18 +1,9 @@
 import { Pencil } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
-import { themeColors } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 import type { Site } from '@/types';
-
-const contractStyles: Record<Site['contractStatus'], string> = {
-  contracted: 'bg-tone-success/15',
-  uncontracted: 'bg-tone-neutral/15',
-};
-
-const contractText: Record<Site['contractStatus'], string> = {
-  contracted: 'text-tone-success',
-  uncontracted: 'text-tone-neutral',
-};
+import { humanize } from '@/utils/format';
 
 type SiteCardProps = {
   site: Site;
@@ -23,40 +14,51 @@ type SiteCardProps = {
   active?: boolean;
 };
 
+/**
+ * Site card matching the web's `.site-card` block:
+ *   - title + mint `humanize(type)` status badge
+ *   - description / address with the web's "No … provided." fallbacks
+ *   - "Contract: … · Site ID: …" line
+ *   - 11px radius, 1px `#e9edf0` border, 16px padding
+ *   - active state: 1.5px teal `#008e82` border
+ *   - secondary text actions: outlined buttons in `text-action` teal
+ */
 export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
-  const palette = themeColors();
-
   return (
     <View
-      className={`mb-3 rounded-xl border bg-card p-4 ${
-        active ? 'border-primary' : 'border-border'
+      className={`mb-3 rounded-[11px] border bg-card p-4 ${
+        active
+          ? 'border-[1.5px] border-dashboard-teal'
+          : 'border-border'
       }`}
     >
       <View className="flex-row items-start justify-between gap-3">
         <View className="flex-1">
-          <Text className="text-base font-semibold text-ink">{site.name}</Text>
-          <Text className="mt-0.5 text-xs text-muted">
-            {site.type}
-            {site.address ? ` · ${site.address}` : ''}
+          <Text
+            className="text-[15px] font-semibold text-ink"
+            style={{ letterSpacing: -0.3 }}
+          >
+            {site.name}
+          </Text>
+          <Text className="mt-0.5 text-[11px] text-subtitle">
+            {site.address || 'No address provided.'}
           </Text>
         </View>
 
-        <View
-          className={`rounded-md px-2.5 py-1 ${contractStyles[site.contractStatus]}`}
-        >
-          <Text
-            className={`text-xs font-semibold ${contractText[site.contractStatus]}`}
-          >
-            {site.contractStatus}
+        <View className="rounded-md bg-mint-bg px-2.5 py-1">
+          <Text className="text-[10px] font-semibold text-mint-ink">
+            {humanize(site.type)}
           </Text>
         </View>
       </View>
 
-      {site.description ? (
-        <Text className="mt-3 text-sm text-muted" numberOfLines={3}>
-          {site.description}
-        </Text>
-      ) : null}
+      <Text className="mt-3 text-[12px] leading-[1.7] text-subtitle" numberOfLines={3}>
+        {site.description || 'No description provided.'}
+      </Text>
+
+      <Text className="mt-1.5 text-[11px] text-subtitle">
+        Contract: {humanize(site.contractStatus)} · Site ID: {site.id}
+      </Text>
 
       {onPress || onEdit ? (
         <View className="mt-4 flex-row items-center gap-3">
@@ -64,9 +66,11 @@ export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
             <Pressable
               onPress={onPress}
               accessibilityRole="button"
-              className="rounded-lg border border-border px-3 py-2 active:opacity-70"
+              className="rounded-md border border-border bg-card px-3 py-2 active:opacity-70"
             >
-              <Text className="text-sm font-medium text-ink">View reports</Text>
+              <Text className="text-[11px] font-semibold" style={{ color: colors.mintInk }}>
+                View reports →
+              </Text>
             </Pressable>
           ) : null}
 
@@ -75,10 +79,12 @@ export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
               onPress={onEdit}
               accessibilityRole="button"
               accessibilityLabel={`Edit ${site.name}`}
-              className="flex-row items-center gap-1.5 rounded-lg border border-border px-3 py-2 active:opacity-70"
+              className="flex-row items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 active:opacity-70"
             >
-              <Pencil color={palette.muted} size={14} />
-              <Text className="text-sm font-medium text-ink">Edit</Text>
+              <Pencil color={colors.muted} size={13} strokeWidth={1.6} />
+              <Text className="text-[11px] font-semibold" style={{ color: colors.mintInk }}>
+                Edit site
+              </Text>
             </Pressable>
           ) : null}
         </View>

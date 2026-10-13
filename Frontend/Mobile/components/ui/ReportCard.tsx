@@ -16,23 +16,28 @@ type ReportCardProps = {
 /**
  * Shared report row. Used by the reports list, the assignments queue and the
  * dashboard's recent list so a report always looks the same everywhere.
+ *
+ * Mirrors the web's `.report-table` row in card form:
+ *   - 11px radius, 1px `#e9edf0` border
+ *   - 16px padding
+ *   - top row: small uppercase category in slate caption + status pill
+ *   - title row: navy ink
+ *   - bottom row: urgency chip on the left, `#id · date` on the right
+ *   - hover: 80% opacity (instead of the web's border-color teal hover)
  */
 export function ReportCard({ report, siteName, onPress }: ReportCardProps) {
-  // final → ai → reporter. `finalUrgency` is set when staff/admin override;
-  // otherwise the AI label (when present) wins over the reporter's pick so
-  // the platform's classification is what surfaces at a glance.
   const visibleUrgency: Urgency =
     report.finalUrgency ?? report.aiUrgency ?? report.reporterUrgency;
 
   return (
     <Pressable
       onPress={onPress}
-      className="rounded-xl border border-border bg-card p-4 active:opacity-80"
+      className="rounded-[11px] border border-border bg-card p-4 active:opacity-80"
       accessibilityRole="button"
     >
       <View className="mb-2 flex-row items-center justify-between gap-2">
         <Text
-          className="flex-1 text-xs font-medium uppercase tracking-wide text-muted"
+          className="flex-1 text-[10px] font-medium uppercase tracking-wide text-subtitle"
           numberOfLines={1}
         >
           {siteName ? `${report.category} · ${siteName}` : report.category}
@@ -40,14 +45,14 @@ export function ReportCard({ report, siteName, onPress }: ReportCardProps) {
         <StatusBadge status={report.status} />
       </View>
 
-      <Text className="mb-3 text-sm text-ink" numberOfLines={3}>
+      <Text className="mb-3 text-[12px] leading-[1.5] text-ink" numberOfLines={3}>
         {report.description}
       </Text>
 
       <View className="flex-row items-center justify-between">
         <UrgencyChip level={visibleUrgency} />
-        <Text className="text-xs text-muted">
-          {formatDate(report.createdAt, true)}
+        <Text className="text-[10px] text-caption">
+          #{report.id} · {formatDate(report.createdAt, true)}
         </Text>
       </View>
 
@@ -55,13 +60,13 @@ export function ReportCard({ report, siteName, onPress }: ReportCardProps) {
           and non-assigned technicians. Render only when the API actually
           delivered them, so masked nulls never leak a placeholder row. */}
       {report.address ? (
-        <Text className="mt-2 text-xs text-muted" numberOfLines={2}>
+        <Text className="mt-2 text-[11px] text-subtitle" numberOfLines={2}>
           {report.address}
         </Text>
       ) : null}
 
       {report.assignedTechnicianId !== null ? (
-        <Text className="mt-2 text-xs text-muted">
+        <Text className="mt-2 text-[11px] text-subtitle">
           Technician #{report.assignedTechnicianId}
         </Text>
       ) : null}

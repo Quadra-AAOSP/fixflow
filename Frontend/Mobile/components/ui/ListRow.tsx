@@ -2,9 +2,13 @@ import type { ComponentType } from 'react';
 import { ChevronRight } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
-import { themeColors } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 
-type IconComponent = ComponentType<{ color?: string; size?: number }>;
+type IconComponent = ComponentType<{
+  color?: string;
+  size?: number;
+  strokeWidth?: number;
+}>;
 
 type ListRowProps = {
   title: string;
@@ -18,8 +22,13 @@ type ListRowProps = {
 };
 
 /**
- * Navigation row used by the More/quick-action lists. Renders as a plain
- * container when no `onPress` is supplied so it can double as a static row.
+ * Navigation row used by the More menu. Renders as a plain container when
+ * no `onPress` is supplied so it can double as a static row.
+ *
+ * Visual:
+ *   - 36×36 mint `#d3f6ef` icon disc with a teal `#008d80` glyph
+ *   - 13px ink title, 11px slate `#6b7b8f` subtitle
+ *   - right chevron in slate muted
  */
 export function ListRow({
   title,
@@ -30,29 +39,30 @@ export function ListRow({
   disabled,
   className,
 }: ListRowProps) {
-  const palette = themeColors();
-
   const content = (
     <View className="flex-row items-center gap-3">
       {Icon ? (
-        <View className="rounded-lg bg-primary/12 p-2.5">
-          <Icon color={palette.primary} size={20} />
+        <View
+          className="h-9 w-9 items-center justify-center rounded-lg"
+          style={{ backgroundColor: colors.mintBg }}
+        >
+          <Icon color={colors.mintInk} size={18} strokeWidth={1.7} />
         </View>
       ) : null}
 
       <View className="flex-1">
-        <Text className="text-sm font-semibold text-ink">{title}</Text>
+        <Text className="text-[13px] font-semibold text-ink">{title}</Text>
         {subtitle ? (
-          <Text className="mt-0.5 text-xs text-muted">{subtitle}</Text>
+          <Text className="mt-0.5 text-[11px] text-subtitle">{subtitle}</Text>
         ) : null}
       </View>
 
       {trailing ? (
-        <Text className="text-xs text-muted">{trailing}</Text>
+        <Text className="text-[11px] text-subtitle">{trailing}</Text>
       ) : null}
 
       {onPress ? (
-        <ChevronRight color={palette.muted} size={18} />
+        <ChevronRight color={colors.muted} size={18} strokeWidth={1.6} />
       ) : null}
     </View>
   );

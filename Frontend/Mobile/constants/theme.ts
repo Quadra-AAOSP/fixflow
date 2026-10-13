@@ -12,36 +12,68 @@
  */
 
 export const colors = {
-  surface: 'rgb(251, 247, 248)',
+  /*
+   * Base palette — mirrors `Frontend/Web/tailwind.config.js` and the
+   * `.dashboard-app` block in `Frontend/Web/src/styles/dashboard.css`
+   * (`--navy: #152742`, `--muted: #6e7e92`, `--line: #e9edf0`,
+   * `background: #fcfdfc`). The navy ink + slate muted + hairline
+   * `#e9edf0` border are what give the web its editorial feel.
+   */
+  surface: 'rgb(252, 253, 252)',
   card: 'rgb(255, 255, 255)',
-  ink: 'rgb(42, 30, 35)',
-  muted: 'rgb(122, 106, 112)',
-  border: 'rgb(239, 230, 233)',
+  ink: 'rgb(21, 39, 66)',
+  muted: 'rgb(107, 123, 143)',
+  border: 'rgb(233, 237, 240)',
+  line: 'rgb(233, 237, 240)',
+  subtitle: 'rgb(107, 123, 143)',
+  caption: 'rgb(125, 139, 147)',
+  navy: 'rgb(21, 39, 66)',
 
-  primary: 'rgb(226, 121, 150)',
-  primaryForeground: 'rgb(59, 36, 44)',
+  primary: 'rgb(226, 121, 121)',
+  primaryForeground: 'rgb(48, 44, 41)',
   accent: 'rgb(121, 226, 205)',
   accentForeground: 'rgb(30, 59, 52)',
   lime: 'rgb(220, 226, 121)',
   limeForeground: 'rgb(58, 63, 20)',
 
+  /*
+   * Status-group tones — match `.coral`/`.mint`/`.citron` on the web.
+   * Used for the status badge (open / in_progress / resolved groups),
+   * the chart bars, the stat icons, and the activity avatars.
+   */
+  coralBg: 'rgb(250, 228, 229)',
+  coralInk: 'rgb(187, 82, 96)',
+  mintBg: 'rgb(210, 246, 238)',
+  mintInk: 'rgb(0, 141, 128)',
+  citronBg: 'rgb(237, 244, 178)',
+  citronInk: 'rgb(104, 133, 34)',
+
+  /*
+   * Urgency — reporter-declared severity. Values copied from
+   * `Frontend/Web/tailwind.config.js > colors.urgency`.
+   */
   urgency: {
-    low: 'rgb(85, 99, 111)',
-    medium: 'rgb(37, 99, 235)',
-    high: 'rgb(180, 83, 9)',
-    critical: 'rgb(190, 18, 60)',
+    low: 'rgb(113, 111, 104)',
+    medium: 'rgb(14, 165, 233)',
+    high: 'rgb(245, 158, 11)',
+    critical: 'rgb(220, 38, 38)',
   },
 
+  /*
+   * Semantic status tones — mirrors `Frontend/Web/tailwind.config.js >
+   * colors.status`. The keys stay stable so existing `bg-tone-*` and
+   * `text-tone-*` classes keep working, just with the new values.
+   */
   tone: {
-    neutral: 'rgb(85, 99, 111)',
+    neutral: 'rgb(113, 111, 104)',
     info: 'rgb(37, 99, 235)',
-    success: 'rgb(18, 121, 92)',
-    warning: 'rgb(180, 83, 9)',
-    danger: 'rgb(190, 18, 60)',
+    success: 'rgb(5, 150, 105)',
+    warning: 'rgb(245, 158, 11)',
+    danger: 'rgb(220, 38, 38)',
   },
 
-  tabIconDefault: 'rgb(122, 106, 112)',
-  tabIconSelected: 'rgb(226, 121, 150)',
+  tabIconDefault: 'rgb(107, 123, 143)',
+  tabIconSelected: 'rgb(0, 141, 128)',
 } as const;
 
 /**

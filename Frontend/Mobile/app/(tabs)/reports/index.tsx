@@ -1,7 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -9,21 +8,21 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ClipboardList, House, Search } from 'lucide-react-native';
+import { ClipboardList, House, Plus, Search } from 'lucide-react-native';
 
 import { FilterTabs } from '@/components/ui/FilterTabs';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
-import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
-import { themeColors } from '@/constants/theme';
+import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
 import { useCurrentSite } from '@/stores/site';
 import type { Report, Urgency } from '@/types';
+import { formatDate, humanize } from '@/utils/format';
 import {
   REPORT_FILTERS,
   ReportFilter as FilterValue,
@@ -35,9 +34,14 @@ import {
 const FILTER_VALUES = REPORT_FILTERS.map((f) => f.value);
 
 /**
- * Reports list. Mirrors `ReportsView.vue`: site-scoped list, status filter
- * row, free-text search (the dashboard's stat cards deep-link here with a
- * `?filter=` query).
+ * Reports list. Mirrors `ReportsView.vue`:
+ *   - Site-scoped list, status filter row, free-text search
+ *   - Card heading with site name and a mint "New report" CTA
+ *     (visible when the account can file and a site is linked)
+ *   - "N matching reports" count and a "Search: … / Clear search" pill
+ *     when a search query is present
+ *
+ * The dashboard's stat cards deep-link here with a `?filter=` query.
  */
 export default function ReportsScreen() {
   const palette = themeColors();
@@ -104,7 +108,12 @@ export default function ReportsScreen() {
   );
 
   const filtered = useMemo(
-    () => searchReports(reports ?? [], query, siteName, filter),
+    // Newest first — matches the web's sort in `ReportsView.vue`.
+    () =>
+      searchReports(reports ?? [], query, siteName, filter).sort(
+        (a, b) =>
+          Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''),
+      ),
     [reports, query, siteName, filter],
   );
 
@@ -170,23 +179,48 @@ export default function ReportsScreen() {
     );
   }
 
+  const canCreate = user != null && user.role !== 'technician';
+
   return (
     <Screen className="px-5 pt-4">
       <View className="mb-2 flex-row items-center gap-3">
-        <View className="rounded-xl bg-primary/15 p-3">
-          <ClipboardList color={palette.primary} size={26} />
+        <View
+          className="rounded-xl p-3"
+          style={{ backgroundColor: dashboardColors.statCoralSoft }}
+        >
+          <ClipboardList color={dashboardColors.statCoralDeep} size={26} />
         </View>
         <View className="flex-1">
-          <Text className="text-xl font-bold text-ink">Reports</Text>
-          <SiteSwitcher />
+          <Text
+            className="text-xl font-bold text-ink"
+            style={{ letterSpacing: -0.4 }}
+          >
+            Reports
+          </Text>
+          <Text className="mt-0.5 text-xs text-dashboard-subtitle">
+            {site.name}
+          </Text>
         </View>
+        {canCreate ? (
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push('/reports/new')}
+            className="flex-row items-center gap-1.5 rounded-[11px] border px-3.5 py-2 active:opacity-90"
+            style={{
+              backgroundColor: dashboardColors.ctaBg,
+              borderColor: dashboardColors.ctaBorder,
+            }}
+          >
+            <Plus color={dashboardColors.ctaText} size={16} strokeWidth={2.4} />
+            <Text
+              className="text-[13px] font-semibold"
+              style={{ color: dashboardColors.ctaText }}
+            >
+              New report
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
-
-      {sites.length > 1 ? (
-        <Text className="mb-2 text-xs uppercase tracking-wide text-muted">
-          {site.name}
-        </Text>
-      ) : null}
 
       <ScrollView
         keyboardShouldPersistTaps="handled"
@@ -199,12 +233,42 @@ export default function ReportsScreen() {
             placeholder="Search reports…"
           />
         </View>
-        <View className="mb-3">
+        <View className="mb-2">
           <FilterTabs
             options={filterOptions}
             value={filter}
             onChange={setFilter}
           />
+        </View>
+
+        {/* Mirrors the web's "N matching reports" line and the
+            "Search: … / Clear search" pill. */}
+        <View className="mb-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+          {reports !== null ? (
+            <Text className="text-[10px] text-dashboard-subtitle">
+              {filtered.length} matching report
+              {filtered.length === 1 ? '' : 's'}
+            </Text>
+          ) : null}
+          {query ? (
+            <View className="flex-row items-center gap-1.5">
+              <Text className="text-[10px] text-dashboard-caption">
+                Search: {query}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setQuery('')}
+                className="active:opacity-70"
+              >
+                <Text
+                  className="text-[10px] font-medium underline"
+                  style={{ color: dashboardColors.teal }}
+                >
+                  Clear search
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
 
@@ -234,7 +298,7 @@ export default function ReportsScreen() {
               }
               description={
                 reports && reports.length === 0
-                  ? 'Tap "New report" on Home to file one.'
+                  ? 'Tap "New report" above to file one.'
                   : 'Try a different filter or search term.'
               }
             />
@@ -267,12 +331,12 @@ function ReportCard({
   return (
     <Pressable
       onPress={onPress}
-      className="rounded-xl border border-border bg-card p-4 active:opacity-80"
+      className="rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4 active:opacity-80"
       accessibilityRole="button"
     >
       <View className="mb-2 flex-row items-center justify-between">
-        <Text className="text-xs font-medium uppercase tracking-wide text-muted">
-          {report.category}
+        <Text className="text-xs font-medium uppercase tracking-wide text-dashboard-subtitle">
+          {humanize(report.category)}
         </Text>
         <StatusBadge status={report.status} />
       </View>
@@ -281,10 +345,24 @@ function ReportCard({
       </Text>
       <View className="flex-row items-center justify-between">
         <UrgencyChip level={visibleUrgency} />
-        <Text className="text-xs text-muted">#{report.id}</Text>
+        <Text className="text-xs text-dashboard-caption">#{report.id}</Text>
+      </View>
+      {/* Created + assignee — the "Created" and "Assignee" columns from the
+          web's `ReportTable.vue`. */}
+      <View className="mt-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+        <Text className="text-[11px] text-dashboard-subtitle">
+          {formatDate(report.createdAt)}
+        </Text>
+        <Text className="text-[11px] font-medium text-dashboard-subtitle">
+          {report.assignedTechnicianId == null
+            ? 'Unassigned'
+            : `Technician #${report.assignedTechnicianId}`}
+        </Text>
       </View>
       {isCreator && report.address ? (
-        <Text className="mt-2 text-xs text-muted">{report.address}</Text>
+        <Text className="mt-2 text-xs text-dashboard-caption">
+          {report.address}
+        </Text>
       ) : null}
     </Pressable>
   );

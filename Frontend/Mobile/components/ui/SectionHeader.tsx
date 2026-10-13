@@ -9,7 +9,12 @@ type SectionHeaderProps = {
   className?: string;
 };
 
-/** Consistent heading block for every section inside a screen. */
+/**
+ * Heading block matching the web's `.card-heading`:
+ *   - title: 15px Manrope, navy `#152742`, -0.3px letter-spacing
+ *   - subtitle: 11px slate `#6b7b8f` on a 1.7 line-height
+ *   - flex row with optional trailing action
+ */
 export function SectionHeader({
   title,
   subtitle,
@@ -23,9 +28,16 @@ export function SectionHeader({
       }`}
     >
       <View className="flex-1">
-        <Text className="text-base font-semibold text-ink">{title}</Text>
+        <Text
+          className="text-[15px] font-semibold text-ink"
+          style={{ letterSpacing: -0.3 }}
+        >
+          {title}
+        </Text>
         {subtitle ? (
-          <Text className="mt-0.5 text-xs text-muted">{subtitle}</Text>
+          <Text className="mt-1 text-[11px] leading-[1.7] text-subtitle">
+            {subtitle}
+          </Text>
         ) : null}
       </View>
       {action}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -6,74 +6,41 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Check, ClipboardList, Plug, ShieldCheck } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { ArrowRight, Check, Handshake, ShieldCheck } from 'lucide-react-native';
 
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
-import { canDecideContracts, roleLabels } from '@/constants/access';
-import { themeColors } from '@/constants/theme';
+import { canDecideContracts } from '@/constants/access';
+import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { createTechnicianContract } from '@/services/technician';
 import { listSites } from '@/services/sites';
-import type {
-  ContractApplication,
-  ContractApplicationStatus,
-  Site,
-} from '@/types';
-import { formatDate, humanize } from '@/utils/format';
+import type { Site } from '@/types';
+import { formatDate } from '@/utils/format';
 
 /**
  * Site contracts. Mirrors `ContractsView.vue`. Two faces:
  *
- *   - `technician`                              → "Online requests unavailable"
- *                                                + a list of their own
- *                                                applications (read-only)
- *   - `admin | super_admin`                     → record form to bind a
- *                                                technician to a site, plus a
- *                                                pending-applications queue
+ *   - `technician`           → "Stay independent" / "Request a site
+ *                              contract" panels (requests unavailable)
+ *   - `admin | super_admin`  → record form to bind a technician to a site
+ *
+ * Like the web build, existing contracts and pending requests are NOT
+ * listed here — the backend has no list endpoint yet.
  *
  * The technician is currently identified by numeric user ID because the
  * backend doesn't expose a public technician directory yet (see
  * `lib/endpoints.ts` trailing comment).
  */
 export default function ContractsScreen() {
-  const palette = themeColors();
   const { user } = useAuth();
-  const isAdmin =
-    user !== null && canDecideContracts(user.role);
+  const isAdmin = user !== null && canDecideContracts(user.role);
   const isTechnician = user?.role === 'technician';
-
-  const [applications, setApplications] = useState<ContractApplication[] | null>(
-    null,
-  );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      const result = await listContractApplicationsSafe();
-      setApplications(result);
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Could not load contract applications.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   if (!user) return null;
 
@@ -83,150 +50,111 @@ export default function ContractsScreen() {
         contentContainerClassName="px-5 pb-12 pt-4"
         keyboardShouldPersistTaps="handled"
       >
-        <View className="mb-5 flex-row items-center gap-3">
-          <View className="rounded-xl bg-accent/20 p-3">
-            <Plug color={palette.accentForeground} size={26} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-xl font-bold text-ink">Site contracts</Text>
-            <Text className="mt-0.5 text-xs text-muted">
-              {isAdmin
-                ? 'Bind technicians to your site once they consent.'
-                : isTechnician
-                  ? 'Apply for site contracts and track approvals.'
-                  : roleLabels[user.role]}
+        {/* Card heading — mirrors the web's `.card-heading` with a large
+            `Handshake` on the right. */}
+        <View className="mb-4 flex-row items-start justify-between">
+          <View className="flex-1 pr-3">
+            <Text
+              className="text-2xl font-bold text-ink"
+              style={{ letterSpacing: -0.5 }}
+            >
+              Site contracts
+            </Text>
+            <Text className="mt-1 text-[12px] text-dashboard-subtitle">
+              Optional site relationships for technicians
             </Text>
           </View>
+          <Handshake color={dashboardColors.statMintDeep} size={30} />
         </View>
 
-        {error ? (
-          <StateView
-            variant="error"
-            title="Could not load contracts"
-            description={error}
-            actionLabel="Retry"
-            onAction={() => {
-              void load();
-            }}
-            className="py-6"
-          />
-        ) : null}
-
-        {isTechnician ? <TechnicianView applications={applications} loading={loading} /> : null}
-        {isAdmin ? <AdminView onCreated={load} /> : null}
-
-        {applications && applications.length > 0 ? (
-          <View className="mt-6">
-            <Text className="mb-2 text-base font-semibold text-ink">
-              Recent applications
-            </Text>
-            {applications.slice(0, 5).map((app) => (
-              <ApplicationRow key={app.id} application={app} />
-            ))}
-          </View>
-        ) : null}
+        {isTechnician ? <TechnicianView userId={user.id} /> : null}
+        {isAdmin ? <AdminView /> : null}
       </ScrollView>
     </Screen>
   );
 }
 
-function ApplicationRow({ application }: { application: ContractApplication }) {
-  const palette = themeColors();
-  return (
-    <View className="mb-2 rounded-xl border border-border bg-card p-3">
-      <View className="flex-row items-center justify-between">
-        <Text className="text-sm font-semibold text-ink">
-          Application #{application.id}
-        </Text>
-        <StatusPill status={application.status} />
-      </View>
-      <Text className="mt-1 text-xs text-muted">
-        Submitted {formatDate(application.createdAt, true)}
-      </Text>
-      {application.note ? (
-        <Text className="mt-2 text-xs text-ink" numberOfLines={2}>
-          {application.note}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
-
-const PILL_BG: Record<ContractApplicationStatus, string> = {
-  pending: 'bg-tone-warning/15',
-  approved: 'bg-tone-success/15',
-  rejected: 'bg-tone-danger/15',
-};
-
-const PILL_TEXT: Record<ContractApplicationStatus, string> = {
-  pending: 'text-tone-warning',
-  approved: 'text-tone-success',
-  rejected: 'text-tone-danger',
-};
-
-function StatusPill({ status }: { status: ContractApplicationStatus }) {
-  return (
-    <View className={`rounded-md px-2.5 py-1 ${PILL_BG[status]}`}>
-      <Text
-        className={`text-xs font-semibold ${PILL_TEXT[status]}`}
-      >
-        {humanize(status)}
-      </Text>
-    </View>
-  );
-}
-
-function TechnicianView({
-  applications,
-  loading,
-}: {
-  applications: ContractApplication[] | null;
-  loading: boolean;
-}) {
-  const palette = themeColors();
+function TechnicianView({ userId }: { userId: number }) {
+  const router = useRouter();
   return (
     <>
-      <Card className="mb-4">
-        <View className="flex-row items-start gap-3">
-          <View className="rounded-lg bg-primary/15 p-2">
-            <ShieldCheck color={palette.primary} size={20} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-sm font-semibold text-ink">
-              Online contract requests aren't available yet
-            </Text>
-            <Text className="mt-1 text-xs leading-5 text-muted">
-              Until the marketplace launches, contracts are negotiated with a
-              site manager directly. Your existing applications are listed
-              below.
-            </Text>
-          </View>
-        </View>
-      </Card>
-      <Card padded={false} className="mb-4">
+      {/* First contract-choice panel — mirrors the web's "Stay independent"
+          section; the link routes to the technician workspace, exactly as
+          the web's RouterLink to /technician. */}
+      <View className="mt-2 border-t border-dashboard-card-line py-5">
+        <Text
+          className="mb-2 text-[17px] font-semibold text-ink"
+          style={{ letterSpacing: -0.3 }}
+        >
+          Stay independent
+        </Text>
+        <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+          No site contract is required to keep your account. You do not need to
+          apply for one during registration.
+        </Text>
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push('/workspace')}
+          className="flex-row items-center gap-1 self-start active:opacity-70"
+        >
+          <Text
+            className="text-[11px] font-semibold"
+            style={{ color: dashboardColors.teal }}
+          >
+            Continue independently
+          </Text>
+          <ArrowRight color={dashboardColors.teal} size={13} />
+        </Pressable>
+      </View>
+
+      {/* Second contract-choice panel — mirrors the web's "Request a site
+          contract" section. Online requests are not available yet, so the
+          CTA is disabled with explanatory copy (the web's
+          `contract-request-unavailable` block). */}
+      <View className="border-t border-dashboard-card-line py-5">
+        <Text
+          className="mb-2 text-[17px] font-semibold text-ink"
+          style={{ letterSpacing: -0.3 }}
+        >
+          Request a site contract
+        </Text>
+        <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+          Ask the site administrator to review your request. Share your
+          technician account ID:{' '}
+          <Text className="font-semibold text-ink">{userId}</Text>.
+        </Text>
+        <Text className="mb-3 text-[11px] leading-[1.6] text-dashboard-caption">
+          Online requests and request tracking are not available yet. No
+          request has been submitted from this page.
+        </Text>
         <Pressable
           disabled
           accessibilityRole="button"
-          className="px-4 py-3 opacity-50"
+          accessibilityState={{ disabled: true }}
+          className="flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 opacity-50"
+          style={{
+            backgroundColor: dashboardColors.ctaBg,
+            borderColor: dashboardColors.ctaBorder,
+          }}
         >
-          <Text className="text-sm font-semibold text-ink">
-            Apply for a contract
-          </Text>
-          <Text className="mt-0.5 text-xs text-muted">
-            Coming soon.
+          <Text
+            className="text-[14px] font-semibold"
+            style={{ color: dashboardColors.ctaText }}
+          >
+            Online requests unavailable
           </Text>
         </Pressable>
-      </Card>
-      {loading ? (
-        <View className="py-6">
-          <ActivityIndicator size="large" color={palette.primary} />
-        </View>
-      ) : null}
+        <Text className="mt-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
+          Your site administrator can record an agreed contract. An account
+          without a site ID can still have contracts; your current contract
+          list is not available here.
+        </Text>
+      </View>
     </>
   );
 }
 
-function AdminView({ onCreated }: { onCreated: () => void }) {
+function AdminView() {
   const palette = themeColors();
   const [sites, setSites] = useState<Site[] | null>(null);
   const [loadingSites, setLoadingSites] = useState(false);
@@ -274,7 +202,7 @@ function AdminView({ onCreated }: { onCreated: () => void }) {
 
   async function onSubmit() {
     if (siteId === null) {
-      setError('Choose a site.');
+      setError('Choose an accessible site, enter a valid technician ID, and confirm their agreement.');
       return;
     }
     const parsedTechnicianId = Number(technicianIdText);
@@ -283,24 +211,32 @@ function AdminView({ onCreated }: { onCreated: () => void }) {
       !Number.isInteger(parsedTechnicianId) ||
       parsedTechnicianId <= 0
     ) {
-      setError('Technician ID must be a positive integer.');
+      setError('Choose an accessible site, enter a valid technician ID, and confirm their agreement.');
       return;
     }
     if (!consent) {
-      setError('Confirm consent before recording a contract.');
+      setError('Choose an accessible site, enter a valid technician ID, and confirm their agreement.');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await createTechnicianContract({
+      const created = await createTechnicianContract({
         technicianId: parsedTechnicianId,
         siteId,
       });
-      setConfirmation('Contract recorded.');
+      // Success notice — same shape as the web's `.draft-notice`:
+      // "Contract #N created for technician #M at SiteName on date."
+      const siteName =
+        sites?.find((site) => site.id === created.siteId)?.name ??
+        `Site #${created.siteId}`;
+      setConfirmation(
+        `Contract #${created.id} created for technician ` +
+          `#${created.technicianId} at ${siteName} on ` +
+          `${formatDate(created.createdAt, true)}.`,
+      );
       setConsent(false);
       setTechnicianIdText('');
-      onCreated();
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -331,16 +267,27 @@ function AdminView({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <Card>
-      <View className="mb-3 flex-row items-center gap-2">
-        <ClipboardList color={palette.muted} size={18} />
-        <Text className="text-base font-semibold text-ink">Record contract</Text>
-      </View>
-      <Text className="mb-3 text-xs leading-5 text-muted">
-        Bind a technician to one of your sites after they consent. The backend
-        does not expose a technician directory yet, so the technician is
-        identified by their numeric user ID.
+    <Card className="mb-4">
+      <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+        Record a site contract only after the technician has agreed. This
+        creates a contract directly; it does not process an online request or
+        record an approval history.
       </Text>
+
+      {confirmation ? (
+        <View
+          className="mb-3 flex-row items-start gap-2 rounded-md px-3 py-2"
+          style={{ backgroundColor: dashboardColors.statMintSoft }}
+        >
+          <Check color={dashboardColors.statMintDeep} size={16} />
+          <Text
+            className="flex-1 text-[12px] leading-[1.6]"
+            style={{ color: dashboardColors.statMintDeep }}
+          >
+            {confirmation}
+          </Text>
+        </View>
+      ) : null}
 
       <Picker
         label="Site"
@@ -350,7 +297,7 @@ function AdminView({ onCreated }: { onCreated: () => void }) {
       />
 
       <TextField
-        label="Technician user ID"
+        label="Technician account ID"
         value={technicianIdText}
         onChangeText={setTechnicianIdText}
         placeholder="e.g. 42"
@@ -363,54 +310,58 @@ function AdminView({ onCreated }: { onCreated: () => void }) {
         onPress={() => setConsent(!consent)}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: consent }}
-        className="mb-3 flex-row items-start gap-3 rounded-lg border border-border bg-card p-3 active:opacity-70"
+        className="mb-3 flex-row items-start gap-3 rounded-lg border border-dashboard-card-line bg-dashboard-card-bg p-3 active:opacity-70"
       >
         <View
           className={`mt-0.5 h-5 w-5 items-center justify-center rounded border ${
-            consent ? 'border-primary bg-primary' : 'border-border bg-card'
+            consent ? 'border-dashboard-teal bg-dashboard-teal' : 'border-dashboard-card-line bg-dashboard-card-bg'
           }`}
         >
-          {consent ? <Check color={palette.primaryForeground} size={14} /> : null}
+          {consent ? (
+            <Check color={dashboardColors.ctaIconBg} size={14} strokeWidth={2.4} />
+          ) : null}
         </View>
-        <Text className="flex-1 text-xs leading-5 text-ink">
-          The technician has explicitly consented to this contract. Do not
-          record a contract without consent.
+        <Text className="flex-1 text-[12px] leading-[1.7] text-ink">
+          The technician has agreed to this site contract.
         </Text>
       </Pressable>
 
-      {error ? <Text className="mb-3 text-xs text-tone-danger">{error}</Text> : null}
-      {confirmation ? (
-        <View className="mb-3 flex-row items-center gap-1.5">
-          <Check color={palette.tone.success} size={14} />
-          <Text className="text-xs text-tone-success">{confirmation}</Text>
+      {error ? (
+        <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
+          <Text className="text-[11px] leading-[1.7] text-dashboard-error-text">
+            {error}
+          </Text>
         </View>
       ) : null}
 
-      <Button
-        label={submitting ? 'Recording…' : 'Record contract'}
-        loading={submitting}
+      <Pressable
+        accessibilityRole="button"
+        disabled={submitting}
         onPress={onSubmit}
-      />
+        className="mt-1 flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
+        style={{
+          backgroundColor: dashboardColors.ctaBg,
+          borderColor: dashboardColors.ctaBorder,
+          opacity: submitting ? 0.55 : 1,
+        }}
+      >
+        <ShieldCheck
+          color={dashboardColors.ctaText}
+          size={17}
+          strokeWidth={2.2}
+        />
+        <Text
+          className="text-[14px] font-semibold"
+          style={{ color: dashboardColors.ctaText }}
+        >
+          {submitting ? 'Saving…' : 'Record agreed contract'}
+        </Text>
+      </Pressable>
+
+      <Text className="mt-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
+        Existing contracts and pending requests cannot be listed in this
+        version.
+      </Text>
     </Card>
   );
-}
-
-/**
- * Wraps the contract-applications list with graceful failure when the
- * endpoint isn't available — the inventory notes that GET
- * /api/technician-contracts is unimplemented, so the technician view is
- * effectively read-only and an empty list is the safe default.
- */
-async function listContractApplicationsSafe(): Promise<ContractApplication[]> {
-  // The technician-facing call is intentionally scoped to "my applications"
-  // server-side; if the endpoint returns 404, treat the queue as empty.
-  const { listContractApplications } = await import('@/services/technician');
-  try {
-    return await listContractApplications();
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) {
-      return [];
-    }
-    throw err;
-  }
 }

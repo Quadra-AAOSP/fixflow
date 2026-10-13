@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { Check, Plus } from 'lucide-react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ArrowRight, Check, ShieldCheck, UserPlus } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -19,7 +19,7 @@ import {
   provisionableRoles,
   roleLabels,
 } from '@/constants/access';
-import { themeColors } from '@/constants/theme';
+import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { provisionUser } from '@/services/admin';
@@ -175,8 +175,15 @@ export default function TeamAccessScreen() {
     setError(null);
     try {
       const created = await provisionUser(payload);
+      // Full success notice — same shape as the web's `.draft-notice`:
+      // "{Role} account created for {name} ({email}), at {site}."
+      const siteName =
+        sites?.find((site) => site.id === created.siteId)?.name ??
+        `Site #${created.siteId ?? ''}`;
       setConfirmation(
-        `${created.firstName} ${created.lastName} can now sign in.`,
+        `${roleLabels[created.role]} account created for ${created.firstName} ` +
+          `${created.lastName} (${created.email}), at ${siteName}. ` +
+          'This account can now sign in.',
       );
       setFirstName('');
       setLastName('');
@@ -201,17 +208,27 @@ export default function TeamAccessScreen() {
         contentContainerClassName="px-5 pb-12 pt-4"
         keyboardShouldPersistTaps="handled"
       >
-        <View className="mb-5 flex-row items-center gap-3">
-          <View className="rounded-xl bg-primary/15 p-3">
-            <Plus color={palette.primary} size={24} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-xl font-bold text-ink">Provision account</Text>
-            <Text className="mt-0.5 text-xs text-muted">
-              Mint a staff or admin account. The new person signs in with the
-              initial password you set.
+        {/* Card heading — mirrors the web's `.card-heading` with a
+            large `ShieldCheck` on the right. */}
+        <View className="mb-4 flex-row items-start justify-between">
+          <View className="flex-1 pr-3">
+            <Text
+              className="text-2xl font-bold text-ink"
+              style={{ letterSpacing: -0.5 }}
+            >
+              Team access
+            </Text>
+            <Text className="mt-1 text-[13px] leading-[1.7] text-dashboard-subtitle">
+              {user.role === 'super_admin'
+                ? 'Create site-administrator and staff accounts for approved team members.'
+                : 'Create staff accounts for your site.'}
+            </Text>
+            <Text className="mt-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              Site administrators are appointed by a super administrator.
+              Every account is tied to a specific site.
             </Text>
           </View>
+          <ShieldCheck color={dashboardColors.statMintDeep} size={30} />
         </View>
 
         {sitesError ? (
@@ -229,7 +246,7 @@ export default function TeamAccessScreen() {
 
         {loadingSites && sites === null ? (
           <Card>
-            <Text className="text-sm text-muted">Loading sites…</Text>
+            <Text className="text-sm text-dashboard-subtitle">Loading sites…</Text>
           </Card>
         ) : null}
 
@@ -237,41 +254,69 @@ export default function TeamAccessScreen() {
           <StateView
             variant="empty"
             title="No sites available"
-            description="Create a site before provisioning accounts."
+            description="An accessible site is required before a team account can be created."
           />
         ) : null}
 
         {(sites?.length ?? 0) > 0 ? (
-          <Card>
-            <Picker
-              label="Role"
-              value={role ?? roles[0]}
-              onChange={(value) =>
-                setRole(value as Extract<UserRole, 'staff' | 'admin'>)
-              }
-              options={roleOptions}
-            />
-            <Picker
-              label="Site"
-              value={siteId !== null ? String(siteId) : null}
-              onChange={(value) => setSiteId(Number(value))}
-              options={siteOptions}
-            />
+          <Card className="mb-4">
+            {confirmation ? (
+              <View
+                className="mb-3 flex-row items-start gap-2 rounded-md px-3 py-2"
+                style={{ backgroundColor: dashboardColors.statMintSoft }}
+              >
+                <Check color={dashboardColors.statMintDeep} size={16} />
+                <Text
+                  className="flex-1 text-[12px] leading-[1.6]"
+                  style={{ color: dashboardColors.statMintDeep }}
+                >
+                  {confirmation}
+                </Text>
+              </View>
+            ) : null}
 
-            <TextField
-              label="First name"
-              value={firstName}
-              onChangeText={setFirstName}
-              autoCapitalize="words"
-              maxLength={MAX_NAME_LENGTH}
-            />
-            <TextField
-              label="Last name"
-              value={lastName}
-              onChangeText={setLastName}
-              autoCapitalize="words"
-              maxLength={MAX_NAME_LENGTH}
-            />
+            <View className="flex-row gap-3">
+              <View className="flex-1">
+                <Picker
+                  label="Role"
+                  value={role ?? roles[0]}
+                  onChange={(value) =>
+                    setRole(value as Extract<UserRole, 'staff' | 'admin'>)
+                  }
+                  options={roleOptions}
+                />
+              </View>
+              <View className="flex-1">
+                <Picker
+                  label="Site"
+                  value={siteId !== null ? String(siteId) : null}
+                  onChange={(value) => setSiteId(Number(value))}
+                  options={siteOptions}
+                />
+              </View>
+            </View>
+
+            <View className="flex-row gap-3">
+              <View className="flex-1">
+                <TextField
+                  label="First name"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                  maxLength={MAX_NAME_LENGTH}
+                />
+              </View>
+              <View className="flex-1">
+                <TextField
+                  label="Last name"
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                  maxLength={MAX_NAME_LENGTH}
+                />
+              </View>
+            </View>
+
             <TextField
               label="Work email"
               value={email}
@@ -290,15 +335,20 @@ export default function TeamAccessScreen() {
               placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
               maxLength={PASSWORD_MAX_LENGTH}
             />
+            <Text className="-mt-3 mb-4 text-[10px] leading-[1.65] text-dashboard-subtitle">
+              Use a unique passphrase of at least {PASSWORD_MIN_LENGTH}{' '}
+              characters. This creates an account directly; email invitations
+              and a mandatory first-login password reset are not available yet.
+            </Text>
             <TextField
-              label="Phone"
+              label="Phone (optional)"
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
               maxLength={MAX_PHONE_LENGTH}
             />
             <TextField
-              label="Address"
+              label="Address (optional)"
               value={address}
               onChangeText={setAddress}
               autoCapitalize="words"
@@ -306,30 +356,76 @@ export default function TeamAccessScreen() {
             />
 
             {error ? (
-              <Text className="mb-3 text-xs text-tone-danger">{error}</Text>
-            ) : null}
-            {confirmation ? (
-              <View className="mb-3 flex-row items-center gap-1.5">
-                <Check color={palette.tone.success} size={14} />
-                <Text className="text-xs text-tone-success">
-                  {confirmation}
+              <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
+                <Text className="text-[11px] leading-[1.7] text-dashboard-error-text">
+                  {error}
                 </Text>
               </View>
             ) : null}
 
-            <Button
-              label={submitting ? 'Creating…' : 'Create account'}
-              loading={submitting}
+            <Pressable
+              accessibilityRole="button"
+              disabled={submitting}
               onPress={onSubmit}
-            />
+              className="mt-1 flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
+              style={{
+                backgroundColor: dashboardColors.ctaBg,
+                borderColor: dashboardColors.ctaBorder,
+                opacity: submitting ? 0.55 : 1,
+              }}
+            >
+              <UserPlus
+                color={dashboardColors.ctaText}
+                size={17}
+                strokeWidth={2.2}
+              />
+              <Text
+                className="text-[14px] font-semibold"
+                style={{ color: dashboardColors.ctaText }}
+              >
+                {submitting ? 'Creating account…' : 'Create approved account'}
+              </Text>
+            </Pressable>
           </Card>
         ) : null}
 
-        <Text className="mt-4 text-xs leading-5 text-muted">
-          You can also dismiss a confirmation and the next account can be
-          created in the same session. The initial password should be changed
-          on first sign-in.
-        </Text>
+        {/* "Super-admin access is separate" — mirrors the web's
+            `.access-policy-summary` section. The mobile doesn't have a
+            dedicated /access-policy route, so the link is informational. */}
+        <Card>
+          <Text
+            className="mb-1 text-[15px] font-semibold text-ink"
+            style={{ letterSpacing: -0.3 }}
+          >
+            Super-admin access is separate
+          </Text>
+          <Text className="mb-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
+            This form cannot grant super-admin privileges. Organizational
+            identity, independent approval, MFA, and audit controls must be
+            verifiable before online elevation is enabled.
+          </Text>
+          <View className="flex-row items-center gap-1 self-start">
+            <Text
+              className="text-[11px] font-semibold"
+              style={{ color: dashboardColors.teal }}
+            >
+              View privileged-access criteria
+            </Text>
+            <ArrowRight color={dashboardColors.teal} size={13} />
+          </View>
+        </Card>
+
+        {/* Keeps the old "you can dismiss a confirmation" footnote hidden
+            under the new "Super-admin access is separate" card, but only
+            when no confirmation is showing — the visual weight should
+            belong to the policy section. */}
+        {confirmation ? (
+          <Text className="mt-3 text-[10px] leading-[1.7] text-dashboard-caption">
+            You can also dismiss a confirmation and the next account can be
+            created in the same session. The initial password should be
+            changed on first sign-in.
+          </Text>
+        ) : null}
       </ScrollView>
     </Screen>
   );

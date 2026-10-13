@@ -10,10 +10,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ImageIcon, Plus } from 'lucide-react-native';
+import { MapPin, Plus } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { ModalSheet } from '@/components/ui/ModalSheet';
 import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
@@ -22,11 +21,13 @@ import { SiteCard } from '@/components/ui/SiteCard';
 import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/hooks/useAuth';
 import { canCreateSite, canEditSite } from '@/constants/access';
-import { themeColors } from '@/constants/theme';
+import { dashboardColors, themeColors } from '@/constants/theme';
 import { ApiError } from '@/lib/apiClient';
 import { createSite, listSites, updateSite } from '@/services/sites';
+import { useCurrentSite } from '@/stores/site';
 import type { ContractStatus, Site, SiteType } from '@/types';
 import type { SitePayload } from '@/services/sites';
+import { humanize } from '@/utils/format';
 
 const SITE_TYPES: { value: SiteType; label: string }[] = [
   { value: 'school', label: 'School' },
@@ -41,15 +42,15 @@ const CONTRACT_STATUSES: { value: ContractStatus; label: string }[] = [
 
 /**
  * Sites management. Visible to `admin` and `super_admin`; only `super_admin`
- * sees the "Add site" CTA. Mirrors `SitesView.vue` on the web build.
- *
- * The site editor is a `ModalSheet` form. The same sheet is used for create
- * and edit so the validation path is shared.
+ * sees the "Add site" CTA. Mirrors `SitesView.vue` on the web build — the
+ * card heading has a mint "Add site" CTA, the body shows a grid of
+ * `SiteCard`s with image / placeholder, and the editor is a `ModalSheet`.
  */
 export default function SitesScreen() {
   const router = useRouter();
   const palette = themeColors();
   const { user } = useAuth();
+  const { setActiveSite } = useCurrentSite();
   const canCreate = user ? canCreateSite(user.role) : false;
   const canEdit = user ? canEditSite(user.role) : false;
 
@@ -92,6 +93,14 @@ export default function SitesScreen() {
     }
   }
 
+  /** Selects the tapped site before navigating — the web calls
+      `data.selectSite(id)` first (`SitesView.vue`), so "View reports"
+      is scoped to that site. */
+  function viewReports(siteId: number) {
+    setActiveSite(siteId);
+    router.push('/reports');
+  }
+
   if (error && sites === null) {
     return (
       <Screen>
@@ -111,20 +120,38 @@ export default function SitesScreen() {
   return (
     <Screen>
       <View className="flex-1 px-5 pt-4">
-        <View className="mb-3 flex-row items-center justify-between">
-          <Text className="text-sm text-muted">
-            {sites
-              ? `${sites.length} ${sites.length === 1 ? 'site' : 'sites'}`
-              : ' '}
-          </Text>
+        {/* Card heading — mirrors the web's `.card-heading`: title on the
+            left, "Add site" mint CTA on the right when the actor is
+            super_admin. */}
+        <View className="mb-4 flex-row items-start justify-between">
+          <View className="flex-1 pr-3">
+            <Text
+              className="text-2xl font-bold text-ink"
+              style={{ letterSpacing: -0.5 }}
+            >
+              Your sites
+            </Text>
+            <Text className="mt-0.5 text-xs text-dashboard-subtitle">
+              {sites
+                ? `${sites.length} ${sites.length === 1 ? 'site' : 'sites'} available to your account`
+                : 'Sites available to your account'}
+            </Text>
+          </View>
           {canCreate ? (
             <Pressable
-              onPress={() => setCreating(true)}
               accessibilityRole="button"
-              className="flex-row items-center gap-1.5 rounded-lg bg-primary px-3 py-2 active:opacity-80"
+              onPress={() => setCreating(true)}
+              className="flex-row items-center gap-1.5 rounded-[11px] border px-3.5 py-2 active:opacity-90"
+              style={{
+                backgroundColor: dashboardColors.ctaBg,
+                borderColor: dashboardColors.ctaBorder,
+              }}
             >
-              <Plus color={palette.primaryForeground} size={16} />
-              <Text className="text-sm font-semibold text-primary-foreground">
+              <Plus color={dashboardColors.ctaText} size={16} strokeWidth={2.4} />
+              <Text
+                className="text-[13px] font-semibold"
+                style={{ color: dashboardColors.ctaText }}
+              >
                 Add site
               </Text>
             </Pressable>
@@ -138,11 +165,11 @@ export default function SitesScreen() {
         ) : sites && sites.length === 0 ? (
           <StateView
             variant="empty"
-            icon={ImageIcon}
+            icon={MapPin}
             title="No sites yet"
             description={
               canCreate
-                ? 'Create the first site to start receiving reports.'
+                ? 'Add your first site to start collecting maintenance reports.'
                 : 'No sites have been created yet.'
             }
           />
@@ -163,12 +190,12 @@ export default function SitesScreen() {
                   <SiteHero
                     url={site.imageUrl}
                     name={site.name}
-                    onPress={() => router.push('/reports')}
+                    onPress={() => viewReports(site.id)}
                   />
                 ) : null}
                 <SiteCard
                   site={site}
-                  onPress={() => router.push('/reports')}
+                  onPress={() => viewReports(site.id)}
                   onEdit={canEdit ? () => setEditing(site) : undefined}
                 />
               </View>

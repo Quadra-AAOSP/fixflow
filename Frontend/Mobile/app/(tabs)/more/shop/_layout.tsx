@@ -12,9 +12,12 @@ export default function ShopStackLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: palette.card },
+        headerStyle: {
+          backgroundColor: palette.card,
+        },
         headerTintColor: palette.ink,
-        headerTitleStyle: { fontWeight: '600' },
+        headerTitleStyle: { fontWeight: '600', fontSize: 16 },
+        headerShadowVisible: false,
         contentStyle: { backgroundColor: palette.surface },
       }}
     >

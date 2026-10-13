@@ -2,6 +2,18 @@ import { Text, View } from 'react-native';
 
 import type { Urgency } from '@/types';
 
+/**
+ * Urgency chip using the same `bg-urgency-low` / `text-urgency-low`
+ * (and -medium / -high / -critical) tokens the web uses in
+ * `UrgencyChip.vue`:
+ *   - low:      warm slate (`#716f68`)
+ *   - medium:   sky (`#0ea5e9`)
+ *   - high:     amber (`#f59e0b`)
+ *   - critical: red (`#dc2626`)
+ *
+ * The RGB values for those tokens were updated in global.css /
+ * theme.ts to match the web's `tailwind.config.js > colors.urgency`.
+ */
 const containerStyles: Record<Urgency, string> = {
   low: 'bg-urgency-low/15',
   medium: 'bg-urgency-medium/15',
@@ -30,7 +42,7 @@ type UrgencyChipProps = {
 export function UrgencyChip({ level }: UrgencyChipProps) {
   return (
     <View className={`rounded-md px-2.5 py-1 ${containerStyles[level]}`}>
-      <Text className={`text-xs font-semibold ${textStyles[level]}`}>
+      <Text className={`text-[11px] font-semibold ${textStyles[level]}`}>
         {urgencyLabels[level]}
       </Text>
     </View>

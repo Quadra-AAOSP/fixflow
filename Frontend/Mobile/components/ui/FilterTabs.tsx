@@ -15,9 +15,13 @@ type FilterTabsProps<T extends string> = {
 };
 
 /**
- * Horizontally scrollable pill filter. Used where the option count is
- * variable (report status buckets, shop categories) — for two or three
- * fixed choices `SegmentedControl` reads better.
+ * Horizontally scrollable pill filter, mirroring the web's pill
+ * treatment (the status filter on Reports, the category chips on Shop):
+ *   - 8px radius
+ *   - selected: teal `#008e82` border, soft mint `#d2f6ef` background,
+ *     teal-deep text
+ *   - unselected: hairline `#e9edf0` border, white background, slate
+ *     muted text
  */
 export function FilterTabs<T extends string>({
   options,
@@ -40,15 +44,15 @@ export function FilterTabs<T extends string>({
             onPress={() => onChange(option.value)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
-            className={`rounded-full border px-4 py-2 active:opacity-80 ${
+            className={`rounded-lg border px-3.5 py-1.5 active:opacity-80 ${
               selected
-                ? 'border-primary bg-primary'
+                ? 'border-dashboard-teal bg-dashboard-teal-soft'
                 : 'border-border bg-card'
             }`}
           >
             <Text
-              className={`text-sm font-medium ${
-                selected ? 'text-primary-foreground' : 'text-muted'
+              className={`text-[12px] font-semibold ${
+                selected ? 'text-dashboard-teal' : 'text-subtitle'
               }`}
             >
               {option.count !== undefined

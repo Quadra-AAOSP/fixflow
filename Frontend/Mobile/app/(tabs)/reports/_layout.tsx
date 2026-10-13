@@ -14,9 +14,12 @@ export default function ReportsStackLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: palette.card },
+        headerStyle: {
+          backgroundColor: palette.card,
+        },
         headerTintColor: palette.ink,
-        headerTitleStyle: { color: palette.ink },
+        headerTitleStyle: { fontWeight: '600', fontSize: 16, color: palette.ink },
+        headerShadowVisible: false,
         contentStyle: { backgroundColor: palette.surface },
       }}
     >

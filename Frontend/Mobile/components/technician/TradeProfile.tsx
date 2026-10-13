@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Pressable, Text, View } from 'react-native';
 import { Check, Plus } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -18,13 +18,15 @@ import {
 } from '@/services/technician';
 import { listSiteRules } from '@/services/siteRules';
 import type { SiteRule } from '@/types';
+import type { TechnicianSkill } from '@/types/technician';
 import { useCurrentSite } from '@/stores/site';
 
+/** Proficiency option copy — mirrors the <select> in `TradeProfile.vue`. */
 const PROFICIENCY_LABELS: Record<number, string> = {
-  1: 'Novice',
-  2: 'Developing',
-  3: 'Competent',
-  4: 'Proficient',
+  1: 'Beginner',
+  2: 'Basic practical experience',
+  3: 'Independent routine work',
+  4: 'Advanced work',
   5: 'Expert',
 };
 
@@ -32,7 +34,7 @@ const PROFICIENCY_OPTIONS = Array.from(
   { length: SKILL_PROFICIENCY_MAX - SKILL_PROFICIENCY_MIN + 1 },
   (_, index) => {
     const value = SKILL_PROFICIENCY_MIN + index;
-    return { value: String(value), label: `${value} · ${PROFICIENCY_LABELS[value]}` };
+    return { value: String(value), label: `${value} — ${PROFICIENCY_LABELS[value]}` };
   },
 );
 
@@ -48,10 +50,12 @@ export function TradeProfile() {
   const { site } = useCurrentSite();
   const [category, setCategory] = useState('');
   const [specialty, setSpecialty] = useState('');
-  const [proficiency, setProficiency] = useState<string>('3');
+  // Starts empty so an explicit choice is required — matches the web select's
+  // disabled placeholder ("Choose a level") in `TradeProfile.vue`.
+  const [proficiency, setProficiency] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<string | null>(null);
+  const [saved, setSaved] = useState<TechnicianSkill | null>(null);
   const [rules, setRules] = useState<SiteRule[]>([]);
 
   const categoryOptions = rules
@@ -89,6 +93,10 @@ export function TradeProfile() {
       setError('Specialty is required.');
       return;
     }
+    if (proficiency === '') {
+      setError('Choose a proficiency level.');
+      return;
+    }
     if (category.length > SKILL_CATEGORY_MAX_LENGTH) {
       setError(
         `Category must be ${SKILL_CATEGORY_MAX_LENGTH} characters or fewer.`,
@@ -112,28 +120,37 @@ export function TradeProfile() {
     }
 
     setError(null);
-    setConfirm(null);
     setSubmitting(true);
     try {
-      await addTechnicianSkill({
+      const result = await addTechnicianSkill({
         technicianId: user.id,
         category: category.trim(),
         specialty: specialty.trim(),
         proficiency: proficiencyValue,
       });
-      setConfirm('Trade added to your profile.');
-      setCategory('');
-      setSpecialty('');
-      setProficiency('3');
+      setSaved(result);
     } catch (err) {
+      // Duplicate-submission warning — same suffix the web appends in
+      // `TradeProfile.vue`.
       setError(
-        err instanceof ApiError
+        (err instanceof ApiError
           ? err.message
-          : 'Could not save the trade right now.',
+          : 'Could not save the trade right now.'
+        ) +
+          ' If the connection was interrupted, confirm with an administrator before submitting again to avoid a duplicate skill.',
       );
     } finally {
       setSubmitting(false);
     }
+  }
+
+  /** Resets the form after the saved-state panel — the web's
+      "Add another trade →" button. */
+  function onAddAnother() {
+    setSaved(null);
+    setCategory('');
+    setSpecialty('');
+    setProficiency('');
   }
 
   return (
@@ -143,19 +160,39 @@ export function TradeProfile() {
           <Plus color={palette.accentForeground} size={18} />
         </View>
         <Text className="text-base font-semibold text-ink">
-          Add a trade
+          Your trade profile
         </Text>
       </View>
       <Text className="mb-4 text-xs leading-5 text-muted">
-        Trades are independently verified. Self-assessed proficiency on this
-        form is informational and not a substitute for a formal qualification.
+        Add your trade after creating your account. These details are
+        self-reported, not verified qualifications.
       </Text>
 
+      {saved ? (
+        <View className="mb-2">
+          <View className="flex-row items-center gap-1.5">
+            <Check color={palette.tone.success} size={14} />
+            <Text className="text-xs text-tone-success">
+              Saved: {saved.category} · {saved.specialty} · proficiency{' '}
+              {saved.proficiency}/5.
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onAddAnother}
+            className="mt-2 self-start active:opacity-70"
+          >
+            <Text className="text-xs font-medium text-dashboard-teal underline">
+              Add another trade →
+            </Text>
+          </Pressable>
+        </View>
+      ) : (
       <ScrollView keyboardShouldPersistTaps="handled">
         {categoryOptions.length > 0 ? (
           <View className="mb-3">
             <Picker
-              label="Category"
+              label="Primary trade"
               value={category}
               onChange={setCategory}
               options={categoryOptions.map((value) => ({
@@ -167,7 +204,7 @@ export function TradeProfile() {
           </View>
         ) : (
           <TextField
-            label="Category"
+            label="Primary trade"
             value={category}
             onChangeText={setCategory}
             placeholder="e.g. electrical"
@@ -178,7 +215,7 @@ export function TradeProfile() {
         )}
 
         <TextField
-          label="Specialty"
+          label="Specialty and work you are qualified to undertake"
           value={specialty}
           onChangeText={setSpecialty}
           placeholder="e.g. low-voltage wiring"
@@ -188,30 +225,46 @@ export function TradeProfile() {
         />
 
         <Picker
-          label="Proficiency"
+          label="Self-assessed proficiency"
           value={proficiency}
           onChange={setProficiency}
           options={PROFICIENCY_OPTIONS}
-          placeholder="Proficiency"
+          placeholder="Choose a level"
         />
 
         {error ? (
-          <Text className="mt-3 text-xs text-tone-danger">{error}</Text>
-        ) : null}
-        {confirm ? (
-          <View className="mt-3 flex-row items-center gap-1.5">
-            <Check color={palette.tone.success} size={14} />
-            <Text className="text-xs text-tone-success">{confirm}</Text>
-          </View>
+          <Text className="mt-3 text-xs leading-5 text-tone-danger">
+            {error}
+          </Text>
         ) : null}
 
         <Button
-          label={submitting ? 'Saving…' : 'Save trade'}
+          label={submitting ? 'Saving…' : 'Save trade details'}
           loading={submitting}
           onPress={onSubmit}
           className="mt-4"
         />
       </ScrollView>
+      )}
+
+      <Text className="mt-4 text-xs leading-5 text-muted">
+        Previously saved skills cannot be displayed yet. Only add a trade you
+        have not already submitted.
+      </Text>
+      <Text className="mt-3 text-[13px] font-semibold text-ink">
+        Before you start work at a site
+      </Text>
+      <Text className="mt-1 text-xs leading-5 text-muted">
+        Arrange a review with the site administrator covering your identity,
+        relevant work history and references, qualifications, applicable trade
+        licences and expiry dates, and insurance appropriate to the work.
+        Requirements depend on the trade and location.
+      </Text>
+      <Text className="mt-2 text-xs leading-5 text-muted">
+        Secure evidence uploads and approval tracking are not available yet. Do
+        not enter identity numbers or document links here. A saved trade or
+        site contract is not proof of vetting.
+      </Text>
     </Card>
   );
 }

@@ -8,13 +8,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { CreditCard, ExternalLink, X } from 'lucide-react-native';
+import { ArrowLeft, CreditCard, ExternalLink, X } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
-import { themeColors } from '@/constants/theme';
+import { dashboardColors, themeColors } from '@/constants/theme';
 import { ApiError } from '@/lib/apiClient';
 import {
   cancelOrder,
@@ -145,16 +145,58 @@ export default function OrderDetailScreen() {
     <Screen>
       <Stack.Screen options={{ title: `Order #${order.orderId}` }} />
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push('/more/shop')}
+          className="mb-2 flex-row items-center gap-1 self-start active:opacity-70"
+        >
+          <ArrowLeft color={dashboardColors.teal} size={15} />
+          <Text
+            className="text-[11px] font-semibold"
+            style={{ color: dashboardColors.teal }}
+          >
+            Back to shop
+          </Text>
+        </Pressable>
+
+        <View className="mb-2 flex-row items-center gap-3">
+          <View
+            className="rounded-xl p-3"
+            style={{ backgroundColor: dashboardColors.statMintSoft }}
+          >
+            <CreditCard color={dashboardColors.statMintDeep} size={26} />
+          </View>
+          <View className="flex-1">
+            <Text
+              className="text-xl font-bold text-ink"
+              style={{ letterSpacing: -0.4 }}
+            >
+              Order #{order.orderId}
+            </Text>
+            <Text className="mt-0.5 text-xs text-dashboard-subtitle">
+              Placed {formatDate(order.createdAt, true)}
+            </Text>
+          </View>
+        </View>
+
         <Card className="mb-4">
           <View className="flex-row items-center justify-between">
             <View>
-              <Text className="text-sm text-muted">Status</Text>
+              <Text className="text-[10px] uppercase tracking-wide text-dashboard-subtitle">
+                Status
+              </Text>
               <Text className="mt-0.5 text-base font-semibold text-ink">
                 {order.status.replaceAll('_', ' ')}
               </Text>
             </View>
-            <View className="rounded-md bg-primary/15 px-3 py-1.5">
-              <Text className="text-xs font-semibold text-primary">
+            <View
+              className="rounded-md px-3 py-1.5"
+              style={{ backgroundColor: dashboardColors.pillBg }}
+            >
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: dashboardColors.teal }}
+              >
                 {order.paymentStatus.replaceAll('_', ' ')}
               </Text>
             </View>
@@ -174,13 +216,18 @@ export default function OrderDetailScreen() {
           </View>
         </Card>
 
-        <Text className="mb-2 text-base font-semibold text-ink">Items</Text>
+        <Text
+          className="mb-2 text-[15px] font-semibold text-ink"
+          style={{ letterSpacing: -0.3 }}
+        >
+          Items
+        </Text>
         <Card padded={false} className="mb-4">
           {order.items.map((item, index) => (
             <View
               key={item.productId}
               className={`px-4 py-3 ${
-                index > 0 ? 'border-t border-border' : ''
+                index > 0 ? 'border-t border-dashboard-card-line' : ''
               }`}
             >
               <View className="flex-row items-center justify-between">
@@ -198,7 +245,7 @@ export default function OrderDetailScreen() {
                   )}
                 </Text>
               </View>
-              <Text className="mt-1 text-xs text-muted">
+              <Text className="mt-1 text-xs text-dashboard-subtitle">
                 {formatMoney(
                   item.unitPriceMinor,
                   order.minorUnitDigits,
@@ -210,7 +257,12 @@ export default function OrderDetailScreen() {
           ))}
         </Card>
 
-        <Text className="mb-2 text-base font-semibold text-ink">Shipping</Text>
+        <Text
+          className="mb-2 text-[15px] font-semibold text-ink"
+          style={{ letterSpacing: -0.3 }}
+        >
+          Shipping
+        </Text>
         <Card className="mb-4">
           <Row label="Name" value={order.shippingName} />
           {order.shippingPhone ? (
@@ -221,7 +273,10 @@ export default function OrderDetailScreen() {
 
         {order.status === 'pending_payment' ? (
           <Card className="mb-4">
-            <Text className="mb-2 text-sm font-semibold text-ink">
+            <Text
+              className="mb-2 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
               Payment
             </Text>
             {order.checkoutUrl ? (
@@ -237,39 +292,62 @@ export default function OrderDetailScreen() {
                   );
                 }}
                 accessibilityRole="button"
-                className="mb-3 flex-row items-center gap-2 rounded-lg border border-border bg-card p-3 active:opacity-80"
+                className="mb-3 flex-row items-center gap-2 rounded-lg border border-dashboard-card-line bg-dashboard-card-bg p-3 active:opacity-80"
               >
-                <ExternalLink color={palette.primary} size={16} />
-                <Text className="flex-1 text-xs text-primary" numberOfLines={1}>
+                <ExternalLink color={dashboardColors.teal} size={16} />
+                <Text
+                  className="flex-1 text-xs"
+                  style={{ color: dashboardColors.teal }}
+                  numberOfLines={1}
+                >
                   {order.checkoutUrl}
                 </Text>
               </Pressable>
             ) : null}
             <View className="flex-row gap-2">
-              <Button
-                label="Complete dev payment"
-                variant="secondary"
-                loading={acting}
+              <Pressable
+                accessibilityRole="button"
+                disabled={acting}
                 onPress={onDevComplete}
-                className="flex-1"
-              />
+                className="flex-1 flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
+                style={{
+                  backgroundColor: dashboardColors.ctaBg,
+                  borderColor: dashboardColors.ctaBorder,
+                  opacity: acting ? 0.55 : 1,
+                }}
+              >
+                <CreditCard
+                  color={dashboardColors.ctaText}
+                  size={17}
+                  strokeWidth={2.2}
+                />
+                <Text
+                  className="text-[14px] font-semibold"
+                  style={{ color: dashboardColors.ctaText }}
+                >
+                  {acting ? 'Completing…' : 'Complete dev payment'}
+                </Text>
+              </Pressable>
               <Pressable
                 onPress={onCancel}
                 disabled={acting}
                 accessibilityRole="button"
-                className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-3 active:opacity-70 ${
+                className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-dashboard-card-line bg-dashboard-card-bg px-3 py-3 active:opacity-70 ${
                   acting ? 'opacity-50' : ''
                 }`}
               >
-                <X color={palette.tone.danger} size={16} />
-                <Text className="text-sm font-semibold text-tone-danger">
+                <X color={dashboardColors.statCoralDeep} size={16} />
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: dashboardColors.statCoralDeep }}
+                >
                   Cancel
                 </Text>
               </Pressable>
             </View>
             <View className="mt-3 flex-row items-center gap-1.5">
-              <CreditCard color={palette.muted} size={12} />
-              <Text className="text-[11px] text-muted">
+              <CreditCard color={dashboardColors.subtitle} size={12} />
+              <Text className="text-[11px] text-dashboard-caption">
                 The dev payment endpoint exists so checkout can be exercised
                 without a real payment provider.
               </Text>
@@ -279,10 +357,13 @@ export default function OrderDetailScreen() {
 
         <Pressable
           onPress={() => router.replace('/more/shop')}
-          accessibilityRole="button"
-          className="self-center rounded-lg border border-border bg-card px-4 py-2 active:opacity-70"
+          accessibilityRole="link"
+          className="self-center rounded-lg border border-dashboard-card-line bg-dashboard-card-bg px-4 py-2 active:opacity-70"
         >
-          <Text className="text-sm font-medium text-primary">
+          <Text
+            className="text-sm font-medium"
+            style={{ color: dashboardColors.teal }}
+          >
             Back to shop
           </Text>
         </Pressable>

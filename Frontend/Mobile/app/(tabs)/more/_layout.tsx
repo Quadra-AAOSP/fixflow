@@ -5,15 +5,21 @@ import { themeColors } from '@/constants/theme';
  * Nested stack under the More tab. Each secondary destination (sites, team
  * access, contracts, shop, notifications) gets its own back arrow and header
  * title while still being part of the bottom-bar navigation.
+ *
+ * Header chrome matches the dashboard topbar: white card background, hairline
+ * `#e9edf0` bottom border, slate `#152742` ink, no shadow.
  */
 export default function MoreStackLayout() {
   const palette = themeColors();
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: palette.card },
+        headerStyle: {
+          backgroundColor: palette.card,
+        },
         headerTintColor: palette.ink,
-        headerTitleStyle: { fontWeight: '600' },
+        headerTitleStyle: { fontWeight: '600', fontSize: 16 },
+        headerShadowVisible: false,
         contentStyle: { backgroundColor: palette.surface },
       }}
     >

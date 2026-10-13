@@ -22,33 +22,69 @@
  */
 @layer base {
   :root {
-    /* Neutral scaffolding */
-    --color-surface: 251 247 248;
+    /*
+     * Neutral scaffolding — mirrors `Frontend/Web/tailwind.config.js`
+     * (surface/card/ink/muted/border) and `.dashboard-app` (`background:
+     * #fcfdfc`, `--navy: #152742`, `--muted: #6e7e92`, `--line: #e9edf0`).
+     * The web's warm off-white + dark navy + slate muted produce the
+     * editorial feel the design uses everywhere.
+     */
+    --color-surface: 252 253 252;
     --color-card: 255 255 255;
-    --color-ink: 42 30 35;
-    --color-muted: 122 106 112;
-    --color-border: 239 230 233;
+    --color-ink: 21 39 66;
+    --color-muted: 107 123 143;
+    --color-border: 233 237 240;
+    --color-line: 233 237 240;
+    --color-subtitle: 107 123 143;
+    --color-caption: 125 139 147;
+    --color-navy: 21 39 66;
 
-    /* Brand */
-    --color-primary: 226 121 150;
-    --color-primary-foreground: 59 36 44;
+    /*
+     * Brand — the web's `primary` is the coral used on the auth brand
+     * mark and a few accent dots; the in-app CTA is the mint accent.
+     * The lime is unused in the current build but kept for parity.
+     */
+    --color-primary: 226 121 121;
+    --color-primary-foreground: 48 44 41;
     --color-accent: 121 226 205;
     --color-accent-foreground: 30 59 52;
     --color-lime: 220 226 121;
     --color-lime-foreground: 58 63 20;
 
-    /* Urgency — reporter-declared severity */
-    --color-urgency-low: 85 99 111;
-    --color-urgency-medium: 37 99 235;
-    --color-urgency-high: 180 83 9;
-    --color-urgency-critical: 190 18 60;
+    /*
+     * Status-group tones — matches the `.coral`/`.mint`/`.citron` classes
+     * the web uses for `.stat-icon`, `.status-badge`, `.chart-bar`, and
+     * `.mini-avatar` (see `Frontend/Web/src/styles/dashboard.css` lines
+     * 70–72 and 95–97). Each tone is a soft 15%-opacity background with
+     * a darker text, exactly as the web renders them.
+     */
+    --color-coral-bg: 250 228 229;
+    --color-coral-ink: 187 82 96;
+    --color-mint-bg: 210 246 238;
+    --color-mint-ink: 0 141 128;
+    --color-citron-bg: 237 244 178;
+    --color-citron-ink: 104 133 34;
 
-    /* Semantic status tones — mapped from ReportStatus */
-    --color-tone-neutral: 85 99 111;
+    /*
+     * Urgency — reporter-declared severity. Web values from
+     * `Frontend/Web/tailwind.config.js > colors.urgency`.
+     */
+    --color-urgency-low: 113 111 104;
+    --color-urgency-medium: 14 165 233;
+    --color-urgency-high: 245 158 11;
+    --color-urgency-critical: 220 38 38;
+
+    /*
+     * Semantic status tones — mirrors `Frontend/Web/tailwind.config.js >
+     * colors.status`. Only the values that map to the in-app chips matter;
+     * the names stay the same so any pre-existing `bg-tone-*` classes
+     * keep rendering with the new values.
+     */
+    --color-tone-neutral: 113 111 104;
     --color-tone-info: 37 99 235;
-    --color-tone-success: 18 121 92;
-    --color-tone-warning: 180 83 9;
-    --color-tone-danger: 190 18 60;
+    --color-tone-success: 5 150 105;
+    --color-tone-warning: 245 158 11;
+    --color-tone-danger: 220 38 38;
 
     /*
      * Auth chrome — the warm palette used by the login / register shell.

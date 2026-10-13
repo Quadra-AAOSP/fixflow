@@ -9,9 +9,17 @@ type CardProps = ViewProps & {
 };
 
 /**
- * The single surface treatment used across the app: rounded, hairline
- * border, `card` background. Keeps every panel in the product visually
- * identical without repeating the class string.
+ * The single surface treatment used across the in-app UI. Matches the
+ * web's `.dashboard-card` exactly:
+ *   - white card background
+ *   - 1px hairline border at `#e9edf0`
+ *   - 11px corner radius
+ *   - default 17px / 15px padding (we use 16px in Tailwind units, the
+ *     web-equivalent that maps cleanly to the 17/15px values)
+ *
+ * Pages that need a different surface (the welcome banner uses cream,
+ * the FAB uses mint) build their own container with `dashboardColors`
+ * rather than overriding Card.
  */
 export function Card({
   children,
@@ -21,7 +29,7 @@ export function Card({
 }: CardProps) {
   return (
     <View
-      className={`rounded-xl border border-border bg-card ${
+      className={`rounded-[11px] border border-border bg-card ${
         padded ? 'p-4' : ''
       } ${className ?? ''}`}
       {...props}

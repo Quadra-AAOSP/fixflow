@@ -20,6 +20,10 @@ import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
  * `More` collects every secondary destination (Sites management, Team access,
  * Contracts, Shop, Notifications) so the bottom bar stays at four items while
  * every screen the web app exposes is reachable from the mobile app.
+ *
+ * Chrome matches the web's `.dashboard-app` palette: the active tab uses the
+ * mint-ink selected token (`#008d80`), the inactive uses slate muted, the bar
+ * background is the warm card with a hairline `#e9edf0` top border.
  */
 export default function TabLayout() {
   const palette = themeColors();
@@ -55,10 +59,13 @@ export default function TabLayout() {
             backgroundColor: palette.card,
             borderTopColor: palette.border,
           },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
           headerStyle: {
             backgroundColor: palette.card,
           },
           headerTintColor: palette.ink,
+          headerTitleStyle: { fontWeight: '600', fontSize: 16 },
+          headerShadowVisible: false,
           headerShown: useClientOnlyValue(false, true),
         }}
       >

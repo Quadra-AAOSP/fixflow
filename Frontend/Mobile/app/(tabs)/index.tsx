@@ -4,7 +4,6 @@ import {
   ArrowRight,
   CheckCircle2,
   ChevronRight,
-  ClipboardList,
   CircleCheck,
   FileText,
   Heart,
@@ -14,7 +13,6 @@ import {
   Settings,
   TriangleAlert,
   Users,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
@@ -945,8 +943,3 @@ function summaryFor(
 function reportsLoadedValue(loading: boolean, value: number): number | string {
   return loading && value === 0 ? '—' : value;
 }
-
-// `Wrench` is unused on this screen but kept imported for parity with other
-// tabs and to avoid the lint `no-unused-vars` rule for future tweaks.
-void Wrench;
-void ClipboardList;
