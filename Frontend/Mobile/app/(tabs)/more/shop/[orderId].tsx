@@ -1,0 +1,314 @@
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import { CreditCard, ExternalLink, X } from 'lucide-react-native';
+
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Screen } from '@/components/ui/Screen';
+import { StateView } from '@/components/ui/StateView';
+import { themeColors } from '@/constants/theme';
+import { ApiError } from '@/lib/apiClient';
+import {
+  cancelOrder,
+  completeDevPayment,
+  getOrder,
+} from '@/services/shop';
+import type { ShopOrder } from '@/types';
+import { formatDate, formatMoney } from '@/utils/format';
+
+/**
+ * Order detail. Reads the order ID from the route, fetches it, and shows the
+ * full breakdown. Pending orders expose a "complete dev payment" CTA so the
+ * dev-only payment provider can settle an order end-to-end without a real
+ * payment gateway.
+ */
+export default function OrderDetailScreen() {
+  const palette = themeColors();
+  const router = useRouter();
+  const { orderId } = useLocalSearchParams<{ orderId?: string | string[] }>();
+  const publicId = Array.isArray(orderId) ? orderId[0] : orderId;
+
+  const [order, setOrder] = useState<ShopOrder | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [acting, setActing] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!publicId) return;
+    setError(null);
+    if (order === null) setLoading(true);
+    try {
+      const result = await getOrder(publicId);
+      setOrder(result);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : 'Could not load the order.',
+      );
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function onCancel() {
+    if (!order) return;
+    Alert.alert('Cancel order', 'This cannot be undone.', [
+      { text: 'Keep order', style: 'cancel' },
+      {
+        text: 'Cancel order',
+        style: 'destructive',
+        onPress: async () => {
+          setActing(true);
+          try {
+            const next = await cancelOrder(order.orderId);
+            setOrder(next);
+          } catch (err) {
+            setError(
+              err instanceof ApiError
+                ? err.message
+                : 'Could not cancel the order.',
+            );
+          } finally {
+            setActing(false);
+          }
+        },
+      },
+    ]);
+  }
+
+  async function onDevComplete() {
+    if (!order) return;
+    setActing(true);
+    try {
+      const next = await completeDevPayment(order.orderId);
+      setOrder(next);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'Could not complete the dev payment.',
+      );
+    } finally {
+      setActing(false);
+    }
+  }
+
+  if (!publicId) {
+    return (
+      <Screen>
+        <StateView variant="empty" title="Order not found" />
+      </Screen>
+    );
+  }
+
+  if (loading && order === null) {
+    return (
+      <Screen>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color={palette.primary} />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (error && order === null) {
+    return (
+      <Screen>
+        <StateView
+          variant="error"
+          title="Could not load the order"
+          description={error}
+          actionLabel="Retry"
+          onAction={() => {
+            void load();
+          }}
+        />
+      </Screen>
+    );
+  }
+
+  if (!order) return null;
+
+  return (
+    <Screen>
+      <Stack.Screen options={{ title: `Order #${order.orderId}` }} />
+      <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
+        <Card className="mb-4">
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Text className="text-sm text-muted">Status</Text>
+              <Text className="mt-0.5 text-base font-semibold text-ink">
+                {order.status.replaceAll('_', ' ')}
+              </Text>
+            </View>
+            <View className="rounded-md bg-primary/15 px-3 py-1.5">
+              <Text className="text-xs font-semibold text-primary">
+                {order.paymentStatus.replaceAll('_', ' ')}
+              </Text>
+            </View>
+          </View>
+          <View className="mt-3">
+            <Row label="Placed" value={formatDate(order.createdAt, true)} />
+            <Row label="Updated" value={formatDate(order.updatedAt, true)} />
+            <Row
+              label="Total"
+              value={formatMoney(
+                order.totalMinor,
+                order.minorUnitDigits,
+                order.currency,
+              )}
+              bold
+            />
+          </View>
+        </Card>
+
+        <Text className="mb-2 text-base font-semibold text-ink">Items</Text>
+        <Card padded={false} className="mb-4">
+          {order.items.map((item, index) => (
+            <View
+              key={item.productId}
+              className={`px-4 py-3 ${
+                index > 0 ? 'border-t border-border' : ''
+              }`}
+            >
+              <View className="flex-row items-center justify-between">
+                <Text
+                  className="flex-1 text-sm font-semibold text-ink"
+                  numberOfLines={2}
+                >
+                  {item.name}
+                </Text>
+                <Text className="text-sm font-semibold text-ink">
+                  {formatMoney(
+                    item.lineTotalMinor,
+                    order.minorUnitDigits,
+                    order.currency,
+                  )}
+                </Text>
+              </View>
+              <Text className="mt-1 text-xs text-muted">
+                {formatMoney(
+                  item.unitPriceMinor,
+                  order.minorUnitDigits,
+                  order.currency,
+                )}{' '}
+                · ×{item.quantity}
+              </Text>
+            </View>
+          ))}
+        </Card>
+
+        <Text className="mb-2 text-base font-semibold text-ink">Shipping</Text>
+        <Card className="mb-4">
+          <Row label="Name" value={order.shippingName} />
+          {order.shippingPhone ? (
+            <Row label="Phone" value={order.shippingPhone} />
+          ) : null}
+          <Row label="Address" value={order.shippingAddress} />
+        </Card>
+
+        {order.status === 'pending_payment' ? (
+          <Card className="mb-4">
+            <Text className="mb-2 text-sm font-semibold text-ink">
+              Payment
+            </Text>
+            {order.checkoutUrl ? (
+              <Pressable
+                onPress={() => {
+                  // Native WebView isn't bundled yet — surfacing the URL via
+                  // a tap-to-copy alert keeps the workflow reachable without
+                  // pulling in a heavyweight dependency.
+                  Alert.alert(
+                    'Provider checkout',
+                    order.checkoutUrl ?? '',
+                    [{ text: 'OK' }],
+                  );
+                }}
+                accessibilityRole="button"
+                className="mb-3 flex-row items-center gap-2 rounded-lg border border-border bg-card p-3 active:opacity-80"
+              >
+                <ExternalLink color={palette.primary} size={16} />
+                <Text className="flex-1 text-xs text-primary" numberOfLines={1}>
+                  {order.checkoutUrl}
+                </Text>
+              </Pressable>
+            ) : null}
+            <View className="flex-row gap-2">
+              <Button
+                label="Complete dev payment"
+                variant="secondary"
+                loading={acting}
+                onPress={onDevComplete}
+                className="flex-1"
+              />
+              <Pressable
+                onPress={onCancel}
+                disabled={acting}
+                accessibilityRole="button"
+                className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-3 active:opacity-70 ${
+                  acting ? 'opacity-50' : ''
+                }`}
+              >
+                <X color={palette.tone.danger} size={16} />
+                <Text className="text-sm font-semibold text-tone-danger">
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+            <View className="mt-3 flex-row items-center gap-1.5">
+              <CreditCard color={palette.muted} size={12} />
+              <Text className="text-[11px] text-muted">
+                The dev payment endpoint exists so checkout can be exercised
+                without a real payment provider.
+              </Text>
+            </View>
+          </Card>
+        ) : null}
+
+        <Pressable
+          onPress={() => router.replace('/more/shop')}
+          accessibilityRole="button"
+          className="self-center rounded-lg border border-border bg-card px-4 py-2 active:opacity-70"
+        >
+          <Text className="text-sm font-medium text-primary">
+            Back to shop
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </Screen>
+  );
+}
+
+function Row({
+  label,
+  value,
+  bold,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+}) {
+  return (
+    <View className="flex-row items-center justify-between py-1">
+      <Text className="text-xs text-muted">{label}</Text>
+      <Text
+        className={`text-sm ${bold ? 'font-semibold text-ink' : 'text-ink'}`}
+        numberOfLines={2}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}

@@ -1,9 +1,20 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { ClipboardList, House } from 'lucide-react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import { ClipboardList, House, Search } from 'lucide-react-native';
 
+import { FilterTabs } from '@/components/ui/FilterTabs';
 import { Screen } from '@/components/ui/Screen';
+import { SearchField } from '@/components/ui/SearchField';
+import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
@@ -11,9 +22,23 @@ import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
-import type { Report, Urgency } from '@/types';
 import { useCurrentSite } from '@/stores/site';
+import type { Report, Urgency } from '@/types';
+import {
+  REPORT_FILTERS,
+  ReportFilter as FilterValue,
+  effectiveUrgency,
+  matchesFilter,
+  searchReports,
+} from '@/utils/maintenance';
 
+const FILTER_VALUES = REPORT_FILTERS.map((f) => f.value);
+
+/**
+ * Reports list. Mirrors `ReportsView.vue`: site-scoped list, status filter
+ * row, free-text search (the dashboard's stat cards deep-link here with a
+ * `?filter=` query).
+ */
 export default function ReportsScreen() {
   const palette = themeColors();
   const router = useRouter();
@@ -26,10 +51,19 @@ export default function ReportsScreen() {
     refresh: refreshSite,
   } = useCurrentSite();
 
+  const params = useLocalSearchParams<{ filter?: string; q?: string }>();
+  const initialFilter: FilterValue = FILTER_VALUES.includes(
+    params.filter as FilterValue,
+  )
+    ? (params.filter as FilterValue)
+    : 'all';
+
   const [reports, setReports] = useState<Report[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState(params.q ?? '');
+  const [filter, setFilter] = useState<FilterValue>(initialFilter);
 
   const load = useCallback(async () => {
     if (!site) return;
@@ -45,11 +79,9 @@ export default function ReportsScreen() {
     } finally {
       setLoading(false);
     }
-    // Intentionally re-key on the site id only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [site?.id]);
 
-  // Refresh on focus so returning from `new` or `[id]` shows current data.
   useFocusEffect(
     useCallback(() => {
       void load();
@@ -64,6 +96,28 @@ export default function ReportsScreen() {
       setRefreshing(false);
     }
   }
+
+  const siteName = useCallback(
+    (id: number | null) =>
+      id !== null && site && id === site.id ? site.name : `Site #${id ?? ''}`,
+    [site],
+  );
+
+  const filtered = useMemo(
+    () => searchReports(reports ?? [], query, siteName, filter),
+    [reports, query, siteName, filter],
+  );
+
+  const filterOptions = useMemo(
+    () =>
+      REPORT_FILTERS.map((option) => ({
+        ...option,
+        count: (reports ?? []).filter((report) =>
+          matchesFilter(report, option.value),
+        ).length,
+      })),
+    [reports],
+  );
 
   if (!site) {
     if (siteLoading) {
@@ -100,7 +154,7 @@ export default function ReportsScreen() {
     );
   }
 
-  if (error && !reports) {
+  if (error && reports === null) {
     return (
       <Screen>
         <StateView
@@ -118,15 +172,44 @@ export default function ReportsScreen() {
 
   return (
     <Screen className="px-5 pt-4">
-      {/* Multi-site callers (super_admin) need to know which site this list
-          is scoped to, since the switcher lives on Home. */}
+      <View className="mb-2 flex-row items-center gap-3">
+        <View className="rounded-xl bg-primary/15 p-3">
+          <ClipboardList color={palette.primary} size={26} />
+        </View>
+        <View className="flex-1">
+          <Text className="text-xl font-bold text-ink">Reports</Text>
+          <SiteSwitcher />
+        </View>
+      </View>
+
       {sites.length > 1 ? (
-        <Text className="mb-3 text-xs uppercase tracking-wide text-muted">
+        <Text className="mb-2 text-xs uppercase tracking-wide text-muted">
           {site.name}
         </Text>
       ) : null}
+
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerClassName="pb-2"
+      >
+        <View className="mb-3">
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search reports…"
+          />
+        </View>
+        <View className="mb-3">
+          <FilterTabs
+            options={filterOptions}
+            value={filter}
+            onChange={setFilter}
+          />
+        </View>
+      </ScrollView>
+
       <FlatList
-        data={reports ?? []}
+        data={filtered}
         keyExtractor={(item) => String(item.id)}
         contentContainerClassName="grow pb-6"
         refreshControl={
@@ -143,9 +226,17 @@ export default function ReportsScreen() {
           ) : (
             <StateView
               variant="empty"
-              icon={ClipboardList}
-              title="No reports yet"
-              description={'Tap "New report" on Home to file one.'}
+              icon={reports && reports.length === 0 ? ClipboardList : Search}
+              title={
+                reports && reports.length === 0
+                  ? 'No reports yet'
+                  : 'No matches'
+              }
+              description={
+                reports && reports.length === 0
+                  ? 'Tap "New report" on Home to file one.'
+                  : 'Try a different filter or search term.'
+              }
             />
           )
         }
@@ -170,9 +261,6 @@ function ReportCard({
   isCreator: boolean;
   onPress: () => void;
 }) {
-  // final → ai → reporter. `finalUrgency` is set when staff/admin override;
-  // otherwise the AI label (when present) wins over the reporter's pick so
-  // the platform's classification is what surfaces at a glance.
   const visibleUrgency: Urgency =
     report.finalUrgency ?? report.aiUrgency ?? report.reporterUrgency;
 
@@ -193,13 +281,8 @@ function ReportCard({
       </Text>
       <View className="flex-row items-center justify-between">
         <UrgencyChip level={visibleUrgency} />
-        <Text className="text-xs text-muted">
-          {new Date(report.createdAt).toLocaleString()}
-        </Text>
+        <Text className="text-xs text-muted">#{report.id}</Text>
       </View>
-      {/* `address` and `reporterReason` are server-masked for peer reporters
-          and non-assigned technicians. Render only when the API actually
-          delivered them, so masked nulls never leak a placeholder row. */}
       {isCreator && report.address ? (
         <Text className="mt-2 text-xs text-muted">{report.address}</Text>
       ) : null}
