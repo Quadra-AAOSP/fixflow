@@ -1,29 +1,15 @@
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  ArrowRight,
-  Building2,
-  FileSignature,
-  Hash,
-  LogOut,
-  Mail,
-  MapPin,
-  Phone,
-  ShieldCheck,
-  User as UserIcon,
-  type LucideIcon,
-} from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Screen } from '@/components/ui/Screen';
+import { AuthButton } from '@/components/auth/AuthButton';
 import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { roleLabels } from '@/constants/access';
-import { dashboardColors } from '@/constants/theme';
+import { authColors, fontFamilies } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentSite } from '@/stores/site';
-import type { User, UserRole } from '@/types';
+import type { User } from '@/types';
 
 /**
  * Account & session screen. Everything the backend exposes on `/api/auth/me`
@@ -31,12 +17,15 @@ import type { User, UserRole } from '@/types';
  * (`AdminUserController` is POST /api/admin/users only — admin provisioning),
  * so there is deliberately no edit affordance.
  *
- * Layout mirrors `ProfileView.vue` and extends it with the polish of the
- * dashboard: a warm hero card with a role-toned initials avatar and badges,
- * grouped label/value detail cards (Account details · Working site), the
- * technician-only "contracts are optional" panel, and a Session card for the
- * sign-out action. Section eyebrows reuse the More menu's treatment so the
- * whole tab reads as one system.
+ * Visual language: the profile deliberately adopts the warmer editorial
+ * treatment of the auth pages (cream shell, sage-dot kickers, Manrope
+ * headlines with tight tracking, coral accents, the serif `✳` sign-off and the
+ * coral submit button) so it reads as the "nicer", branded sibling of the
+ * sign-in screen rather than a plain dashboard card.
+ *
+ * Content still mirrors `ProfileView.vue` and the mobile dashboard: avatar +
+ * name + email + role, the Account details / Working site panels, the
+ * technician-only "contracts are optional" note, and the Session sign-out.
  */
 export default function ProfileScreen() {
   const router = useRouter();
@@ -75,179 +64,182 @@ export default function ProfileScreen() {
   const accountRows: RowConfig[] = [];
   if (user) {
     accountRows.push(
-      { icon: ShieldCheck, label: 'Role', value: roleLabels[user.role] ?? user.role },
-      { icon: Hash, label: 'Account ID', value: `#${user.id}`, mono: true },
+      { label: 'Role', value: roleLabels[user.role] ?? user.role },
+      { label: 'Account ID', value: `#${user.id}` },
       {
-        icon: Building2,
         label: 'Site ID',
         value: user.siteId != null ? String(user.siteId) : '—',
-        mono: true,
       },
     );
-    if (user.phone) {
-      accountRows.push({ icon: Phone, label: 'Phone', value: user.phone });
-    }
-    if (user.address) {
-      accountRows.push({ icon: MapPin, label: 'Address', value: user.address });
-    }
+    if (user.phone) accountRows.push({ label: 'Phone', value: user.phone });
+    if (user.address) accountRows.push({ label: 'Address', value: user.address });
   }
 
   const siteRows: RowConfig[] = [];
   if (site) {
     siteRows.push(
-      { icon: Building2, label: 'Type', value: capitalize(site.type) },
-      { icon: FileSignature, label: 'Contract', value: capitalize(site.contractStatus) },
+      { label: 'Type', value: capitalize(site.type) },
+      { label: 'Contract', value: capitalize(site.contractStatus) },
     );
-    if (site.address) {
-      siteRows.push({ icon: MapPin, label: 'Address', value: site.address });
-    }
+    if (site.address) siteRows.push({ label: 'Address', value: site.address });
   }
 
   return (
-    <Screen>
-      <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
-        {/* Hero — warm cream treatment matching the dashboard welcome banner,
-            with a role-toned avatar so the account's standing is legible at a
-            glance. */}
-        <View
-          className="mb-6 items-center rounded-2xl border bg-dashboard-banner-bg px-5 pb-6 pt-7"
-          style={{ borderColor: dashboardColors.bannerBorder }}
-        >
-          {user ? (
-            <ProfileAvatar user={user} />
-          ) : (
-            <View
-              className="h-20 w-20 items-center justify-center rounded-full border-4 border-card"
-              style={{ backgroundColor: dashboardColors.statMintSoft }}
+    <View className="flex-1 bg-auth-bg">
+      <ScrollView contentContainerClassName="px-5 pb-12 pt-5">
+        {/* Hero — mirrors the auth heading stack (kicker → symbol tile →
+            headline → supporting line), personalised with the account's
+            initials and role. */}
+        <View className="rounded-[22px] bg-auth-panel px-5 pb-6 pt-6">
+          <Kicker>Your account</Kicker>
+
+          <View
+            className="mb-5 mt-5 h-16 w-16 items-center justify-center rounded-[20px] bg-auth-lime-soft"
+            style={{ transform: [{ rotate: '-6deg' }] }}
+          >
+            <Text
+              className="text-[24px] text-auth-ink"
+              style={{ fontFamily: fontFamilies.headExtraBold }}
             >
-              <UserIcon color={dashboardColors.statMintDeep} size={34} />
-            </View>
-          )}
+              {user ? initials(user) : '?'}
+            </Text>
+          </View>
 
           <Text
-            className="mt-4 text-[21px] font-semibold text-ink"
-            style={{ letterSpacing: -0.5 }}
+            className="text-[30px] text-auth-ink"
+            style={{ fontFamily: fontFamilies.headBold, letterSpacing: -1.3 }}
           >
             {user ? `${user.firstName} ${user.lastName}` : 'Profile'}
+            <Text className="text-coral">.</Text>
           </Text>
 
           {user ? (
-            <View className="mt-1.5 flex-row items-center gap-1.5">
-              <Mail color={dashboardColors.subtitle} size={13} strokeWidth={1.8} />
-              <Text className="text-[13px] text-dashboard-subtitle">
-                {user.email}
-              </Text>
-            </View>
+            <Text className="mt-2.5 text-[13px] leading-[22px] text-auth-body">
+              {user.email}
+            </Text>
           ) : null}
 
           {user ? (
             <View className="mt-4 flex-row items-center gap-2">
-              <RolePill role={user.role} />
-              <MetaChip label="Account" value={`#${user.id}`} />
+              <View className="rounded-full bg-coral px-3 py-1">
+                <Text
+                  className="text-[11px] text-auth-ink"
+                  style={{ fontFamily: fontFamilies.bodySemiBold }}
+                >
+                  {roleLabels[user.role] ?? user.role}
+                </Text>
+              </View>
+              <View className="rounded-full border border-auth-line px-3 py-1">
+                <Text
+                  className="text-[11px] text-auth-note"
+                  style={{ fontFamily: fontFamilies.bodySemiBold }}
+                >
+                  ID #{user.id}
+                </Text>
+              </View>
             </View>
           ) : null}
         </View>
 
         {user ? (
           <>
-            <SectionLabel>Account details</SectionLabel>
-            <Card className="mb-6">
+            <Kicker className="mt-6">Account details</Kicker>
+            <Panel>
               <DetailList rows={accountRows} />
-            </Card>
+            </Panel>
           </>
         ) : null}
 
         {/* Mobile-only: the web surfaces the active site through the sidebar's
             selector, but the bottom-bar layout has no dedicated slot, so the
             site context lives here. */}
-        <SectionLabel>Working site</SectionLabel>
-        <Card className="mb-6">
+        <Kicker className="mt-6">Working site</Kicker>
+        <Panel>
           <SiteSwitcher />
           {site ? (
-            <View className="mt-3 border-t border-dashboard-card-line pt-1">
+            <View className="mt-2 border-t border-auth-divider">
               <DetailList rows={siteRows} />
             </View>
           ) : null}
           {sites.length > 1 ? (
-            <Text className="mt-3 text-[11px] leading-[1.7] text-dashboard-caption">
+            <Text className="mt-3 text-[11px] leading-[19px] text-auth-note">
               Reports, categories, and the report list all follow the site
               selected here.
             </Text>
           ) : null}
-        </Card>
+        </Panel>
 
         {/* Technician-only: mirrors the web's "Site contracts are optional"
             panel. Independent technicians don't have a site-scoped list of
             contracts, so the panel explains that and points to the contracts
             screen for the application flow. */}
         {user?.role === 'technician' ? (
-          <Card className="mb-6">
-            <View className="mb-2 flex-row items-center gap-2">
-              <FileSignature color={dashboardColors.teal} size={18} />
+          <>
+            <Kicker className="mt-6">Contracts</Kicker>
+            <Panel>
               <Text
-                className="text-[15px] font-semibold text-ink"
-                style={{ letterSpacing: -0.3 }}
+                className="text-[15px] text-auth-ink"
+                style={{ fontFamily: fontFamilies.headBold, letterSpacing: -0.3 }}
               >
                 Site contracts are optional
               </Text>
-            </View>
-            <Text className="text-[12px] leading-[1.8] text-dashboard-subtitle">
-              Your account ID is {user.id}. Share it with a site administrator
-              when arranging a contract. A site ID does not represent your
-              contract list.
-            </Text>
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => router.push('/more/contracts')}
-              className="mt-3 flex-row items-center gap-1 self-start active:opacity-70"
-            >
-              <Text
-                className="text-[11px] font-semibold"
-                style={{ color: dashboardColors.teal }}
-              >
-                View contract options
+              <Text className="mt-2 text-[12px] leading-[20px] text-auth-body">
+                Your account ID is {user.id}. Share it with a site administrator
+                when arranging a contract. A site ID does not represent your
+                contract list.
               </Text>
-              <ArrowRight color={dashboardColors.teal} size={13} />
-            </Pressable>
-          </Card>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => router.push('/more/contracts')}
+                className="mt-3 flex-row items-center gap-1.5 self-start active:opacity-70"
+              >
+                <Text
+                  className="text-[12px] text-coral-link"
+                  style={{ fontFamily: fontFamilies.bodySemiBold }}
+                >
+                  View contract options
+                </Text>
+                <ArrowRight color={authColors.coralLink} size={14} />
+              </Pressable>
+            </Panel>
+          </>
         ) : null}
 
-        <SectionLabel>Session</SectionLabel>
-        <Card className="mb-8">
-          <View className="mb-4 flex-row items-center gap-3">
-            <View
-              className="h-9 w-9 items-center justify-center rounded-lg"
-              style={{ backgroundColor: dashboardColors.statCoralSoft }}
-            >
-              <LogOut
-                color={dashboardColors.statCoralDeep}
-                size={18}
-                strokeWidth={1.8}
-              />
-            </View>
-            <View className="flex-1">
-              <Text className="text-[13px] font-semibold text-ink">
-                Current session
-              </Text>
-              <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
-                End this session on this device.
-              </Text>
-            </View>
-          </View>
+        <Kicker className="mt-6">Session</Kicker>
+        <Panel>
+          <Text className="text-[12px] leading-[20px] text-auth-body">
+            {user
+              ? `Signed in as ${roleLabels[user.role] ?? user.role}${
+                  site ? ` · ${site.name}` : ''
+                }.`
+              : 'End this session on this device.'}
+          </Text>
 
           {logoutError ? (
-            <Text className="mb-3 text-[11px] text-tone-danger">{logoutError}</Text>
+            <Text className="mt-3 text-[12px] text-urgency-critical">
+              {logoutError}
+            </Text>
           ) : null}
 
-          <Button
-            label="Sign out"
-            variant="secondary"
-            onPress={onLogout}
-            loading={loggingOut}
-          />
-        </Card>
+          <View className="mt-4">
+            <AuthButton
+              label="Sign out →"
+              loading={loggingOut}
+              onPress={onLogout}
+            />
+          </View>
+        </Panel>
+
+        {/* Sign-off strip — the same serif asterisk + reassurance line the
+            sign-in screen closes with. */}
+        <View className="mt-8 flex-row items-center gap-2.5 border-t border-auth-line pt-6">
+          <Text className="text-[22px] text-auth-sage-deep">✳</Text>
+          <Text className="flex-1 text-[10px] text-auth-note">
+            Your report. The right people. A little peace of mind.
+          </Text>
+        </View>
       </ScrollView>
-    </Screen>
+    </View>
   );
 }
 
@@ -255,35 +247,7 @@ export default function ProfileScreen() {
 /*  Sub-components                                                            */
 /* -------------------------------------------------------------------------- */
 
-type RowConfig = {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  /** Renders the value with tabular figures — for IDs. */
-  mono?: boolean;
-};
-
-/**
- * Role → tone. Reuses the dashboard's soft-icon-disc palette so a badge never
- * introduces a color the rest of the tab doesn't already use:
- *   reporter → coral · technician → mint · staff → citron · admin → teal.
- */
-const ROLE_TONE: Record<UserRole, { bg: string; ink: string }> = {
-  reporter: {
-    bg: dashboardColors.statCoralSoft,
-    ink: dashboardColors.statCoralDeep,
-  },
-  technician: {
-    bg: dashboardColors.statMintSoft,
-    ink: dashboardColors.statMintDeep,
-  },
-  staff: {
-    bg: dashboardColors.statCitronSoft,
-    ink: dashboardColors.statCitronDeep,
-  },
-  admin: { bg: dashboardColors.tealSoft, ink: dashboardColors.teal },
-  super_admin: { bg: dashboardColors.tealSoft, ink: dashboardColors.teal },
-};
+type RowConfig = { label: string; value: string };
 
 /** First letter of each name part, falling back to the email's first letter. */
 function initials(user: User): string {
@@ -298,70 +262,24 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function ProfileAvatar({ user }: { user: User }) {
-  const tone = ROLE_TONE[user.role];
-  return (
-    <View
-      className="h-20 w-20 items-center justify-center rounded-full border-4 border-card"
-      style={{
-        backgroundColor: tone.bg,
-        boxShadow: '0 8px 20px rgba(21, 39, 66, 0.08)',
-      }}
-    >
-      <Text
-        className="text-[26px] font-bold"
-        style={{ color: tone.ink, letterSpacing: 0.5 }}
-      >
-        {initials(user)}
-      </Text>
-    </View>
-  );
-}
-
-function RolePill({ role }: { role: UserRole }) {
-  const tone = ROLE_TONE[role];
-  return (
-    <View className="rounded-full px-3 py-1" style={{ backgroundColor: tone.bg }}>
-      <Text className="text-[11px] font-semibold" style={{ color: tone.ink }}>
-        {roleLabels[role] ?? role}
-      </Text>
-    </View>
-  );
-}
-
-function MetaChip({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row items-center gap-1.5 rounded-full border border-dashboard-card-line bg-card px-3 py-1">
-      <Text
-        className="text-[10px] uppercase text-dashboard-caption"
-        style={{ letterSpacing: 0.6 }}
-      >
-        {label}
-      </Text>
-      <Text
-        className="text-[11px] font-semibold text-ink"
-        style={{ fontVariant: ['tabular-nums'] }}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
-
 /**
- * Teal-tinted section eyebrow, identical to the More menu's treatment so the
- * two tabs share one visual system.
+ * Section eyebrow: a sage dot plus an uppercase, letterspaced micro-label.
+ * Identical to the auth story panel's kicker so the two surfaces share one
+ * system.
  */
-function SectionLabel({ children }: { children: string }) {
+function Kicker({
+  children,
+  className,
+}: {
+  children: string;
+  className?: string;
+}) {
   return (
-    <View className="mb-2 mt-1 flex-row items-center gap-2 px-1">
-      <View
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: dashboardColors.statCitronDeep }}
-      />
+    <View className={`flex-row items-center gap-2 ${className ?? ''}`}>
+      <View className="h-[7px] w-[7px] rounded-full bg-auth-sage" />
       <Text
-        className="text-[10px] font-semibold uppercase text-dashboard-subtitle"
-        style={{ letterSpacing: 1.2 }}
+        className="text-[10px] uppercase text-auth-note"
+        style={{ fontFamily: fontFamilies.headBold, letterSpacing: 1.4 }}
       >
         {children}
       </Text>
@@ -369,15 +287,22 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-/** Hairline-separated label/value rows, matching the web's detail rows. */
+/** Warm near-white panel used for every grouped block. */
+function Panel({ children }: { children: React.ReactNode }) {
+  return (
+    <View className="mt-2.5 rounded-[18px] border border-auth-card-line bg-auth-card-bg px-4 py-4">
+      {children}
+    </View>
+  );
+}
+
+/** Hairline-separated label/value rows. */
 function DetailList({ rows }: { rows: RowConfig[] }) {
   return (
     <View>
       {rows.map((row, index) => (
         <View key={row.label}>
-          {index > 0 ? (
-            <View className="border-t border-dashboard-card-line" />
-          ) : null}
+          {index > 0 ? <View className="border-t border-auth-divider" /> : null}
           <DetailRow {...row} />
         </View>
       ))}
@@ -385,16 +310,18 @@ function DetailList({ rows }: { rows: RowConfig[] }) {
   );
 }
 
-function DetailRow({ icon: Icon, label, value, mono }: RowConfig) {
+function DetailRow({ label, value }: RowConfig) {
   return (
-    <View className="flex-row items-center gap-3 py-3">
-      <View className="flex-row items-center gap-2">
-        <Icon color={dashboardColors.subtitle} size={15} strokeWidth={1.8} />
-        <Text className="text-[13px] text-dashboard-subtitle">{label}</Text>
-      </View>
+    <View className="flex-row items-center justify-between gap-4 py-3.5">
       <Text
-        className="flex-1 text-right text-[13px] font-medium text-ink"
-        style={mono ? { fontVariant: ['tabular-nums'] } : undefined}
+        className="text-[10px] uppercase text-auth-note"
+        style={{ fontFamily: fontFamilies.headBold, letterSpacing: 0.8 }}
+      >
+        {label}
+      </Text>
+      <Text
+        className="flex-1 text-right text-[13px] leading-[20px] text-auth-ink"
+        style={{ fontFamily: fontFamilies.bodySemiBold }}
       >
         {value}
       </Text>
