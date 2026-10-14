@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 
+import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { themeColors } from '@/constants/theme';
 
 /**
@@ -7,6 +8,10 @@ import { themeColors } from '@/constants/theme';
  * `reports/new`, and `reports/[id]` would all be siblings inside the Tabs
  * navigator (no push/pop, no back affordance). The parent Tabs layout sets
  * `headerShown: false` for the `reports` tab so this stack owns the header.
+ *
+ * The pushed screens render an explicit back arrow (see `HeaderBackButton`)
+ * so "back" reliably returns to the list on web, where the default one
+ * resolves to the wrong route.
  */
 export default function ReportsStackLayout() {
   const palette = themeColors();
@@ -24,8 +29,20 @@ export default function ReportsStackLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Reports' }} />
-      <Stack.Screen name="new" options={{ title: 'New report' }} />
-      <Stack.Screen name="[id]" options={{ title: 'Report' }} />
+      <Stack.Screen
+        name="new"
+        options={{
+          title: 'New report',
+          headerLeft: () => <HeaderBackButton color={palette.ink} to="/reports" />,
+        }}
+      />
+      <Stack.Screen
+        name="[id]"
+        options={{
+          title: 'Report',
+          headerLeft: () => <HeaderBackButton color={palette.ink} to="/reports" />,
+        }}
+      />
     </Stack>
   );
 }

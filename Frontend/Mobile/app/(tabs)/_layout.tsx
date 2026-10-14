@@ -141,6 +141,13 @@ export default function TabLayout() {
         <Tabs.Screen
           name="more"
           options={{
+            // The nested More stack owns its own header: `more/index` renders
+            // its own heading (its stack header is suppressed), and every
+            // pushed screen (settings, sites, contracts, …) gets a title +
+            // back arrow from the stack. Leaving the Tabs header on stacks a
+            // second "More" bar above them and makes the back button resolve
+            // to the wrong route — same reason `reports` disables it.
+            headerShown: false,
             title: 'More',
             tabBarIcon: ({ color, size }) => (
               <LayoutGrid color={color} size={size} />

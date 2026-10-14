@@ -1,16 +1,23 @@
 import { Stack } from 'expo-router';
+
+import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { themeColors } from '@/constants/theme';
 
 /**
  * Nested stack under the More tab. Each secondary destination (sites, team
- * access, contracts, shop, notifications) gets its own back arrow and header
- * title while still being part of the bottom-bar navigation.
+ * access, contracts, settings, shop, notifications) gets its own back arrow and
+ * header title while still being part of the bottom-bar navigation.
  *
  * Header chrome matches the dashboard topbar: white card background, hairline
  * `#e9edf0` bottom border, slate `#152742` ink, no shadow.
+ *
+ * The back arrow is rendered explicitly (see `HeaderBackButton`) because the
+ * default one resolves to the wrong route for a stack nested inside the Tabs
+ * navigator on web.
  */
 export default function MoreStackLayout() {
   const palette = themeColors();
+
   return (
     <Stack
       screenOptions={{
@@ -21,6 +28,7 @@ export default function MoreStackLayout() {
         headerTitleStyle: { fontWeight: '600', fontSize: 16 },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: palette.surface },
+        headerLeft: () => <HeaderBackButton color={palette.ink} to="/more" />,
       }}
     >
       {/* The menu screen renders its own heading, so suppress the stack
