@@ -42,8 +42,23 @@ function fallbackHost(): string {
   return '127.0.0.1';
 }
 
+/**
+ * Web only. The API must be called on the SAME host the page was loaded from:
+ * the backend's session cookie is `SameSite=Lax`, so if the page is on
+ * `localhost` but the API is on `127.0.0.1` (as Metro's `hostUri` can report),
+ * the browser treats it as cross-site and never sends the cookie — the user
+ * appears signed in for one request, then gets bounced back to login. Mimicking
+ * `window.location.hostname` keeps the cookie same-site. Native has no page
+ * origin, so it keeps using the dev-server/LAN host.
+ */
+function pageHost(): string | null {
+  if (Platform.OS !== 'web') return null;
+  if (typeof window === 'undefined') return null;
+  return window.location?.hostname || null;
+}
+
 export const API_BASE_URL =
-  OVERRIDE ?? `http://${devServerHost() ?? fallbackHost()}:8080`;
+  OVERRIDE ?? `http://${pageHost() ?? devServerHost() ?? fallbackHost()}:8080`;
 
 /**
  * Ordered base URLs for the API client to try when a request dies at the
@@ -57,7 +72,12 @@ export const API_BASE_URL_CANDIDATES: readonly string[] = (() => {
   if (Platform.OS === 'android') {
     urls.push('http://10.0.2.2:8080'); // emulator alias for the host's loopback
   }
-  urls.push('http://127.0.0.1:8080'); // web / same-machine
+  // Skip the loopback alias on web: it is a different *site* than the page
+  // origin, so the SameSite=Lax session cookie would be dropped and the user
+  // would be bounced back to login the moment the app makes its first call.
+  if (Platform.OS !== 'web') {
+    urls.push('http://127.0.0.1:8080'); // native / same-machine
+  }
   return [...new Set(urls)];
 })();
 
