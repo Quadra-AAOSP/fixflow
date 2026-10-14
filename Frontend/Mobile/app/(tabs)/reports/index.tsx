@@ -52,10 +52,9 @@ const FILTER_VALUES = REPORT_FILTERS.map((f) => f.value);
 export default function ReportsScreen() {
   const palette = themeColors();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const {
     site,
-    sites,
     loading: siteLoading,
     error: siteError,
     refresh: refreshSite,
@@ -83,6 +82,12 @@ export default function ReportsScreen() {
       const result = await listReports({ siteId: site.id });
       setReports(result);
     } catch (err) {
+      // A 401 means the session died under us — sign out rather than leave the
+      // tab stuck on an error it can never clear.
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      }
       setError(
         err instanceof ApiError ? err.message : 'Could not load reports.',
       );
@@ -90,7 +95,7 @@ export default function ReportsScreen() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site?.id]);
+  }, [site?.id, logout]);
 
   useFocusEffect(
     useCallback(() => {
@@ -134,58 +139,14 @@ export default function ReportsScreen() {
     [],
   );
 
-  if (!site) {
-    if (siteLoading) {
-      return (
-        <Screen>
-          <StateView variant="loading" title="Loading site…" />
-        </Screen>
-      );
-    }
-    if (siteError) {
-      return (
-        <Screen>
-          <StateView
-            variant="error"
-            title="Could not load site"
-            description={siteError.message}
-            actionLabel="Retry"
-            onAction={() => {
-              void refreshSite();
-            }}
-          />
-        </Screen>
-      );
-    }
-    return (
-      <Screen>
-        <StateView
-          variant="empty"
-          icon={House}
-          title="No site linked"
-          description="Your account is not assigned to a site yet, so there are no reports to show."
-        />
-      </Screen>
-    );
-  }
-
-  if (error && reports === null) {
-    return (
-      <Screen>
-        <StateView
-          variant="error"
-          title="Could not load reports"
-          description={error}
-          actionLabel="Retry"
-          onAction={() => {
-            void load();
-          }}
-        />
-      </Screen>
-    );
-  }
-
-  const canCreate = user != null && user.role !== 'technician';
+  /*
+   * The web keeps its `.dashboard-card` heading and filters visible while the
+   * content area shows `.live-error` / loading inline — never a bare page. So
+   * every state below renders inside the card's `ListEmptyComponent` instead
+   * of short-circuiting the whole screen.
+   */
+  const canCreate = site != null && user != null && user.role !== 'technician';
+  const list = site != null && error === null ? filtered : [];
 
   return (
     <Screen className="px-0 pt-0">
@@ -194,20 +155,26 @@ export default function ReportsScreen() {
       <View className="flex-1 px-4 pt-3">
         <Card padded={false} className="flex-1 px-[13px] py-[18px]">
           <FlatList
-            data={filtered}
+            data={list}
             keyExtractor={(item) => String(item.id)}
             className="flex-1"
             contentContainerClassName="grow"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
-                onRefresh={onRefresh}
+                onRefresh={
+                  site != null
+                    ? onRefresh
+                    : () => {
+                        void refreshSite();
+                      }
+                }
                 tintColor={palette.primary}
               />
             }
             ListHeaderComponent={
               <ReportsHeader
-                siteName={site.name}
+                siteName={site?.name ?? ''}
                 canCreate={canCreate}
                 onCreate={() => router.push('/reports/new')}
                 query={query}
@@ -216,14 +183,43 @@ export default function ReportsScreen() {
                 onChangeFilter={setFilter}
                 filterOptions={filterSelectOptions}
                 matchingCount={filtered.length}
-                loaded={reports !== null}
+                loaded={site != null && error === null && reports !== null}
               />
             }
             ItemSeparatorComponent={() => (
               <View className="h-px bg-dashboard-card-line" />
             )}
             ListEmptyComponent={
-              loading ? (
+              site == null ? (
+                siteLoading ? (
+                  <StateView variant="loading" title="Loading site…" />
+                ) : siteError != null ? (
+                  <StateView
+                    variant="error"
+                    description={siteError.message}
+                    actionLabel="Retry"
+                    onAction={() => {
+                      void refreshSite();
+                    }}
+                  />
+                ) : (
+                  <StateView
+                    variant="empty"
+                    icon={House}
+                    title="No site linked"
+                    description="Your account is not assigned to a site yet, so there are no reports to show."
+                  />
+                )
+              ) : error !== null ? (
+                <StateView
+                  variant="error"
+                  description={error}
+                  actionLabel="Retry"
+                  onAction={() => {
+                    void load();
+                  }}
+                />
+              ) : loading ? (
                 <StateView variant="loading" title="Loading reports…" />
               ) : (
                 <StateView

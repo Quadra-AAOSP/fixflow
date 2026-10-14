@@ -63,14 +63,23 @@ export function toErrorMessage(
 }
 
 async function parseError(response: Response): Promise<ApiError> {
-  let message = response.statusText || 'Request failed';
+  // Spring Security rejects an unauthenticated request with an empty body, and
+  // Spring Boot's default error page omits `message` — in both cases the old
+  // code fell back to statusText, which is empty over HTTP/2, surfacing a
+  // useless "Request failed". Fall back to `error` and always carry the status
+  // so the caller can name the real cause (e.g. "Forbidden (403)").
+  let message = response.statusText || `Request failed (${response.status})`;
   let body: unknown;
   try {
     body = await response.json();
-    const m = (body as ApiErrorBody | undefined)?.message;
-    if (m) message = m;
+    const parsed = body as ApiErrorBody | undefined;
+    if (parsed?.message) {
+      message = parsed.message;
+    } else if (parsed?.error) {
+      message = `${parsed.error} (${response.status})`;
+    }
   } catch {
-    // non-JSON body — keep statusText
+    // non-JSON body — keep the status text (or the status-code fallback)
   }
   return new ApiError(response.status, message, body);
 }
