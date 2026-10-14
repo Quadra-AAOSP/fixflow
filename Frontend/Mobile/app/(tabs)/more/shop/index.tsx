@@ -10,11 +10,9 @@ import {
   View,
 } from 'react-native';
 import {
-  ArrowRight,
   PackageSearch,
   ShoppingBag,
   ShoppingBasket,
-  Wrench,
 } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -27,7 +25,7 @@ import { SearchField } from '@/components/ui/SearchField';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/hooks/useAuth';
-import { dashboardColors, themeColors } from '@/constants/theme';
+import { shopColors, themeColors } from '@/constants/theme';
 import { ApiError } from '@/lib/apiClient';
 import {
   createOrder,
@@ -266,23 +264,25 @@ export default function ShopIndexScreen() {
   }
 
   return (
-    <Screen className="px-0 pt-0">
+    <Screen className="bg-shop-shell px-0 pt-0">
       {/* Title bar — mirrors the web's `.shop-titlebar`: eyebrow +
           "A little care starts here." headline, with the Orders button and
           the "Your basket" pill on the right. */}
       <View className="flex-row items-start justify-between gap-3 px-5 pb-2 pt-4">
         <View className="flex-1 pr-3">
           <Text
-            className="text-[10px] font-semibold uppercase tracking-[1.4px] text-dashboard-caption"
-            style={{ letterSpacing: 1.4 }}
+            className="text-[10px] font-bold uppercase tracking-[1.7px] text-shop-foot-text"
+            style={{ letterSpacing: 1.7 }}
           >
             THE FIXFLOW SHOP
           </Text>
           <Text
-            className="mt-1 text-[22px] font-semibold leading-tight text-ink"
-            style={{ letterSpacing: -0.5 }}
+            className="mt-1 text-[24px] font-bold leading-tight text-shop-ink"
+            style={{ letterSpacing: -0.8 }}
           >
-            A little care starts here.
+            A{' '}
+            <Text className="italic text-shop-serif-accent">little care</Text>{' '}
+            starts here.
           </Text>
         </View>
         <View className="flex-row items-center gap-2">
@@ -290,14 +290,13 @@ export default function ShopIndexScreen() {
             <Pressable
               onPress={() => setOrdersSheetOpen(true)}
               accessibilityRole="button"
-              className="rounded-full border border-dashboard-card-line bg-dashboard-card-bg px-3 py-2 active:opacity-80"
+              className="rounded-full border border-shop-search-line bg-card px-3 py-2 active:opacity-80"
+          >
+            <Text
+              className="text-[11px] font-semibold text-shop-ink"
             >
-              <Text
-                className="text-[11px] font-semibold"
-                style={{ color: dashboardColors.teal }}
-              >
-                Orders
-              </Text>
+              Orders
+            </Text>
             </Pressable>
           ) : null}
           <Pressable
@@ -308,24 +307,22 @@ export default function ShopIndexScreen() {
             }`}
             className="flex-row items-center gap-1.5 rounded-full border px-3 py-2 active:opacity-80"
             style={{
-              backgroundColor: dashboardColors.ctaBg,
-              borderColor: dashboardColors.ctaBorder,
+              backgroundColor: shopColors.shell,
+              borderColor: shopColors.searchLine,
             }}
           >
-            <ShoppingBag color={dashboardColors.ctaText} size={15} />
+            <ShoppingBag color={shopColors.ink} size={15} />
             <Text
-              className="text-[11px] font-semibold"
-              style={{ color: dashboardColors.ctaText }}
+              className="text-[11px] font-semibold text-shop-ink"
             >
               Basket
             </Text>
             <View
               className="ml-0.5 min-w-5 items-center justify-center rounded-full px-1.5"
-              style={{ backgroundColor: dashboardColors.ctaText }}
+              style={{ backgroundColor: shopColors.basketBadge }}
             >
               <Text
-                className="text-[10px] font-bold"
-                style={{ color: dashboardColors.ctaBg }}
+                className="text-[10px] font-bold text-shop-ink"
               >
                 {basketTotalCount}
               </Text>
@@ -334,23 +331,12 @@ export default function ShopIndexScreen() {
         </View>
       </View>
 
-      {/* Values row — mirrors the web's `.shop-values` strip. */}
-      <View className="mb-3 flex-row flex-wrap gap-x-4 gap-y-1 px-5">
-        <ValuePill
-          icon={Wrench}
-          color={dashboardColors.statMintDeep}
-          label="Tools for the task"
-        />
-        <ValuePill
-          icon={ShoppingBasket}
-          color={dashboardColors.statCoralDeep}
-          label="Parts for the little fixes"
-        />
-        <ValuePill
-          icon={ArrowRight}
-          color={dashboardColors.statCitronDeep}
-          label="Care for shared spaces"
-        />
+      {/* Values row — mirrors the web's `.shop-values` strip: colour dots
+          over a hairline bottom border. */}
+      <View className="mb-3 flex-row flex-wrap gap-x-5 gap-y-1 border-b border-shop-values-line px-5 pb-3">
+        <ValuePill dotClass="bg-shop-mint" label="Tools for the task" />
+        <ValuePill dotClass="bg-shop-coral" label="Parts for the little fixes" />
+        <ValuePill dotClass="bg-shop-citron" label="Care for shared spaces" />
       </View>
 
       <View className="px-5">
@@ -373,13 +359,13 @@ export default function ShopIndexScreen() {
             accessibilityState={{ selected: inStockOnly }}
             className={`rounded-full border px-3 py-2 active:opacity-80 ${
               inStockOnly
-                ? 'border-dashboard-teal bg-dashboard-teal'
-                : 'border-dashboard-card-line bg-dashboard-card-bg'
+                ? 'border-shop-mint bg-shop-mint'
+                : 'border-shop-tab-line bg-card'
             }`}
           >
             <Text
               className={`text-[11px] font-semibold ${
-                inStockOnly ? 'text-card' : 'text-dashboard-subtitle'
+                inStockOnly ? 'text-shop-ink' : 'text-shop-values-text'
               }`}
             >
               In stock only
@@ -395,13 +381,13 @@ export default function ShopIndexScreen() {
                 accessibilityState={{ selected }}
                 className={`rounded-full border px-3 py-2 active:opacity-80 ${
                   selected
-                    ? 'border-dashboard-teal bg-dashboard-teal'
-                    : 'border-dashboard-card-line bg-dashboard-card-bg'
+                    ? 'border-shop-mint bg-shop-mint'
+                    : 'border-shop-tab-line bg-card'
                 }`}
               >
                 <Text
                   className={`text-[11px] font-semibold ${
-                    selected ? 'text-card' : 'text-dashboard-subtitle'
+                    selected ? 'text-shop-ink' : 'text-shop-values-text'
                   }`}
                 >
                   {value === ALL_CATEGORIES ? 'All products' : value}
@@ -412,7 +398,7 @@ export default function ShopIndexScreen() {
         </ScrollView>
 
         <View className="mb-3 flex-row items-end justify-between">
-          <Text className="text-[10px] uppercase tracking-wide text-dashboard-caption">
+          <Text className="text-[10px] uppercase tracking-wide text-shop-foot-text">
             {filtered.length} {filtered.length === 1 ? 'product' : 'products'}
           </Text>
           <View className="w-44">
@@ -457,8 +443,9 @@ export default function ShopIndexScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
+          numColumns={2}
           contentContainerClassName="px-5 pb-32"
-          ItemSeparatorComponent={() => <View className="h-3" />}
+          columnWrapperStyle={{ columnGap: 12, paddingBottom: 12 }}
           renderItem={({ item }) => (
             <ProductCard
               product={item}
@@ -477,16 +464,15 @@ export default function ShopIndexScreen() {
             accessibilityRole="button"
             className="flex-row items-center justify-between rounded-full px-5 py-3 active:opacity-90"
             style={{
-              backgroundColor: dashboardColors.ctaBg,
-              borderColor: dashboardColors.ctaBorder,
+              backgroundColor: shopColors.shell,
+              borderColor: shopColors.cardLine,
               borderWidth: 1,
             }}
           >
             <View className="flex-row items-center gap-2">
-              <ShoppingBasket color={dashboardColors.ctaText} size={18} />
+              <ShoppingBasket color={shopColors.ink} size={18} />
               <Text
-                className="text-sm font-semibold"
-                style={{ color: dashboardColors.ctaText }}
+                className="text-sm font-semibold text-shop-ink"
               >
                 {basketTotalCount}{' '}
                 {basketTotalCount === 1 ? 'item' : 'items'} ·{' '}
@@ -500,8 +486,7 @@ export default function ShopIndexScreen() {
               </Text>
             </View>
             <Text
-              className="text-sm font-semibold"
-              style={{ color: dashboardColors.ctaText }}
+              className="text-sm font-semibold text-shop-ink"
             >
               Review →
             </Text>
@@ -984,23 +969,22 @@ function SummaryRow({
 }
 
 /**
- * Small icon + label pair used in the values strip beneath the title bar
- * (mirrors the web's `.shop-values` row). Stays inline so the strip can
- * wrap on narrow phones.
+ * Small color dot + label pair used in the values strip beneath the title
+ * bar (mirrors the web's `.shop-values` row, which renders 11px dots in
+ * mint / coral / citron). Stays inline so the strip can wrap on narrow
+ * phones.
  */
 function ValuePill({
-  icon: Icon,
-  color,
+  dotClass,
   label,
 }: {
-  icon: typeof ShoppingBasket;
-  color: string;
+  dotClass: string;
   label: string;
 }) {
   return (
-    <View className="flex-row items-center gap-1.5">
-      <Icon color={color} size={13} strokeWidth={1.8} />
-      <Text className="text-[10px] text-dashboard-banner-values">{label}</Text>
+    <View className="flex-row items-center gap-2">
+      <View className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+      <Text className="text-[11px] text-shop-values-text">{label}</Text>
     </View>
   );
 }

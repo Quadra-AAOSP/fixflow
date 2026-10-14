@@ -165,5 +165,47 @@
     --color-dashboard-empty: 120 138 152;
     --color-dashboard-error-bg: 251 232 231;
     --color-dashboard-error-text: 148 62 70;
+
+    /*
+     * Shop palette — mirrors the public `/shop` page
+     * (`.fixflow-shop` and friends in
+     * `Frontend/Web/src/styles/shop.css`): a cream shell, forest-green
+     * ink, cream hero with a wine serif accent, and mint category pills.
+     * Deliberately separate from the dashboard tokens — the web shop
+     * hard-codes the same values.
+     */
+    --color-shop-shell: 255 254 250;
+    --color-shop-ink: 35 61 54;
+    --color-shop-mint: 121 226 205;
+    --color-shop-coral: 226 121 121;
+    --color-shop-citron: 220 226 121;
+    --color-shop-wordmark-sub: 122 134 121;
+    --color-shop-shell-line: 232 236 227;
+    --color-shop-hero: 245 238 229;
+    --color-shop-hero-body: 93 106 97;
+    --color-shop-pill-line: 216 215 199;
+    --color-shop-pill-dot: 69 151 133;
+    --color-shop-serif-accent: 142 71 71;
+    --color-shop-secondary-line: 204 214 206;
+    --color-shop-foot-text: 99 113 104;
+    --color-shop-star: 171 81 81;
+    --color-shop-values-text: 95 107 99;
+    --color-shop-values-line: 228 232 223;
+    --color-shop-search-line: 224 230 221;
+    --color-shop-tab-line: 223 230 220;
+    --color-shop-state-bg: 250 251 246;
+    --color-shop-state-line: 217 225 211;
+    --color-shop-state-icon-bg: 214 244 234;
+    --color-shop-state-text: 104 117 104;
+    --color-shop-card-line: 232 235 227;
+    --color-shop-image-bg: 243 242 236;
+    --color-shop-product-body: 112 128 113;
+    --color-shop-product-foot: 109 125 110;
+    --color-shop-editorial-bg: 240 241 214;
+    --color-shop-editorial-text: 96 110 91;
+    --color-shop-editorial-link: 82 102 80;
+    --color-shop-dialog-line: 231 235 228;
+    --color-shop-qty-line: 220 228 216;
+    --color-shop-basket-badge: 220 226 121;
   }
 }

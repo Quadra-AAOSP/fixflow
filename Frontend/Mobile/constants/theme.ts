@@ -163,6 +163,49 @@ export const dashboardColors = {
   errorText: 'rgb(148, 62, 70)',
 } as const;
 
+/**
+ * Shop palette — mirrors `.fixflow-shop` and friends in
+ * `Frontend/Web/src/styles/shop.css`: cream shell, forest-green ink,
+ * cream hero with a wine serif accent, mint category pills, and product
+ * tiles on a warm image well. The web build hard-codes the same values.
+ */
+export const shopColors = {
+  shell: 'rgb(255, 254, 250)',
+  ink: 'rgb(35, 61, 54)',
+  mint: 'rgb(121, 226, 205)',
+  coral: 'rgb(226, 121, 121)',
+  citron: 'rgb(220, 226, 121)',
+  wordmarkSub: 'rgb(122, 134, 121)',
+  shellLine: 'rgb(232, 236, 227)',
+  hero: 'rgb(245, 238, 229)',
+  heroBody: 'rgb(93, 106, 97)',
+  pillLine: 'rgb(216, 215, 199)',
+  pillDot: 'rgb(69, 151, 133)',
+  serifAccent: 'rgb(142, 71, 71)',
+  secondaryLine: 'rgb(204, 214, 206)',
+  footText: 'rgb(99, 113, 104)',
+  star: 'rgb(171, 81, 81)',
+  imageNoteBg: 'rgba(255, 249, 238, 0.92)',
+  valuesText: 'rgb(95, 107, 99)',
+  valuesLine: 'rgb(228, 232, 223)',
+  searchLine: 'rgb(224, 230, 221)',
+  tabLine: 'rgb(223, 230, 220)',
+  stateBg: 'rgb(250, 251, 246)',
+  stateLine: 'rgb(217, 225, 211)',
+  stateIconBg: 'rgb(214, 244, 234)',
+  stateText: 'rgb(104, 117, 104)',
+  cardLine: 'rgb(232, 235, 227)',
+  imageBg: 'rgb(243, 242, 236)',
+  productBody: 'rgb(112, 128, 113)',
+  productFoot: 'rgb(109, 125, 110)',
+  editorialBg: 'rgb(240, 241, 214)',
+  editorialText: 'rgb(96, 110, 91)',
+  editorialLink: 'rgb(82, 102, 80)',
+  dialogLine: 'rgb(231, 235, 228)',
+  qtyLine: 'rgb(220, 228, 216)',
+  basketBadge: 'rgb(220, 226, 121)',
+} as const;
+
 /** Families loaded in `app/_layout.tsx` for the web-parity auth typography. */
 export const fontFamilies = {
   head: 'Manrope_600SemiBold',
