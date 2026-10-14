@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 
+import { colors } from '@/constants/theme';
+
 export type PickerOption = {
   value: string;
   label: string;
@@ -39,10 +41,10 @@ type PickerProps = {
 };
 
 /**
- * Modal-driven single-select picker. Opens a sheet of options on tap. Used
- * for taxonomy-derived choices (categories) and the super_admin site
- * switcher. Wraps the native `<Modal>` rather than pulling in a heavier
- * library until we outgrow the basics.
+ * Modal-driven single-select picker. The trigger and the open sheet both use
+ * the web's `.dashboard-dialog` warm cream (`#fffefa`) background and the
+ * teal `#008e82` selected highlight, so the trigger field on Reports and the
+ * site switcher in the topbar read as the same control.
  */
 export function Picker({
   label,
@@ -67,10 +69,10 @@ export function Picker({
         renderTrigger({ selected, open: openSheet, disabled: !!disabled })
       ) : (
         <View className="mb-4">
-          <Text className="mb-1.5 text-sm font-medium text-ink">{label}</Text>
+          <Text className="mb-1.5 text-[12px] font-medium text-ink">{label}</Text>
           <Pressable
             onPress={openSheet}
-            className={`rounded-lg border bg-card px-3 py-3 ${
+            className={`flex-row items-center justify-between rounded-lg border bg-card px-3 py-3 ${
               disabled ? 'border-border opacity-50' : 'border-border'
             }`}
             accessibilityRole="button"
@@ -78,11 +80,12 @@ export function Picker({
           >
             <Text
               className={
-                selected ? 'text-base text-ink' : 'text-base text-muted'
+                selected ? 'text-[12px] text-ink' : 'text-[12px] text-muted'
               }
             >
               {selected ? selected.label : placeholder}
             </Text>
+            <Text className="text-[10px] text-muted">▾</Text>
           </Pressable>
         </View>
       )}
@@ -94,14 +97,19 @@ export function Picker({
         onRequestClose={() => setOpen(false)}
       >
         <View className="flex-1 bg-surface pt-4">
-          <View className="flex-row items-center justify-between border-b border-border px-5 pb-3">
+          <View className="flex-row items-center justify-between border-b border-border bg-card px-5 pb-3">
             <Text className="text-lg font-semibold text-ink">{label}</Text>
             <Pressable
               onPress={() => setOpen(false)}
               className="px-2 py-1"
               accessibilityRole="button"
             >
-              <Text className="text-sm font-medium text-primary">Done</Text>
+              <Text
+                className="text-sm font-semibold"
+                style={{ color: colors.mintInk }}
+              >
+                Done
+              </Text>
             </Pressable>
           </View>
           {options.length === 0 ? (
@@ -122,20 +130,24 @@ export function Picker({
                       setOpen(false);
                     }}
                     className={`px-5 py-3 ${
-                      isSelected ? 'bg-primary/10' : 'bg-transparent'
+                      isSelected
+                        ? 'bg-dashboard-teal-soft'
+                        : 'bg-transparent'
                     }`}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}
                   >
                     <Text
-                      className={`text-base ${
-                        isSelected ? 'font-semibold text-primary' : 'text-ink'
+                      className={`text-[13px] ${
+                        isSelected
+                          ? 'font-semibold text-dashboard-teal'
+                          : 'text-ink'
                       }`}
                     >
                       {option.label}
                     </Text>
                     {option.subtitle ? (
-                      <Text className="mt-0.5 text-xs text-muted">
+                      <Text className="mt-0.5 text-[11px] text-muted">
                         {option.subtitle}
                       </Text>
                     ) : null}

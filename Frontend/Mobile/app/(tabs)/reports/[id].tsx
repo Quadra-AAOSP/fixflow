@@ -1,14 +1,25 @@
-import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { ClipboardList } from 'lucide-react-native';
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import {
+  ArrowLeft,
+  ClipboardList,
+  RefreshCw,
+  UserPlus,
+} from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { TextField } from '@/components/ui/TextField';
-import { UrgencyChip } from '@/components/ui/UrgencyChip';
+import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError, toErrorMessage } from '@/lib/apiClient';
 import {
@@ -17,38 +28,48 @@ import {
   joinReport,
   listReporters,
 } from '@/services/reports';
+import { useCurrentSite } from '@/stores/site';
 import type { Report, ReportReporter, Urgency } from '@/types';
+import { formatDate, humanize } from '@/utils/format';
+import { urgencyLabels } from '@/utils/maintenance';
 
 /**
- * Report detail.
+ * Report detail. Mirrors `ReportDetailView.vue`:
+ *   - "All reports" back link + reload button in the card heading
+ *   - "Report #N" title + status badge
+ *   - Full description
+ *   - Definition list of all 13 metadata fields
+ *   - "People attached to this report" section (reporter list)
+ *   - "This issue affects me too" button (reporter-only, when not joined)
+ *   - "Assign a technician" section (staff/admin/super_admin only)
  *
  * Privacy model (mirrors `ReportService.canSeeSensitive`): the backend nulls
  * `createdByUserId`, `createdByName`, `address`, and `reporterReason` as a
  * block when the viewer is not a participant. `createdByUserId === null` is
  * therefore the single authoritative "this viewer sees the masked view"
  * signal, used here to gate the Join affordance and the hidden-details note.
- *
- * `listReporters` throws 403 for non-participants, so it is only requested
- * once we know the viewer is sensitive-eligible.
  */
 export default function ReportDetailScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const reportId = rawId ? Number(rawId) : Number.NaN;
   const { user } = useAuth();
+  const { sites } = useCurrentSite();
 
   const [report, setReport] = useState<Report | null>(null);
   const [reporters, setReporters] = useState<ReportReporter[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [technicianId, setTechnicianId] = useState('');
 
   const load = useCallback(async () => {
     if (!Number.isInteger(reportId) || reportId <= 0) {
-      setLoadError('This report link is not valid.');
+      setLoadError('Invalid report ID.');
       setLoading(false);
       return;
     }
@@ -92,10 +113,12 @@ export default function ReportDetailScreen() {
 
   async function onJoin() {
     setActionError(null);
+    setActionMessage(null);
     setJoining(true);
     try {
       const updated = await joinReport(reportId);
       setReport(updated);
+      setActionMessage('You are now attached to this report.');
       try {
         setReporters(await listReporters(reportId));
       } catch {
@@ -112,6 +135,7 @@ export default function ReportDetailScreen() {
 
   async function onAssign() {
     setActionError(null);
+    setActionMessage(null);
     const parsed = Number(technicianId.trim());
     if (!Number.isInteger(parsed) || parsed <= 0) {
       setActionError('Enter a valid technician ID.');
@@ -125,6 +149,7 @@ export default function ReportDetailScreen() {
       });
       setReport(updated);
       setTechnicianId('');
+      setActionMessage('Technician assignment saved.');
     } catch (err) {
       setActionError(
         toErrorMessage(err, { fallback: 'Could not assign the technician.' }),
@@ -171,7 +196,6 @@ export default function ReportDetailScreen() {
   }
 
   const isParticipant = report.createdByUserId !== null;
-  const isCreator = user != null && report.createdByUserId === user.id;
   const canAssign =
     user?.role === 'staff' ||
     user?.role === 'admin' ||
@@ -179,112 +203,242 @@ export default function ReportDetailScreen() {
   // Backend permits any same-site actor to join, but the concept is only
   // meaningful for reporters who did not file the report themselves.
   const canJoin = user?.role === 'reporter' && !isParticipant;
+  const joined =
+    isParticipant && reporters?.some((row) => row.userId === user?.id) === true;
 
   return (
     <Screen>
       <Stack.Screen options={{ title: `Report #${report.id}` }} />
-      <ScrollView contentContainerClassName="px-5 py-5">
-        <View className="mb-3 flex-row items-start justify-between gap-3">
-          <Text className="flex-1 text-xs font-medium uppercase tracking-wide text-muted">
-            {report.category}
+      <ScrollView contentContainerClassName="px-5 py-4">
+        {/* Card heading — matches the web's `.card-heading` with a
+            left-aligned "All reports" link and a right-aligned reload
+            button. */}
+        <View className="mb-3 flex-row items-center justify-between">
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push('/reports')}
+            className="flex-row items-center gap-1 active:opacity-70"
+          >
+            <ArrowLeft color={dashboardColors.teal} size={15} />
+            <Text
+              className="text-[11px] font-semibold"
+              style={{ color: dashboardColors.teal }}
+            >
+              All reports
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reload report"
+            disabled={loading}
+            onPress={() => {
+              void load();
+            }}
+            className="h-8 w-8 items-center justify-center rounded-md active:opacity-70"
+          >
+            <RefreshCw color={dashboardColors.subtitle} size={15} />
+          </Pressable>
+        </View>
+
+        <View className="mb-3 flex-row items-center justify-between">
+          <Text
+            className="text-2xl font-bold text-ink"
+            style={{ letterSpacing: -0.5 }}
+          >
+            Report #{report.id}
           </Text>
           <StatusBadge status={report.status} />
         </View>
 
-        <Text className="mb-5 text-base leading-6 text-ink">
+        <Text className="mb-4 text-[14px] leading-[1.8] text-ink">
           {report.description}
         </Text>
 
-        <View className="mb-4 rounded-xl border border-border bg-card p-4">
-          <Text className="mb-3 text-sm font-medium text-muted">Urgency</Text>
-          <UrgencyRow label="Reporter" level={report.reporterUrgency} />
-          {report.aiUrgency ? (
-            <UrgencyRow label="AI" level={report.aiUrgency} />
-          ) : null}
-          {report.finalUrgency ? (
-            <UrgencyRow label="Final" level={report.finalUrgency} />
-          ) : null}
-          {report.reporterReason ? (
-            <Text className="mt-2 text-xs italic text-muted">
-              “{report.reporterReason}”
-            </Text>
-          ) : null}
-        </View>
-
-        <View className="mb-4 rounded-xl border border-border bg-card p-4">
-          {report.specialty ? (
-            <MetaRow label="Specialty" value={report.specialty} />
-          ) : null}
-          <MetaRow
-            label="Reported"
-            value={new Date(report.createdAt).toLocaleString()}
+        {/* Definition list — mirrors the web's `.report-detail-grid` (3-col
+            on desktop, stacked on mobile). Field labels and the
+            "Not shared or not provided" / "Not classified" / "Unassigned"
+            fallback copy match the web exactly. */}
+        <Card className="mb-4">
+          <DefinitionRow
+            label="Site"
+            value={
+              report.siteId == null
+                ? 'Not shared'
+                : (sites.find((entry) => entry.id === report.siteId)?.name ??
+                  `Site #${report.siteId}`)
+            }
           />
-          <MetaRow
+          <DefinitionRow
+            label="Location"
+            value={report.address ?? 'Not shared or not provided'}
+          />
+          <DefinitionRow label="Category" value={humanize(report.category)} />
+          <DefinitionRow
+            label="Specialty"
+            value={
+              report.specialty ? humanize(report.specialty) : 'Not specified'
+            }
+          />
+          <DefinitionRow
+            label="Reported by"
+            value={report.createdByName ?? 'Not shared'}
+          />
+          <DefinitionRow
+            label="Technician"
+            value={
+              report.assignedTechnicianId == null
+                ? 'Unassigned'
+                : `Technician #${report.assignedTechnicianId}`
+            }
+          />
+          <DefinitionRow
+            label="Reporter urgency"
+            value={urgencyLabels[report.reporterUrgency]}
+          />
+          <DefinitionRow
+            label="AI urgency"
+            value={
+              report.aiUrgency ? urgencyLabels[report.aiUrgency] : 'Not classified'
+            }
+          />
+          <DefinitionRow
+            label="Final urgency"
+            value={
+              report.finalUrgency
+                ? urgencyLabels[report.finalUrgency]
+                : 'Not determined'
+            }
+          />
+          <DefinitionRow
+            label="Urgency reason"
+            value={report.reporterReason ?? 'Not shared or not provided'}
+          />
+          <DefinitionRow
+            label="Created"
+            value={formatDate(report.createdAt, true)}
+          />
+          <DefinitionRow
             label="Updated"
-            value={new Date(report.updatedAt).toLocaleString()}
+            value={formatDate(report.updatedAt, true)}
           />
-          {report.assignedTechnicianId !== null ? (
-            <MetaRow
-              label="Technician"
-              value={`#${report.assignedTechnicianId}`}
-            />
-          ) : null}
-          {report.reopenCount > 0 ? (
-            <MetaRow label="Reopened" value={`${report.reopenCount}×`} />
-          ) : null}
-          {report.createdByName ? (
-            <MetaRow label="Submitted by" value={report.createdByName} />
-          ) : null}
-          {report.address ? (
-            <MetaRow label="Location" value={report.address} />
-          ) : null}
-        </View>
+          <DefinitionRow
+            label="Times reopened"
+            value={String(report.reopenCount)}
+          />
+        </Card>
 
+        {actionMessage ? (
+          <View className="mb-3 rounded-md px-3 py-2" style={{ backgroundColor: dashboardColors.statMintSoft }}>
+            <Text
+              className="text-[11px] font-medium"
+              style={{ color: dashboardColors.statMintDeep }}
+            >
+              {actionMessage}
+            </Text>
+          </View>
+        ) : null}
+        {actionError ? (
+          <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
+            <Text className="text-[11px] leading-[1.7] text-dashboard-error-text">
+              {actionError}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* "People attached to this report" — mirrors the web's
+            `.reporter-list` section. Non-participants see the privacy
+            note instead; participants see the joined list. */}
         {!isParticipant ? (
-          <View className="mb-4 rounded-xl border border-border bg-card p-4">
-            <Text className="text-xs text-muted">
+          <Card className="mb-4">
+            <Text className="text-[12px] leading-[1.8] text-dashboard-subtitle">
               Some details (location and submitter) are hidden for reports you
               did not file. Join the report if you are affected by the same
               issue.
             </Text>
-          </View>
-        ) : null}
-
-        {canJoin ? (
-          <Button
-            label="I'm affected too — join this report"
-            onPress={onJoin}
-            loading={joining}
-            className="mb-4"
-          />
-        ) : null}
-
-        {isParticipant && reporters ? (
-          <View className="mb-4 rounded-xl border border-border bg-card p-4">
-            <Text className="mb-2 text-sm font-medium text-muted">
-              Reporters ({reporters.length})
-            </Text>
-            {reporters.map((row) => (
+          </Card>
+        ) : reporters && reporters.length > 0 ? (
+          <Card padded={false} className="mb-4">
+            <View className="border-b border-dashboard-card-line px-4 py-3">
+              <Text
+                className="text-[15px] font-semibold text-ink"
+                style={{ letterSpacing: -0.3 }}
+              >
+                People attached to this report
+              </Text>
+            </View>
+            {reporters.map((row, index) => (
               <View
                 key={row.userId}
-                className="flex-row items-center justify-between py-1"
+                className={`flex-row items-center justify-between px-4 py-3 ${
+                  index > 0 ? 'border-t border-dashboard-card-line' : ''
+                }`}
               >
-                <Text className="text-sm text-ink">
-                  User #{row.userId}
-                  {user != null && row.userId === user.id ? ' (you)' : ''}
+                <Text className="text-sm font-medium text-ink">
+                  {row.userId === user?.id ? 'You' : `User #${row.userId}`}
                 </Text>
-                <Text className="text-xs text-muted">
-                  {new Date(row.joinedAt).toLocaleDateString()}
+                <Text className="text-[10px] text-dashboard-caption">
+                  Joined {formatDate(row.joinedAt, true)}
                 </Text>
               </View>
             ))}
-          </View>
+          </Card>
+        ) : isParticipant ? (
+          <Card className="mb-4">
+            <Text className="text-[12px] leading-[1.8] text-dashboard-subtitle">
+              Reporter identities are only available to people with access to
+              this report.
+            </Text>
+          </Card>
+        ) : null}
+
+        {canJoin ? (
+          <Card className="mb-4">
+            <View className="mb-2 flex-row items-center gap-2">
+              <UserPlus color={dashboardColors.teal} size={18} />
+              <Text
+                className="text-[15px] font-semibold text-ink"
+                style={{ letterSpacing: -0.3 }}
+              >
+                This issue affects me too
+              </Text>
+            </View>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              Joining attaches your account to the report and gives you access
+              to its shared details.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              disabled={joining}
+              onPress={onJoin}
+              className="flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
+              style={{
+                backgroundColor: dashboardColors.ctaBg,
+                borderColor: dashboardColors.ctaBorder,
+                opacity: joining ? 0.55 : 1,
+              }}
+            >
+              <Text
+                className="text-[13px] font-semibold"
+                style={{ color: dashboardColors.ctaText }}
+              >
+                {joining ? 'Saving…' : 'Join this report'}
+              </Text>
+            </Pressable>
+          </Card>
         ) : null}
 
         {canAssign ? (
-          <View className="mb-4 rounded-xl border border-border bg-card p-4">
-            <Text className="mb-3 text-sm font-medium text-muted">
-              Assign technician
+          <Card className="mb-4">
+            <Text
+              className="mb-1 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {report.assignedTechnicianId
+                ? 'Reassign technician'
+                : 'Assign a technician'}
+            </Text>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              Enter the technician's account ID supplied by your administrator.
             </Text>
             <TextField
               label="Technician ID"
@@ -297,7 +451,7 @@ export default function ReportDetailScreen() {
                   : 'e.g. 12'
               }
             />
-            <Text className="-mt-2 mb-3 text-xs text-muted">
+            <Text className="-mt-2 mb-3 text-[10px] leading-[1.7] text-dashboard-caption">
               The technician directory is not exposed by the backend yet, so
               this takes a numeric user ID. A picker replaces this field once
               the endpoint lands.
@@ -306,23 +460,25 @@ export default function ReportDetailScreen() {
               label={
                 report.assignedTechnicianId !== null
                   ? 'Reassign'
-                  : 'Assign technician'
+                  : 'Save assignment'
               }
               variant="secondary"
               onPress={onAssign}
               loading={assigning}
             />
+          </Card>
+        ) : null}
+
+        {joined && user ? (
+          <View className="mb-3 flex-row items-center gap-1.5">
+            <View
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: dashboardColors.statMintDeep }}
+            />
+            <Text className="text-[10px] text-dashboard-caption">
+              You are attached to this report
+            </Text>
           </View>
-        ) : null}
-
-        {actionError ? (
-          <Text className="mb-3 text-sm text-tone-danger">{actionError}</Text>
-        ) : null}
-
-        {isCreator ? (
-          <Text className="text-center text-xs text-muted">
-            Filed by you
-          </Text>
         ) : null}
 
         <View className="h-12" />
@@ -331,20 +487,17 @@ export default function ReportDetailScreen() {
   );
 }
 
-function UrgencyRow({ label, level }: { label: string; level: Urgency }) {
+function DefinitionRow({ label, value }: { label: string; value: string }) {
   return (
-    <View className="mb-2 flex-row items-center justify-between">
-      <Text className="text-sm text-ink">{label}</Text>
-      <UrgencyChip level={level} />
-    </View>
-  );
-}
-
-function MetaRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="mb-2 flex-row items-start justify-between gap-4">
-      <Text className="text-sm text-muted">{label}</Text>
-      <Text className="flex-1 text-right text-sm text-ink">{value}</Text>
+    <View className="mb-2 flex-row items-start justify-between gap-4 last:mb-0">
+      <Text className="text-[11px] uppercase tracking-wide text-dashboard-subtitle">
+        {label}
+      </Text>
+      <Text
+        className="flex-1 text-right text-sm text-ink"
+      >
+        {value}
+      </Text>
     </View>
   );
 }

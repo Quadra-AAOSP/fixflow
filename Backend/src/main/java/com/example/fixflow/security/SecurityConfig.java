@@ -41,7 +41,6 @@ public class SecurityConfig {
 						.requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/shop/catalog").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()
-						.requestMatchers(HttpMethod.GET, "/api/sites/**", "/api/site-rules/**").authenticated()
 						.requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 						.requestMatchers("/api/**").authenticated()
 						.anyRequest().permitAll()

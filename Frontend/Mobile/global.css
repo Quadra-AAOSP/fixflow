@@ -22,32 +22,190 @@
  */
 @layer base {
   :root {
-    /* Neutral scaffolding */
-    --color-surface: 251 247 248;
+    /*
+     * Neutral scaffolding — mirrors `Frontend/Web/tailwind.config.js`
+     * (surface/card/ink/muted/border) and `.dashboard-app` (`background:
+     * #fcfdfc`, `--navy: #152742`, `--muted: #6e7e92`, `--line: #e9edf0`).
+     * The web's warm off-white + dark navy + slate muted produce the
+     * editorial feel the design uses everywhere.
+     */
+    --color-surface: 252 253 252;
     --color-card: 255 255 255;
-    --color-ink: 42 30 35;
-    --color-muted: 122 106 112;
-    --color-border: 239 230 233;
+    --color-ink: 21 39 66;
+    --color-muted: 107 123 143;
+    --color-border: 233 237 240;
+    --color-line: 233 237 240;
+    --color-subtitle: 107 123 143;
+    --color-caption: 125 139 147;
+    --color-navy: 21 39 66;
 
-    /* Brand */
-    --color-primary: 226 121 150;
-    --color-primary-foreground: 59 36 44;
+    /*
+     * Brand — the web's `primary` is the coral used on the auth brand
+     * mark and a few accent dots; the in-app CTA is the mint accent.
+     * The lime is unused in the current build but kept for parity.
+     */
+    --color-primary: 226 121 121;
+    --color-primary-foreground: 48 44 41;
     --color-accent: 121 226 205;
     --color-accent-foreground: 30 59 52;
     --color-lime: 220 226 121;
     --color-lime-foreground: 58 63 20;
 
-    /* Urgency — reporter-declared severity */
-    --color-urgency-low: 85 99 111;
-    --color-urgency-medium: 37 99 235;
-    --color-urgency-high: 180 83 9;
-    --color-urgency-critical: 190 18 60;
+    /*
+     * Status-group tones — matches the `.coral`/`.mint`/`.citron` classes
+     * the web uses for `.stat-icon`, `.status-badge`, `.chart-bar`, and
+     * `.mini-avatar` (see `Frontend/Web/src/styles/dashboard.css` lines
+     * 70–72 and 95–97). Each tone is a soft 15%-opacity background with
+     * a darker text, exactly as the web renders them.
+     */
+    --color-coral-bg: 250 228 229;
+    --color-coral-ink: 187 82 96;
+    --color-mint-bg: 210 246 238;
+    --color-mint-ink: 0 141 128;
+    --color-citron-bg: 237 244 178;
+    --color-citron-ink: 104 133 34;
 
-    /* Semantic status tones — mapped from ReportStatus */
-    --color-tone-neutral: 85 99 111;
+    /*
+     * Urgency — reporter-declared severity. Web values from
+     * `Frontend/Web/tailwind.config.js > colors.urgency`.
+     */
+    --color-urgency-low: 113 111 104;
+    --color-urgency-medium: 14 165 233;
+    --color-urgency-high: 245 158 11;
+    --color-urgency-critical: 220 38 38;
+
+    /*
+     * Semantic status tones — mirrors `Frontend/Web/tailwind.config.js >
+     * colors.status`. Only the values that map to the in-app chips matter;
+     * the names stay the same so any pre-existing `bg-tone-*` classes
+     * keep rendering with the new values.
+     */
+    --color-tone-neutral: 113 111 104;
     --color-tone-info: 37 99 235;
-    --color-tone-success: 18 121 92;
-    --color-tone-warning: 180 83 9;
-    --color-tone-danger: 190 18 60;
+    --color-tone-success: 5 150 105;
+    --color-tone-warning: 245 158 11;
+    --color-tone-danger: 220 38 38;
+
+    /*
+     * Auth chrome — the warm palette used by the login / register shell.
+     * Mirrors the auth block in Frontend/Web/src/styles/global.css.
+     *
+     * Deliberately separate from the app tokens above: the public auth pages
+     * use a warmer, editorial treatment (cream panel, olive headline accent,
+     * coral brand mark, sage eyebrow dot) than the in-app UI, and the web
+     * build hard-codes the same values.
+     */
+    --color-auth-bg: 248 247 242;
+    --color-auth-ink: 48 44 41;
+    --color-auth-panel: 239 238 230;
+    --color-auth-olive: 128 127 96;
+    --color-auth-body: 115 115 103;
+    --color-auth-note: 119 119 108;
+    --color-auth-sage: 110 149 133;
+    --color-auth-sage-deep: 141 147 98;
+    --color-auth-lime-soft: 238 240 203;
+    --color-auth-input: 253 252 249;
+    --color-auth-line: 228 227 218;
+    --color-auth-foot: 139 136 125;
+    --color-coral: 226 121 121;
+    --color-coral-deep: 193 95 95;
+    --color-coral-link: 147 75 75;
+
+    /*
+     * Register flow — extra shades for the role picker and the managed-access
+     * panel. Same source as above (`.role-option`, `.managed-role-links`,
+     * `.chosen-role`, `.managed-access-message` in the web stylesheet).
+     */
+    --color-auth-card-bg: 255 253 250;
+    --color-auth-card-line: 225 228 215;
+    --color-auth-rose-soft: 250 228 229;
+    --color-auth-rose-deep: 163 85 92;
+    --color-auth-mint-soft: 210 246 238;
+    --color-auth-mint-deep: 22 123 110;
+    --color-auth-managed-bg: 237 242 228;
+    --color-auth-managed-icon: 106 150 122;
+    --color-auth-managed-ink: 114 122 103;
+    --color-auth-chip-bg: 234 242 215;
+    --color-auth-chip-ink: 101 116 75;
+    --color-auth-divider: 230 230 218;
+    --color-auth-danger: 160 67 77;
+    --color-auth-ghost-ink: 103 94 80;
+
+    /*
+     * Dashboard palette — mirrors the welcome banner / stat cards / chart
+     * / FAB on the web (`.dashboard-app`, `.welcome-banner`, `.stat-card`,
+     * `.chart-bar`, `.floating-create` in `Frontend/Web/src/styles/dashboard.css`).
+     * Light-only; dark mode is intentionally out of scope.
+     */
+    --color-dashboard-banner-bg: 255 249 241;
+    --color-dashboard-banner-border: 251 239 224;
+    --color-dashboard-banner-subtitle: 48 75 104;
+    --color-dashboard-banner-values: 86 107 128;
+    --color-dashboard-cta-bg: 121 226 205;
+    --color-dashboard-cta-border: 101 216 193;
+    --color-dashboard-cta-text: 16 75 69;
+    --color-dashboard-cta-icon-bg: 243 255 252;
+    --color-dashboard-cta-icon: 0 142 130;
+    --color-dashboard-fab-bg: 121 226 205;
+    --color-dashboard-fab-text: 19 85 76;
+    --color-dashboard-fab-shadow: 42 155 125;
+    --color-dashboard-teal: 0 143 133;
+    --color-dashboard-teal-soft: 211 246 239;
+    --color-dashboard-stat-coral-soft: 250 228 229;
+    --color-dashboard-stat-coral-deep: 187 82 96;
+    --color-dashboard-stat-mint-soft: 210 246 238;
+    --color-dashboard-stat-mint-deep: 0 141 128;
+    --color-dashboard-stat-citron-soft: 237 244 178;
+    --color-dashboard-stat-citron-deep: 104 133 34;
+    --color-dashboard-card-line: 233 237 240;
+    --color-dashboard-card-bg: 255 255 255;
+    --color-dashboard-subtitle: 107 123 143;
+    --color-dashboard-caption: 125 139 147;
+    --color-dashboard-pill-bg: 211 246 239;
+    --color-dashboard-empty: 120 138 152;
+    --color-dashboard-error-bg: 251 232 231;
+    --color-dashboard-error-text: 148 62 70;
+
+    /*
+     * Shop palette — mirrors the public `/shop` page
+     * (`.fixflow-shop` and friends in
+     * `Frontend/Web/src/styles/shop.css`): a cream shell, forest-green
+     * ink, cream hero with a wine serif accent, and mint category pills.
+     * Deliberately separate from the dashboard tokens — the web shop
+     * hard-codes the same values.
+     */
+    --color-shop-shell: 255 254 250;
+    --color-shop-ink: 35 61 54;
+    --color-shop-mint: 121 226 205;
+    --color-shop-coral: 226 121 121;
+    --color-shop-citron: 220 226 121;
+    --color-shop-wordmark-sub: 122 134 121;
+    --color-shop-shell-line: 232 236 227;
+    --color-shop-hero: 245 238 229;
+    --color-shop-hero-body: 93 106 97;
+    --color-shop-pill-line: 216 215 199;
+    --color-shop-pill-dot: 69 151 133;
+    --color-shop-serif-accent: 142 71 71;
+    --color-shop-secondary-line: 204 214 206;
+    --color-shop-foot-text: 99 113 104;
+    --color-shop-star: 171 81 81;
+    --color-shop-values-text: 95 107 99;
+    --color-shop-values-line: 228 232 223;
+    --color-shop-search-line: 224 230 221;
+    --color-shop-tab-line: 223 230 220;
+    --color-shop-state-bg: 250 251 246;
+    --color-shop-state-line: 217 225 211;
+    --color-shop-state-icon-bg: 214 244 234;
+    --color-shop-state-text: 104 117 104;
+    --color-shop-card-line: 232 235 227;
+    --color-shop-image-bg: 243 242 236;
+    --color-shop-product-body: 112 128 113;
+    --color-shop-product-foot: 109 125 110;
+    --color-shop-editorial-bg: 240 241 214;
+    --color-shop-editorial-text: 96 110 91;
+    --color-shop-editorial-link: 82 102 80;
+    --color-shop-dialog-line: 231 235 228;
+    --color-shop-qty-line: 220 228 216;
+    --color-shop-basket-badge: 220 226 121;
   }
 }

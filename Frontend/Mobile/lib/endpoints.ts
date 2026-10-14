@@ -3,17 +3,14 @@
  * in one place and so a contract drift (path rename, new param, etc.) is a
  * single-line change rather than a sweep across services.
  *
- * Paths reflect the backend as of the current implementation:
- *   /api/auth/{login,register,logout,me}
- *   /api/sites, /api/sites/{id}
- *   /api/site-rules
- *   /api/reports, /api/reports/{id}, /api/reports/{id}/join,
- *   /api/reports/{id}/reporters, /api/reports/{id}/assign
+ * Every path below was verified against the running backend controllers:
+ *   AuthController, AdminUserController, SiteController, SubsiteController,
+ *   SiteRuleController, ReportController, TechnicianSkillController,
+ *   TechnicianContractController, ContractApplicationController,
+ *   ShopCatalogController, ShopOrderController.
  *
- * Endpoints NOT implemented on the backend and intentionally NOT exposed
- * here: photo upload, status transitions, urgency override, reassignment,
- * technician availability self-toggle, claimable/assigned-to-me queues,
- * public site directory. Track in the project audit until the backend ships.
+ * Endpoints the backend does NOT implement are deliberately absent — see the
+ * trailing comment for the tracked list.
  */
 
 export const endpoints = {
@@ -23,13 +20,29 @@ export const endpoints = {
     logout: '/api/auth/logout',
     me: '/api/auth/me',
   },
+
+  admin: {
+    /** POST — provision a staff/admin account (`admin` | `super_admin`). */
+    users: '/api/admin/users',
+  },
+
   sites: {
     list: '/api/sites',
     byId: (id: number | string) => `/api/sites/${id}`,
+    subsites: (siteId: number | string) => `/api/sites/${siteId}/subsites`,
+    subsiteRequests: (siteId: number | string) =>
+      `/api/sites/${siteId}/subsite-requests`,
+    resolveSubsiteRequest: (siteId: number | string, id: number | string) =>
+      `/api/sites/${siteId}/subsite-requests/${id}/resolve`,
   },
+
   siteRules: {
     list: '/api/site-rules',
+    /** Optional `siteType` filter — omitted returns the full taxonomy. */
+    byType: (siteType: string) =>
+      `/api/site-rules?siteType=${encodeURIComponent(siteType)}`,
   },
+
   reports: {
     list: '/api/reports',
     byId: (id: number | string) => `/api/reports/${id}`,
@@ -37,4 +50,53 @@ export const endpoints = {
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
   },
+
+  technicianSkills: {
+    create: '/api/technician-skills',
+  },
+
+  technicianContracts: {
+    create: '/api/technician-contracts',
+  },
+
+  contractRequests: {
+    list: '/api/technician-contract-requests',
+    create: '/api/technician-contract-requests',
+    bySite: (siteId: number | string) =>
+      `/api/technician-contract-requests?siteId=${encodeURIComponent(siteId)}`,
+    decide: (id: number | string) =>
+      `/api/technician-contract-requests/${id}/decision`,
+  },
+
+  shop: {
+    catalog: '/api/shop/catalog',
+    quote: '/api/shop/checkout/quote',
+    orders: '/api/shop/orders',
+    order: (publicId: string) =>
+      `/api/shop/orders/${encodeURIComponent(publicId)}`,
+    cancel: (publicId: string) =>
+      `/api/shop/orders/${encodeURIComponent(publicId)}/cancel`,
+    devCompletePayment: (publicId: string) =>
+      `/api/shop/payments/dev/complete/${encodeURIComponent(publicId)}`,
+  },
 } as const;
+
+/*
+ * Not implemented by the backend, therefore not exposed anywhere in the app:
+ *
+ *   POST   /api/reports/{id}/photos
+ *   DELETE /api/reports/{id}/photos/{photoId}
+ *   PATCH  /api/reports/{id}/status
+ *   POST   /api/reports/{id}/confirm
+ *   POST   /api/reports/{id}/reopen
+ *   PATCH  /api/reports/{id}/urgency
+ *   POST   /api/reports/{id}/reassign
+ *   GET    /api/technicians/me/availability
+ *   GET    /api/reports/assigned-to-me
+ *   GET    /api/reports/claimable
+ *   GET    /api/technicians
+ *   GET    /api/technician-skills
+ *   GET    /api/technician-contracts
+ *
+ * Screens must not offer an affordance that depends on these.
+ */

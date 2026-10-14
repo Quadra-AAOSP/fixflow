@@ -1,239 +1,506 @@
-import { Link, Redirect } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+  ArrowLeft,
+  ClipboardList,
+  ShieldCheck,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react-native';
 
-import { Button } from '@/components/ui/Button';
-import { Screen } from '@/components/ui/Screen';
-import {
-  SegmentedControl,
-  type SegmentedOption,
-} from '@/components/ui/SegmentedControl';
-import { TextField } from '@/components/ui/TextField';
+import { AuthButton } from '@/components/auth/AuthButton';
+import { AuthField } from '@/components/auth/AuthField';
+import { AuthHeading } from '@/components/auth/AuthHeading';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { PASSWORD_MIN_LENGTH, roleLabels } from '@/constants/access';
+import { authColors, fontFamilies } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
+import * as authApi from '@/services/auth';
 import { ApiError } from '@/services/auth';
-import type { RegisterPayload } from '@/types';
+import type { UserRole } from '@/types';
+import { buildRegistrationPayload } from '@/utils/registration';
 
-type Role = RegisterPayload['role'];
+/** Roles offered on the public signup screen, in the web's order. */
+type PublicRole = 'reporter' | 'technician';
+type ManagedRole = 'admin' | 'staff' | 'super_admin';
 
-const ROLE_OPTIONS: SegmentedOption<Role>[] = [
-  { value: 'reporter', label: 'Reporter' },
-  { value: 'technician', label: 'Technician' },
+type Details = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  siteId: string;
+  phone: string;
+  address: string;
+};
+
+const EMPTY_DETAILS: Details = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: '',
+  siteId: '',
+  phone: '',
+  address: '',
+};
+
+const PUBLIC_ROLE_CARDS: {
+  role: PublicRole;
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  technician?: boolean;
+}[] = [
+  {
+    role: 'reporter',
+    icon: ClipboardList,
+    title: 'I’m a reporter',
+    subtitle: 'Report and track issues at your site.',
+  },
+  {
+    role: 'technician',
+    icon: Wrench,
+    title: 'I’m a technician',
+    subtitle: 'Register independently. A site contract is optional.',
+    technician: true,
+  },
 ];
 
-export default function RegisterScreen() {
-  const { register, isAuthenticated, isLoading } = useAuth();
+const MANAGED_ROLES: ManagedRole[] = ['admin', 'staff', 'super_admin'];
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('reporter');
-  const [technicianHasSite, setTechnicianHasSite] = useState(false);
-  const [siteId, setSiteId] = useState('');
-  const [phone, setPhone] = useState('');
+/**
+ * Sign-up. Mirrors `Frontend/Web/src/views/auth/RegisterView.vue`, including
+ * its two-step flow: pick a role, then complete the form (or, for the managed
+ * roles, read why an administrator must create the account).
+ *
+ * The backend only accepts `reporter` / `technician` from this endpoint, so
+ * the managed roles are intentionally informational — exactly as on the web.
+ */
+export default function RegisterScreen() {
+  const router = useRouter();
+  const { login, isAuthenticated, isLoading } = useAuth();
+
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [details, setDetails] = useState<Details>(EMPTY_DETAILS);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
 
   if (!isLoading && isAuthenticated) {
     return <Redirect href="/(tabs)" />;
   }
 
-  // Site ID is mandatory for reporters and optional for technicians
-  // (technicians without a site are marketplace-eligible).
-  const requiresSiteId = role === 'reporter' || technicianHasSite;
+  function update<K extends keyof Details>(key: K, value: Details[K]) {
+    setDetails((current) => ({ ...current, [key]: value }));
+  }
 
-  async function onSubmit() {
+  function chooseRole(role: UserRole) {
+    setSelectedRole(role);
+    setDetails((current) => ({ ...current, siteId: '' }));
+    setError(null);
+  }
+
+  function describe(err: unknown): string {
+    if (err instanceof ApiError) return err.message;
+    if (err instanceof Error) return err.message;
+    return 'Something went wrong. Please try again.';
+  }
+
+  async function submit() {
+    if (submitting || accountCreated || !selectedRole) return;
     setError(null);
 
-    const trimmedEmail = email.trim();
-    const trimmedFirst = firstName.trim();
-    const trimmedLast = lastName.trim();
-    const trimmedSiteId = siteId.trim();
-    const parsedSiteId = Number(trimmedSiteId);
-
-    if (!trimmedFirst || !trimmedLast || !trimmedEmail || !password) {
-      setError('First name, last name, email, and password are required.');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-    if (
-      requiresSiteId &&
-      (!trimmedSiteId || !Number.isInteger(parsedSiteId) || parsedSiteId <= 0)
-    ) {
-      setError(
-        role === 'reporter'
-          ? 'Site ID is required for reporter accounts.'
-          : 'Enter a valid site ID, or turn off "Assigned to a specific site".',
-      );
+    let payload;
+    try {
+      payload = buildRegistrationPayload({ ...details, role: selectedRole });
+    } catch (err) {
+      setError(describe(err));
       return;
     }
 
     setSubmitting(true);
     try {
-      await register({
-        email: trimmedEmail,
-        password,
-        firstName: trimmedFirst,
-        lastName: trimmedLast,
-        phone: phone.trim() || undefined,
-        role,
-        siteId: requiresSiteId ? parsedSiteId : undefined,
-      });
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Unable to reach the server. Check your connection and API URL.');
+      await authApi.register(payload);
+      setAccountCreated(true);
+      try {
+        await login({ email: payload.email, password: payload.password });
+        setDetails(EMPTY_DETAILS);
+      } catch {
+        // The account exists but the session did not start — say so rather
+        // than reporting a failed registration.
+        setDetails((current) => ({ ...current, password: '' }));
+        setError(
+          'Your account was created, but automatic sign-in did not finish. Sign in with your new account.',
+        );
       }
+    } catch (err) {
+      setError(describe(err));
     } finally {
       setSubmitting(false);
     }
   }
 
-  return (
-    <Screen>
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerClassName="flex-grow justify-center px-5 py-8"
-          keyboardShouldPersistTaps="handled"
+  const isPublicRole =
+    selectedRole === 'reporter' || selectedRole === 'technician';
+  const isTechnician = selectedRole === 'technician';
+
+  if (accountCreated) {
+    return (
+      <AuthShell>
+        <Text
+          className="text-[26px] leading-8 text-auth-ink"
+          style={{ fontFamily: fontFamilies.headBold, letterSpacing: -0.8 }}
         >
-          <Text className="mb-1 text-3xl font-bold text-ink">
-            Create account
+          Your account is ready
+        </Text>
+        <Text className="mt-3.5 text-[12px] leading-[21px] text-auth-body">
+          {error ?? 'You can now sign in.'}
+        </Text>
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.replace('/(auth)/login')}
+          className="mt-2 self-start py-2.5 active:opacity-70"
+        >
+          <Text
+            className="text-[11px] text-coral-link"
+            style={{ fontFamily: fontFamilies.bodySemiBold }}
+          >
+            Continue to sign in →
           </Text>
-          <Text className="mb-6 text-sm text-muted">
-            Register to report or fix maintenance issues at your site.
-          </Text>
+        </Pressable>
+      </AuthShell>
+    );
+  }
 
-          <Text className="mb-2 text-sm font-medium text-ink">
-            Account type
-          </Text>
-          <SegmentedControl
-            options={ROLE_OPTIONS}
-            value={role}
-            onChange={setRole}
-            className="mb-5"
-          />
+  return (
+    <AuthShell>
+      <AuthHeading
+        kicker="FIND YOUR PLACE IN FIXFLOW"
+        title="Join your community"
+        titleAccent="."
+        description="Choose how you’ll help keep things working."
+      />
 
-          <View className="flex-row gap-3">
-            <TextField
-              label="First name"
-              value={firstName}
-              onChangeText={setFirstName}
-              autoCapitalize="words"
-              textContentType="givenName"
-              className="flex-1"
-              placeholder="Alex"
-            />
-            <TextField
-              label="Last name"
-              value={lastName}
-              onChangeText={setLastName}
-              autoCapitalize="words"
-              textContentType="familyName"
-              className="flex-1"
-              placeholder="Ng"
-            />
+      {selectedRole === null ? (
+        <View>
+          <View className="gap-3">
+            {PUBLIC_ROLE_CARDS.map((card) => (
+              <RoleCard
+                key={card.role}
+                icon={card.icon}
+                title={card.title}
+                subtitle={card.subtitle}
+                technician={card.technician}
+                onPress={() => chooseRole(card.role)}
+              />
+            ))}
           </View>
 
-          <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            autoComplete="email"
-            placeholder="you@example.com"
-          />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="newPassword"
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-          />
-
-          {role === 'technician' ? (
-            <View className="mb-4 flex-row items-center justify-between rounded-md bg-card px-3 py-3">
-              <View className="flex-1 pr-3">
-                <Text className="text-sm font-medium text-ink">
-                  Assigned to a specific site
-                </Text>
-                <Text className="mt-0.5 text-xs text-muted">
-                  Turn off to register as an on-call technician available
-                  across sites.
-                </Text>
-              </View>
-              <Switch
-                value={technicianHasSite}
-                onValueChange={setTechnicianHasSite}
-              />
+          <View className="mt-2 border-t border-auth-divider pt-5">
+            <View className="mb-2 flex-row items-center gap-2">
+              <ShieldCheck color={authColors.note} size={16} />
+              <Text className="text-[11px] text-auth-note">
+                Joining a management team?
+              </Text>
             </View>
-          ) : null}
-
-          {requiresSiteId ? (
-            <>
-              <TextField
-                label="Site ID"
-                value={siteId}
-                onChangeText={setSiteId}
-                keyboardType="number-pad"
-                placeholder="e.g. 1"
-              />
-              <Text className="-mt-2 mb-4 text-xs text-muted">
-                Ask your site admin for the numeric site ID. Sites are not
-                listed publicly before login.
-              </Text>
-            </>
-          ) : null}
-
-          <TextField
-            label="Phone (optional)"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            textContentType="telephoneNumber"
-            placeholder="+65 …"
-          />
-
-          {error ? (
-            <Text className="mb-3 text-sm text-tone-danger">{error}</Text>
-          ) : null}
-
-          <Button
-            label="Create account"
-            loading={submitting}
-            onPress={onSubmit}
-          />
-
-          <View className="mt-6 flex-row justify-center">
-            <Text className="text-sm text-muted">
-              Already registered?{' '}
-            </Text>
-            <Link href="/(auth)/login">
-              <Text className="text-sm font-semibold text-primary">
-                Sign in
-              </Text>
-            </Link>
+            {MANAGED_ROLES.map((role) => (
+              <Pressable
+                key={role}
+                accessibilityRole="button"
+                onPress={() => chooseRole(role)}
+                className="min-h-[30px] justify-center py-1.5 active:opacity-60"
+              >
+                <Text
+                  className="text-[11px] text-auth-ghost-ink"
+                  style={{ fontFamily: fontFamilies.bodyMedium }}
+                >
+                  {roleLabels[role]}
+                </Text>
+              </Pressable>
+            ))}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Screen>
+        </View>
+      ) : (
+        <View>
+          <View className="flex-row items-center">
+            <Pressable
+              accessibilityRole="button"
+              disabled={submitting}
+              onPress={() => {
+                setSelectedRole(null);
+                setError(null);
+              }}
+              className="min-h-[30px] flex-row items-center gap-1.5 active:opacity-60"
+            >
+              <ArrowLeft color={authColors.note} size={14} />
+              <Text className="text-[10px] text-auth-note">Change role</Text>
+            </Pressable>
+            <View className="ml-3 rounded-[7px] bg-auth-chip-bg px-2.5 py-1.5">
+              <Text className="text-[10px] text-auth-chip-ink">
+                {roleLabels[selectedRole]}
+              </Text>
+            </View>
+          </View>
+
+          {isPublicRole ? (
+            <PublicRoleForm
+              role={selectedRole}
+              isTechnician={isTechnician}
+              details={details}
+              update={update}
+              error={error}
+              submitting={submitting}
+              onSubmit={submit}
+            />
+          ) : (
+            <ManagedRolePanel role={selectedRole as ManagedRole} />
+          )}
+        </View>
+      )}
+
+      <Text className="mt-6 text-center text-[12px] text-auth-body">
+        Already have an account?{' '}
+        <Text
+          className="text-coral-link"
+          style={{ fontFamily: fontFamilies.bodySemiBold }}
+          onPress={() => router.push('/(auth)/login')}
+        >
+          Sign in
+        </Text>
+      </Text>
+    </AuthShell>
+  );
+}
+
+/** `.auth-form-panel .role-option` — the white picker card. */
+function RoleCard({
+  icon: Icon,
+  title,
+  subtitle,
+  technician = false,
+  onPress,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  technician?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      className="w-full flex-row items-center gap-3.5 rounded-[10px] border border-auth-card-line bg-auth-card-bg px-3.5 py-4 active:opacity-70"
+    >
+      <View
+        className={`h-[39px] w-[39px] items-center justify-center rounded-[11px] ${
+          technician ? 'bg-auth-mint-soft' : 'bg-auth-rose-soft'
+        }`}
+      >
+        <Icon
+          color={technician ? authColors.mintDeep : authColors.roseDeep}
+          size={22}
+        />
+      </View>
+      <View className="flex-1">
+        <Text
+          className="text-[13px] text-auth-ink"
+          style={{ fontFamily: fontFamilies.bodySemiBold }}
+        >
+          {title}
+        </Text>
+        <Text className="mt-1 text-[10px] leading-4 text-auth-body">
+          {subtitle}
+        </Text>
+      </View>
+      <Text className="text-[13px] text-auth-ink">→</Text>
+    </Pressable>
+  );
+}
+
+/** The reporter / technician form, matching RegisterView's field set. */
+function PublicRoleForm({
+  role,
+  isTechnician,
+  details,
+  update,
+  error,
+  submitting,
+  onSubmit,
+}: {
+  role: UserRole;
+  isTechnician: boolean;
+  details: Details;
+  update: <K extends keyof Details>(key: K, value: Details[K]) => void;
+  error: string | null;
+  submitting: boolean;
+  onSubmit: () => void;
+}) {
+  return (
+    <View className="mt-4">
+      <Text className="mb-6 text-[11px] leading-[20px] text-auth-body">
+        {isTechnician
+          ? 'Start with no contracted sites. You can remain independent and arrange site contracts later.'
+          : 'Your site administrator will provide the site ID to use when registering.'}
+      </Text>
+
+      <View className="flex-row gap-3">
+        <AuthField
+          label={isTechnician ? 'Legal first name' : 'First name'}
+          value={details.firstName}
+          onChangeText={(value) => update('firstName', value)}
+          autoCapitalize="words"
+          textContentType="givenName"
+          className="flex-1"
+          placeholder="Alex"
+        />
+        <AuthField
+          label={isTechnician ? 'Legal last name' : 'Last name'}
+          value={details.lastName}
+          onChangeText={(value) => update('lastName', value)}
+          autoCapitalize="words"
+          textContentType="familyName"
+          className="flex-1"
+          placeholder="Ng"
+        />
+      </View>
+
+      <AuthField
+        label="Email"
+        value={details.email}
+        onChangeText={(value) => update('email', value)}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        textContentType="emailAddress"
+        autoComplete="email"
+        placeholder="you@example.com"
+      />
+
+      <AuthField
+        label="Password"
+        value={details.password}
+        onChangeText={(value) => update('password', value)}
+        secureTextEntry
+        textContentType="newPassword"
+        autoComplete="new-password"
+        placeholder="At least 15 characters"
+      />
+      <FieldHint>
+        Use at least {PASSWORD_MIN_LENGTH} characters. A long, unique passphrase
+        works well.
+      </FieldHint>
+
+      {role === 'reporter' ? (
+        <>
+          <AuthField
+            label="Site ID"
+            value={details.siteId}
+            onChangeText={(value) => update('siteId', value)}
+            keyboardType="number-pad"
+            placeholder="e.g. 1"
+          />
+          <FieldHint>Use the actual ID from your site administrator.</FieldHint>
+        </>
+      ) : null}
+
+      <AuthField
+        label={isTechnician ? 'Contact phone' : 'Phone (optional)'}
+        value={details.phone}
+        onChangeText={(value) => update('phone', value)}
+        keyboardType="phone-pad"
+        textContentType="telephoneNumber"
+        autoComplete="tel"
+        placeholder="+65 …"
+      />
+
+      {isTechnician ? (
+        <>
+          <AuthField
+            label="Business or correspondence address"
+            value={details.address}
+            onChangeText={(value) => update('address', value)}
+            autoCapitalize="sentences"
+            textContentType="fullStreetAddress"
+            autoComplete="street-address"
+            placeholder="Street, city, postcode"
+          />
+          <FieldHint>
+            Next: add your trade and specialty. Registration creates an account;
+            it does not verify your identity or qualifications.
+          </FieldHint>
+          <FieldHint>
+            Before site work, arrange qualification, applicable licence,
+            insurance, and reference checks with the site administrator. Secure
+            document submission is not available yet. Do not put identity
+            numbers or document links in these fields.
+          </FieldHint>
+        </>
+      ) : null}
+
+      {error ? (
+        <Text className="my-2 text-[12px] leading-[20px] text-auth-danger">
+          {error}
+        </Text>
+      ) : null}
+
+      <View className="mt-1">
+        <AuthButton
+          label={
+            isTechnician
+              ? 'Create account & add trade →'
+              : 'Create reporter account →'
+          }
+          loading={submitting}
+          onPress={onSubmit}
+        />
+      </View>
+    </View>
+  );
+}
+
+/** `.field-hint` — pulled up under the preceding field. */
+function FieldHint({ children }: { children: React.ReactNode }) {
+  return (
+    <Text className="-mt-3 mb-4 text-[10px] leading-[17px] text-auth-body">
+      {children}
+    </Text>
+  );
+}
+
+/** `.managed-access-message` — why these roles cannot self-register. */
+function ManagedRolePanel({ role }: { role: ManagedRole }) {
+  const heading =
+    role === 'super_admin'
+      ? 'Privileged access requires verification'
+      : 'Your account is created by an administrator';
+
+  const body =
+    role === 'admin'
+      ? 'A super administrator must approve your appointment and create your account for a specific site. This role is not available through public signup.'
+      : role === 'staff'
+        ? 'Your site administrator or a super administrator must create your staff account for your site.'
+        : 'Super-administrator access is reserved for approved platform operators. Identity verification, independent approval, and MFA must be established before access is granted.';
+
+  return (
+    <View className="my-4 rounded-[13px] bg-auth-managed-bg p-5">
+      <ShieldCheck color={authColors.managedIcon} size={28} />
+      <Text
+        className="mt-3 text-[17px] leading-6 text-auth-ink"
+        style={{ fontFamily: fontFamilies.head }}
+      >
+        {heading}
+      </Text>
+      <Text className="mt-3 text-[12px] leading-[21px] text-auth-managed-ink">
+        {body}
+      </Text>
+      {role === 'super_admin' ? (
+        <Text className="text-[10px] leading-[17px] text-auth-managed-ink">
+          Online super-admin enrollment is unavailable until these checks can be
+          verified securely.
+        </Text>
+      ) : null}
+    </View>
   );
 }

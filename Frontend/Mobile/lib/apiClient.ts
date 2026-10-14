@@ -1,8 +1,24 @@
-import { API_BASE_URL } from '@/constants/config';
+import { API_BASE_URL, API_BASE_URL_CANDIDATES } from '@/constants/config';
 import type { ApiErrorBody } from '@/types';
 
 /** Default request timeout in milliseconds. */
 const DEFAULT_TIMEOUT_MS = 15_000;
+
+/**
+ * Timeout used when retrying a request against a fallback base URL. A host
+ * that is actually reachable answers in milliseconds, so this just caps how
+ * long a dead candidate (blocked by a firewall, stale IP, …) can stall the
+ * user before the next one is tried.
+ */
+const FALLBACK_TIMEOUT_MS = 5_000;
+
+/**
+ * Base URL currently believed to be reachable. Updated in place when a
+ * fallback candidate answers, so the probe cost is paid at most once per
+ * session — or once per network change, since a network-level failure
+ * restarts the search.
+ */
+let activeBaseUrl = API_BASE_URL;
 
 /**
  * Thrown for every non-2xx response. The original body is preserved on
@@ -47,14 +63,23 @@ export function toErrorMessage(
 }
 
 async function parseError(response: Response): Promise<ApiError> {
-  let message = response.statusText || 'Request failed';
+  // Spring Security rejects an unauthenticated request with an empty body, and
+  // Spring Boot's default error page omits `message` — in both cases the old
+  // code fell back to statusText, which is empty over HTTP/2, surfacing a
+  // useless "Request failed". Fall back to `error` and always carry the status
+  // so the caller can name the real cause (e.g. "Forbidden (403)").
+  let message = response.statusText || `Request failed (${response.status})`;
   let body: unknown;
   try {
     body = await response.json();
-    const m = (body as ApiErrorBody | undefined)?.message;
-    if (m) message = m;
+    const parsed = body as ApiErrorBody | undefined;
+    if (parsed?.message) {
+      message = parsed.message;
+    } else if (parsed?.error) {
+      message = `${parsed.error} (${response.status})`;
+    }
   } catch {
-    // non-JSON body — keep statusText
+    // non-JSON body — keep the status text (or the status-code fallback)
   }
   return new ApiError(response.status, message, body);
 }
@@ -86,28 +111,56 @@ async function request<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const { signal, cancel } = withTimeout(init?.signal, DEFAULT_TIMEOUT_MS);
+  const bases = [
+    activeBaseUrl,
+    ...API_BASE_URL_CANDIDATES.filter((base) => base !== activeBaseUrl),
+  ];
 
-  try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
-      credentials: 'include',
-      headers: buildHeaders(init),
-      signal,
-    });
+  for (let i = 0; i < bases.length; i += 1) {
+    const base = bases[i];
+    const { signal, cancel } = withTimeout(
+      init?.signal,
+      i === 0 ? DEFAULT_TIMEOUT_MS : FALLBACK_TIMEOUT_MS,
+    );
 
-    if (!response.ok) {
-      throw await parseError(response);
+    try {
+      const response = await fetch(`${base}${path}`, {
+        ...init,
+        credentials: 'include',
+        headers: buildHeaders(init),
+        signal,
+      });
+
+      if (base !== activeBaseUrl) {
+        activeBaseUrl = base;
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.log(`[api] using fallback base URL: ${base}`);
+        }
+      }
+
+      if (!response.ok) {
+        throw await parseError(response);
+      }
+
+      if (response.status === 204) {
+        return undefined as T;
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      // An ApiError means the server was reached and answered — never retry
+      // those against another host. Only network/timeout failures fall through.
+      if (error instanceof ApiError || i === bases.length - 1) {
+        throw error;
+      }
+    } finally {
+      cancel();
     }
-
-    if (response.status === 204) {
-      return undefined as T;
-    }
-
-    return (await response.json()) as T;
-  } finally {
-    cancel();
   }
+
+  // Unreachable: the loop always returns or throws.
+  throw new ApiError(0, 'Request failed');
 }
 
 export const api = {

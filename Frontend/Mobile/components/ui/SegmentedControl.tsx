@@ -7,15 +7,21 @@ export type SegmentedOption<T extends string> = {
 
 type SegmentedControlProps<T extends string> = {
   options: SegmentedOption<T>[];
-  value: T;
+  /** `null` renders with no segment selected — used when an explicit
+      choice is required (e.g. urgency on the new-report form). */
+  value: T | null;
   onChange: (value: T) => void;
   className?: string;
 };
 
 /**
- * Lightweight segmented control. Used for small, equal-weight option sets
- * (role picker, urgency picker). For wider selections or variable content
- * use a different control.
+ * Segmented control matching the web's pill-style toggle:
+ *   - 7px corner radius, 1px hairline border
+ *   - selected: soft mint `#d3f6ef` background, teal `#008e82` text
+ *   - unselected: white background, slate `#6b7b8f` text
+ *
+ * Used for small, equal-weight option sets (the urgency picker on the
+ * new-report form).
  */
 export function SegmentedControl<T extends string>({
   options,
@@ -33,15 +39,17 @@ export function SegmentedControl<T extends string>({
           <Pressable
             key={option.value}
             className={`flex-1 items-center rounded py-2.5 ${
-              selected ? 'bg-primary' : 'bg-transparent'
+              selected
+                ? 'bg-dashboard-teal-soft'
+                : 'bg-transparent'
             }`}
             onPress={() => onChange(option.value)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
           >
             <Text
-              className={`text-sm font-semibold ${
-                selected ? 'text-primary-foreground' : 'text-muted'
+              className={`text-[12px] font-semibold ${
+                selected ? 'text-dashboard-teal' : 'text-subtitle'
               }`}
             >
               {option.label}

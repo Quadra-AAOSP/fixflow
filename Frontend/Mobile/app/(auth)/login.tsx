@@ -1,24 +1,24 @@
-import { Link, Redirect } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { Text, View } from 'react-native';
 import { Wrench } from 'lucide-react-native';
 
-import { Button } from '@/components/ui/Button';
-import { Screen } from '@/components/ui/Screen';
-import { TextField } from '@/components/ui/TextField';
-import { themeColors } from '@/constants/theme';
+import { AuthButton } from '@/components/auth/AuthButton';
+import { AuthField } from '@/components/auth/AuthField';
+import { AuthHeading } from '@/components/auth/AuthHeading';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { fontFamilies } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/services/auth';
 
+/**
+ * Sign-in. Mirrors `Frontend/Web/src/views/auth/LoginView.vue` — same kicker,
+ * symbol, headline, supporting line, field labels/placeholders, button copy,
+ * secondary link and reassurance strip.
+ */
 export default function LoginScreen() {
+  const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
-  const palette = themeColors();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,11 +42,7 @@ export default function LoginScreen() {
       await login({ email: trimmedEmail, password });
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(
-          err.status === 401
-            ? 'Invalid email or password.'
-            : err.message,
-        );
+        setError(err.status === 401 ? 'Invalid email or password.' : err.message);
       } else {
         setError('Unable to reach the server. Check your connection and API URL.');
       }
@@ -56,62 +52,59 @@ export default function LoginScreen() {
   }
 
   return (
-    <Screen>
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerClassName="flex-grow justify-center px-5 py-8"
-          keyboardShouldPersistTaps="handled"
+    <AuthShell>
+      <AuthHeading
+        kicker="YOUR SPACE, TAKEN CARE OF"
+        icon={Wrench}
+        title="Welcome back"
+        titleAccent="."
+        description="A better place starts with you. Sign in to keep things flowing."
+      />
+
+      <AuthField
+        label="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        textContentType="emailAddress"
+        autoComplete="email"
+        placeholder="you@example.com"
+      />
+      <AuthField
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        textContentType="password"
+        autoComplete="current-password"
+        placeholder="••••••••"
+      />
+
+      {error ? (
+        <Text className="mb-3 text-[13px] text-urgency-critical">{error}</Text>
+      ) : null}
+
+      <AuthButton label="Sign in →" loading={submitting} onPress={onSubmit} />
+
+      <Text className="mt-6 text-center text-[13px] text-auth-body">
+        New around here?{' '}
+        <Text
+          className="text-coral-link"
+          style={{ fontFamily: fontFamilies.bodySemiBold }}
+          onPress={() => router.push('/(auth)/register')}
         >
-          <View className="mb-8 items-center">
-            <View className="mb-4 rounded-2xl bg-primary/15 p-4">
-              <Wrench color={palette.primary} size={36} />
-            </View>
-            <Text className="text-3xl font-bold text-ink">FixFlow</Text>
-            <Text className="mt-2 text-center text-sm text-muted">
-              Sign in to report and track site maintenance
-            </Text>
-          </View>
+          Create an account
+        </Text>
+      </Text>
 
-          <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            autoComplete="email"
-            placeholder="you@example.com"
-          />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="password"
-            autoComplete="password"
-            placeholder="••••••••"
-          />
-
-          {error ? (
-            <Text className="mb-3 text-sm text-tone-danger">{error}</Text>
-          ) : null}
-
-          <Button label="Sign in" loading={submitting} onPress={onSubmit} />
-
-          <View className="mt-6 flex-row justify-center">
-            <Text className="text-sm text-muted">No account?{' '}</Text>
-            <Link href="/(auth)/register">
-              <Text className="text-sm font-semibold text-primary">
-                Register
-              </Text>
-            </Link>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Screen>
+      <View className="mt-8 flex-row items-center gap-2.5 border-t border-auth-line pt-6">
+        <Text className="text-[22px] text-auth-sage-deep">✳</Text>
+        <Text className="flex-1 text-[10px] text-auth-note">
+          Your report. The right people. A little peace of mind.
+        </Text>
+      </View>
+    </AuthShell>
   );
 }
