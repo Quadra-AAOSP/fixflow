@@ -30,6 +30,7 @@ export default function MoreStackLayout() {
       <Stack.Screen name="sites" options={{ title: 'Sites' }} />
       <Stack.Screen name="team-access" options={{ title: 'Team access' }} />
       <Stack.Screen name="contracts" options={{ title: 'Site contracts' }} />
+      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       <Stack.Screen name="shop" options={{ headerShown: false }} />
     </Stack>
   );

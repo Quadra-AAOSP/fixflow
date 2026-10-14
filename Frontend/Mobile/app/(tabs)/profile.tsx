@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowRight } from 'lucide-react-native';
+import { ArrowRight, Settings } from 'lucide-react-native';
 
 import { AuthButton } from '@/components/auth/AuthButton';
 import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
@@ -91,7 +91,19 @@ export default function ProfileScreen() {
             headline → supporting line), personalised with the account's
             initials and role. */}
         <View className="rounded-[22px] bg-auth-panel px-5 pb-6 pt-6">
-          <Kicker>Your account</Kicker>
+          <View className="flex-row items-center justify-between">
+            <Kicker>Your account</Kicker>
+            {/* Settings entry point — opens the Settings page (theme switch +
+                app info) that lives in the More stack. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open settings"
+              onPress={() => router.push('/more/settings')}
+              className="h-9 w-9 items-center justify-center rounded-full bg-auth-lime-soft active:opacity-70"
+            >
+              <Settings color={authColors.ink} size={18} />
+            </Pressable>
+          </View>
 
           <View
             className="mb-5 mt-5 h-16 w-16 items-center justify-center rounded-[20px] bg-auth-lime-soft"

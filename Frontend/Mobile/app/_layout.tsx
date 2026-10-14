@@ -4,8 +4,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { useFonts } from 'expo-font';
+import { vars } from 'nativewind';
 import {
   DMSans_400Regular,
   DMSans_500Medium,
@@ -19,9 +20,10 @@ import {
 import 'react-native-reanimated';
 import '../global.css';
 
-import { themeColors } from '@/constants/theme';
+import { darkCssVars, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthProvider } from '@/stores/auth';
+import { ThemeModeProvider, useThemeMode } from '@/stores/theme';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -30,6 +32,11 @@ export const unstable_settings = {
 };
 
 SplashScreen.preventAutoHideAsync();
+
+/** Native dark tokens — applied to the root view so class-based utilities
+ *  (`bg-surface`, `text-auth-ink`, …) switch with the theme. Web uses the
+ *  document custom-property override in `RootLayoutNav` instead. */
+const darkRootStyle = vars(darkCssVars);
 
 export default function RootLayout() {
   // DM Sans (body) + Manrope (headings) mirror the web build's typography.
@@ -59,18 +66,39 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <ThemeModeProvider>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </ThemeModeProvider>
   );
 }
 
 function RootLayoutNav() {
   const palette = themeColors();
+  const { mode } = useThemeMode();
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(palette.surface);
   }, [palette.surface]);
+
+  // Web only: the class-based tokens read from CSS custom properties, so
+  // override them on the document root. (Native gets `darkRootStyle` below.)
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (mode === 'dark') {
+      for (const [name, value] of Object.entries(darkCssVars)) {
+        root.style.setProperty(name, value);
+      }
+      root.classList.add('dark');
+    } else {
+      for (const name of Object.keys(darkCssVars)) {
+        root.style.removeProperty(name);
+      }
+      root.classList.remove('dark');
+    }
+  }, [mode]);
 
   const navigationTheme = {
     ...DefaultTheme,
@@ -86,8 +114,13 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <StatusBar style="dark" />
-      <AuthNavigator />
+      <View
+        className="flex-1"
+        style={Platform.OS !== 'web' && mode === 'dark' ? darkRootStyle : undefined}
+      >
+        <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+        <AuthNavigator />
+      </View>
     </ThemeProvider>
   );
 }
