@@ -92,7 +92,11 @@ server:
       cookie:
         same-site: lax
         http-only: true
-        secure: ${SESSION_COOKIE_SECURE:true}
+        # Default false so the session cookie works over plain HTTP (local dev /
+        # mobile on 10.0.2.2 or a LAN IP). A Secure cookie is silently dropped by
+        # the client over http, which logged mobile users out on every request.
+        # Production/HTTPS should set SESSION_COOKIE_SECURE=true.
+        secure: ${SESSION_COOKIE_SECURE:false}
 
 logging:
   level:
