@@ -33,7 +33,7 @@ export function ProductCard({
       className="flex-1 overflow-hidden rounded-[15px] border border-shop-card-line bg-card active:opacity-90"
     >
       <View
-        className="w-full items-center justify-center bg-shop-image-well"
+        className="w-full items-center justify-center bg-shop-image-bg"
         style={{ aspectRatio: 1.25 }}
       >
         {imageUri ? (
@@ -44,7 +44,7 @@ export function ProductCard({
             accessibilityIgnoresInvertColors
           />
         ) : (
-          <Text className="text-[10px] text-shop-image-note-text">
+          <Text className="text-[10px] text-shop-product-body">
             No image
           </Text>
         )}
@@ -53,7 +53,7 @@ export function ProductCard({
       <View className="p-3">
         {product.category ? (
           <Text
-            className="text-[8px] font-bold uppercase text-shop-eyebrow"
+            className="text-[8px] font-bold uppercase text-shop-foot-text"
             style={{ letterSpacing: 1.2 }}
             numberOfLines={1}
           >
@@ -68,7 +68,7 @@ export function ProductCard({
         </Text>
         {product.brand ? (
           <Text
-            className="mt-0.5 text-[11px] text-shop-copy-text"
+            className="mt-0.5 text-[11px] text-shop-product-body"
             numberOfLines={1}
           >
             {product.brand}
@@ -82,7 +82,7 @@ export function ProductCard({
             </Text>
             <Text
               className={`mt-0.5 text-[10px] ${
-                outOfStock ? 'text-tone-danger' : 'text-shop-price-note'
+                outOfStock ? 'text-tone-danger' : 'text-shop-product-foot'
               }`}
             >
               {outOfStock ? 'Out of stock' : 'In stock'}
