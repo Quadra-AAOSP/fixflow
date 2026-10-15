@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   Plug,
   ScanSearch,
-  Settings,
   Users,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -160,17 +159,6 @@ export default function MoreScreen() {
             icon={ScanSearch}
             className="px-4 py-3"
             onPress={() => router.push('/more/shop')}
-          />
-        </Card>
-
-        <SectionLabel>App</SectionLabel>
-        <Card padded={false} className="mb-6">
-          <ListRow
-            title="Settings"
-            subtitle="Theme, appearance, and app info."
-            icon={Settings}
-            className="px-4 py-3"
-            onPress={() => router.push('/more/settings')}
           />
         </Card>
       </ScrollView>
