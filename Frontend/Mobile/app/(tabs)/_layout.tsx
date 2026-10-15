@@ -8,7 +8,7 @@ import {
 import { Redirect, Tabs, usePathname } from 'expo-router';
 
 import { SiteProvider } from '@/stores/site';
-import { authColors, themeColors } from '@/constants/theme';
+import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
 
@@ -158,12 +158,13 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
+            // The nested Profile stack owns its own headers (Profile itself
+            // plus the Settings screen it now contains), so the tab must not
+            // add a second bar above them — same reason `reports` and `more`
+            // disable theirs.
+            headerShown: false,
             title: 'Profile',
             tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
-            // The profile screen uses the auth pages' warm cream shell, so the
-            // header follows suit instead of leaving a white bar above it.
-            headerStyle: { backgroundColor: authColors.bg },
-            headerTintColor: authColors.ink,
           }}
         />
       </Tabs>

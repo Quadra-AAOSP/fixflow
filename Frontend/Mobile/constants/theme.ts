@@ -10,10 +10,11 @@
  * mode flips the provider re-renders the tree and every value re-resolves —
  * no call site needs to know about the theme.
  *
- * `darkCssVars` carries the same dark values as raw CSS channels for the
- * class-based tokens (`bg-surface`, `text-auth-ink`, …). The provider applies
- * it at the root (NativeWind `vars()` on native, document custom properties on
- * web) so every CSS-variable utility switches too.
+ * The class-based tokens (`bg-surface`, `text-auth-ink`, …) switch through the
+ * CSS variables declared in global.css; their dark values live in the
+ * `.dark:root` block there (`darkMode: 'class'`). The provider activates them
+ * via nativewind's `setColorScheme` on native and the `dark` class on <html>
+ * on web, so every CSS-variable utility switches too.
  */
 
 export type ThemeMode = 'light' | 'dark';
@@ -349,101 +350,3 @@ export function themeColors() {
   return colors;
 }
 
-/**
- * Dark overrides for the CSS-variable tokens, as raw RGB channels (the same
- * shape global.css declares). Applied at the app root by the theme provider:
- *  - native → NativeWind `vars(...)`
- *  - web    → `document.documentElement.style.setProperty(...)`
- * Only tokens that must change are listed; every other `--color-*` keeps its
- * `:root` value (brand/status accents read fine on either scheme).
- */
-export const darkCssVars: Record<string, string> = {
-  '--color-surface': '17 19 23',
-  '--color-card': '24 27 32',
-  '--color-ink': '231 235 240',
-  '--color-muted': '150 161 175',
-  '--color-border': '43 47 54',
-  '--color-line': '43 47 54',
-  '--color-subtitle': '150 161 175',
-  '--color-caption': '133 144 158',
-  '--color-navy': '231 235 240',
-
-  '--color-auth-bg': '24 22 20',
-  '--color-auth-ink': '235 231 225',
-  '--color-auth-panel': '33 31 28',
-  '--color-auth-olive': '184 182 142',
-  '--color-auth-body': '168 166 154',
-  '--color-auth-note': '152 150 140',
-  '--color-auth-sage': '132 172 154',
-  '--color-auth-sage-deep': '178 184 132',
-  '--color-auth-lime-soft': '54 60 40',
-  '--color-auth-input': '30 28 25',
-  '--color-auth-line': '58 55 50',
-  '--color-auth-foot': '136 133 123',
-  '--color-coral-link': '232 150 150',
-  '--color-auth-card-bg': '30 28 25',
-  '--color-auth-card-line': '58 55 50',
-  '--color-auth-rose-soft': '60 35 38',
-  '--color-auth-rose-deep': '236 162 166',
-  '--color-auth-mint-soft': '23 50 46',
-  '--color-auth-mint-deep': '122 222 206',
-  '--color-auth-managed-bg': '32 38 30',
-  '--color-auth-managed-icon': '142 188 160',
-  '--color-auth-managed-ink': '168 174 152',
-  '--color-auth-chip-bg': '42 50 32',
-  '--color-auth-chip-ink': '192 205 142',
-  '--color-auth-divider': '50 48 44',
-  '--color-auth-danger': '236 152 158',
-  '--color-auth-ghost-ink': '182 172 154',
-
-  '--color-dashboard-banner-bg': '38 33 27',
-  '--color-dashboard-banner-border': '52 44 33',
-  '--color-dashboard-banner-subtitle': '202 212 226',
-  '--color-dashboard-banner-values': '170 184 200',
-  '--color-dashboard-teal': '96 214 198',
-  '--color-dashboard-teal-soft': '23 50 46',
-  '--color-dashboard-stat-coral-soft': '60 35 38',
-  '--color-dashboard-stat-coral-deep': '240 172 176',
-  '--color-dashboard-stat-mint-soft': '23 50 46',
-  '--color-dashboard-stat-mint-deep': '122 222 206',
-  '--color-dashboard-stat-citron-soft': '52 58 30',
-  '--color-dashboard-stat-citron-deep': '200 215 120',
-  '--color-dashboard-card-line': '44 48 55',
-  '--color-dashboard-card-bg': '24 27 32',
-  '--color-dashboard-subtitle': '150 161 175',
-  '--color-dashboard-caption': '133 144 158',
-  '--color-dashboard-pill-bg': '23 50 46',
-  '--color-dashboard-empty': '140 152 166',
-  '--color-dashboard-error-bg': '60 30 33',
-  '--color-dashboard-error-text': '236 162 166',
-
-  '--color-shop-shell': '20 22 20',
-  '--color-shop-ink': '226 233 227',
-  '--color-shop-wordmark-sub': '142 152 142',
-  '--color-shop-shell-line': '48 52 48',
-  '--color-shop-hero': '42 38 33',
-  '--color-shop-hero-body': '182 190 180',
-  '--color-shop-pill-line': '60 60 52',
-  '--color-shop-pill-dot': '110 190 172',
-  '--color-shop-serif-accent': '226 150 150',
-  '--color-shop-secondary-line': '60 68 62',
-  '--color-shop-foot-text': '150 162 152',
-  '--color-shop-star': '226 150 150',
-  '--color-shop-values-text': '150 162 152',
-  '--color-shop-values-line': '50 54 48',
-  '--color-shop-search-line': '52 58 52',
-  '--color-shop-tab-line': '52 58 52',
-  '--color-shop-state-bg': '28 31 27',
-  '--color-shop-state-line': '50 56 48',
-  '--color-shop-state-icon-bg': '30 52 48',
-  '--color-shop-state-text': '150 162 152',
-  '--color-shop-card-line': '46 50 44',
-  '--color-shop-image-bg': '40 40 36',
-  '--color-shop-product-body': '160 172 162',
-  '--color-shop-product-foot': '150 162 152',
-  '--color-shop-editorial-bg': '44 46 30',
-  '--color-shop-editorial-text': '160 172 152',
-  '--color-shop-editorial-link': '150 172 150',
-  '--color-shop-dialog-line': '46 50 44',
-  '--color-shop-qty-line': '48 54 44',
-};

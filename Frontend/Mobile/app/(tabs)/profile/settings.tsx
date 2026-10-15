@@ -19,15 +19,17 @@ import {
 import { useThemeMode } from '@/stores/theme';
 
 /**
- * Settings — reached from the gear on the Profile screen (and the More menu).
+ * Settings — reached from the gear on the Profile screen, and part of the
+ * Profile stack so the back arrow unwinds to Profile itself.
  *
  * Currently hosts the appearance switch: a Light/Dark segmented control wired
- * to `stores/theme`, which re-themes the whole app (palette getters +
- * CSS-variable override at the root). Plus a small About block.
+ * to `stores/theme`, which re-themes the whole app (palette getters plus the
+ * `.dark:root` CSS variables, switched by nativewind's `setColorScheme` on both
+ * native and web). Plus a small About block.
  *
- * Chrome follows the dashboard/More treatment so it stays consistent with the
- * rest of the secondary screens — and, because every token here is semantic,
- * it flips cleanly with the theme it controls.
+ * Chrome follows the dashboard treatment so it stays consistent with the rest
+ * of the secondary screens — and, because every token here is semantic, it
+ * flips cleanly with the theme it controls.
  */
 export default function SettingsScreen() {
   const { mode, setMode } = useThemeMode();

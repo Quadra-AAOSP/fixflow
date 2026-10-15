@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { ArrowRight, Check, ShieldCheck, UserPlus } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -173,10 +180,16 @@ export default function TeamAccessScreen() {
 
   return (
     <Screen>
-      <ScrollView
-        contentContainerClassName="px-5 pb-12 pt-4"
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        <ScrollView
+          contentContainerClassName="px-5 pb-12 pt-4"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        >
         {/* Card heading — mirrors the web's `.card-heading` with a
             large `ShieldCheck` on the right. */}
         <View className="mb-4 flex-row items-start justify-between">
@@ -383,7 +396,8 @@ export default function TeamAccessScreen() {
             changed on first sign-in.
           </Text>
         ) : null}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }

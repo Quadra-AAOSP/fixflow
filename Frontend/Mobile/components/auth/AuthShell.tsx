@@ -23,6 +23,9 @@ import { authColors, fontFamilies } from '@/constants/theme';
  *  - The web story panel's campus photo is intentionally omitted: it is a
  *    remote Unsplash asset, and making the sign-in button reachable without a
  *    scroll matters more on a phone than the decorative image does.
+ *  - The story panel is stacked *below* the form. On the web it is a side
+ *    column; keeping it above the fields (the original port) pushed the submit
+ *    button roughly 760px down the page, i.e. off-screen on a 360×640 phone.
  */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
@@ -34,15 +37,33 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingTop: insets.top,
+            // Clears the iOS home indicator. The footer no longer pads itself,
+            // so this is the single source of the bottom gap (24 on web/Android
+            // without a gesture bar).
+            paddingBottom: Math.max(insets.bottom, 24),
+          }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <BrandHeader />
+          {/*
+           * Order matters on a phone. The editorial panel is ~290px tall; with
+           * it above the fields the submit button started around 760px down the
+           * page, i.e. off-screen on every common phone viewport (360×640,
+           * iPhone SE, and worse once the keyboard is up). The form now comes
+           * first so the primary action is reachable without scrolling, and the
+           * story panel follows underneath — the brand voice is preserved but
+           * can never block sign-in.
+           */}
           <View className="px-5">
-            <StoryPanel />
-            <View className="mt-7 w-full max-w-[370px] self-center">
+            <View className="mt-5 w-full max-w-[370px] self-center">
               {children}
+            </View>
+            <View className="mt-8 w-full max-w-[370px] self-center">
+              <StoryPanel />
             </View>
             <AuthFooter />
           </View>
@@ -61,7 +82,7 @@ function BrandHeader() {
   const router = useRouter();
 
   return (
-    <View className="h-16 flex-row items-center justify-between px-5">
+    <View className="h-14 flex-row items-center justify-between px-5">
       <Pressable
         accessibilityRole="link"
         accessibilityLabel="fixflow home"
@@ -159,7 +180,7 @@ function StoryDot({
 /** `.auth-footer` — the two small sign-offs under the panel. */
 function AuthFooter() {
   return (
-    <View className="mt-8 flex-row items-center justify-between pb-6">
+    <View className="mt-6 flex-row items-center justify-between">
       <Text className="text-[10px] text-auth-foot">
         Made for the places we share.
       </Text>

@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BellRing,
   ClipboardList,
@@ -7,7 +8,6 @@ import {
   LayoutGrid,
   Plug,
   ScanSearch,
-  Settings,
   Users,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -39,6 +39,10 @@ import {
 export default function MoreScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // This route is the only screen in the app with no navigation header at all
+  // (the Tabs bar *and* the More stack both hide theirs), so nothing pads for
+  // the status bar / notch — the view has to do it itself.
+  const insets = useSafeAreaInsets();
 
   if (!user) return null;
 
@@ -49,7 +53,13 @@ export default function MoreScreen() {
 
   return (
     <Screen>
-      <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
+      <ScrollView
+        contentContainerClassName="px-5"
+        contentContainerStyle={{
+          paddingTop: insets.top + 16,
+          paddingBottom: Math.max(insets.bottom, 48),
+        }}
+      >
         {/* Header — mirrors the dashboard's welcome banner treatment, but
             compressed. The web's sidebar already shows the user's name in
             the topbar, so the mobile puts it here. */}
@@ -149,17 +159,6 @@ export default function MoreScreen() {
             icon={ScanSearch}
             className="px-4 py-3"
             onPress={() => router.push('/more/shop')}
-          />
-        </Card>
-
-        <SectionLabel>App</SectionLabel>
-        <Card padded={false} className="mb-6">
-          <ListRow
-            title="Settings"
-            subtitle="Theme, appearance, and app info."
-            icon={Settings}
-            className="px-4 py-3"
-            onPress={() => router.push('/more/settings')}
           />
         </Card>
       </ScrollView>

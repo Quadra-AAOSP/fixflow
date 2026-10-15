@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Appearance, Platform } from 'react-native';
+import { useColorScheme as useNativewindColorScheme } from 'nativewind';
 
 import { setActiveThemeMode, type ThemeMode } from '@/constants/theme';
 
@@ -40,12 +41,21 @@ function systemMode(): ThemeMode {
 }
 
 /**
- * Owns the active light/dark mode. Writes it into `constants/theme.ts`
- * (`setActiveThemeMode`) so every palette getter resolves correctly, and
- * re-renders the whole tree on change. The root layout applies the matching
- * CSS-variable set — see `darkCssVars` in `constants/theme.ts`.
+ * Owns the active light/dark mode and applies it everywhere:
+ *
+ *  - `setActiveThemeMode` updates the module accessor in `constants/theme.ts`
+ *    so every inline-style palette getter (icon colors, navigation theme, the
+ *    status bar) resolves to the new mode on the next render.
+ *  - nativewind's `setColorScheme` switches the class-based tokens: on native
+ *    it drives the runtime so the `.dark:root` variables in global.css take
+ *    effect, and on web it adds/removes the `dark` class on <html> for the same
+ *    result.
+ *
+ * This runs on iOS and Android as well as web; only the *persistence* of the
+ * choice is web-only.
  */
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
+  const { setColorScheme } = useNativewindColorScheme();
   const [mode, setModeState] = useState<ThemeMode>(
     () => readStoredMode() ?? systemMode(),
   );
@@ -56,6 +66,8 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setActiveThemeMode(mode);
+    setColorScheme(mode);
+
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(STORAGE_KEY, mode);
@@ -63,6 +75,9 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
         // Storage can be unavailable (private mode) — the session default holds.
       }
     }
+    // `setColorScheme`'s identity is not stable between renders; its behaviour
+    // is, so re-running on `mode` alone is correct.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
   const value = useMemo<ThemeModeValue>(

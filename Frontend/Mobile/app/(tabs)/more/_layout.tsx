@@ -5,7 +5,7 @@ import { themeColors } from '@/constants/theme';
 
 /**
  * Nested stack under the More tab. Each secondary destination (sites, team
- * access, contracts, settings, shop, notifications) gets its own back arrow and
+ * access, contracts, shop, notifications) gets its own back arrow and
  * header title while still being part of the bottom-bar navigation.
  *
  * Header chrome matches the dashboard topbar: white card background, hairline
@@ -38,7 +38,6 @@ export default function MoreStackLayout() {
       <Stack.Screen name="sites" options={{ title: 'Sites' }} />
       <Stack.Screen name="team-access" options={{ title: 'Team access' }} />
       <Stack.Screen name="contracts" options={{ title: 'Site contracts' }} />
-      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       <Stack.Screen name="shop" options={{ headerShown: false }} />
     </Stack>
   );

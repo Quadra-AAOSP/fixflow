@@ -1,6 +1,6 @@
 import { Redirect, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { Wrench } from 'lucide-react-native';
 
 import { AuthButton } from '@/components/auth/AuthButton';
@@ -24,6 +24,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Lets the keyboard's "next" key move from email straight into the password
+  // field instead of dismissing the keyboard.
+  const passwordRef = useRef<TextInput>(null);
 
   if (!isLoading && isAuthenticated) {
     return <Redirect href="/(tabs)" />;
@@ -71,6 +74,9 @@ export default function LoginScreen() {
         textContentType="emailAddress"
         autoComplete="email"
         placeholder="you@example.com"
+        returnKeyType="next"
+        submitBehavior="submit"
+        onSubmitEditing={() => passwordRef.current?.focus()}
       />
       <AuthField
         label="Password"
@@ -80,26 +86,40 @@ export default function LoginScreen() {
         textContentType="password"
         autoComplete="current-password"
         placeholder="••••••••"
+        inputRef={passwordRef}
+        returnKeyType="go"
+        // Submits from the keyboard's "go" key, so signing in never needs a
+        // tap on the button after typing.
+        onSubmitEditing={onSubmit}
       />
 
       {error ? (
-        <Text className="mb-3 text-[13px] text-urgency-critical">{error}</Text>
+        <Text className="mb-3 text-[13px] text-auth-danger">{error}</Text>
       ) : null}
 
       <AuthButton label="Sign in →" loading={submitting} onPress={onSubmit} />
 
-      <Text className="mt-6 text-center text-[13px] text-auth-body">
-        New around here?{' '}
-        <Text
-          className="text-coral-link"
-          style={{ fontFamily: fontFamilies.bodySemiBold }}
-          onPress={() => router.push('/(auth)/register')}
-        >
-          Create an account
+      {/* A full-width row rather than a bare text link: the inline text was an
+          ~18px tap target, well under the 44pt minimum, and it sits right below
+          the CTA where a thumb expects it. */}
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Create an account"
+        onPress={() => router.push('/(auth)/register')}
+        className="mt-3 min-h-[44px] items-center justify-center active:opacity-70"
+      >
+        <Text className="text-center text-[13px] text-auth-body">
+          New around here?{' '}
+          <Text
+            className="text-coral-link"
+            style={{ fontFamily: fontFamilies.bodySemiBold }}
+          >
+            Create an account
+          </Text>
         </Text>
-      </Text>
+      </Pressable>
 
-      <View className="mt-8 flex-row items-center gap-2.5 border-t border-auth-line pt-6">
+      <View className="mt-4 flex-row items-center gap-2.5 border-t border-auth-line pt-5">
         <Text className="text-[22px] text-auth-sage-deep">✳</Text>
         <Text className="flex-1 text-[10px] text-auth-note">
           Your report. The right people. A little peace of mind.

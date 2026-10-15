@@ -93,12 +93,13 @@ export default function ProfileScreen() {
         <View className="rounded-[22px] bg-auth-panel px-5 pb-6 pt-6">
           <View className="flex-row items-center justify-between">
             <Kicker>Your account</Kicker>
-            {/* Settings entry point — opens the Settings page (theme switch +
-                app info) that lives in the More stack. */}
+            {/* Settings entry point — pushes the Settings screen (theme
+                switch + app info) inside this Profile stack, so the back
+                arrow returns here rather than jumping to another tab. */}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Open settings"
-              onPress={() => router.push('/more/settings')}
+              onPress={() => router.push('/profile/settings')}
               className="h-9 w-9 items-center justify-center rounded-full bg-auth-lime-soft active:opacity-70"
             >
               <Settings color={authColors.ink} size={18} />
