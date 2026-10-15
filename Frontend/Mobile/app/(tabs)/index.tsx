@@ -168,7 +168,7 @@ export default function HomeScreen() {
     .slice(0, RECENT_UPDATES_LIMIT);
 
   const canFile =
-    site !== null && user !== null && user.role !== 'technician';
+    site !== null && user !== null && user.capabilities.createReport;
 
   const fileDisabledReason = !site
     ? 'A site must be linked before reports can be filed.'

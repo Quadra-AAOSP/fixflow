@@ -145,7 +145,7 @@ export default function ReportsScreen() {
    * every state below renders inside the card's `ListEmptyComponent` instead
    * of short-circuiting the whole screen.
    */
-  const canCreate = site != null && user != null && user.role !== 'technician';
+  const canCreate = site != null && (user?.capabilities.createReport ?? false);
   const list = site != null && error === null ? filtered : [];
 
   return (

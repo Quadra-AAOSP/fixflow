@@ -46,10 +46,10 @@ export default function MoreScreen() {
 
   if (!user) return null;
 
-  const showSites = canCreateSite(user.role) || canEditSite(user.role);
-  const showTeam = canProvision(user.role);
+  const showSites = canCreateSite(user) || canEditSite(user);
+  const showTeam = canProvision(user);
   const showContracts =
-    canDecideContracts(user.role) || user.role === 'technician';
+    canDecideContracts(user) || user.role === 'technician';
 
   return (
     <Screen>
@@ -110,7 +110,7 @@ export default function MoreScreen() {
             <ListRow
               title="Sites"
               subtitle={
-                canCreateSite(user.role)
+                canCreateSite(user)
                   ? 'Create and edit sites.'
                   : 'Edit sites assigned to you.'
               }

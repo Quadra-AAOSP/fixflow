@@ -13,9 +13,10 @@ import { AuthButton } from '@/components/auth/AuthButton';
 import { AuthField } from '@/components/auth/AuthField';
 import { AuthHeading } from '@/components/auth/AuthHeading';
 import { AuthShell } from '@/components/auth/AuthShell';
-import { PASSWORD_MIN_LENGTH, roleLabels } from '@/constants/access';
+import { roleLabels } from '@/constants/access';
 import { authColors, fontFamilies } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
+import { useAccountPolicy } from '@/hooks/useAccountPolicy';
 import * as authApi from '@/services/auth';
 import { ApiError } from '@/services/auth';
 import type { UserRole } from '@/types';
@@ -343,6 +344,7 @@ function PublicRoleForm({
   submitting: boolean;
   onSubmit: () => void;
 }) {
+  const policy = useAccountPolicy();
   return (
     <View className="mt-4">
       <Text className="mb-6 text-[11px] leading-[20px] text-auth-body">
@@ -394,7 +396,7 @@ function PublicRoleForm({
         placeholder="At least 15 characters"
       />
       <FieldHint>
-        Use at least {PASSWORD_MIN_LENGTH} characters. A long, unique passphrase
+        Use at least {policy?.passwordMinLength ?? 'the required number of'} characters. A long, unique passphrase
         works well.
       </FieldHint>
 
@@ -477,6 +479,7 @@ function FieldHint({ children }: { children: React.ReactNode }) {
 
 /** `.managed-access-message` — why these roles cannot self-register. */
 function ManagedRolePanel({ role }: { role: ManagedRole }) {
+  const policy = useAccountPolicy();
   const heading =
     role === 'super_admin'
       ? 'Privileged access requires verification'
@@ -487,7 +490,7 @@ function ManagedRolePanel({ role }: { role: ManagedRole }) {
       ? 'A super administrator must approve your appointment and create your account for a specific site. This role is not available through public signup.'
       : role === 'staff'
         ? 'Your site administrator or a super administrator must create your staff account for your site.'
-        : 'Super-administrator access is reserved for approved platform operators. Identity verification, independent approval, and MFA must be established before access is granted.';
+        : policy?.managedRoleMessage ?? 'Ask an authorized administrator about managed access.';
 
   return (
     <View className="my-4 rounded-[13px] bg-auth-managed-bg p-5">
@@ -503,8 +506,7 @@ function ManagedRolePanel({ role }: { role: ManagedRole }) {
       </Text>
       {role === 'super_admin' ? (
         <Text className="text-[10px] leading-[17px] text-auth-managed-ink">
-          Online super-admin enrollment is unavailable until these checks can be
-          verified securely.
+          Super-admin access is not available through public registration.
         </Text>
       ) : null}
     </View>

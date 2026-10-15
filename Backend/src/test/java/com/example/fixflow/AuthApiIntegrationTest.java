@@ -55,12 +55,51 @@ class AuthApiIntegrationTest {
 	}
 
 	@Test
+	void siteAdminSeesSetupRequirementUntilAnActiveSubsiteExists() throws Exception {
+		Site empty = new Site();
+		empty.setName("Setup " + System.nanoTime());
+		empty.setType(SiteType.school);
+		empty.setContractStatus(ContractStatus.contracted);
+		empty = siteRepository.save(empty);
+		User admin = new User();
+		admin.setEmail("setup-" + System.nanoTime() + "@example.com");
+		admin.setFirstName("Site");
+		admin.setLastName("Admin");
+		admin.setPasswordHash(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()
+				.encode("setup-password12345"));
+		admin.setRole(UserRole.admin);
+		admin.setSite(empty);
+		admin = userRepository.save(admin);
+		AppUserDetails actor = new AppUserDetails(admin);
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"%s","password":"setup-password12345"}
+						""".formatted(admin.getEmail())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.siteOnboarding.setupRequired").value(true));
+		mockMvc.perform(get("/api/auth/me").with(user(actor)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.siteOnboarding.setupRequired").value(true))
+				.andExpect(jsonPath("$.siteOnboarding.reportingReady").value(false));
+		mockMvc.perform(post("/api/sites/" + empty.getId() + "/subsites").with(user(actor))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"label":"E5","name":"Classroom building"}
+						"""))
+				.andExpect(status().isCreated());
+		mockMvc.perform(get("/api/auth/me").with(user(actor)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.siteOnboarding.setupRequired").value(false))
+				.andExpect(jsonPath("$.siteOnboarding.reportingReady").value(true));
+	}
+
+	@Test
 	void registerReporterThenLoginAndMe() throws Exception {
 		String email = "reporter" + System.nanoTime() + "@example.com";
 		String body = """
 				{
 				  "email": "%s",
-				  "password": "password123",
+				  "password": "password12345678",
 				  "firstName": "Rep",
 				  "lastName": "Orter",
 				  "role": "reporter",
@@ -78,18 +117,18 @@ class AuthApiIntegrationTest {
 		mockMvc.perform(post("/api/auth/login")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"email":"%s","password":"password123"}
+								{"email":"%s","password":"password12345678"}
 								""".formatted(email)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.email").value(email));
 	}
 
 	@Test
-	void selfRegisterRejectsAdminRole() throws Exception {
+	void siteAdminRegistrationRequiresSuperAdminApproval() throws Exception {
 		String body = """
 				{
 				  "email": "badadmin%s@example.com",
-				  "password": "password123",
+				  "password": "password12345678",
 				  "firstName": "Bad",
 				  "lastName": "Admin",
 				  "role": "admin",
@@ -97,10 +136,42 @@ class AuthApiIntegrationTest {
 				}
 				""".formatted(System.nanoTime(), site.getId());
 
-		mockMvc.perform(post("/api/auth/register")
+		var result = mockMvc.perform(post("/api/auth/register")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.role").value("reporter"))
+				.andExpect(jsonPath("$.adminApplication.status").value("pending"))
+				.andReturn();
+		var json = new com.fasterxml.jackson.databind.ObjectMapper()
+				.readTree(result.getResponse().getContentAsString());
+		long id = json.get("adminApplication").get("id").asLong();
+		User applicant = userRepository.findById(json.get("id").asLong()).orElseThrow();
+		mockMvc.perform(post("/api/admin/site-admin-applications/" + id + "/approve")
+				.with(user(new AppUserDetails(applicant)))).andExpect(status().isForbidden());
+		User superAdmin = new User();
+		superAdmin.setEmail("approver-" + System.nanoTime() + "@example.com");
+		superAdmin.setFirstName("Super"); superAdmin.setLastName("Admin");
+		superAdmin.setPasswordHash("unused"); superAdmin.setRole(UserRole.super_admin);
+		superAdmin = userRepository.save(superAdmin);
+		mockMvc.perform(post("/api/admin/site-admin-applications/" + id + "/approve")
+				.with(user(new AppUserDetails(superAdmin))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.status").value("approved"));
+		org.assertj.core.api.Assertions.assertThat(userRepository.findById(applicant.getId())
+				.orElseThrow().getRole()).isEqualTo(UserRole.admin);
+		mockMvc.perform(post("/api/admin/site-admin-applications/" + id + "/reject")
+				.with(user(new AppUserDetails(superAdmin)))).andExpect(status().isConflict());
+		var rejectedSignup = mockMvc.perform(post("/api/auth/register")
+				.contentType(MediaType.APPLICATION_JSON).content(body.replace("badadmin", "rejectedadmin")))
+				.andExpect(status().isCreated()).andReturn();
+		var rejected = new com.fasterxml.jackson.databind.ObjectMapper()
+				.readTree(rejectedSignup.getResponse().getContentAsString());
+		mockMvc.perform(post("/api/admin/site-admin-applications/"
+				+ rejected.get("adminApplication").get("id").asLong() + "/reject")
+				.with(user(new AppUserDetails(superAdmin))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.status").value("rejected"));
+		org.assertj.core.api.Assertions.assertThat(userRepository.findById(rejected.get("id").asLong())
+				.orElseThrow().getRole()).isEqualTo(UserRole.reporter);
 	}
 
 	@Test
@@ -117,7 +188,7 @@ class AuthApiIntegrationTest {
 		String body = """
 				{
 				  "email": "staff%s@example.com",
-				  "password": "password123",
+				  "password": "password12345678",
 				  "firstName": "Staff",
 				  "lastName": "Member",
 				  "role": "staff",
@@ -138,4 +209,17 @@ class AuthApiIntegrationTest {
 		mockMvc.perform(get("/api/auth/me"))
 				.andExpect(status().isUnauthorized());
 	}
+
+    @Test
+    void policyIsPublicAndReturnedCapabilitiesAreServerOwned() throws Exception {
+        mockMvc.perform(get("/api/auth/policy"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.passwordMinLength").value(15));
+        User account = new User(); account.setEmail("legacy-" + System.nanoTime() + "@example.test");
+        account.setPasswordHash(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("oldpass8"));
+        account.setFirstName("Legacy"); account.setLastName("Admin"); account.setRole(UserRole.admin); account.setSite(site);
+        userRepository.save(account);
+        mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + account.getEmail() + "\",\"password\":\"oldpass8\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.capabilities.provision").value(true));
+    }
 }

@@ -22,6 +22,7 @@ class OpenRouterProviderTest {
 
     private final AtomicReference<String> requestBody = new AtomicReference<>();
     private HttpServer server;
+    private String overrideResponse;
 
     @BeforeEach
     void startServer() throws IOException {
@@ -31,6 +32,7 @@ class OpenRouterProviderTest {
             byte[] response = """
                     {"choices":[{"message":{"content":"{\\"category\\":\\"plumbing\\",\\"specialty\\":\\"leak\\",\\"urgency\\":\\"high\\"}"}}]}
                     """.getBytes(StandardCharsets.UTF_8);
+            if (overrideResponse != null) response = overrideResponse.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, response.length);
             exchange.getResponseBody().write(response);
@@ -93,5 +95,12 @@ class OpenRouterProviderTest {
                 1,
                 0.25,
                 321);
+    }
+    @Test
+    void malformedJsonIsRejectedByTheProvider() {
+        overrideResponse = "not valid JSON";
+        assertThrows(AIProviderException.class, () -> provider("test-key").classifyText(
+                ClassificationRequest.builder().description("Leak").siteType("school")
+                        .allowedCategories(List.of("plumbing", "general")).build()));
     }
 }

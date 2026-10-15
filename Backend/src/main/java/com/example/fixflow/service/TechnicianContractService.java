@@ -23,17 +23,20 @@ public class TechnicianContractService {
 	private final UserRepository userRepository;
 	private final SiteRepository siteRepository;
 	private final RoleIntegrityService roleIntegrityService;
+    private final TechnicianTermsService terms;
 
 	public TechnicianContractService(
 			TechnicianContractRepository technicianContractRepository,
 			UserRepository userRepository,
 			SiteRepository siteRepository,
-			RoleIntegrityService roleIntegrityService
+			RoleIntegrityService roleIntegrityService,
+            TechnicianTermsService terms
 	) {
 		this.technicianContractRepository = technicianContractRepository;
 		this.userRepository = userRepository;
 		this.siteRepository = siteRepository;
 		this.roleIntegrityService = roleIntegrityService;
+        this.terms = terms;
 	}
 
 	@Transactional
@@ -53,6 +56,7 @@ public class TechnicianContractService {
 			throw new ApiException(HttpStatus.CONFLICT.value(), "Contract already exists");
 		}
 		TechnicianContract contract = new TechnicianContract();
+        terms.requireAcceptance(technician.getId());
 		contract.setTechnician(technician);
 		contract.setSite(site);
 		return TechnicianContractResponse.from(technicianContractRepository.save(contract));

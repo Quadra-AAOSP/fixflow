@@ -5,4 +5,6 @@ import com.example.fixflow.domain.Subsite;
 public interface SubsiteRepository extends JpaRepository<Subsite, Long> {
     List<Subsite> findBySite_IdOrderByLabelAsc(Long siteId);
     boolean existsBySite_IdAndLabelIgnoreCase(Long siteId, String label);
+    List<Subsite> findBySite_IdAndArchivedAtIsNullOrderByLabelAsc(Long siteId);
+    boolean existsBySite_IdAndArchivedAtIsNull(Long siteId);
 }

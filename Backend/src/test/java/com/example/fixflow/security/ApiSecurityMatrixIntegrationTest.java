@@ -80,7 +80,10 @@ class ApiSecurityMatrixIntegrationTest {
                 "GET /api/reports/1/reporters", "POST /api/reports/1/assign", "POST /api/technician-contracts",
                 "POST /api/technician-skills", "GET /api/technician-contract-requests", "POST /api/technician-contract-requests",
                 "POST /api/technician-contract-requests/1/decision", "GET /api/sites/1/subsites", "POST /api/sites/1/subsites",
-                "GET /api/sites/1/subsite-requests", "POST /api/sites/1/subsite-requests", "POST /api/sites/1/subsite-requests/1/resolve");
+                "GET /api/sites/1/subsite-requests", "POST /api/sites/1/subsite-requests", "POST /api/sites/1/subsite-requests/1/resolve",
+                "POST /api/reports/1/classify", "PUT /api/sites/1/subsites/1", "POST /api/sites/1/subsites/1/archive",
+                "GET /api/technician-terms/me", "GET /api/technician-terms/1", "POST /api/technician-terms/accept",
+                "GET /api/sites/1/reporting-setup");
     }
 
     @ParameterizedTest @MethodSource("protectedRoutes")
@@ -228,7 +231,7 @@ class ApiSecurityMatrixIntegrationTest {
         mvc.perform(post("/api/reports").with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON).content(creation(Long.MAX_VALUE))).andExpect(status().isBadRequest());
         mvc.perform(post("/api/reports").with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON).content(creation(null)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.subsiteId").isEmpty());
-        String registration = "{\"email\":\"tech-" + System.nanoTime() + "@example.com\",\"password\":\"password123\",\"firstName\":\"Tech\",\"lastName\":\"Test\",\"role\":\"technician\",\"siteId\":";
+        String registration = "{\"email\":\"tech-" + System.nanoTime() + "@example.com\",\"password\":\"password12345678\",\"firstName\":\"Tech\",\"lastName\":\"Test\",\"role\":\"technician\",\"phone\":\"123456789\",\"address\":\"Test address\",\"siteId\":";
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(registration + own.getId() + "}")).andExpect(status().isBadRequest());
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(registration + "null}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.siteId").isEmpty());

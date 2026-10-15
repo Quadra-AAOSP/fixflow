@@ -6,6 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +23,10 @@ import com.example.fixflow.service.SubsiteService;
 public class SubsiteController {
     private final SubsiteService service;
     public SubsiteController(SubsiteService service) { this.service = service; }
+    @GetMapping("/reporting-setup")
+    public SubsiteService.SetupStatus setup(@PathVariable Long siteId, @AuthenticationPrincipal AppUserDetails actor) {
+        return service.setup(siteId, actor);
+    }
     @GetMapping("/subsites")
     public List<SubsiteResponse> list(@PathVariable Long siteId, @AuthenticationPrincipal AppUserDetails actor) {
         return service.list(siteId, actor);
@@ -36,6 +41,14 @@ public class SubsiteController {
             @Valid @RequestBody SubsiteAlertRequest request, @AuthenticationPrincipal AppUserDetails actor) {
         return ResponseEntity.status(201).body(service.requestAddition(siteId, request, actor));
     }
+    @PutMapping(value = "/subsites/{id}", consumes = "application/json")
+    public SubsiteResponse update(@PathVariable Long siteId, @PathVariable Long id,
+            @Valid @RequestBody SubsiteRequest request, @AuthenticationPrincipal AppUserDetails actor) {
+        return service.update(siteId, id, request, actor);
+    }
+    @PostMapping("/subsites/{id}/archive")
+    public SubsiteResponse archive(@PathVariable Long siteId, @PathVariable Long id,
+            @AuthenticationPrincipal AppUserDetails actor) { return service.archive(siteId, id, actor); }
     @GetMapping("/subsite-requests")
     public List<SubsiteAlertResponse> pending(@PathVariable Long siteId, @AuthenticationPrincipal AppUserDetails actor) {
         return service.pending(siteId, actor);

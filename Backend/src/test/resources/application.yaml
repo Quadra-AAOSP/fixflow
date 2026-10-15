@@ -41,6 +41,10 @@ spring:
       - org.springframework.boot.testcontainers.service.connection.ServiceConnectionAutoConfiguration
 
 fixflow:
+  reporting:
+    # Legacy API fixtures deliberately exercise reports without configured buildings.
+    # Dedicated onboarding tests explicitly enable the production setup policy.
+    require-site-setup: false
   bootstrap:
     super-admin-email: admin@fixflow.local
     super-admin-password: test-admin-pass

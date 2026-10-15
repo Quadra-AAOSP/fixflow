@@ -45,9 +45,9 @@ import { urgencyLabels } from '@/utils/maintenance';
  *
  * Privacy model (mirrors `ReportService.canSeeSensitive`): the backend nulls
  * `createdByUserId`, `createdByName`, `address`, and `reporterReason` as a
- * block when the viewer is not a participant. `createdByUserId === null` is
- * therefore the single authoritative "this viewer sees the masked view"
- * signal, used here to gate the Join affordance and the hidden-details note.
+ * block when the viewer lacks sensitive access. The backend supplies separate
+ * sensitive-access, participation and action flags; none are guessed from
+ * masked identity fields.
  */
 export default function ReportDetailScreen() {
   const router = useRouter();
@@ -80,7 +80,7 @@ export default function ReportDetailScreen() {
       const next = await getReport(reportId);
       setReport(next);
 
-      if (next.createdByUserId !== null) {
+      if (next.policy.canSeeSensitive) {
         try {
           setReporters(await listReporters(reportId));
         } catch {
@@ -195,16 +195,13 @@ export default function ReportDetailScreen() {
     );
   }
 
-  const isParticipant = report.createdByUserId !== null;
-  const canAssign =
-    user?.role === 'staff' ||
-    user?.role === 'admin' ||
-    user?.role === 'super_admin';
+  const canSeeSensitive = report.policy.canSeeSensitive;
+  const canAssign = report.policy.canAssign;
   // Backend permits any same-site actor to join, but the concept is only
   // meaningful for reporters who did not file the report themselves.
-  const canJoin = user?.role === 'reporter' && !isParticipant;
+  const canJoin = report.policy.canJoin;
   const joined =
-    isParticipant && reporters?.some((row) => row.userId === user?.id) === true;
+    report.policy.participant;
 
   return (
     <Screen>
@@ -348,7 +345,7 @@ export default function ReportDetailScreen() {
         {/* "People attached to this report" — mirrors the web's
             `.reporter-list` section. Non-participants see the privacy
             note instead; participants see the joined list. */}
-        {!isParticipant ? (
+        {!canSeeSensitive ? (
           <Card className="mb-4">
             <Text className="text-[12px] leading-[1.8] text-dashboard-subtitle">
               Some details (location and submitter) are hidden for reports you
@@ -382,7 +379,7 @@ export default function ReportDetailScreen() {
               </View>
             ))}
           </Card>
-        ) : isParticipant ? (
+        ) : canSeeSensitive ? (
           <Card className="mb-4">
             <Text className="text-[12px] leading-[1.8] text-dashboard-subtitle">
               Reporter identities are only available to people with access to

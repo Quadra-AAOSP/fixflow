@@ -15,7 +15,11 @@ import Constants from 'expo-constants';
  * production server URL before building for distribution.
  */
 
-const OVERRIDE = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+const OVERRIDE = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/$/, '') || undefined;
+
+if (!__DEV__ && !OVERRIDE) {
+  throw new Error('EXPO_PUBLIC_API_URL is required for release builds');
+}
 
 const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 
@@ -61,14 +65,13 @@ export const API_BASE_URL =
   OVERRIDE ?? `http://${pageHost() ?? devServerHost() ?? fallbackHost()}:8080`;
 
 /**
- * Ordered base URLs for the API client to try when a request dies at the
- * network level (host unreachable). The first entry is always the primary
- * API_BASE_URL; the rest cover the cases the primary guess can miss, e.g. the
- * emulator leaking the dev machine's LAN IP that the Windows Firewall then
- * blocks. Whichever answers first is cached by the client for the session.
+ * Development-only candidates for public, credential-free discovery before
+ * application requests. Explicit URLs and release builds never fail over.
+ * The selected server is pinned for the app session; requests are not replayed.
  */
 export const API_BASE_URL_CANDIDATES: readonly string[] = (() => {
   const urls = [API_BASE_URL];
+  if (OVERRIDE || !__DEV__) return urls;
   if (Platform.OS === 'android') {
     urls.push('http://10.0.2.2:8080'); // emulator alias for the host's loopback
   }

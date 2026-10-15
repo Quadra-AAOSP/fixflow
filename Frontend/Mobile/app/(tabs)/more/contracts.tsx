@@ -41,7 +41,7 @@ import { formatDate } from '@/utils/format';
  */
 export default function ContractsScreen() {
   const { user } = useAuth();
-  const isAdmin = user !== null && canDecideContracts(user.role);
+  const isAdmin = user !== null && canDecideContracts(user);
   const isTechnician = user?.role === 'technician';
 
   if (!user) return null;

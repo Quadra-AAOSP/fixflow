@@ -34,55 +34,69 @@ public class AuthService {
 	private final SiteRepository siteRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final AuthenticationManager authenticationManager;
+	private final com.example.fixflow.repository.SubsiteRepository subsites;
+	private final SiteAdminApplicationService adminApplications;
 
 	public AuthService(
 			UserRepository userRepository,
 			SiteRepository siteRepository,
 			PasswordEncoder passwordEncoder,
-			AuthenticationManager authenticationManager
+			AuthenticationManager authenticationManager,
+			com.example.fixflow.repository.SubsiteRepository subsites,
+			SiteAdminApplicationService adminApplications
 	) {
 		this.userRepository = userRepository;
 		this.siteRepository = siteRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.authenticationManager = authenticationManager;
+		this.subsites = subsites;
+		this.adminApplications = adminApplications;
 	}
 
 	@Transactional
 	public UserResponse register(RegisterRequest request) {
-		if (request.role() != UserRole.reporter && request.role() != UserRole.technician) {
+        AccountPolicy.validateRegistration(request);
+		if (request.role() != UserRole.reporter && request.role() != UserRole.technician
+				&& request.role() != UserRole.admin) {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(),
-					"Self-registration is only allowed for reporter and technician roles");
+					"Self-registration is only allowed for reporter, technician or site admin applications");
 		}
-		return UserResponse.from(createUser(
+		User registered = createUser(
 				request.email(),
 				request.password(),
 				request.firstName(),
 				request.lastName(),
 				request.phone(),
 				request.address(),
-				request.role(),
+				request.role() == UserRole.admin ? UserRole.reporter : request.role(),
 				request.siteId()
-		));
+		);
+		if (request.role() == UserRole.admin) adminApplications.submit(registered);
+		return response(registered);
 	}
 
 	@Transactional
 	public UserResponse provision(ProvisionUserRequest request, AppUserDetails actor) {
-		if (request.role() != UserRole.staff && request.role() != UserRole.admin && request.role() != UserRole.super_admin) {
+		if (actor == null || (actor.getRole() != UserRole.admin && actor.getRole() != UserRole.super_admin)) {
+			throw new ApiException(403, "Administrator access required");
+		}
+		if (request.role() != UserRole.staff && request.role() != UserRole.admin
+				&& request.role() != UserRole.super_admin && request.role() != UserRole.shop_manager) {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(),
-					"Admin provisioning is only for staff, admin, or super_admin roles");
+					"Provisioning is only for staff, admin, shop_manager or super_admin roles");
 		}
 		if (request.role() == UserRole.super_admin && actor.getRole() != UserRole.super_admin) {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Only super_admin can provision another super_admin");
 		}
 		if (actor.getRole() == UserRole.admin) {
-			if (request.role() == UserRole.admin || request.role() == UserRole.super_admin) {
+			if (request.role() != UserRole.staff) {
 				throw new ApiException(HttpStatus.FORBIDDEN.value(), "Site admins can only provision staff");
 			}
 			if (request.siteId() == null || !request.siteId().equals(actor.getSiteId())) {
 				throw new ApiException(HttpStatus.FORBIDDEN.value(), "Site admins can only provision users for their own site");
 			}
 		}
-		return UserResponse.from(createUser(
+		return response(createUser(
 				request.email(),
 				request.password(),
 				request.firstName(),
@@ -110,7 +124,7 @@ public class AuthService {
 		AppUserDetails principal = (AppUserDetails) authentication.getPrincipal();
 		User user = userRepository.findById(principal.getId())
 				.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED.value(), "User not found"));
-		return UserResponse.from(user);
+		return response(user);
 	}
 
 	public void logout(HttpServletRequest request, HttpServletResponse response) {
@@ -125,7 +139,21 @@ public class AuthService {
 	public UserResponse me(AppUserDetails principal) {
 		User user = userRepository.findById(principal.getId())
 				.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED.value(), "User not found"));
-		return UserResponse.from(user);
+		return response(user);
+	}
+
+	private UserResponse response(User user) {
+		var application = adminApplications.mine(new AppUserDetails(user));
+		var applicationStatus = application == null ? null
+				: new UserResponse.AdminApplication(application.id(), application.status().name());
+		if (user.getSite() == null) {
+			return UserResponse.from(user, null, applicationStatus);
+		}
+		Long siteId = user.getSite().getId();
+		boolean ready = subsites.existsBySite_IdAndArchivedAtIsNull(siteId);
+		boolean manager = user.getRole() == UserRole.admin || user.getRole() == UserRole.super_admin;
+		return UserResponse.from(user, new UserResponse.SiteOnboarding(siteId, ready,
+				manager && !ready, manager, "/api/sites/" + siteId + "/subsites"), applicationStatus);
 	}
 
 	private User createUser(
@@ -139,6 +167,7 @@ public class AuthService {
 			Long siteId
 	) {
 		String normalizedEmail = email.trim().toLowerCase();
+        AccountPolicy.validatePassword(password);
 		if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
 			throw new ApiException(HttpStatus.CONFLICT.value(), "Email is already registered");
 		}
@@ -166,9 +195,9 @@ public class AuthService {
 				yield siteRepository.findById(siteId)
 						.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found: " + siteId));
 			}
-			case super_admin -> {
+			case super_admin, shop_manager -> {
 				if (siteId != null) {
-					throw new ApiException(HttpStatus.BAD_REQUEST.value(), "super_admin must not have a siteId");
+					throw new ApiException(HttpStatus.BAD_REQUEST.value(), role + " must not have a siteId");
 				}
 				yield null;
 			}

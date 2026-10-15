@@ -39,8 +39,10 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/policy").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/shop/catalog").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()
+						.requestMatchers("/api/admin/shop/**").hasAnyRole("SUPER_ADMIN", "SHOP_MANAGER")
 						.requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 						.requestMatchers("/api/**").authenticated()
 						.anyRequest().permitAll()
@@ -79,9 +81,11 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	CorsConfigurationSource corsConfigurationSource() {
+	CorsConfigurationSource corsConfigurationSource(org.springframework.core.env.Environment environment) {
 		CorsConfiguration config = new CorsConfiguration();
-		config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+		config.setAllowedOriginPatterns(java.util.Arrays.stream(environment.getProperty(
+                "fixflow.cors.allowed-origin-patterns", "http://localhost:*,http://127.0.0.1:*")
+                .split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList());
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setAllowCredentials(true);

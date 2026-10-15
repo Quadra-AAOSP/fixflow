@@ -25,9 +25,11 @@ public record ReportResponse(
 		boolean editable,
 		int reopenCount,
 		Instant createdAt,
-		Instant updatedAt
+		Instant updatedAt,
+        ReportPolicy policy
 ) {
-	public static ReportResponse from(Report report, boolean includeSensitive) {
+	public static ReportResponse from(Report report, ReportPolicy policy) {
+        boolean includeSensitive = policy.canSeeSensitive();
 		Long createdById = null;
 		String createdByName = null;
 		String address = null;
@@ -55,7 +57,8 @@ public record ReportResponse(
 				report.isEditable(),
 				report.getReopenCount(),
 				report.getCreatedAt(),
-				report.getUpdatedAt()
+				report.getUpdatedAt(),
+                policy
 		);
 	}
 }

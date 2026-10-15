@@ -33,6 +33,9 @@ public class ReportService {
 	private final CategoryTaxonomyService categoryTaxonomyService;
 	private final RoleIntegrityService roleIntegrityService;
     private final com.example.fixflow.repository.SubsiteRepository subsiteRepository;
+    private final ReportClassificationService classificationService;
+    private final TechnicianTermsService terms;
+    private final boolean requireSiteSetup;
 
 	public ReportService(
 			ReportRepository reportRepository,
@@ -41,7 +44,10 @@ public class ReportService {
 			SiteRepository siteRepository,
 			CategoryTaxonomyService categoryTaxonomyService,
 			RoleIntegrityService roleIntegrityService,
-            com.example.fixflow.repository.SubsiteRepository subsiteRepository
+            com.example.fixflow.repository.SubsiteRepository subsiteRepository,
+            ReportClassificationService classificationService,
+            TechnicianTermsService terms,
+            @org.springframework.beans.factory.annotation.Value("${fixflow.reporting.require-site-setup:true}") boolean requireSiteSetup
 	) {
 		this.reportRepository = reportRepository;
 		this.reportReporterRepository = reportReporterRepository;
@@ -50,7 +56,22 @@ public class ReportService {
 		this.categoryTaxonomyService = categoryTaxonomyService;
 		this.roleIntegrityService = roleIntegrityService;
         this.subsiteRepository = subsiteRepository;
+        this.classificationService = classificationService;
+        this.terms = terms;
+        this.requireSiteSetup = requireSiteSetup;
 	}
+
+    @Transactional
+    public ReportResponse classify(Long id, AppUserDetails actor) {
+        if (actor.getRole() != UserRole.admin && actor.getRole() != UserRole.super_admin) {
+            throw new ApiException(403, "Only site admins or super admins can classify reports");
+        }
+        Report report = reportRepository.findDetailedById(id)
+                .orElseThrow(() -> new ApiException(404, "Report not found"));
+        assertCanViewSite(actor, report.getSite().getId());
+        classificationService.classify(report);
+        return response(reportRepository.saveAndFlush(report), actor);
+    }
 
 	@Transactional
 	public ReportResponse create(CreateReportRequest request, AppUserDetails actor) {
@@ -74,6 +95,12 @@ public class ReportService {
                 throw new ApiException(400, "Subsite must belong to the report's site");
             }
             report.setSubsite(subsite);
+            if (subsite.getArchivedAt() != null) {
+                throw new ApiException(400, "Archived subsites cannot be selected for new reports");
+            }
+        }
+        if (requireSiteSetup && !subsiteRepository.existsBySite_IdAndArchivedAtIsNull(site.getId())) {
+            throw new ApiException(409, "Site setup required: ask the site admin to add an active subsite before reporting");
         }
 		report.setCreatedBy(filer);
 		report.setDescription(request.description().trim());
@@ -90,14 +117,14 @@ public class ReportService {
 		attachment.setUserId(filer.getId());
 		reportReporterRepository.save(attachment);
 
-		return ReportResponse.from(report, true);
+		return response(report, actor);
 	}
 
 	@Transactional(readOnly = true)
 	public List<ReportResponse> list(Long siteId, AppUserDetails actor) {
 		Long scopedSiteId = resolveSiteForList(actor, siteId);
 		return reportRepository.findDetailedBySiteId(scopedSiteId).stream()
-				.map(report -> ReportResponse.from(report, canSeeSensitive(actor, report)))
+				.map(report -> response(report, actor))
 				.toList();
 	}
 
@@ -106,7 +133,7 @@ public class ReportService {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
-		return ReportResponse.from(report, canSeeSensitive(actor, report));
+		return response(report, actor);
 	}
 
 	@Transactional
@@ -123,7 +150,7 @@ public class ReportService {
 			attachment.setUserId(actor.getId());
 			reportReporterRepository.save(attachment);
 		}
-		return ReportResponse.from(report, true);
+		return response(report, actor);
 	}
 
 	@Transactional(readOnly = true)
@@ -152,9 +179,10 @@ public class ReportService {
 		User technician = userRepository.findById(request.technicianId())
 				.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Technician not found"));
 		roleIntegrityService.requireTechnician(technician);
+        terms.requireAcceptance(technician.getId());
 		report.setAssignedTechnician(technician);
 		report.setStatus(ReportStatus.assigned);
-		return ReportResponse.from(reportRepository.save(report), true);
+		return response(reportRepository.save(report), actor);
 	}
 
 	private Site resolveSiteForCreate(User filer, Long requestedSiteId) {
@@ -206,8 +234,20 @@ public class ReportService {
 			case technician -> report.getAssignedTechnician() != null
 					&& report.getAssignedTechnician().getId().equals(actor.getId());
 			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+			case shop_manager -> false;
 		};
 	}
+
+    private ReportResponse response(Report report, AppUserDetails actor) {
+        boolean participant = reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+        boolean canAssign = com.example.fixflow.dto.UserCapabilities.forRole(actor.getRole()).assignTechnician();
+        boolean ownQueue = actor.getRole() != UserRole.technician
+                || report.getAssignedTechnician() != null
+                && report.getAssignedTechnician().getId().equals(actor.getId());
+        return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
+                report, canSeeSensitive(actor, report), participant, canAssign,
+                actor.getRole() == UserRole.reporter && !participant, ownQueue));
+    }
 
 	private User loadUser(Long id) {
 		return userRepository.findWithSiteById(id)

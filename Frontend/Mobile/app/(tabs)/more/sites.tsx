@@ -51,8 +51,8 @@ export default function SitesScreen() {
   const palette = themeColors();
   const { user } = useAuth();
   const { setActiveSite } = useCurrentSite();
-  const canCreate = user ? canCreateSite(user.role) : false;
-  const canEdit = user ? canEditSite(user.role) : false;
+  const canCreate = user ? canCreateSite(user) : false;
+  const canEdit = user ? canEditSite(user) : false;
 
   const [sites, setSites] = useState<Site[] | null>(null);
   const [loading, setLoading] = useState(false);

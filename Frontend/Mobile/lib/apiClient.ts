@@ -13,12 +13,37 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const FALLBACK_TIMEOUT_MS = 5_000;
 
 /**
- * Base URL currently believed to be reachable. Updated in place when a
- * fallback candidate answers, so the probe cost is paid at most once per
- * session — or once per network change, since a network-level failure
- * restarts the search.
+ * Development discovery is cached for this app session. A failed application
+ * request never changes servers; restart after changing development networks.
  */
-let activeBaseUrl = API_BASE_URL;
+let selectedBase: Promise<string> | undefined;
+
+// Discover only with a public, credential-free request. Never replay an actual
+// login, registration or write: a timeout may mean the first write committed.
+function selectBase(): Promise<string> {
+  if (API_BASE_URL_CANDIDATES.length === 1) return Promise.resolve(API_BASE_URL);
+  selectedBase ??= (async () => {
+    for (const base of API_BASE_URL_CANDIDATES) {
+      const { signal, cancel } = withTimeout(undefined, FALLBACK_TIMEOUT_MS);
+      try {
+        const response = await fetch(`${base}/api/auth/policy`, {
+          method: 'GET', credentials: 'omit', redirect: 'error', signal,
+          headers: { Accept: 'application/json' },
+        });
+        if (response.ok) return base;
+      } catch {
+        // Only this public probe may try another development host.
+      } finally {
+        cancel();
+      }
+    }
+    throw new ApiError(0, 'Cannot connect to server');
+  })().catch((error) => {
+    selectedBase = undefined;
+    throw error;
+  });
+  return selectedBase;
+}
 
 /**
  * Thrown for every non-2xx response. The original body is preserved on
@@ -111,56 +136,26 @@ async function request<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const bases = [
-    activeBaseUrl,
-    ...API_BASE_URL_CANDIDATES.filter((base) => base !== activeBaseUrl),
-  ];
-
-  for (let i = 0; i < bases.length; i += 1) {
-    const base = bases[i];
-    const { signal, cancel } = withTimeout(
-      init?.signal,
-      i === 0 ? DEFAULT_TIMEOUT_MS : FALLBACK_TIMEOUT_MS,
-    );
-
-    try {
-      const response = await fetch(`${base}${path}`, {
-        ...init,
-        credentials: 'include',
-        headers: buildHeaders(init),
-        signal,
-      });
-
-      if (base !== activeBaseUrl) {
-        activeBaseUrl = base;
-        if (__DEV__) {
-          // eslint-disable-next-line no-console
-          console.log(`[api] using fallback base URL: ${base}`);
-        }
-      }
-
-      if (!response.ok) {
-        throw await parseError(response);
-      }
-
-      if (response.status === 204) {
-        return undefined as T;
-      }
-
-      return (await response.json()) as T;
-    } catch (error) {
-      // An ApiError means the server was reached and answered — never retry
-      // those against another host. Only network/timeout failures fall through.
-      if (error instanceof ApiError || i === bases.length - 1) {
-        throw error;
-      }
-    } finally {
-      cancel();
+  const base = await selectBase();
+  const { signal, cancel } = withTimeout(init?.signal, DEFAULT_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${base}${path}`, {
+      ...init,
+      redirect: 'error',
+      credentials: 'include',
+      headers: buildHeaders(init),
+      signal,
+    });
+    if (!response.ok) {
+      throw await parseError(response);
     }
+    if (response.status === 204) {
+      return undefined as T;
+    }
+    return (await response.json()) as T;
+  } finally {
+    cancel();
   }
-
-  // Unreachable: the loop always returns or throws.
-  throw new ApiError(0, 'Request failed');
 }
 
 export const api = {

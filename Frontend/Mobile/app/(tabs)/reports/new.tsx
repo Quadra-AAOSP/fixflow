@@ -72,7 +72,7 @@ export default function NewReportScreen() {
 
   // Mirrors the web's `canCreate` (reporter/staff/admin/super_admin only):
   // technicians resolve reports rather than file them.
-  const canCreate = user != null && user.role !== 'technician';
+  const canCreate = (user?.capabilities.createReport ?? false);
 
   // Load the category / urgency taxonomy for this site's site type. We
   // re-load on site change so the picker stays in sync if the user swaps

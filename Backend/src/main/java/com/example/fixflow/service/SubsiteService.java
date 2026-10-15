@@ -23,16 +23,41 @@ import com.example.fixflow.web.ApiException;
 
 @Service
 public class SubsiteService {
+    public record SetupStatus(Long siteId, boolean reportingReady, int activeSubsiteCount) { }
+    @Transactional(readOnly = true) public SetupStatus setup(Long siteId, AppUserDetails actor) {
+        assertCanView(siteId, actor); site(siteId);
+        int count = subsites.findBySite_IdAndArchivedAtIsNullOrderByLabelAsc(siteId).size();
+        return new SetupStatus(siteId, count > 0, count);
+    }
     private final SiteRepository sites; private final SubsiteRepository subsites; private final SubsiteRequestRepository alerts; private final UserRepository users;
     public SubsiteService(SiteRepository sites, SubsiteRepository subsites, SubsiteRequestRepository alerts, UserRepository users) { this.sites = sites; this.subsites = subsites; this.alerts = alerts; this.users = users; }
-    @Transactional(readOnly = true) public List<SubsiteResponse> list(Long siteId, AppUserDetails actor) { assertCanView(siteId, actor); return subsites.findBySite_IdOrderByLabelAsc(siteId).stream().map(SubsiteResponse::from).toList(); }
+    @Transactional(readOnly = true) public List<SubsiteResponse> list(Long siteId, AppUserDetails actor) { assertCanView(siteId, actor); return subsites.findBySite_IdAndArchivedAtIsNullOrderByLabelAsc(siteId).stream().map(SubsiteResponse::from).toList(); }
     @Transactional public SubsiteResponse create(Long siteId, SubsiteRequest request, AppUserDetails actor) {
-        assertCanManage(siteId, actor); String label = request.label().trim().toUpperCase();
+        assertCanManage(siteId, actor); String label = request.label().trim().toUpperCase(java.util.Locale.ROOT);
         if (subsites.existsBySite_IdAndLabelIgnoreCase(siteId, label)) throw new ApiException(HttpStatus.CONFLICT.value(), "Subsite label already exists");
         Subsite subsite = new Subsite(); subsite.setSite(site(siteId)); subsite.setLabel(label); subsite.setName(request.name().trim()); subsite.setDescription(request.description()); return SubsiteResponse.from(subsites.save(subsite));
     }
+    @Transactional public SubsiteResponse update(Long siteId, Long id, SubsiteRequest request, AppUserDetails actor) {
+        assertCanManage(siteId, actor);
+        Subsite subsite = subsites.findById(id).filter(s -> s.getSite().getId().equals(siteId))
+                .orElseThrow(() -> new ApiException(404, "Subsite not found"));
+        if (subsite.getArchivedAt() != null) throw new ApiException(409, "Archived subsites cannot be updated");
+        String label = request.label().trim().toUpperCase(java.util.Locale.ROOT);
+        if (!label.equalsIgnoreCase(subsite.getLabel()) && subsites.existsBySite_IdAndLabelIgnoreCase(siteId, label)) {
+            throw new ApiException(409, "Subsite label already exists");
+        }
+        subsite.setLabel(label); subsite.setName(request.name().trim()); subsite.setDescription(request.description());
+        return SubsiteResponse.from(subsites.save(subsite));
+    }
+    @Transactional public SubsiteResponse archive(Long siteId, Long id, AppUserDetails actor) {
+        assertCanManage(siteId, actor);
+        Subsite subsite = subsites.findById(id).filter(s -> s.getSite().getId().equals(siteId))
+                .orElseThrow(() -> new ApiException(404, "Subsite not found"));
+        if (subsite.getArchivedAt() == null) subsite.setArchivedAt(Instant.now());
+        return SubsiteResponse.from(subsites.save(subsite));
+    }
     @Transactional public SubsiteAlertResponse requestAddition(Long siteId, SubsiteAlertRequest request, AppUserDetails actor) {
-        assertCanView(siteId, actor); if (!subsites.findBySite_IdOrderByLabelAsc(siteId).isEmpty()) throw new ApiException(HttpStatus.CONFLICT.value(), "This site already has subsites");
+        assertCanView(siteId, actor);
         if (alerts.existsBySite_IdAndRequestedBy_IdAndStatus(siteId, actor.getId(), Status.pending)) throw new ApiException(HttpStatus.CONFLICT.value(), "A pending subsite request already exists");
         com.example.fixflow.domain.SubsiteRequest alert = new com.example.fixflow.domain.SubsiteRequest(); alert.setSite(site(siteId)); alert.setRequestedBy(user(actor.getId())); alert.setNote(request.note()); return SubsiteAlertResponse.from(alerts.save(alert));
     }

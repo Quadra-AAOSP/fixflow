@@ -24,13 +24,15 @@ public class ContractApplicationService {
     private final TechnicianContractRepository contracts;
     private final UserRepository users;
     private final SiteRepository sites;
+    private final TechnicianTermsService terms;
 
     public ContractApplicationService(TechnicianContractApplicationRepository applications,
-            TechnicianContractRepository contracts, UserRepository users, SiteRepository sites) {
+            TechnicianContractRepository contracts, UserRepository users, SiteRepository sites, TechnicianTermsService terms) {
         this.applications = applications;
         this.contracts = contracts;
         this.users = users;
         this.sites = sites;
+        this.terms = terms;
     }
 
     @Transactional
@@ -46,6 +48,7 @@ public class ContractApplicationService {
         User technician = users.findById(actor.getId()).orElseThrow(() -> new ApiException(401, "User not found"));
         if (technician.getRole() != UserRole.technician) throw new ApiException(403, "Only technicians can request contracts");
         application.setTechnician(technician);
+        terms.requireAcceptance(technician.getId());
         application.setSite(sites.findById(request.siteId()).orElseThrow(() -> new ApiException(404, "Site not found")));
         application.setNote(request.note());
         return ContractApplicationResponse.from(applications.saveAndFlush(application));
@@ -74,6 +77,7 @@ public class ContractApplicationService {
             throw new ApiException(409, "Request has already been decided");
         }
         if (decision.decision() == ContractDecisionRequest.Decision.approve) {
+            terms.requireAcceptance(application.getTechnician().getId());
             if (application.getTechnician().getRole() != UserRole.technician) {
                 throw new ApiException(409, "Requester is no longer a technician");
             }

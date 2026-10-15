@@ -68,8 +68,7 @@ export default function WorkspaceScreen() {
 
   const myAssignments = (reports ?? []).filter(
     (report) =>
-      report.assignedTechnicianId === user?.id &&
-      statusGroup(report.status) !== 'resolved',
+      report.policy.inAssignmentQueue,
   );
 
   return (

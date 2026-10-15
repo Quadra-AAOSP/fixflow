@@ -1,0 +1,487 @@
+-- Development schema + sample data, MySQL 8+. Does not modify fixflow.
+CREATE DATABASE IF NOT EXISTS fixflow_demo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE fixflow_demo;
+-- FixFlow domain schema (MySQL 8+)
+-- Source of truth aligned with fixflow-project-plan-v2.md §2
+-- This script is run by Spring Boot at application startup. It is deliberately
+-- idempotent: it creates an empty database schema but never removes existing data.
+
+SET NAMES utf8mb4;
+-- ---------------------------------------------------------------------------
+-- sites — physical locations (school / hostel / hotel)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sites (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name             VARCHAR(255)    NOT NULL,
+    type             ENUM('school', 'hostel', 'hotel') NOT NULL,
+    contract_status  ENUM('contracted', 'uncontracted') NOT NULL DEFAULT 'uncontracted',
+    address          VARCHAR(512)    NULL,
+    description      TEXT            NULL,
+    image_url        VARCHAR(1024)   NULL,
+    created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_sites_type (type),
+    KEY idx_sites_contract_status (contract_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- site_rules — fixed category + urgency taxonomy per site type
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS site_rules (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    site_type       ENUM('school', 'hostel', 'hotel') NOT NULL,
+    category        VARCHAR(128)    NOT NULL,
+    urgency_weight  INT             NOT NULL DEFAULT 0,
+    sort_order      INT             NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_site_rules_type_category (site_type, category),
+    KEY idx_site_rules_site_type (site_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- users — all accounts; role + optional site scope
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+    id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    email          VARCHAR(255)    NOT NULL,
+    password_hash  VARCHAR(255)    NOT NULL,
+    first_name     VARCHAR(128)    NOT NULL,
+    last_name      VARCHAR(128)    NOT NULL,
+    phone          VARCHAR(64)     NULL,
+    address        VARCHAR(512)    NULL,
+    role           ENUM(
+                       'reporter',
+                       'technician',
+                       'staff',
+                       'admin',
+                       'super_admin'
+                   )               NOT NULL,
+    site_id        BIGINT UNSIGNED NULL COMMENT 'Required for reporter/staff/admin; null for super_admin; optional for technician (see technician_contracts)',
+    created_at     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_users_email (email),
+    KEY idx_users_role (role),
+    KEY idx_users_site_id (site_id),
+    CONSTRAINT fk_users_site
+        FOREIGN KEY (site_id) REFERENCES sites (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- technician_contracts — multi-site contracts; absence ⇒ marketplace-eligible
+-- technician_id FK cannot enforce role = technician — application must reject
+-- writes unless users.role is technician.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS technician_contracts (
+    id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    technician_id  BIGINT UNSIGNED NOT NULL COMMENT 'Must be users.role = technician (app-enforced)',
+    site_id        BIGINT UNSIGNED NOT NULL,
+    created_at     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_tech_contract (technician_id, site_id),
+    KEY idx_tech_contracts_site (site_id),
+    CONSTRAINT fk_tech_contracts_technician
+        FOREIGN KEY (technician_id) REFERENCES users (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_tech_contracts_site
+        FOREIGN KEY (site_id) REFERENCES sites (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- technician_availability — self-toggled availability for routing/claim pools
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS technician_availability (
+    technician_id  BIGINT UNSIGNED NOT NULL COMMENT 'Must be users.role = technician (app-enforced)',
+    status         ENUM('available', 'unavailable') NOT NULL DEFAULT 'unavailable',
+    updated_at     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (technician_id),
+    CONSTRAINT fk_tech_availability_technician
+        FOREIGN KEY (technician_id) REFERENCES users (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- technician_skills — stretch: trade + specialty for recommendation scoring
+-- e.g. category=plumbing, specialty=waste_plumbing
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS technician_skills (
+    id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    technician_id  BIGINT UNSIGNED NOT NULL COMMENT 'Must be users.role = technician (app-enforced)',
+    category       VARCHAR(128)    NOT NULL COMMENT 'Trade: plumbing, electrical, hvac, …',
+    specialty      VARCHAR(128)    NULL COMMENT 'Sub-skill: waste_plumbing, water_supply, …; NULL = generalist',
+    proficiency    TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT '1–5 depth within this skill',
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_tech_skill (technician_id, category, specialty),
+    KEY idx_tech_skills_category (category),
+    CONSTRAINT fk_tech_skills_technician
+        FOREIGN KEY (technician_id) REFERENCES users (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT chk_tech_skills_proficiency
+        CHECK (proficiency BETWEEN 1 AND 5)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- reports — maintenance tickets (dual urgency + lifecycle)
+-- category must exist in site_rules for sites.type (app-enforced; MySQL cannot
+-- FK a composite site_type+category without extra plumbing).
+-- address is masked from peer reporters in API responses (staff/admin/assigned
+-- tech/attached reporters see it). No on_behalf_of_user_id — created_by_user_id
+-- is who filed; reporter_urgency may be staff-proxied.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS subsites (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    site_id BIGINT UNSIGNED NOT NULL,
+    label VARCHAR(64) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    archived_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_subsite_site_label (site_id, label),
+    CONSTRAINT fk_subsites_site FOREIGN KEY (site_id) REFERENCES sites(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS subsite_requests (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    site_id BIGINT UNSIGNED NOT NULL,
+    requested_by_user_id BIGINT UNSIGNED NOT NULL,
+    note TEXT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP NULL,
+    FOREIGN KEY (site_id) REFERENCES sites(id),
+    FOREIGN KEY (requested_by_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS technician_contract_requests (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    site_id BIGINT UNSIGNED NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    note VARCHAR(1000) NULL,
+    decision_reason VARCHAR(1000) NULL,
+    decided_by_user_id BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    decided_at TIMESTAMP NULL,
+    UNIQUE KEY uq_contract_request (technician_id, site_id),
+    FOREIGN KEY (technician_id) REFERENCES users(id),
+    FOREIGN KEY (site_id) REFERENCES sites(id),
+    FOREIGN KEY (decided_by_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS technician_terms_acceptances (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    terms_version VARCHAR(64) NOT NULL,
+    document_url VARCHAR(1024) NOT NULL,
+    accepted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_technician_terms_version (technician_id, terms_version),
+    FOREIGN KEY (technician_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS reports (
+    id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    site_id                 BIGINT UNSIGNED NOT NULL,
+    subsite_id              BIGINT UNSIGNED NULL,
+    created_by_user_id      BIGINT UNSIGNED NOT NULL COMMENT 'Who filed; staff/admin filings are proxied',
+    description             TEXT            NOT NULL,
+    address                 VARCHAR(512)    NULL COMMENT 'Room-level; mask from peer reporters in API',
+    category                VARCHAR(128)    NOT NULL COMMENT 'Must match site_rules.category for this site type',
+    specialty               VARCHAR(128)    NULL COMMENT 'Optional sub-type, e.g. waste_plumbing; not in site_rules',
+    ai_urgency              ENUM('low', 'medium', 'high', 'critical') NULL,
+    reporter_urgency        ENUM('low', 'medium', 'high', 'critical') NOT NULL,
+    reporter_reason         TEXT            NULL,
+    final_urgency           ENUM('low', 'medium', 'high', 'critical') NULL COMMENT 'Staff/admin override; null until overridden',
+    status                  ENUM(
+                                'open',
+                                'routed',
+                                'assigned',
+                                'in_progress',
+                                'resolved_pending_confirmation',
+                                'confirmed',
+                                'reopened',
+                                'escalated'
+                            )               NOT NULL DEFAULT 'open',
+    assigned_technician_id  BIGINT UNSIGNED NULL COMMENT 'Must be users.role = technician (app-enforced)',
+    editable                TINYINT(1)      NOT NULL DEFAULT 1,
+    reopen_count            INT UNSIGNED    NOT NULL DEFAULT 0,
+    created_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_reports_site_id (site_id),
+    KEY idx_reports_status (status),
+    KEY idx_reports_assigned_tech (assigned_technician_id),
+    KEY idx_reports_created_by (created_by_user_id),
+    CONSTRAINT fk_reports_site
+        FOREIGN KEY (site_id) REFERENCES sites (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reports_subsite FOREIGN KEY (subsite_id) REFERENCES subsites(id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reports_created_by
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_reports_assigned_technician
+        FOREIGN KEY (assigned_technician_id) REFERENCES users (id)
+        ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- report_photos — max 5 images per report (≤5MB each); MinIO object keys
+-- ---------------------------------------------------------------------------
+-- Preserve existing installations: CREATE TABLE IF NOT EXISTS alone does not
+-- add columns. Prepared SQL keeps this additive migration restart-safe on MySQL 8.
+SET @subsite_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'subsite_id') = 0,
+    'ALTER TABLE reports ADD COLUMN subsite_id BIGINT UNSIGNED NULL, ADD CONSTRAINT fk_reports_subsite FOREIGN KEY (subsite_id) REFERENCES subsites(id) ON DELETE RESTRICT ON UPDATE CASCADE',
+    'SELECT 1');
+PREPARE subsite_statement FROM @subsite_migration;
+EXECUTE subsite_statement;
+DEALLOCATE PREPARE subsite_statement;
+
+SET @archive_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'subsites' AND column_name = 'archived_at') = 0,
+    'ALTER TABLE subsites ADD COLUMN archived_at TIMESTAMP NULL', 'SELECT 1');
+PREPARE archive_statement FROM @archive_migration;
+EXECUTE archive_statement;
+DEALLOCATE PREPARE archive_statement;
+
+CREATE TABLE IF NOT EXISTS report_photos (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    report_id        BIGINT UNSIGNED NOT NULL,
+    object_key       VARCHAR(512)    NOT NULL,
+    url              VARCHAR(1024)   NULL,
+    content_type     VARCHAR(128)    NULL,
+    file_size_bytes  INT UNSIGNED    NOT NULL,
+    sort_order       TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_report_photos_report_id (report_id),
+    CONSTRAINT fk_report_photos_report
+        FOREIGN KEY (report_id) REFERENCES reports (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT chk_report_photos_size
+        CHECK (file_size_bytes > 0 AND file_size_bytes <= 5242880),
+    CONSTRAINT chk_report_photos_sort
+        CHECK (sort_order <= 4)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- report_reporters — manual merge (many users ↔ one report)
+-- Always insert the creator (created_by_user_id) at report create time.
+-- List-reporters queries use this table only — do not UNION created_by_user_id.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS report_reporters (
+    report_id  BIGINT UNSIGNED NOT NULL,
+    user_id    BIGINT UNSIGNED NOT NULL,
+    joined_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (report_id, user_id),
+    KEY idx_report_reporters_user (user_id),
+    CONSTRAINT fk_report_reporters_report
+        FOREIGN KEY (report_id) REFERENCES reports (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_report_reporters_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- report_reassignments — append-only prior technician ids on reassign
+-- Insert BEFORE updating reports.assigned_technician_id
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS report_reassignments (
+    id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    report_id              BIGINT UNSIGNED NOT NULL,
+    from_technician_id     BIGINT UNSIGNED NOT NULL,
+    to_technician_id       BIGINT UNSIGNED NULL COMMENT 'NULL if unassigned back to pool',
+    reassigned_by_user_id  BIGINT UNSIGNED NOT NULL,
+    reason                 TEXT            NULL,
+    created_at             TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_report_reassignments_report (report_id),
+    KEY idx_report_reassignments_from (from_technician_id),
+    CONSTRAINT fk_report_reassignments_report
+        FOREIGN KEY (report_id) REFERENCES reports (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_report_reassignments_from
+        FOREIGN KEY (from_technician_id) REFERENCES users (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_report_reassignments_to
+        FOREIGN KEY (to_technician_id) REFERENCES users (id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_report_reassignments_by
+        FOREIGN KEY (reassigned_by_user_id) REFERENCES users (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- status_history — append-only audit of status transitions
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS status_history (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    report_id           BIGINT UNSIGNED NOT NULL,
+    from_status         VARCHAR(64)     NULL,
+    to_status           VARCHAR(64)     NOT NULL,
+    changed_by_user_id  BIGINT UNSIGNED NOT NULL,
+    note                TEXT            NULL,
+    created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_status_history_report_id (report_id),
+    KEY idx_status_history_created_at (created_at),
+    CONSTRAINT fk_status_history_report
+        FOREIGN KEY (report_id) REFERENCES reports (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_status_history_user
+        FOREIGN KEY (changed_by_user_id) REFERENCES users (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_products — catalogue items for the FixFlow shop
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_products (
+    id            VARCHAR(64)     NOT NULL,
+    name          VARCHAR(255)    NOT NULL,
+    description   TEXT            NOT NULL,
+    category      VARCHAR(128)    NOT NULL,
+    brand         VARCHAR(128)    NULL,
+    image_url     VARCHAR(1024)   NULL,
+    price_minor   INT UNSIGNED    NOT NULL,
+    stock         INT UNSIGNED    NOT NULL DEFAULT 0,
+    active        TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_shop_products_active (active),
+    KEY idx_shop_products_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_orders — customer orders (server-authoritative pricing)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_orders (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id           VARCHAR(36)     NOT NULL,
+    user_id             BIGINT UNSIGNED NOT NULL,
+    status              ENUM(
+                            'pending_payment',
+                            'paid',
+                            'cancelled',
+                            'refunded',
+                            'fulfilled'
+                        )               NOT NULL DEFAULT 'pending_payment',
+    currency            CHAR(3)         NOT NULL,
+    minor_unit_digits   TINYINT UNSIGNED NOT NULL DEFAULT 2,
+    subtotal_minor      INT UNSIGNED    NOT NULL,
+    shipping_minor      INT UNSIGNED    NOT NULL DEFAULT 0,
+    tax_minor           INT UNSIGNED    NOT NULL DEFAULT 0,
+    total_minor         INT UNSIGNED    NOT NULL,
+    shipping_name       VARCHAR(255)    NOT NULL,
+    shipping_phone      VARCHAR(64)     NULL,
+    shipping_address    VARCHAR(512)    NOT NULL,
+    idempotency_key     VARCHAR(128)    NOT NULL,
+    created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_shop_orders_public_id (public_id),
+    UNIQUE KEY uq_shop_orders_user_idempotency (user_id, idempotency_key),
+    KEY idx_shop_orders_user_id (user_id),
+    KEY idx_shop_orders_status (status),
+    CONSTRAINT fk_shop_orders_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_order_items — line snapshots at purchase time
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_order_items (
+    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id          BIGINT UNSIGNED NOT NULL,
+    product_id        VARCHAR(64)     NOT NULL,
+    name              VARCHAR(255)    NOT NULL,
+    unit_price_minor  INT UNSIGNED    NOT NULL,
+    quantity          INT UNSIGNED    NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_shop_order_items_order_id (order_id),
+    CONSTRAINT fk_shop_order_items_order
+        FOREIGN KEY (order_id) REFERENCES shop_orders (id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT chk_shop_order_items_quantity
+        CHECK (quantity > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- shop_payments — hosted checkout session tracking
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS shop_payments (
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id      BIGINT UNSIGNED NOT NULL,
+    provider      ENUM('stripe', 'dev') NOT NULL,
+    provider_ref  VARCHAR(255)    NULL,
+    status        ENUM(
+                      'requires_action',
+                      'succeeded',
+                      'failed',
+                      'cancelled'
+                  )               NOT NULL DEFAULT 'requires_action',
+    checkout_url  VARCHAR(2048)   NULL,
+    raw_event     TEXT            NULL,
+    created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_shop_payments_order_id (order_id),
+    KEY idx_shop_payments_provider_ref (provider_ref),
+    CONSTRAINT fk_shop_payments_order
+        FOREIGN KEY (order_id) REFERENCES shop_orders (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- DEVELOPMENT ONLY. All accounts below use password: FixflowDemo!2026
+-- Never import these known-password accounts into production.
+START TRANSACTION;
+INSERT INTO sites(id,name,type,contract_status,address) VALUES
+(1,'Demo School','school','contracted','Demo campus'),
+(2,'Demo Hotel','hotel','uncontracted','Demo hotel')
+ON DUPLICATE KEY UPDATE id=id;
+INSERT INTO site_rules(site_type,category,urgency_weight,sort_order) VALUES
+('school','plumbing',40,1),('school','electrical',50,2),('school','hvac',35,3),
+('school','carpentry',20,4),('school','cleaning',10,5),('school','general',15,6),
+('hotel','plumbing',40,1),('hotel','electrical',50,2),('hotel','hvac',35,3),
+('hotel','carpentry',20,4),('hotel','cleaning',10,5),('hotel','general',15,6),
+('hostel','plumbing',40,1),('hostel','electrical',50,2),('hostel','hvac',35,3),
+('hostel','carpentry',20,4),('hostel','cleaning',10,5),('hostel','general',15,6)
+ON DUPLICATE KEY UPDATE id=id;
+INSERT INTO users(email,password_hash,first_name,last_name,role,site_id) VALUES
+('superadmin@fixflow.test','$2a$10$yuE7oCzjn3XkneC9fm.KB.pvjWgPd0nE8L9Ah0WnU558ACYt..NTG','Demo','SuperAdmin','super_admin',NULL),
+('admin@fixflow.test','$2a$10$yuE7oCzjn3XkneC9fm.KB.pvjWgPd0nE8L9Ah0WnU558ACYt..NTG','Demo','Admin','admin',1),
+('staff@fixflow.test','$2a$10$yuE7oCzjn3XkneC9fm.KB.pvjWgPd0nE8L9Ah0WnU558ACYt..NTG','Demo','Staff','staff',1),
+('reporter@fixflow.test','$2a$10$yuE7oCzjn3XkneC9fm.KB.pvjWgPd0nE8L9Ah0WnU558ACYt..NTG','Demo','Reporter','reporter',1),
+('technician@fixflow.test','$2a$10$yuE7oCzjn3XkneC9fm.KB.pvjWgPd0nE8L9Ah0WnU558ACYt..NTG','Demo','Technician','technician',NULL),
+('hoteladmin@fixflow.test','$2a$10$yuE7oCzjn3XkneC9fm.KB.pvjWgPd0nE8L9Ah0WnU558ACYt..NTG','Hotel','Admin','admin',2)
+ON DUPLICATE KEY UPDATE id=id;
+INSERT INTO subsites(site_id,label,name,description) VALUES
+(1,'E5','Classroom building','Demo reporting location'),(1,'A1','Administration','Demo administration building'),
+(2,'H1','Main hotel building','Demo hotel')
+ON DUPLICATE KEY UPDATE id=id;
+INSERT INTO technician_contracts(technician_id,site_id)
+SELECT id,1 FROM users WHERE email='technician@fixflow.test'
+ON DUPLICATE KEY UPDATE id=id;
+INSERT INTO technician_availability(technician_id,status)
+SELECT id,'available' FROM users WHERE email='technician@fixflow.test'
+ON DUPLICATE KEY UPDATE technician_id=technician_id;
+INSERT INTO reports(site_id,subsite_id,created_by_user_id,description,category,reporter_urgency,status)
+SELECT 1,s.id,u.id,'Demo: leaking tap in classroom E5','plumbing','medium','open'
+FROM users u JOIN subsites s ON s.site_id=1 AND s.label='E5'
+WHERE u.email='reporter@fixflow.test'
+AND NOT EXISTS (SELECT 1 FROM reports WHERE description='Demo: leaking tap in classroom E5');
+INSERT INTO report_reporters(report_id,user_id)
+SELECT r.id,u.id FROM reports r JOIN users u ON u.email='reporter@fixflow.test'
+WHERE r.description='Demo: leaking tap in classroom E5'
+AND NOT EXISTS (SELECT 1 FROM report_reporters rr WHERE rr.report_id=r.id AND rr.user_id=u.id);
+COMMIT;
+-- Existing demo rows/passwords are intentionally never replaced on re-import.

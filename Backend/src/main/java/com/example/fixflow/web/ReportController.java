@@ -53,6 +53,11 @@ public class ReportController {
 		return reportService.get(id, principal);
 	}
 
+    @PostMapping("/{id}/classify")
+    public ReportResponse classify(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
+        return reportService.classify(id, principal);
+    }
+
 	@PostMapping("/{id}/join")
 	public ReportResponse join(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
 		return reportService.join(id, principal);
