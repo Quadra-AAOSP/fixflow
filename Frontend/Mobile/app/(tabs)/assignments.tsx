@@ -5,7 +5,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -202,97 +201,18 @@ export default function AssignmentsScreen() {
   }
 
   return (
-    <Screen className="px-5 pt-4">
-      {/* Card heading — mirrors the web's `.card-heading` block in
-          `AssignmentsView.vue` with the title, site + count + technician
-          count summary line, and the dialog intro underneath. */}
-      <View className="mb-2 flex-row items-center gap-3">
-        <View
-          className="rounded-xl p-3"
-          style={{ backgroundColor: dashboardColors.statMintSoft }}
-        >
-          <ClipboardList color={dashboardColors.statMintDeep} size={26} />
-        </View>
-        <View className="flex-1">
-          <Text
-            className="text-xl font-bold text-ink"
-            style={{ letterSpacing: -0.4 }}
-          >
-            {isTechnician ? 'My assignments' : 'Current assignments'}
-          </Text>
-          <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-            {site.name}
-            {reports !== null
-              ? ` · ${scoped.length} active report${
-                  scoped.length === 1 ? '' : 's'
-                }${!isTechnician ? ` · ${technicianCount} assigned technician${
-                  technicianCount === 1 ? '' : 's'
-                }` : ''}`
-              : ''}
-          </Text>
-        </View>
-      </View>
-
-      <Text className="mb-3 text-[12px] leading-[1.7] text-dashboard-subtitle">
-        {canAssign
-          ? 'Open a report to assign or reassign a technician.'
-          : 'View the current assignments for your site.'}
-      </Text>
-
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerClassName="pb-2"
-      >
-        <View className="mb-3 flex-row gap-3">
-          <View className="flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-3">
-            <Text className="text-[10px] font-medium uppercase tracking-wide text-dashboard-subtitle">
-              Active
-            </Text>
-            <Text
-              className="mt-1 text-xl font-bold"
-              style={{ color: dashboardColors.statMintDeep }}
-            >
-              {scoped.length}
-            </Text>
-          </View>
-          {!isTechnician ? (
-            <View className="flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-3">
-              <Text className="text-[10px] font-medium uppercase tracking-wide text-dashboard-subtitle">
-                Technicians
-              </Text>
-              <Text
-                className="mt-1 text-xl font-bold"
-                style={{ color: dashboardColors.statCitronDeep }}
-              >
-                {technicianCount}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-
-        <View className="mb-3">
-          <SearchField
-            value={query}
-            onChangeText={setQuery}
-            placeholder={
-              isTechnician ? 'Search your work…' : 'Search assignments…'
-            }
-          />
-        </View>
-
-        <View className="mb-3">
-          <FilterTabs
-            options={filterOptions}
-            value={filter}
-            onChange={setFilter}
-          />
-        </View>
-      </ScrollView>
-
+    <Screen>
+      {/* Heading, stats, search and filters live in the list header so the
+          whole screen is one scrollable surface. Previously they were a
+          separate `ScrollView` sitting above the `FlatList`, which left the
+          list with no room left on short screens — its lower rows were
+          clipped and unreachable. */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
-        contentContainerClassName="grow pb-6"
+        className="flex-1"
+        contentContainerClassName="grow px-5 pb-6 pt-4"
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -301,6 +221,90 @@ export default function AssignmentsScreen() {
           />
         }
         ItemSeparatorComponent={() => <View className="h-3" />}
+        ListHeaderComponent={
+          <View>
+            {/* Card heading — mirrors the web's `.card-heading` block in
+                `AssignmentsView.vue` with the title, site + count + technician
+                count summary line, and the dialog intro underneath. */}
+            <View className="mb-2 flex-row items-center gap-3">
+              <View
+                className="rounded-xl p-3"
+                style={{ backgroundColor: dashboardColors.statMintSoft }}
+              >
+                <ClipboardList color={dashboardColors.statMintDeep} size={26} />
+              </View>
+              <View className="flex-1">
+                <Text
+                  className="text-xl font-bold text-ink"
+                  style={{ letterSpacing: -0.4 }}
+                >
+                  {isTechnician ? 'My assignments' : 'Current assignments'}
+                </Text>
+                <Text className="mt-0.5 text-xs text-dashboard-subtitle">
+                  {site.name}
+                  {reports !== null
+                    ? ` · ${scoped.length} active report${
+                        scoped.length === 1 ? '' : 's'
+                      }${!isTechnician ? ` · ${technicianCount} assigned technician${
+                        technicianCount === 1 ? '' : 's'
+                      }` : ''}`
+                    : ''}
+                </Text>
+              </View>
+            </View>
+
+            <Text className="mb-3 text-[12px] leading-[1.7] text-dashboard-subtitle">
+              {canAssign
+                ? 'Open a report to assign or reassign a technician.'
+                : 'View the current assignments for your site.'}
+            </Text>
+
+            <View className="mb-3 flex-row gap-3">
+              <View className="flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-3">
+                <Text className="text-[10px] font-medium uppercase tracking-wide text-dashboard-subtitle">
+                  Active
+                </Text>
+                <Text
+                  className="mt-1 text-xl font-bold"
+                  style={{ color: dashboardColors.statMintDeep }}
+                >
+                  {scoped.length}
+                </Text>
+              </View>
+              {!isTechnician ? (
+                <View className="flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-3">
+                  <Text className="text-[10px] font-medium uppercase tracking-wide text-dashboard-subtitle">
+                    Technicians
+                  </Text>
+                  <Text
+                    className="mt-1 text-xl font-bold"
+                    style={{ color: dashboardColors.statCitronDeep }}
+                  >
+                    {technicianCount}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            <View className="mb-3">
+              <SearchField
+                value={query}
+                onChangeText={setQuery}
+                placeholder={
+                  isTechnician ? 'Search your work…' : 'Search assignments…'
+                }
+              />
+            </View>
+
+            <View className="mb-3">
+              <FilterTabs
+                options={filterOptions}
+                value={filter}
+                onChange={setFilter}
+              />
+            </View>
+          </View>
+        }
         ListEmptyComponent={
           loading ? (
             <StateView variant="loading" title="Loading assignments…" />

@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/theme';
 
@@ -57,6 +58,7 @@ export function Picker({
   renderTrigger,
 }: PickerProps) {
   const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const selected = options.find((o) => o.value === value) ?? null;
 
   const openSheet = () => {
@@ -79,13 +81,14 @@ export function Picker({
             accessibilityState={{ disabled: !!disabled }}
           >
             <Text
-              className={
+              numberOfLines={1}
+              className={`flex-1 ${
                 selected ? 'text-[12px] text-ink' : 'text-[12px] text-muted'
-              }
+              }`}
             >
               {selected ? selected.label : placeholder}
             </Text>
-            <Text className="text-[10px] text-muted">▾</Text>
+            <Text className="ml-2 text-[10px] text-muted">▾</Text>
           </Pressable>
         </View>
       )}
@@ -96,9 +99,17 @@ export function Picker({
         visible={open}
         onRequestClose={() => setOpen(false)}
       >
-        <View className="flex-1 bg-surface pt-4">
-          <View className="flex-row items-center justify-between border-b border-border bg-card px-5 pb-3">
-            <Text className="text-lg font-semibold text-ink">{label}</Text>
+        <View
+          className="flex-1 bg-surface"
+          style={{ paddingTop: insets.top }}
+        >
+          <View className="flex-row items-center justify-between border-b border-border bg-card px-5 pb-3 pt-4">
+            <Text
+              numberOfLines={1}
+              className="flex-1 text-lg font-semibold text-ink"
+            >
+              {label}
+            </Text>
             <Pressable
               onPress={() => setOpen(false)}
               className="px-2 py-1"
@@ -119,7 +130,11 @@ export function Picker({
               </Text>
             </View>
           ) : (
-            <ScrollView>
+            <ScrollView
+              contentContainerStyle={{
+                paddingBottom: Math.max(insets.bottom, 24),
+              }}
+            >
               {options.map((option) => {
                 const isSelected = option.value === value;
                 return (

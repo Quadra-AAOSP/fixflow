@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -46,10 +48,16 @@ export default function ContractsScreen() {
 
   return (
     <Screen>
-      <ScrollView
-        contentContainerClassName="px-5 pb-12 pt-4"
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        <ScrollView
+          contentContainerClassName="px-5 pb-12 pt-4"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        >
         {/* Card heading — mirrors the web's `.card-heading` with a large
             `Handshake` on the right. */}
         <View className="mb-4 flex-row items-start justify-between">
@@ -69,7 +77,8 @@ export default function ContractsScreen() {
 
         {isTechnician ? <TechnicianView userId={user.id} /> : null}
         {isAdmin ? <AdminView /> : null}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }

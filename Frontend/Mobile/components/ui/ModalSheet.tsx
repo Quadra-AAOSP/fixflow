@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -7,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/theme';
 
@@ -41,6 +43,8 @@ export function ModalSheet({
   footer,
   busy,
 }: ModalSheetProps) {
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal
       animationType="slide"
@@ -49,41 +53,61 @@ export function ModalSheet({
       onRequestClose={busy ? () => {} : onClose}
     >
       <View className="flex-1 bg-surface">
-        <View className="flex-row items-center justify-between border-b border-border bg-card px-5 py-4">
-          <Text
-            className="flex-1 text-[19px] font-semibold text-ink"
-            style={{ letterSpacing: -0.3 }}
-          >
-            {title}
-          </Text>
-          <Pressable
-            onPress={onClose}
-            disabled={busy}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            className={`px-2 py-1 ${busy ? 'opacity-40' : ''}`}
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            className="flex-row items-center justify-between border-b border-border bg-card px-5"
+            style={{ paddingTop: insets.top + 16, paddingBottom: 16 }}
           >
             <Text
-              className="text-[13px] font-semibold"
-              style={{ color: colors.mintInk }}
+              className="flex-1 text-[19px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
             >
-              Close
+              {title}
             </Text>
-          </Pressable>
-        </View>
-
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerClassName="px-5 py-4"
-        >
-          {children}
-        </ScrollView>
-
-        {footer ? (
-          <View className="border-t border-border bg-card px-5 py-4">
-            {footer}
+            <Pressable
+              onPress={onClose}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              className={`px-2 py-1 ${busy ? 'opacity-40' : ''}`}
+            >
+              <Text
+                className="text-[13px] font-semibold"
+                style={{ color: colors.mintInk }}
+              >
+                Close
+              </Text>
+            </Pressable>
           </View>
-        ) : null}
+
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 16,
+              paddingBottom: Math.max(insets.bottom, 16) + 16,
+            }}
+          >
+            {children}
+          </ScrollView>
+
+          {footer ? (
+            <View
+              className="border-t border-border bg-card px-5"
+              style={{
+                paddingTop: 16,
+                paddingBottom: Math.max(insets.bottom, 16),
+              }}
+            >
+              {footer}
+            </View>
+          ) : null}
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

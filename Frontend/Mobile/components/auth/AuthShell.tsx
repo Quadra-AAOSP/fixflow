@@ -34,7 +34,14 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingTop: insets.top,
+            // Clears the iOS home indicator. The footer no longer pads itself,
+            // so this is the single source of the bottom gap (24 on web/Android
+            // without a gesture bar).
+            paddingBottom: Math.max(insets.bottom, 24),
+          }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -159,7 +166,7 @@ function StoryDot({
 /** `.auth-footer` — the two small sign-offs under the panel. */
 function AuthFooter() {
   return (
-    <View className="mt-8 flex-row items-center justify-between pb-6">
+    <View className="mt-8 flex-row items-center justify-between">
       <Text className="text-[10px] text-auth-foot">
         Made for the places we share.
       </Text>
