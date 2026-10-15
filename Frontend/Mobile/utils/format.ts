@@ -65,6 +65,29 @@ export function formatDate(
   }
 }
 
+/**
+ * Compact "time since" label for activity feeds: `Just now`, `5m ago`,
+ * `3h ago`, `2d ago`. Anything a week or older falls back to an absolute
+ * date, so old items never read as a vague "12d ago".
+ */
+export function relativeTime(value: string | null | undefined): string {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not available';
+
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60_000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+
+  return formatDate(value);
+}
+
 /** Short weekday label for chart axes — index matches `Date.getDay()`. */
 export function weekdayLabel(date: Date): string {
   return WEEKDAY_LABELS[date.getDay()];
