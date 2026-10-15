@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS users (
                        'technician',
                        'staff',
                        'admin',
-                       'super_admin'
+                       'super_admin',
+                       'shop_manager'
                    )               NOT NULL,
     site_id        BIGINT UNSIGNED NULL COMMENT 'Required for reporter/staff/admin; null for super_admin; optional for technician (see technician_contracts)',
     created_at     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -67,6 +68,22 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
+-- Existing databases also accept the dedicated shop management role.
+ALTER TABLE users MODIFY COLUMN role ENUM('reporter','technician','staff','admin','super_admin','shop_manager') NOT NULL;
+
+CREATE TABLE IF NOT EXISTS site_admin_applications (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL UNIQUE,
+    site_id BIGINT UNSIGNED NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    decided_at TIMESTAMP(6) NULL,
+    decided_by BIGINT UNSIGNED NULL,
+    CONSTRAINT fk_site_admin_application_user FOREIGN KEY (user_id) REFERENCES users(id),
+    CONSTRAINT fk_site_admin_application_site FOREIGN KEY (site_id) REFERENCES sites(id),
+    CONSTRAINT fk_site_admin_application_decider FOREIGN KEY (decided_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- technician_contracts — multi-site contracts; absence ⇒ marketplace-eligible
 -- technician_id FK cannot enforce role = technician — application must reject
 -- writes unless users.role is technician.

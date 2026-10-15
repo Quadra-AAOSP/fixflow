@@ -5,5 +5,6 @@ public enum UserRole {
 	technician,
 	staff,
 	admin,
-	super_admin
+	super_admin,
+	shop_manager
 }

@@ -70,7 +70,7 @@ public class ReportService {
                 .orElseThrow(() -> new ApiException(404, "Report not found"));
         assertCanViewSite(actor, report.getSite().getId());
         classificationService.classify(report);
-        return ReportResponse.from(reportRepository.saveAndFlush(report), true);
+        return response(reportRepository.saveAndFlush(report), actor);
     }
 
 	@Transactional
@@ -117,14 +117,14 @@ public class ReportService {
 		attachment.setUserId(filer.getId());
 		reportReporterRepository.save(attachment);
 
-		return ReportResponse.from(report, true);
+		return response(report, actor);
 	}
 
 	@Transactional(readOnly = true)
 	public List<ReportResponse> list(Long siteId, AppUserDetails actor) {
 		Long scopedSiteId = resolveSiteForList(actor, siteId);
 		return reportRepository.findDetailedBySiteId(scopedSiteId).stream()
-				.map(report -> ReportResponse.from(report, canSeeSensitive(actor, report)))
+				.map(report -> response(report, actor))
 				.toList();
 	}
 
@@ -133,7 +133,7 @@ public class ReportService {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
-		return ReportResponse.from(report, canSeeSensitive(actor, report));
+		return response(report, actor);
 	}
 
 	@Transactional
@@ -150,7 +150,7 @@ public class ReportService {
 			attachment.setUserId(actor.getId());
 			reportReporterRepository.save(attachment);
 		}
-		return ReportResponse.from(report, true);
+		return response(report, actor);
 	}
 
 	@Transactional(readOnly = true)
@@ -182,7 +182,7 @@ public class ReportService {
         terms.requireAcceptance(technician.getId());
 		report.setAssignedTechnician(technician);
 		report.setStatus(ReportStatus.assigned);
-		return ReportResponse.from(reportRepository.save(report), true);
+		return response(reportRepository.save(report), actor);
 	}
 
 	private Site resolveSiteForCreate(User filer, Long requestedSiteId) {
@@ -234,8 +234,20 @@ public class ReportService {
 			case technician -> report.getAssignedTechnician() != null
 					&& report.getAssignedTechnician().getId().equals(actor.getId());
 			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+			case shop_manager -> false;
 		};
 	}
+
+    private ReportResponse response(Report report, AppUserDetails actor) {
+        boolean participant = reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+        boolean canAssign = com.example.fixflow.dto.UserCapabilities.forRole(actor.getRole()).assignTechnician();
+        boolean ownQueue = actor.getRole() != UserRole.technician
+                || report.getAssignedTechnician() != null
+                && report.getAssignedTechnician().getId().equals(actor.getId());
+        return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
+                report, canSeeSensitive(actor, report), participant, canAssign,
+                actor.getRole() == UserRole.reporter && !participant, ownQueue));
+    }
 
 	private User loadUser(Long id) {
 		return userRepository.findWithSiteById(id)

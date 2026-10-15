@@ -102,10 +102,7 @@ export default function AssignmentsScreen() {
   }
 
   const isTechnician = user?.role === 'technician';
-  const canAssign =
-    user?.role === 'staff' ||
-    user?.role === 'admin' ||
-    user?.role === 'super_admin';
+  const canAssign = user?.capabilities.assignTechnician ?? false;
 
   // Scope by role: only reports with an assignee count as assignments —
   // technicians see their own queue, staff/admin see every assigned
@@ -116,9 +113,7 @@ export default function AssignmentsScreen() {
     return reports
       .filter(
         (report) =>
-          report.assignedTechnicianId !== null &&
-          statusGroup(report.status) !== 'resolved' &&
-          (!isTechnician || report.assignedTechnicianId === user?.id),
+          report.policy.inAssignmentQueue,
       )
       .sort(
         (a, b) => (a.assignedTechnicianId ?? 0) - (b.assignedTechnicianId ?? 0),

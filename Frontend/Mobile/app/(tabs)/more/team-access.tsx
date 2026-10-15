@@ -9,18 +9,13 @@ import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
 import {
-  MAX_ADDRESS_LENGTH,
-  MAX_NAME_LENGTH,
-  MAX_PHONE_LENGTH,
-  PASSWORD_MAX_BYTES,
-  PASSWORD_MAX_LENGTH,
-  PASSWORD_MIN_LENGTH,
   canProvision,
   provisionableRoles,
   roleLabels,
 } from '@/constants/access';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
+import { useAccountPolicy } from '@/hooks/useAccountPolicy';
 import { ApiError } from '@/lib/apiClient';
 import { provisionUser } from '@/services/admin';
 import { listSites } from '@/services/sites';
@@ -35,6 +30,7 @@ import type { ProvisionUserPayload, Site, UserRole } from '@/types';
 export default function TeamAccessScreen() {
   const palette = themeColors();
   const { user } = useAuth();
+  const policy = useAccountPolicy();
 
   const [sites, setSites] = useState<Site[] | null>(null);
   const [loadingSites, setLoadingSites] = useState(false);
@@ -56,7 +52,7 @@ export default function TeamAccessScreen() {
   const [confirmation, setConfirmation] = useState<string | null>(null);
 
   const roles = useMemo(
-    () => (user ? provisionableRoles(user.role) : []),
+    () => (user ? provisionableRoles(user) : []),
     [user],
   );
 
@@ -95,7 +91,7 @@ export default function TeamAccessScreen() {
     }
   }, [siteId, sites, user?.siteId]);
 
-  if (!user || !canProvision(user.role)) {
+  if (!user || !canProvision(user)) {
     return (
       <Screen>
         <StateView
@@ -129,37 +125,10 @@ export default function TeamAccessScreen() {
       setError('First and last name are required.');
       return;
     }
-    if (firstName.length > MAX_NAME_LENGTH || lastName.length > MAX_NAME_LENGTH) {
-      setError(`Name fields must be ${MAX_NAME_LENGTH} characters or fewer.`);
-      return;
-    }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       setError('A valid work email is required.');
       return;
     }
-    if (password.length < PASSWORD_MIN_LENGTH) {
-      setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
-      return;
-    }
-    if (password.length > PASSWORD_MAX_LENGTH) {
-      setError(`Password must be at most ${PASSWORD_MAX_LENGTH} characters.`);
-      return;
-    }
-    if (new TextEncoder().encode(password).length > PASSWORD_MAX_BYTES) {
-      setError(
-        `Password must be at most ${PASSWORD_MAX_BYTES} bytes when encoded.`,
-      );
-      return;
-    }
-    if (phone.length > MAX_PHONE_LENGTH) {
-      setError(`Phone must be ${MAX_PHONE_LENGTH} characters or fewer.`);
-      return;
-    }
-    if (address.length > MAX_ADDRESS_LENGTH) {
-      setError(`Address must be ${MAX_ADDRESS_LENGTH} characters or fewer.`);
-      return;
-    }
-
     const payload: ProvisionUserPayload = {
       role,
       siteId,
@@ -302,18 +271,14 @@ export default function TeamAccessScreen() {
                   label="First name"
                   value={firstName}
                   onChangeText={setFirstName}
-                  autoCapitalize="words"
-                  maxLength={MAX_NAME_LENGTH}
-                />
+                  autoCapitalize="words"                />
               </View>
               <View className="flex-1">
                 <TextField
                   label="Last name"
                   value={lastName}
                   onChangeText={setLastName}
-                  autoCapitalize="words"
-                  maxLength={MAX_NAME_LENGTH}
-                />
+                  autoCapitalize="words"                />
               </View>
             </View>
 
@@ -332,11 +297,9 @@ export default function TeamAccessScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               secureTextEntry
-              placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
-              maxLength={PASSWORD_MAX_LENGTH}
-            />
+              placeholder={`At least ${policy?.passwordMinLength ?? 'the server-required number of'} characters`}            />
             <Text className="-mt-3 mb-4 text-[10px] leading-[1.65] text-dashboard-subtitle">
-              Use a unique passphrase of at least {PASSWORD_MIN_LENGTH}{' '}
+              Use a unique passphrase of at least {policy?.passwordMinLength ?? 'the required number of'}{' '}
               characters. This creates an account directly; email invitations
               and a mandatory first-login password reset are not available yet.
             </Text>
@@ -344,16 +307,12 @@ export default function TeamAccessScreen() {
               label="Phone (optional)"
               value={phone}
               onChangeText={setPhone}
-              keyboardType="phone-pad"
-              maxLength={MAX_PHONE_LENGTH}
-            />
+              keyboardType="phone-pad"            />
             <TextField
               label="Address (optional)"
               value={address}
               onChangeText={setAddress}
-              autoCapitalize="words"
-              maxLength={MAX_ADDRESS_LENGTH}
-            />
+              autoCapitalize="words"            />
 
             {error ? (
               <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
@@ -400,9 +359,7 @@ export default function TeamAccessScreen() {
             Super-admin access is separate
           </Text>
           <Text className="mb-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
-            This form cannot grant super-admin privileges. Organizational
-            identity, independent approval, MFA, and audit controls must be
-            verifiable before online elevation is enabled.
+            {policy?.managedRoleMessage ?? 'Managed access is controlled by the backend.'}
           </Text>
           <View className="flex-row items-center gap-1 self-start">
             <Text

@@ -111,6 +111,36 @@ class ShopApiIntegrationTest {
 	}
 
 	@Test
+	void shopManagerCanManageShopButCannotProvisionAccounts() throws Exception {
+		User manager = new User();
+		manager.setEmail("shop-manager-" + System.nanoTime() + "@example.com");
+		manager.setPasswordHash("unused");
+		manager.setFirstName("Shop"); manager.setLastName("Manager");
+		manager.setRole(UserRole.shop_manager);
+		manager = userRepository.save(manager);
+		mockMvc.perform(get("/api/admin/shop/products").with(user(new AppUserDetails(manager))))
+				.andExpect(status().isOk());
+		mockMvc.perform(post("/api/admin/users").with(user(new AppUserDetails(manager)))
+				.contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isForbidden());
+		mockMvc.perform(get("/api/admin/site-admin-applications")
+				.with(user(new AppUserDetails(manager)))).andExpect(status().isForbidden());
+		mockMvc.perform(post("/api/sites/" + reporter.getSite().getId() + "/subsites")
+				.with(user(new AppUserDetails(manager))).contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"label":"NO","name":"Not allowed"}
+						"""))
+				.andExpect(status().isForbidden());
+		User siteAdmin = new User();
+		siteAdmin.setEmail("shop-site-admin-" + System.nanoTime() + "@example.com");
+		siteAdmin.setPasswordHash("unused"); siteAdmin.setFirstName("Site"); siteAdmin.setLastName("Admin");
+		siteAdmin.setRole(UserRole.admin); siteAdmin.setSite(reporter.getSite());
+		siteAdmin = userRepository.save(siteAdmin);
+		mockMvc.perform(get("/api/admin/shop/products").with(user(new AppUserDetails(siteAdmin))))
+				.andExpect(status().isForbidden());
+	}
+
+	@Test
 	void catalogIsPublicAndIncludesActiveProducts() throws Exception {
 		mockMvc.perform(get("/api/shop/catalog"))
 				.andExpect(status().isOk())

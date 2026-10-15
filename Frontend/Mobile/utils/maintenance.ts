@@ -70,18 +70,15 @@ export const statusTone = (status: ReportStatus): 'primary' | 'accent' | 'lime' 
  * present, otherwise the reporter's own declaration.
  */
 export const effectiveUrgency = (report: Report): Urgency =>
-  report.finalUrgency ?? report.reporterUrgency;
+  report.policy.effectiveUrgency;
 
 /** Urgent means high/critical *and* not already resolved. */
-export const isUrgent = (report: Report): boolean =>
-  statusGroup(report.status) !== 'resolved' &&
-  (effectiveUrgency(report) === 'high' ||
-    effectiveUrgency(report) === 'critical');
+export const isUrgent = (report: Report): boolean => report.policy.urgent;
 
 export function matchesFilter(report: Report, filter: ReportFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'urgent') return isUrgent(report);
-  return statusGroup(report.status) === filter;
+  return report.policy.statusGroup === filter;
 }
 
 /**
@@ -130,7 +127,7 @@ export function summarize(reports: Report[]): ReportSummary {
   let urgent = 0;
 
   for (const report of reports) {
-    const group = statusGroup(report.status);
+    const group = report.policy.statusGroup;
     if (group === 'open') open += 1;
     else if (group === 'progress') progress += 1;
     else resolved += 1;

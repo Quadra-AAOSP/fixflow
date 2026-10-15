@@ -9,6 +9,10 @@ export type User = {
   address: string | null;
   role: UserRole;
   siteId: number | null;
+  capabilities: {
+    provision: boolean; decideContracts: boolean; createSite: boolean; editSite: boolean;
+    assignTechnician: boolean; createReport: boolean; provisionableRoles: UserRole[];
+  };
 };
 
 export type LoginPayload = {
@@ -19,8 +23,8 @@ export type LoginPayload = {
 /**
  * Self-registration payload. The backend permits only `reporter` and
  * `technician` here (`AuthService.register` rejects staff/admin/super_admin
- * at runtime). `siteId` is required for reporter accounts and optional for
- * technicians — leaving it `null` makes the technician marketplace-eligible.
+ * at runtime). `siteId` is required for reporter accounts and must be null for
+ * technicians.
  *
  * Backed by backend `RegisterRequest` (DTO). Mirrors the locked contract.
  */

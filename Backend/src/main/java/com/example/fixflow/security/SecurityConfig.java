@@ -39,8 +39,10 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/policy").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/shop/catalog").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()
+						.requestMatchers("/api/admin/shop/**").hasAnyRole("SUPER_ADMIN", "SHOP_MANAGER")
 						.requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 						.requestMatchers("/api/**").authenticated()
 						.anyRequest().permitAll()

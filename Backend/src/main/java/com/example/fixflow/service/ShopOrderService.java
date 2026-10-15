@@ -13,7 +13,6 @@ import com.example.fixflow.domain.ShopOrderStatus;
 import com.example.fixflow.domain.ShopPayment;
 import com.example.fixflow.domain.ShopPaymentProvider;
 import com.example.fixflow.domain.ShopPaymentStatus;
-import com.example.fixflow.domain.ShopProduct;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.dto.ShopCreateOrderRequest;
 import com.example.fixflow.dto.ShopCreateOrderResponse;
@@ -88,7 +87,7 @@ public class ShopOrderService {
 	@Transactional
 	public ShopOrderResponse cancel(String publicId, AppUserDetails principal) {
 		requireAuth(principal);
-		ShopOrder order = requireOwnedOrder(publicId, principal.getId());
+		ShopOrder order = lockOrder(requireOwnedOrder(publicId, principal.getId()));
 		if (order.getStatus() != ShopOrderStatus.pending_payment) {
 			throw new ApiException(409, "Only pending payment orders can be cancelled");
 		}
@@ -103,6 +102,7 @@ public class ShopOrderService {
 
 	@Transactional
 	public void markPaid(ShopOrder order, String rawEvent) {
+		order = lockOrder(order);
 		if (order.getStatus() == ShopOrderStatus.paid) {
 			return;
 		}
@@ -121,6 +121,7 @@ public class ShopOrderService {
 
 	@Transactional
 	public void markFailed(ShopOrder order, String rawEvent) {
+		order = lockOrder(order);
 		if (order.getStatus() != ShopOrderStatus.pending_payment) {
 			return;
 		}
@@ -160,14 +161,11 @@ public class ShopOrderService {
 		order.setShippingAddress(request.shippingAddress().trim());
 		order.setIdempotencyKey(idempotencyKey);
 
-		for (var line : quote.lines()) {
-			ShopProduct product = shopProductRepository.findById(line.productId())
-					.orElseThrow(() -> new ApiException(400, "Unknown product: " + line.productId()));
-			if (product.getStock() < line.quantity()) {
-				throw new ApiException(409, "Insufficient stock for " + product.getName());
+		for (var line : quote.lines().stream().sorted(java.util.Comparator.comparing(
+				com.example.fixflow.dto.ShopQuoteLineResponse::productId)).toList()) {
+			if (shopProductRepository.reserveStock(line.productId(), line.quantity(), java.time.Instant.now()) != 1) {
+				throw new ApiException(409, "Insufficient stock for " + line.name());
 			}
-			product.setStock(product.getStock() - line.quantity());
-			shopProductRepository.save(product);
 
 			ShopOrderItem item = new ShopOrderItem();
 			item.setProductId(line.productId());
@@ -195,12 +193,21 @@ public class ShopOrderService {
 	}
 
 	private void restoreStock(ShopOrder order) {
-		for (ShopOrderItem item : order.getItems()) {
-			shopProductRepository.findById(item.getProductId()).ifPresent(product -> {
-				product.setStock(product.getStock() + item.getQuantity());
-				shopProductRepository.save(product);
-			});
+		for (ShopOrderItem item : order.getItems().stream().sorted(
+				java.util.Comparator.comparing(ShopOrderItem::getProductId)).toList()) {
+			shopProductRepository.restoreStock(item.getProductId(), item.getQuantity(), java.time.Instant.now());
 		}
+	}
+
+	private ShopOrder lockOrder(ShopOrder order) {
+		ShopOrder managed = entityManager.find(ShopOrder.class, order.getId());
+		// Read current state under a database lock, not a potentially stale entity
+		// already loaded by a payment callback in this transaction.
+		Object status = entityManager.createNativeQuery(
+				"select status from shop_orders where id = ?1 for update", String.class)
+				.setParameter(1, order.getId()).getSingleResult();
+		managed.setStatus(ShopOrderStatus.valueOf(status.toString()));
+		return managed;
 	}
 
 	private ShopOrder requireOwnedOrder(String publicId, Long userId) {

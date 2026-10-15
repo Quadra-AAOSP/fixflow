@@ -231,7 +231,7 @@ class ApiSecurityMatrixIntegrationTest {
         mvc.perform(post("/api/reports").with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON).content(creation(Long.MAX_VALUE))).andExpect(status().isBadRequest());
         mvc.perform(post("/api/reports").with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON).content(creation(null)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.subsiteId").isEmpty());
-        String registration = "{\"email\":\"tech-" + System.nanoTime() + "@example.com\",\"password\":\"password123\",\"firstName\":\"Tech\",\"lastName\":\"Test\",\"role\":\"technician\",\"siteId\":";
+        String registration = "{\"email\":\"tech-" + System.nanoTime() + "@example.com\",\"password\":\"password12345678\",\"firstName\":\"Tech\",\"lastName\":\"Test\",\"role\":\"technician\",\"phone\":\"123456789\",\"address\":\"Test address\",\"siteId\":";
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(registration + own.getId() + "}")).andExpect(status().isBadRequest());
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(registration + "null}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.siteId").isEmpty());

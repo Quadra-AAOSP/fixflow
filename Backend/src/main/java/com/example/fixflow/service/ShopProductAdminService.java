@@ -117,8 +117,8 @@ public class ShopProductAdminService {
 			throw new ApiException(401, "Authentication required");
 		}
 		UserRole role = principal.getRole();
-		if (role != UserRole.admin && role != UserRole.super_admin) {
-			throw new ApiException(403, "Admin access required");
+		if (role != UserRole.shop_manager && role != UserRole.super_admin) {
+			throw new ApiException(403, "Shop manager access required");
 		}
 	}
 }

@@ -43,6 +43,11 @@ export type Report = {
   reopenCount: number;
   createdAt: string;
   updatedAt: string;
+  policy: {
+    statusGroup: 'open' | 'progress' | 'resolved'; effectiveUrgency: Urgency; urgent: boolean;
+    inAssignmentQueue: boolean; participant: boolean; canSeeSensitive: boolean;
+    canAssign: boolean; canJoin: boolean;
+  };
 };
 
 /**
