@@ -40,23 +40,23 @@ export function AuthHeading({
 
       {Icon ? (
         <View
-          className="mb-4 mt-6 h-[57px] w-[57px] items-center justify-center rounded-[18px] bg-auth-lime-soft self-start"
+          className="mb-3 mt-4 h-[46px] w-[46px] items-center justify-center rounded-[15px] bg-auth-lime-soft self-start"
           style={{ transform: [{ rotate: '-6deg' }] }}
         >
-          <Icon color={authColors.ink} size={25} />
+          <Icon color={authColors.ink} size={21} />
         </View>
       ) : null}
 
       <Text
-        className={`text-[32px] text-auth-ink ${Icon ? '' : 'mt-4'}`}
-        style={{ fontFamily: fontFamilies.headBold, letterSpacing: -1.3 }}
+        className={`text-[28px] text-auth-ink ${Icon ? '' : 'mt-3'}`}
+        style={{ fontFamily: fontFamilies.headBold, letterSpacing: -1 }}
       >
         {title}
         {titleAccent ? <Text className="text-coral">{titleAccent}</Text> : null}
       </Text>
 
       {description ? (
-        <Text className="mt-3 mb-7 max-w-[320px] text-[13px] leading-[22px] text-auth-body">
+        <Text className="mb-5 mt-2 max-w-[320px] text-[13px] leading-[21px] text-auth-body">
           {description}
         </Text>
       ) : null}

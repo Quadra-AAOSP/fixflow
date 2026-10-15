@@ -259,16 +259,22 @@ export default function RegisterScreen() {
         </View>
       )}
 
-      <Text className="mt-6 text-center text-[12px] text-auth-body">
-        Already have an account?{' '}
-        <Text
-          className="text-coral-link"
-          style={{ fontFamily: fontFamilies.bodySemiBold }}
-          onPress={() => router.push('/(auth)/login')}
-        >
-          Sign in
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Sign in"
+        onPress={() => router.push('/(auth)/login')}
+        className="mt-4 min-h-[44px] items-center justify-center active:opacity-70"
+      >
+        <Text className="text-center text-[12px] text-auth-body">
+          Already have an account?{' '}
+          <Text
+            className="text-coral-link"
+            style={{ fontFamily: fontFamilies.bodySemiBold }}
+          >
+            Sign in
+          </Text>
         </Text>
-      </Text>
+      </Pressable>
     </AuthShell>
   );
 }
