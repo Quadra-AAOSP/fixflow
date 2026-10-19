@@ -1,14 +1,21 @@
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowRight, Settings } from 'lucide-react-native';
+import {
+  ArrowRight,
+  Activity,
+  RefreshCw,
+  Settings,
+  ShieldCheck,
+} from 'lucide-react-native';
 
 import { AuthButton } from '@/components/auth/AuthButton';
 import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { roleLabels } from '@/constants/access';
-import { authColors, fontFamilies } from '@/constants/theme';
+import { authColors, dashboardColors, fontFamilies } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentSite } from '@/stores/site';
+import { relativeTime } from '@/utils/format';
 import type { User } from '@/types';
 
 /**
@@ -29,10 +36,12 @@ import type { User } from '@/types';
  */
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, session, setKeepAlive, setAutoReLogin, manualHeartbeat } = useAuth();
   const { site, sites } = useCurrentSite();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
 
   async function doLogout() {
     setLoggingOut(true);
@@ -60,6 +69,36 @@ export default function ProfileScreen() {
       },
     ]);
   }
+
+  async function onManualRefresh() {
+    setManualRefreshing(true);
+    setManualError(null);
+    try {
+      await manualHeartbeat();
+    } catch (err) {
+      setManualError(
+        err instanceof Error
+          ? err.message
+          : 'Session could not be refreshed. Try signing in again.',
+      );
+    } finally {
+      setManualRefreshing(false);
+    }
+  }
+
+  // --- Session display helpers ------------------------------------------
+
+  const lastHeartbeatLabel = session.lastHeartbeatAt
+    ? relativeTime(session.lastHeartbeatAt.toISOString())
+    : 'Not yet checked';
+
+  const sessionStatus = !user
+    ? 'Signed out'
+    : session.heartbeatActive
+      ? 'Active'
+      : session.keepAlive
+        ? 'Paused'
+        : 'Keep-alive off';
 
   const accountRows: RowConfig[] = [];
   if (user) {
@@ -220,28 +259,99 @@ export default function ProfileScreen() {
 
         <Kicker className="mt-6">Session</Kicker>
         <Panel>
-          <Text className="text-[12px] leading-[20px] text-auth-body">
+          {/* Status row — colored dot + label so the user sees at a glance
+              whether their session is currently active. */}
+          <View className="flex-row items-center gap-2.5">
+            <StatusDot label={sessionStatus} />
+            <Text
+              className="text-[13px] font-semibold text-auth-ink"
+              style={{ fontFamily: fontFamilies.bodySemiBold }}
+            >
+              {sessionStatus}
+            </Text>
+          </View>
+
+          <Text className="mt-2.5 text-[12px] leading-[20px] text-auth-body">
             {user
               ? `Signed in as ${roleLabels[user.role] ?? user.role}${
                   site ? ` · ${site.name}` : ''
-                }.`
+                }. The app keeps this session alive while you use it.`
               : 'End this session on this device.'}
           </Text>
 
-          {logoutError ? (
-            <Text className="mt-3 text-[12px] text-urgency-critical">
-              {logoutError}
+          <View className="mt-3 rounded-[14px] border border-auth-divider bg-auth-bg px-3 py-2.5">
+            <DetailList
+              rows={[
+                { label: 'Last activity', value: lastHeartbeatLabel },
+                {
+                  label: 'Keep me signed in',
+                  value: session.keepAlive ? 'On' : 'Off',
+                },
+                {
+                  label: 'Auto re-login',
+                  value: session.autoReLogin ? 'On' : 'Off',
+                },
+              ]}
+            />
+          </View>
+
+          {session.reloginError ? (
+            <Text className="mt-2 text-[11px] leading-[17px] text-urgency-critical">
+              Automatic sign-in failed — {session.reloginError}. Sign in again
+              when you return.
             </Text>
           ) : null}
 
-          <View className="mt-4">
-            <AuthButton
-              label="Sign out →"
-              loading={loggingOut}
-              onPress={onLogout}
-            />
-          </View>
+          {manualError ? (
+            <Text className="mt-2 text-[11px] leading-[17px] text-urgency-critical">
+              {manualError}
+            </Text>
+          ) : null}
+
+          {user ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                disabled={manualRefreshing}
+                onPress={onManualRefresh}
+                className="mb-3 flex-row items-center justify-center gap-2 rounded-[10px] border border-auth-line bg-auth-panel px-4 py-2.5 active:opacity-80"
+              >
+                <RefreshCw
+                  color={authColors.ink}
+                  size={14}
+                  strokeWidth={2}
+                  style={manualRefreshing ? { transform: [{ rotate: '45deg' }] } : undefined}
+                />
+                <Text
+                  className="text-[12px] font-semibold text-auth-ink"
+                  style={{ fontFamily: fontFamilies.bodySemiBold }}
+                >
+                  {manualRefreshing ? 'Refreshing…' : 'Refresh session now'}
+                </Text>
+              </Pressable>
+              <AuthButton
+                label="Sign out →"
+                loading={loggingOut}
+                onPress={onLogout}
+              />
+            </>
+          ) : null}
+
+          {logoutError ? (
+            <Text className="mt-2 text-[12px] text-urgency-critical">
+              {logoutError}
+            </Text>
+          ) : null}
         </Panel>
+
+        {user ? (
+          <SessionControls
+            keepAlive={session.keepAlive}
+            autoReLogin={session.autoReLogin}
+            onKeepAliveChange={(value) => void setKeepAlive(value)}
+            onAutoReLoginChange={(value) => void setAutoReLogin(value)}
+          />
+        ) : null}
 
         {/* Sign-off strip — the same serif asterisk + reassurance line the
             sign-in screen closes with. */}
@@ -338,6 +448,93 @@ function DetailRow({ label, value }: RowConfig) {
       >
         {value}
       </Text>
+    </View>
+  );
+}
+
+/** Pulsing status dot — green/amber/red tint from the label. */
+function StatusDot({ label }: { label: string }) {
+  const color =
+    label === 'Active'
+      ? dashboardColors.statMintDeep
+      : label === 'Signed out'
+        ? dashboardColors.statCoralDeep
+        : dashboardColors.statCitronDeep;
+  return (
+    <View
+      className="h-2.5 w-2.5 rounded-full"
+      style={{ backgroundColor: color }}
+    />
+  );
+}
+
+/** Toggle panel below the main Session card. Drives the auth store flags. */
+function SessionControls({
+  keepAlive,
+  autoReLogin,
+  onKeepAliveChange,
+  onAutoReLoginChange,
+}: {
+  keepAlive: boolean;
+  autoReLogin: boolean;
+  onKeepAliveChange: (value: boolean) => void;
+  onAutoReLoginChange: (value: boolean) => void;
+}) {
+  return (
+    <>
+      <Kicker className="mt-6">Session behaviour</Kicker>
+      <Panel>
+        <ToggleRow
+          label="Keep me signed in"
+          subtitle="The app pings the server every 15 minutes while you use it."
+          value={keepAlive}
+          onValueChange={onKeepAliveChange}
+        />
+        <View className="mt-3 border-t border-auth-divider" />
+        <ToggleRow
+          label="Auto re-login"
+          subtitle="Re-open the app after being away — a fresh session is
+            requested automatically if your stored credentials are still valid."
+          value={autoReLogin}
+          onValueChange={onAutoReLoginChange}
+        />
+      </Panel>
+    </>
+  );
+}
+
+function ToggleRow({
+  label,
+  subtitle,
+  value,
+  onValueChange,
+}: {
+  label: string;
+  subtitle: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}) {
+  return (
+    <View className="flex-row items-start justify-between gap-3 py-1">
+      <View className="flex-1 pr-2">
+        <Text
+          className="text-[13px] font-semibold text-auth-ink"
+          style={{ fontFamily: fontFamilies.bodySemiBold }}
+        >
+          {label}
+        </Text>
+        <Text className="mt-1 text-[11px] leading-[17px] text-auth-note">
+          {subtitle}
+        </Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{
+          true: authColors.coral,
+          false: 'rgba(0,0,0,0.12)',
+        }}
+      />
     </View>
   );
 }
