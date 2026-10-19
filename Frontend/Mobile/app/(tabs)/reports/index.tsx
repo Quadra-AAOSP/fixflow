@@ -175,6 +175,7 @@ export default function ReportsScreen() {
             ListHeaderComponent={
               <ReportsHeader
                 siteName={site?.name ?? ''}
+                contractStatus={site?.contractStatus ?? null}
                 canCreate={canCreate}
                 onCreate={() => router.push('/reports/new')}
                 query={query}
@@ -254,12 +255,13 @@ export default function ReportsScreen() {
 
 type ReportsHeaderProps = {
   siteName: string;
+  contractStatus?: 'contracted' | 'uncontracted' | null;
   canCreate: boolean;
   onCreate: () => void;
   query: string;
-  onChangeQuery: (value: string) => void;
+  onChangeQuery: (q: string) => void;
   filter: FilterValue;
-  onChangeFilter: (value: FilterValue) => void;
+  onChangeFilter: (f: FilterValue) => void;
   filterOptions: { value: string; label: string }[];
   matchingCount: number;
   loaded: boolean;
@@ -272,6 +274,7 @@ type ReportsHeaderProps = {
  */
 function ReportsHeader({
   siteName,
+  contractStatus,
   canCreate,
   onCreate,
   query,
@@ -294,6 +297,27 @@ function ReportsHeader({
           </Text>
           <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
             {siteName}
+            {contractStatus === 'contracted' ? (
+              <>
+                {' · '}
+                <Text
+                  className="font-semibold"
+                  style={{ color: dashboardColors.statMintDeep }}
+                >
+                  Contracted
+                </Text>
+              </>
+            ) : contractStatus === 'uncontracted' ? (
+              <>
+                {' · '}
+                <Text
+                  className="font-semibold"
+                  style={{ color: dashboardColors.statCitronDeep }}
+                >
+                  Uncontracted
+                </Text>
+              </>
+            ) : null}
           </Text>
         </View>
         {canCreate ? (
