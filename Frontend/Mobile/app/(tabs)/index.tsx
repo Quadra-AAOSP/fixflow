@@ -30,6 +30,7 @@ import {
 } from 'react-native';
 
 import { PlantArt } from '@/components/dashboard/PlantArt';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
@@ -328,10 +329,10 @@ export default function HomeScreen() {
   const canFile =
     site !== null && user !== null && user.role !== 'technician';
 
-  // Role-differentiated home: admins get the setup banner until their site
-  // has a building, applicants see their admin-application status, and the
-  // quick actions expose each role's actual capabilities.
-  const showSetupBanner = user?.siteOnboarding?.setupRequired === true;
+  // Role-differentiated home: admins whose site has no building get the
+  // first-login setup gate below; applicants see their admin-application
+  // status; the quick actions expose each role's actual capabilities.
+  const setupRequired = user?.siteOnboarding?.setupRequired === true;
   const applicationStatus = user?.adminApplication?.status ?? null;
   const quickActionFlags = {
     canCreate: canFile,
@@ -392,6 +393,51 @@ export default function HomeScreen() {
         ? 'Urgent'
         : groupLabels[activeStatus];
 
+  // First-login setup gate: a site administrator whose site has no active
+  // building lands on this screen instead of the dashboard. Authentication is
+  // never blocked (the backend recalculates readiness live on /me) and the
+  // other tabs stay reachable — only Home is gated, since it is the landing
+  // screen.
+  if (setupRequired) {
+    return (
+      <Screen>
+        <View className="flex-1 items-center justify-center px-8">
+          <View
+            className="mb-5 h-16 w-16 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: dashboardColors.statCoralSoft }}
+          >
+            <Building2
+              color={dashboardColors.statCoralDeep}
+              size={30}
+              strokeWidth={1.8}
+            />
+          </View>
+          <Text
+            className="text-center text-xl font-bold text-ink"
+            style={{ letterSpacing: -0.5 }}
+          >
+            Set up {site?.name ?? 'your site'}
+          </Text>
+          <Text className="mt-2 text-center text-[12px] leading-[1.8] text-dashboard-subtitle">
+            Reporters can&apos;t file reports until the site has at least one
+            building or area. Add the labelled locations your reporters will
+            pick from — for example E5 / Classroom building.
+          </Text>
+          <View className="mt-6 w-full">
+            <Button
+              label="Open site setup"
+              onPress={() => router.push('/more/site-setup')}
+            />
+          </View>
+          <Text className="mt-4 text-center text-[10px] leading-[1.7] text-dashboard-caption">
+            You can still use the other tabs. This screen clears itself once
+            the first building is added.
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <ScrollView
@@ -420,13 +466,6 @@ export default function HomeScreen() {
             void load();
           }}
         />
-
-        {showSetupBanner ? (
-          <SetupRequiredBanner
-            siteName={site?.name ?? 'your site'}
-            onPress={() => router.push('/more/site-setup')}
-          />
-        ) : null}
 
         {applicationStatus === 'pending' || applicationStatus === 'approved' ? (
           <ApplicationStatusBanner
@@ -738,56 +777,6 @@ function SiteRow({
         />
       </Pressable>
     </View>
-  );
-}
-
-/**
- * Coral setup banner for a site administrator whose site has no active
- * building. Driven by `user.siteOnboarding.setupRequired` (recalculated by
- * the backend on every /me), so it clears itself once the first subsite is
- * added and the session refreshes.
- */
-function SetupRequiredBanner({
-  siteName,
-  onPress,
-}: {
-  siteName: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      className="mb-3 active:opacity-80"
-    >
-      <View
-        className="rounded-[11px] border p-4"
-        style={{
-          backgroundColor: dashboardColors.statCoralSoft,
-          borderColor: dashboardColors.statCoralSoft,
-        }}
-      >
-        <View className="flex-row items-center gap-3">
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-dashboard-card-bg">
-            <Building2
-              color={dashboardColors.statCoralDeep}
-              size={19}
-              strokeWidth={1.9}
-            />
-          </View>
-          <View className="flex-1">
-            <Text className="text-[13px] font-semibold text-ink">
-              Finish setting up {siteName}
-            </Text>
-            <Text className="mt-0.5 text-[10px] leading-[1.6] text-dashboard-subtitle">
-              Reporters can&apos;t file reports until you add at least one
-              building or area.
-            </Text>
-          </View>
-          <ArrowRight color={dashboardColors.statCoralDeep} size={16} />
-        </View>
-      </View>
-    </Pressable>
   );
 }
 

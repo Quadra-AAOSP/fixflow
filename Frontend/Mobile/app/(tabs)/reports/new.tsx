@@ -27,7 +27,7 @@ import { ApiError } from '@/lib/apiClient';
 import { createReport } from '@/services/reports';
 import { listSiteRules } from '@/services/siteRules';
 import { listSubsites } from '@/services/sites';
-import type { SiteRule, SiteType, Subsite, Urgency } from '@/types';
+import type { ReportVisibility, SiteRule, SiteType, Subsite, Urgency } from '@/types';
 import { useCurrentSite } from '@/stores/site';
 import { humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
@@ -35,6 +35,11 @@ import { urgencyLabels } from '@/utils/maintenance';
 const URGENCY_OPTIONS: SegmentedOption<Urgency>[] = (
   Object.keys(urgencyLabels) as Urgency[]
 ).map((value) => ({ value, label: urgencyLabels[value] }));
+
+const VISIBILITY_OPTIONS: SegmentedOption<ReportVisibility>[] = [
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
+];
 
 /**
  * "Report an issue" form. Mirrors `ReportFormView.vue`:
@@ -67,6 +72,9 @@ export default function NewReportScreen() {
   const [subsitesLoading, setSubsitesLoading] = useState(false);
   const [subsitesError, setSubsitesError] = useState<string | null>(null);
   const [subsiteId, setSubsiteId] = useState<number | null>(null);
+  // Defaults to public; private hides the report from other reporters at the
+  // site (staff/admin and the assigned technician still see it).
+  const [visibility, setVisibility] = useState<ReportVisibility>('public');
 
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
@@ -170,6 +178,7 @@ export default function NewReportScreen() {
         // it always does here, since their site list has exactly one entry.
         siteId: site.id,
         subsiteId: subsiteId ?? undefined,
+        visibility,
       });
       // Land on the detail of the report we just filed so the user sees the
       // server's canonical state (timestamps, generated ID) immediately.
@@ -407,6 +416,18 @@ export default function NewReportScreen() {
               numberOfLines={3}
               placeholder="Explain how this issue affects the space."
             />
+
+            <Text className="mb-2 text-sm font-medium text-ink">Visibility</Text>
+            <SegmentedControl
+              options={VISIBILITY_OPTIONS}
+              value={visibility}
+              onChange={setVisibility}
+            />
+            <Text className="mb-4 mt-1.5 text-[10px] leading-[1.65] text-dashboard-subtitle">
+              {visibility === 'private'
+                ? 'Only you, site staff/admin, and the assigned technician can see a private report.'
+                : 'Public reports are visible to other reporters at your site, who can join them.'}
+            </Text>
 
             {error ? (
               <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">

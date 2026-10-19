@@ -1,5 +1,8 @@
 import type { Urgency } from './common';
 
+/** Mirrors backend `ReportVisibility` (JSON values are lowercase). */
+export type ReportVisibility = 'public' | 'private';
+
 /**
  * Mirrors backend `ReportStatus` enum. Transitions beyond the initial
  * `open` → `assigned` are intentionally NOT supported by the current
@@ -42,6 +45,7 @@ export type Report = {
   assignedTechnicianId: number | null;
   editable: boolean;
   reopenCount: number;
+  visibility: ReportVisibility;
   createdAt: string;
   updatedAt: string;
   policy: {
@@ -67,6 +71,8 @@ export type CreateReportPayload = {
   siteId?: number;
   /** Building/area within the site. Required whenever the site has subsites. */
   subsiteId?: number;
+  /** Defaults to 'public' server-side when omitted. */
+  visibility?: ReportVisibility;
 };
 
 /** Mirrors backend `ReportReporterResponse`. */

@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportStatus;
+import com.example.fixflow.domain.ReportVisibility;
 import com.example.fixflow.domain.Urgency;
 
 public record ReportResponse(
@@ -24,6 +25,7 @@ public record ReportResponse(
 		Long assignedTechnicianId,
 		boolean editable,
 		int reopenCount,
+		ReportVisibility visibility,
 		Instant createdAt,
 		Instant updatedAt,
         ReportPolicy policy
@@ -56,6 +58,7 @@ public record ReportResponse(
 				report.getAssignedTechnician() != null ? report.getAssignedTechnician().getId() : null,
 				report.isEditable(),
 				report.getReopenCount(),
+				report.getVisibility(),
 				report.getCreatedAt(),
 				report.getUpdatedAt(),
                 policy

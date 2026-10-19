@@ -9,6 +9,7 @@ import {
 import {
   ArrowLeft,
   ClipboardList,
+  Lock,
   RefreshCw,
   UserPlus,
 } from 'lucide-react-native';
@@ -245,6 +246,20 @@ export default function ReportDetailScreen() {
             Report #{report.id}
           </Text>
           <StatusBadge status={report.status} />
+          {report.visibility === 'private' ? (
+            <View
+              className="flex-row items-center gap-1 rounded-full px-2 py-1"
+              style={{ backgroundColor: dashboardColors.statCitronSoft }}
+            >
+              <Lock color={dashboardColors.statCitronDeep} size={11} />
+              <Text
+                className="text-[9px] font-semibold"
+                style={{ color: dashboardColors.statCitronDeep }}
+              >
+                Private
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <Text className="mb-4 text-[14px] leading-[1.8] text-ink">
@@ -270,6 +285,14 @@ export default function ReportDetailScreen() {
             value={report.address ?? 'Not shared or not provided'}
           />
           <DefinitionRow label="Category" value={humanize(report.category)} />
+          <DefinitionRow
+            label="Visibility"
+            value={
+              report.visibility === 'private'
+                ? 'Private — only you, staff/admin, and the assigned technician'
+                : 'Public — other reporters at the site can see and join'
+            }
+          />
           <DefinitionRow
             label="Specialty"
             value={

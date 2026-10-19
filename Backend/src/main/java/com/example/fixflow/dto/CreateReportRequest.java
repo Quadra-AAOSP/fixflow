@@ -1,5 +1,6 @@
 package com.example.fixflow.dto;
 
+import com.example.fixflow.domain.ReportVisibility;
 import com.example.fixflow.domain.Urgency;
 
 import jakarta.validation.constraints.NotBlank;
@@ -14,6 +15,8 @@ public record CreateReportRequest(
 		@NotNull Urgency reporterUrgency,
 		@Size(max = 2000) String reporterReason,
 		Long siteId,
-        @jakarta.validation.constraints.Positive Long subsiteId
+        @jakarta.validation.constraints.Positive Long subsiteId,
+		/** Optional; defaults to PUBLIC when omitted. */
+		ReportVisibility visibility
 ) {
 }
