@@ -84,7 +84,10 @@ export default function NewReportScreen() {
   const [urgency, setUrgency] = useState<Urgency | null>(null);
   const [reason, setReason] = useState('');
 
-  const [error, setError] = useState<string | null>(null);
+  // Per-field inline errors (keyed by field name), plus a top-level server
+  // error for ApiError messages from the backend.
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Mirrors the web's `canCreate` (reporter/staff/admin/super_admin only):
@@ -143,52 +146,56 @@ export default function NewReportScreen() {
     void loadSubsites(site.id);
   }, [site?.id, loadSubsites]);
 
-  async function onSubmit() {
-    setError(null);
+  function validateForm(): Record<string, string> {
+    const next: Record<string, string> = {};
     const trimmedDescription = description.trim();
-    // Single-message validation — matches the web form's copy, plus the
-    // building pick the backend now routes on.
-    if (
-      !trimmedDescription ||
-      !category ||
-      !urgency ||
-      (activeSubsites.length > 0 && subsiteId === null)
-    ) {
-      setError(
-        'Choose a building, category, and urgency, and describe the issue.',
-      );
-      return;
-    }
+    if (!trimmedDescription) next.description = 'Describe the issue.';
+    else if (trimmedDescription.length < 10)
+      next.description = 'Give a bit more detail — at least 10 characters.';
+    else if (trimmedDescription.length > 10_000)
+      next.description = 'Keep the description under 10,000 characters.';
+
+    if (!category) next.category = 'Choose a category.';
+    if (!urgency) next.urgency = 'Pick an urgency level.';
+
+    if (activeSubsites.length > 0 && subsiteId === null)
+      next.subsiteId = 'Choose a building or area.';
+
+    if (address.trim().length > 512)
+      next.address = 'Keep the location detail under 512 characters.';
+
+    return next;
+  }
+
+  async function onSubmit() {
+    const all = validateForm();
+    setErrors(all);
+    setServerError(null);
+    if (Object.keys(all).length > 0) return;
+
     if (!site) {
-      setError('Site is not loaded yet. Please try again in a moment.');
+      setServerError('Site is not loaded yet. Please try again in a moment.');
       return;
     }
 
     setSubmitting(true);
     try {
       const report = await createReport({
-        description: trimmedDescription,
+        description: description.trim(),
         address: address.trim() || undefined,
-        category,
-        reporterUrgency: urgency,
+        category: category!,
+        reporterUrgency: urgency!,
         reporterReason: reason.trim() || undefined,
-        // Always send the active site. `ReportService.resolveSiteForCreate`
-        // *requires* siteId from super_admin, and for every other role it
-        // only validates that the value matches the actor's own site — which
-        // it always does here, since their site list has exactly one entry.
         siteId: site.id,
         subsiteId: subsiteId ?? undefined,
         visibility,
       });
-      // Land on the detail of the report we just filed so the user sees the
-      // server's canonical state (timestamps, generated ID) immediately.
-      // `replace` (not `back`) avoids leaving a stale form on the stack.
       router.replace(`/reports/${report.id}`);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setServerError(err.message);
       } else {
-        setError('Unable to reach the server.');
+        setServerError('Unable to reach the server.');
       }
     } finally {
       setSubmitting(false);
@@ -329,17 +336,27 @@ export default function NewReportScreen() {
             <TextField
               label="What happened?"
               value={description}
-              onChangeText={setDescription}
+              onChangeText={(v) => {
+                setDescription(v);
+                if (errors.description)
+                  setErrors((e) => { const c = { ...e }; delete c.description; return c; });
+              }}
               multiline
               numberOfLines={5}
               placeholder="Describe the issue and what you noticed."
+              error={errors.description}
             />
             <TextField
               label="Location detail (optional)"
               value={address}
-              onChangeText={setAddress}
+              onChangeText={(v) => {
+                setAddress(v);
+                if (errors.address)
+                  setErrors((e) => { const c = { ...e }; delete c.address; return c; });
+              }}
               maxLength={512}
               placeholder="Floor, or room"
+              error={errors.address}
             />
             <Picker
               label="Building / area"
@@ -348,7 +365,11 @@ export default function NewReportScreen() {
                 value: String(s.id),
                 label: `${s.label} — ${s.name}`,
               }))}
-              onChange={(value) => setSubsiteId(Number(value))}
+              onChange={(value) => {
+                setSubsiteId(Number(value));
+                if (errors.subsiteId)
+                  setErrors((e) => { const c = { ...e }; delete c.subsiteId; return c; });
+              }}
               placeholder={
                 subsitesLoading ? 'Loading buildings…' : 'Choose a building'
               }
@@ -357,6 +378,11 @@ export default function NewReportScreen() {
               }
               disabled={subsitesLoading || activeSubsites.length === 0}
             />
+            {errors.subsiteId ? (
+              <Text className="-mt-2 mb-3 text-[11px] text-tone-danger">
+                {errors.subsiteId}
+              </Text>
+            ) : null}
             {subsitesError ? (
               <Pressable
                 accessibilityRole="button"
@@ -429,10 +455,10 @@ export default function NewReportScreen() {
                 : 'Public reports are visible to other reporters at your site, who can join them.'}
             </Text>
 
-            {error ? (
+            {serverError ? (
               <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
                 <Text className="text-[10px] leading-[1.7] text-dashboard-error-text">
-                  {error}
+                  {serverError}
                 </Text>
               </View>
             ) : null}
