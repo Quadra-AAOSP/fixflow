@@ -1,543 +1,306 @@
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  ArrowRight,
-  Activity,
-  RefreshCw,
-  Settings,
-  ShieldCheck,
-} from 'lucide-react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Settings } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
-import { AuthButton } from '@/components/auth/AuthButton';
-import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
-import { roleLabels } from '@/constants/access';
-import { authColors, dashboardColors, fontFamilies } from '@/constants/theme';
+import { Screen } from '@/components/ui/Screen';
+import { Card } from '@/components/ui/Card';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { roleLabels, siteRoleLabels } from '@/constants/access';
+import { fontFamilies } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentSite } from '@/stores/site';
-import { relativeTime } from '@/utils/format';
-import type { User } from '@/types';
+import { ApiError } from '@/lib/apiClient';
+import { formatDateTime, humanize } from '@/utils/format';
+import {
+  refreshSession,
+  signOut,
+} from '@/services/auth';
+
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
 /**
- * Account & session screen. Everything the backend exposes on `/api/auth/me`
- * is surfaced here; the backend has no profile-update endpoint
- * (`AdminUserController` is POST /api/admin/users only — admin provisioning),
- * so there is deliberately no edit affordance.
- *
- * Visual language: the profile deliberately adopts the warmer editorial
- * treatment of the auth pages (cream shell, sage-dot kickers, Manrope
- * headlines with tight tracking, coral accents, the serif `✳` sign-off and the
- * coral submit button) so it reads as the "nicer", branded sibling of the
- * sign-in screen rather than a plain dashboard card.
- *
- * Content still mirrors `ProfileView.vue` and the mobile dashboard: avatar +
- * name + email + role, the Account details / Working site panels, the
- * technician-only "contracts are optional" note, and the Session sign-out.
+ * Profile screen. Mirrors `ProfileView.vue` + `AccountDetailsView.vue` +
+ * `SessionView.vue`. Every section below is a direct port of the web card
+ * layout — account details, working site, contracts, session behaviour.
  */
 export default function ProfileScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
-  const { user, logout, session, setKeepAlive, setAutoReLogin, manualHeartbeat } = useAuth();
-  const { site, sites } = useCurrentSite();
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const [manualRefreshing, setManualRefreshing] = useState(false);
-  const [manualError, setManualError] = useState<string | null>(null);
+  const { user, logout } = useAuth();
+  const { site } = useCurrentSite();
 
-  async function doLogout() {
-    setLoggingOut(true);
-    setLogoutError(null);
+  const [refreshingSession, setRefreshingSession] = useState(false);
+  const [lastActivityCheckedAt, setLastActivityCheckedAt] = useState<string | null>(
+    user?.session?.checkedAt ?? null,
+  );
+
+  useEffect(() => {
+    setLastActivityCheckedAt(user?.session?.checkedAt ?? null);
+  }, [user?.session?.checkedAt]);
+
+  async function doRefresh() {
+    setRefreshingSession(true);
     try {
-      await logout();
-    } catch {
-      // Mirrors the web, which surfaces a failed sign-out instead of
-      // leaving the user stuck with no feedback.
-      setLogoutError('Sign out failed. Please try again.');
-    } finally {
-      setLoggingOut(false);
-    }
-  }
-
-  function onLogout() {
-    Alert.alert('Sign out', 'You will need to sign in again to continue.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: () => {
-          void doLogout();
-        },
-      },
-    ]);
-  }
-
-  async function onManualRefresh() {
-    setManualRefreshing(true);
-    setManualError(null);
-    try {
-      await manualHeartbeat();
+      const result = await refreshSession();
+      setLastActivityCheckedAt(result.checkedAt);
     } catch (err) {
-      setManualError(
-        err instanceof Error
-          ? err.message
-          : 'Session could not be refreshed. Try signing in again.',
+      Alert.alert(
+        t('profile.manualRefreshFailed'),
+        err instanceof ApiError ? err.message : t('profile.manualRefreshFailed'),
       );
     } finally {
-      setManualRefreshing(false);
+      setRefreshingSession(false);
     }
   }
 
-  // --- Session display helpers ------------------------------------------
-
-  const lastHeartbeatLabel = session.lastHeartbeatAt
-    ? relativeTime(session.lastHeartbeatAt.toISOString())
-    : 'Not yet checked';
-
-  const sessionStatus = !user
-    ? 'Signed out'
-    : session.heartbeatActive
-      ? 'Active'
-      : session.keepAlive
-        ? 'Paused'
-        : 'Keep-alive off';
-
-  const accountRows: RowConfig[] = [];
-  if (user) {
-    accountRows.push(
-      { label: 'Role', value: roleLabels[user.role] ?? user.role },
-      { label: 'Account ID', value: `#${user.id}` },
-      {
-        label: 'Site ID',
-        value: user.siteId != null ? String(user.siteId) : '—',
-      },
-    );
-    if (user.phone) accountRows.push({ label: 'Phone', value: user.phone });
-    if (user.address) accountRows.push({ label: 'Address', value: user.address });
+  async function doSignOut() {
+    try {
+      await signOut();
+      await logout();
+    } catch {
+      Alert.alert(
+        t('profile.session.signOutFailed'),
+        t('profile.session.signOutFailed'),
+      );
+    }
   }
 
-  const siteRows: RowConfig[] = [];
-  if (site) {
-    siteRows.push(
-      { label: 'Type', value: capitalize(site.type) },
-      { label: 'Contract', value: capitalize(site.contractStatus) },
+  const roleLabel = useMemo(
+    () => (user ? roleLabels[user.role] : null),
+    [user],
+  );
+  const siteLabel = useMemo(() => {
+    if (!user) return null;
+    if (user.role === 'technician') {
+      return site ? siteRoleLabels.technician_solo : null;
+    }
+    return user.siteId !== null && site
+      ? `${siteRoleLabels[user.role as keyof typeof siteRoleLabels] ?? humanize(user.role)} — ${site.name}`
+      : null;
+  }, [user, site]);
+
+  const sessionStatusCopy = useCallback(() => {
+    if (!user) return '';
+    const s = user.session;
+    if (!s) return t('profile.session.statusActive');
+    if (s.signedOut) return t('profile.session.statusSignedOut');
+    if (s.paused) return t('profile.session.statusPaused');
+    if (!s.keepAlive) return t('profile.session.statusKeepAliveOff');
+    return t('profile.session.statusActive');
+  }, [user, t]);
+
+  function openSettings() {
+    router.push('/profile/settings');
+  }
+
+  if (!user) {
+    return (
+      <Screen>
+        <ScreenHeader
+          kicker={t('profile.heroKicker')}
+          title={t('profile.profileTitle')}
+          titleAccent="."
+        />
+      </Screen>
     );
-    if (site.address) siteRows.push({ label: 'Address', value: site.address });
   }
 
   return (
-    <View className="flex-1 bg-auth-bg">
-      <ScrollView contentContainerClassName="px-5 pb-12 pt-5">
-        {/* Hero — mirrors the auth heading stack (kicker → symbol tile →
-            headline → supporting line), personalised with the account's
-            initials and role. */}
-        <View className="rounded-[22px] bg-auth-panel px-5 pb-6 pt-6">
-          <View className="flex-row items-center justify-between">
-            <Kicker>Your account</Kicker>
-            {/* Settings entry point — pushes the Settings screen (theme
-                switch + app info) inside this Profile stack, so the back
-                arrow returns here rather than jumping to another tab. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open settings"
-              onPress={() => router.push('/profile/settings')}
-              className="h-9 w-9 items-center justify-center rounded-full bg-auth-lime-soft active:opacity-70"
+    <Screen>
+      <ScrollView contentContainerClassName="px-5 pb-10 pt-4">
+        <View className="mb-2 flex-row items-center justify-between">
+          <View>
+            <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+              {t('profile.heroKicker')}
+            </Text>
+            <Text
+              className="text-[24px] font-bold text-ink"
+              style={{ letterSpacing: -0.7 }}
             >
-              <Settings color={authColors.ink} size={18} />
+              {t('profile.profileTitle')}
+              <Text className="text-coral-decay">.</Text>
+            </Text>
+            <Text className="mt-0.5 text-[11px] text-dashboard-caption">
+              {t('profile.idLabel', { id: user.id })}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.openSettings')}
+            onPress={openSettings}
+            className="flex-row items-center gap-1 rounded-md border border-dashboard-card-line bg-dashboard-card-bg px-3 py-2 active:opacity-80"
+          >
+            <Settings color={dashboardColors.teal} size={14} />
+            <Text className="text-[11px] font-semibold text-dashboard-teal">
+              {t('profile.openSettings')}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Account details card */}
+        <Card padded={false} className="mb-4">
+          <View className="border-b border-dashboard-card-line px-4 py-3">
+            <Text className="text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+              {t('profile.accountDetails')}
+            </Text>
+          </View>
+          <Definition t={t} label={t('profile.labels.role')} value={roleLabel ?? t('profile.dash')} />
+          <Definition t={t} label={t('profile.labels.accountId')} value={String(user.id)} />
+          <Definition
+            t={t}
+            label={t('profile.labels.siteId')}
+            value={user.siteId != null ? String(user.siteId) : t('profile.dash')}
+          />
+          {user.email ? (
+            <Definition t={t} label={t('profile.labels.type')} value={user.email} />
+          ) : null}
+          {user.phone ? (
+            <Definition t={t} label={t('profile.labels.phone')} value={user.phone} />
+          ) : null}
+          {user.address ? (
+            <Definition t={t} label={t('profile.labels.address')} value={user.address} />
+          ) : null}
+        </Card>
+
+        {/* Contracts card */}
+        <Card padded={false} className="mb-4">
+          <View className="border-b border-dashboard-card-line px-4 py-3">
+            <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+              {t('profile.contracts.kicker')}
+            </Text>
+          </View>
+          <View className="px-4 py-3">
+            <Text className="text-[15px] font-semibold text-ink">
+              {t('profile.contracts.title')}
+            </Text>
+            <Text className="mt-1 text-[11px] leading-[1.8] text-dashboard-subtitle">
+              {t('profile.contracts.body', { id: user.id })}
+            </Text>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={t('profile.contracts.link')}
+              onPress={() => router.push('/more/site-contracts')}
+              className="mt-2 self-start py-1 active:opacity-70"
+            >
+              <Text
+                className="text-[11px] font-semibold text-dashboard-teal underline"
+                style={{ fontFamily: fontFamilies.bodyMedium }}
+              >
+                {t('profile.contracts.link')}
+              </Text>
             </Pressable>
           </View>
+        </Card>
 
-          <View
-            className="mb-5 mt-5 h-16 w-16 items-center justify-center rounded-[20px] bg-auth-lime-soft"
-            style={{ transform: [{ rotate: '-6deg' }] }}
-          >
-            <Text
-              className="text-[24px] text-auth-ink"
-              style={{ fontFamily: fontFamilies.headExtraBold }}
-            >
-              {user ? initials(user) : '?'}
+        {/* Session card */}
+        <Card padded={false} className="mb-4">
+          <View className="border-b border-dashboard-card-line px-4 py-3">
+            <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+              {t('profile.session.kicker')}
             </Text>
           </View>
-
-          <Text
-            className="text-[30px] text-auth-ink"
-            style={{ fontFamily: fontFamilies.headBold, letterSpacing: -1.3 }}
-          >
-            {user ? `${user.firstName} ${user.lastName}` : 'Profile'}
-            <Text className="text-coral">.</Text>
-          </Text>
-
-          {user ? (
-            <Text className="mt-2.5 text-[13px] leading-[22px] text-auth-body">
-              {user.email}
+          <View className="px-4 py-3">
+            <Text className="text-[11px] leading-[1.8] text-dashboard-subtitle">
+              {t('profile.session.signedInAs', {
+                role: roleLabel ?? humanize(user.role),
+                site: siteLabel ? ` · ${siteLabel}` : '',
+              })}
             </Text>
-          ) : null}
 
-          {user ? (
-            <View className="mt-4 flex-row items-center gap-2">
-              <View className="rounded-full bg-coral px-3 py-1">
-                <Text
-                  className="text-[11px] text-auth-ink"
-                  style={{ fontFamily: fontFamilies.bodySemiBold }}
-                >
-                  {roleLabels[user.role] ?? user.role}
-                </Text>
-              </View>
-              <View className="rounded-full border border-auth-line px-3 py-1">
-                <Text
-                  className="text-[11px] text-auth-note"
-                  style={{ fontFamily: fontFamilies.bodySemiBold }}
-                >
-                  ID #{user.id}
-                </Text>
-              </View>
-            </View>
-          ) : null}
-        </View>
+            <Row label={t('profile.session.lastActivity')}>
+              <Text className="text-[12px] text-dashboard-subtitle">
+                {lastActivityCheckedAt
+                  ? formatDateTime(lastActivityCheckedAt)
+                  : t('profile.session.notYetChecked')}
+              </Text>
+            </Row>
 
-        {user ? (
-          <>
-            <Kicker className="mt-6">Account details</Kicker>
-            <Panel>
-              <DetailList rows={accountRows} />
-            </Panel>
-          </>
-        ) : null}
+            <Row label={t('profile.session.signedOut')}>
+              <Text className="text-[12px] text-ink">{sessionStatusCopy()}</Text>
+            </Row>
 
-        {/* Mobile-only: the web surfaces the active site through the sidebar's
-            selector, but the bottom-bar layout has no dedicated slot, so the
-            site context lives here. */}
-        <Kicker className="mt-6">Working site</Kicker>
-        <Panel>
-          <SiteSwitcher />
-          {site ? (
-            <View className="mt-2 border-t border-auth-divider">
-              <DetailList rows={siteRows} />
-            </View>
-          ) : null}
-          {sites.length > 1 ? (
-            <Text className="mt-3 text-[11px] leading-[19px] text-auth-note">
-              Reports, categories, and the report list all follow the site
-              selected here.
-            </Text>
-          ) : null}
-        </Panel>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.session.refreshNow')}
+              disabled={refreshingSession}
+              onPress={doRefresh}
+              className="mt-3 flex-row items-center justify-center rounded-[11px] border border-dashboard-card-line bg-dashboard-card-bg px-4 py-3 active:opacity-80"
+            >
+              <Text className="text-[12px] font-semibold text-ink">
+                {refreshingSession
+                  ? t('profile.session.refreshing')
+                  : t('profile.session.refreshNow')}
+              </Text>
+            </Pressable>
 
-        {/* Technician-only: mirrors the web's "Site contracts are optional"
-            panel. Independent technicians don't have a site-scoped list of
-            contracts, so the panel explains that and points to the contracts
-            screen for the application flow. */}
-        {user?.role === 'technician' ? (
-          <>
-            <Kicker className="mt-6">Contracts</Kicker>
-            <Panel>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.session.signOut')}
+              onPress={() =>
+                Alert.alert(
+                  t('profile.session.signOutAlertTitle'),
+                  t('profile.session.signOutAlertBody'),
+                  [
+                    { text: t('profile.session.cancel'), style: 'cancel' },
+                    {
+                      text: t('profile.session.signOut'),
+                      style: 'destructive',
+                      onPress: doSignOut,
+                    },
+                  ],
+                )
+              }
+              className="mt-2 flex-row items-center justify-center rounded-[11px] border px-4 py-3 active:opacity-90"
+              style={{
+                backgroundColor: dashboardColors.statCoralSoft,
+                borderColor: dashboardColors.statCoralDeep,
+              }}
+            >
               <Text
-                className="text-[15px] text-auth-ink"
-                style={{ fontFamily: fontFamilies.headBold, letterSpacing: -0.3 }}
+                className="text-[13px] font-semibold"
+                style={{ color: dashboardColors.statCoralDeep }}
               >
-                Site contracts are optional
+                {t('profile.session.signOut')}
               </Text>
-              <Text className="mt-2 text-[12px] leading-[20px] text-auth-body">
-                Your account ID is {user.id}. Share it with a site administrator
-                when arranging a contract. A site ID does not represent your
-                contract list.
-              </Text>
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="View contract options"
-                onPress={() => router.push('/more/contracts')}
-                className="mt-3 flex-row items-center gap-1.5 self-start active:opacity-70"
-              >
-                <Text
-                  className="text-[12px] text-coral-link"
-                  style={{ fontFamily: fontFamilies.bodySemiBold }}
-                >
-                  View contract options
-                </Text>
-                <ArrowRight color={authColors.coralLink} size={14} />
-              </Pressable>
-            </Panel>
-          </>
-        ) : null}
-
-        <Kicker className="mt-6">Session</Kicker>
-        <Panel>
-          {/* Status row — colored dot + label so the user sees at a glance
-              whether their session is currently active. */}
-          <View className="flex-row items-center gap-2.5">
-            <StatusDot label={sessionStatus} />
-            <Text
-              className="text-[13px] font-semibold text-auth-ink"
-              style={{ fontFamily: fontFamilies.bodySemiBold }}
-            >
-              {sessionStatus}
-            </Text>
+            </Pressable>
           </View>
+        </Card>
 
-          <Text className="mt-2.5 text-[12px] leading-[20px] text-auth-body">
-            {user
-              ? `Signed in as ${roleLabels[user.role] ?? user.role}${
-                  site ? ` · ${site.name}` : ''
-                }. The app keeps this session alive while you use it.`
-              : 'End this session on this device.'}
-          </Text>
-
-          <View className="mt-3 rounded-[14px] border border-auth-divider bg-auth-bg px-3 py-2.5">
-            <DetailList
-              rows={[
-                { label: 'Last activity', value: lastHeartbeatLabel },
-                {
-                  label: 'Keep me signed in',
-                  value: session.keepAlive ? 'On' : 'Off',
-                },
-                {
-                  label: 'Auto re-login',
-                  value: session.autoReLogin ? 'On' : 'Off',
-                },
-              ]}
-            />
-          </View>
-
-          {session.reloginError ? (
-            <Text className="mt-2 text-[11px] leading-[17px] text-urgency-critical">
-              Automatic sign-in failed — {session.reloginError}. Sign in again
-              when you return.
-            </Text>
-          ) : null}
-
-          {manualError ? (
-            <Text className="mt-2 text-[11px] leading-[17px] text-urgency-critical">
-              {manualError}
-            </Text>
-          ) : null}
-
-          {user ? (
-            <>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Refresh session now"
-                accessibilityState={{ disabled: manualRefreshing, busy: manualRefreshing }}
-                disabled={manualRefreshing}
-                onPress={onManualRefresh}
-                className="mb-3 flex-row items-center justify-center gap-2 rounded-[10px] border border-auth-line bg-auth-panel px-4 py-2.5 active:opacity-80"
-              >
-                <RefreshCw
-                  color={authColors.ink}
-                  size={14}
-                  strokeWidth={2}
-                  style={manualRefreshing ? { transform: [{ rotate: '45deg' }] } : undefined}
-                />
-                <Text
-                  className="text-[12px] font-semibold text-auth-ink"
-                  style={{ fontFamily: fontFamilies.bodySemiBold }}
-                >
-                  {manualRefreshing ? 'Refreshing…' : 'Refresh session now'}
-                </Text>
-              </Pressable>
-              <AuthButton
-                label="Sign out →"
-                loading={loggingOut}
-                onPress={onLogout}
-              />
-            </>
-          ) : null}
-
-          {logoutError ? (
-            <Text className="mt-2 text-[12px] text-urgency-critical">
-              {logoutError}
-            </Text>
-          ) : null}
-        </Panel>
-
-        {user ? (
-          <SessionControls
-            keepAlive={session.keepAlive}
-            autoReLogin={session.autoReLogin}
-            onKeepAliveChange={(value) => void setKeepAlive(value)}
-            onAutoReLoginChange={(value) => void setAutoReLogin(value)}
-          />
-        ) : null}
-
-        {/* Sign-off strip — the same serif asterisk + reassurance line the
-            sign-in screen closes with. */}
-        <View className="mt-8 flex-row items-center gap-2.5 border-t border-auth-line pt-6">
-          <Text className="text-[22px] text-auth-sage-deep">✳</Text>
-          <Text className="flex-1 text-[10px] text-auth-note">
-            Your report. The right people. A little peace of mind.
-          </Text>
-        </View>
+        <Text className="text-center text-[10px] leading-[1.6] text-dashboard-caption">
+          {t('profile.tagline')}
+        </Text>
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Sub-components                                                            */
-/* -------------------------------------------------------------------------- */
-
-type RowConfig = { label: string; value: string };
-
-/** First letter of each name part, falling back to the email's first letter. */
-function initials(user: User): string {
-  const first = user.firstName?.trim()?.[0] ?? '';
-  const last = user.lastName?.trim()?.[0] ?? '';
-  const combined = `${first}${last}`.toUpperCase();
-  if (combined) return combined;
-  return (user.email?.trim()?.[0] ?? '?').toUpperCase();
-}
-
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-/**
- * Section eyebrow: a sage dot plus an uppercase, letterspaced micro-label.
- * Identical to the auth story panel's kicker so the two surfaces share one
- * system.
- */
-function Kicker({
-  children,
-  className,
+function Definition({
+  t, label, value,
 }: {
-  children: string;
-  className?: string;
+  t: TranslateFn;
+  label: string;
+  value: string;
 }) {
   return (
-    <View className={`flex-row items-center gap-2 ${className ?? ''}`}>
-      <View className="h-[7px] w-[7px] rounded-full bg-auth-sage" />
-      <Text
-        className="text-[10px] uppercase text-auth-note"
-        style={{ fontFamily: fontFamilies.headBold, letterSpacing: 1.4 }}
-      >
-        {children}
+    <View className="flex-row items-start justify-between gap-4 border-b border-dashboard-card-line px-4 py-2 last:border-b-0">
+      <Text className="text-[10px] uppercase tracking-[1.2px] text-dashboard-caption">
+        {label}
       </Text>
+      <Text className="flex-1 text-right text-[12px] text-ink">{value}</Text>
     </View>
   );
 }
 
-/** Warm near-white panel used for every grouped block. */
-function Panel({ children }: { children: React.ReactNode }) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <View className="mt-2.5 rounded-[18px] border border-auth-card-line bg-auth-card-bg px-4 py-4">
+    <View className="mt-2 flex-row items-center justify-between gap-4">
+      <Text className="text-[11px] text-dashboard-caption">{label}</Text>
       {children}
     </View>
   );
 }
 
-/** Hairline-separated label/value rows. */
-function DetailList({ rows }: { rows: RowConfig[] }) {
-  return (
-    <View>
-      {rows.map((row, index) => (
-        <View key={row.label}>
-          {index > 0 ? <View className="border-t border-auth-divider" /> : null}
-          <DetailRow {...row} />
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function DetailRow({ label, value }: RowConfig) {
-  return (
-    <View className="flex-row items-center justify-between gap-4 py-3.5">
-      <Text
-        className="text-[10px] uppercase text-auth-note"
-        style={{ fontFamily: fontFamilies.headBold, letterSpacing: 0.8 }}
-      >
-        {label}
-      </Text>
-      <Text
-        className="flex-1 text-right text-[13px] leading-[20px] text-auth-ink"
-        style={{ fontFamily: fontFamilies.bodySemiBold }}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-/** Pulsing status dot — green/amber/red tint from the label. */
-function StatusDot({ label }: { label: string }) {
-  const color =
-    label === 'Active'
-      ? dashboardColors.statMintDeep
-      : label === 'Signed out'
-        ? dashboardColors.statCoralDeep
-        : dashboardColors.statCitronDeep;
-  return (
-    <View
-      className="h-2.5 w-2.5 rounded-full"
-      style={{ backgroundColor: color }}
-    />
-  );
-}
-
-/** Toggle panel below the main Session card. Drives the auth store flags. */
-function SessionControls({
-  keepAlive,
-  autoReLogin,
-  onKeepAliveChange,
-  onAutoReLoginChange,
-}: {
-  keepAlive: boolean;
-  autoReLogin: boolean;
-  onKeepAliveChange: (value: boolean) => void;
-  onAutoReLoginChange: (value: boolean) => void;
-}) {
-  return (
-    <>
-      <Kicker className="mt-6">Session behaviour</Kicker>
-      <Panel>
-        <ToggleRow
-          label="Keep me signed in"
-          subtitle="The app pings the server every 15 minutes while you use it."
-          value={keepAlive}
-          onValueChange={onKeepAliveChange}
-        />
-        <View className="mt-3 border-t border-auth-divider" />
-        <ToggleRow
-          label="Auto re-login"
-          subtitle="Re-open the app after being away — a fresh session is
-            requested automatically if your stored credentials are still valid."
-          value={autoReLogin}
-          onValueChange={onAutoReLoginChange}
-        />
-      </Panel>
-    </>
-  );
-}
-
-function ToggleRow({
-  label,
-  subtitle,
-  value,
-  onValueChange,
-}: {
-  label: string;
-  subtitle: string;
-  value: boolean;
-  onValueChange: (value: boolean) => void;
-}) {
-  return (
-    <View className="flex-row items-start justify-between gap-3 py-1">
-      <View className="flex-1 pr-2">
-        <Text
-          className="text-[13px] font-semibold text-auth-ink"
-          style={{ fontFamily: fontFamilies.bodySemiBold }}
-        >
-          {label}
-        </Text>
-        <Text className="mt-1 text-[11px] leading-[17px] text-auth-note">
-          {subtitle}
-        </Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{
-          true: authColors.coral,
-          false: 'rgba(0,0,0,0.12)',
-        }}
-      />
-    </View>
-  );
-}
+// React import for JSX type check
+import type { ReactNode } from 'react';

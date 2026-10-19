@@ -1,101 +1,83 @@
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Check, ShieldCheck, UserCheck, X } from 'lucide-react-native';
+import { Stack } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ShieldCheck } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
+import { roleLabels } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import {
-  decideSiteAdminApplication,
   listSiteAdminApplications,
+  decideSiteAdminApplication,
 } from '@/services/admin';
 import type { SiteAdminApplication } from '@/types';
-import { relativeTime } from '@/utils/format';
+import { formatDate } from '@/utils/format';
+
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
 /**
- * Admin applications — the super_admin's approval queue for site-admin
- * self-applications filed through public registration.
- *
- * Approval promotes the applicant from reporter to admin for their requested
- * site; it takes effect on their next sign-in. The list only carries ids
- * (the backend response has no names), so identity verification stays an
- * out-of-band step — the reminder card says so explicitly.
+ * Super-admin review for site-admin applications.
  */
 export default function AdminApplicationsScreen() {
+  const { t } = useTranslation('common');
   const { user } = useAuth();
 
-  const [applications, setApplications] = useState<SiteAdminApplication[] | null>(
-    null,
-  );
+  const [applications, setApplications] = useState<SiteAdminApplication[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [decidingId, setDecidingId] = useState<number | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const canReview = user?.role === 'super_admin';
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError(null);
+    setLoading(true);
     try {
-      setApplications(await listSiteAdminApplications());
+      setApplications(
+        (await listSiteAdminApplications()).filter((a) => a.status === 'pending'),
+      );
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Could not load the pending applications.',
+        err instanceof ApiError ? err.message : t('adminApplications.errors.couldNotLoad'),
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
+  useEffect(() => {
+    if (!canReview) return;
+    void load();
+  }, [canReview, load]);
 
   async function decide(id: number, approve: boolean) {
-    setDecidingId(id);
-    setNotice(null);
+    setBusyId(id);
     try {
       await decideSiteAdminApplication(id, approve);
-      setApplications((current) =>
-        (current ?? []).filter((item) => item.id !== id),
-      );
-      setNotice(
-        approve
-          ? 'Application approved. The applicant becomes a site administrator on their next sign-in.'
-          : 'Application rejected. The applicant remains a reporter.',
-      );
+      setApplications((prev) => prev?.filter((a) => a.id !== id) ?? prev);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        // Already decided elsewhere — drop the row by reloading.
-        setNotice('That application was already decided. The list was refreshed.');
-        await load();
-      } else {
-        setNotice(
-          err instanceof ApiError
-            ? err.message
-            : 'Could not record the decision.',
-        );
-      }
+      Alert.alert(
+        t('adminApplications.errors.couldNotDecide'),
+        err instanceof ApiError ? err.message : t('adminApplications.errors.couldNotDecide'),
+      );
     } finally {
-      setDecidingId(null);
+      setBusyId(null);
     }
   }
 
-  if (!user || user.role !== 'super_admin') {
+  if (!canReview) {
     return (
       <Screen>
+        <Stack.Screen options={{ title: t('adminApplications.title') }} />
         <StateView
           variant="empty"
           icon={ShieldCheck}
-          title="Super administrators only"
-          description="Site-admin applications are reviewed by a super administrator."
+          title={t('adminApplications.superAdminOnlyTitle')}
+          description={t('adminApplications.superAdminOnlyDesc')}
         />
       </Screen>
     );
@@ -103,132 +85,96 @@ export default function AdminApplicationsScreen() {
 
   return (
     <Screen>
-      <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
-        <View className="mb-4">
-          <Text
-            className="text-2xl font-bold text-ink"
-            style={{ letterSpacing: -0.5 }}
-          >
-            Admin applications
-          </Text>
-          <Text className="mt-1 text-[13px] leading-[1.7] text-dashboard-subtitle">
-            Reporters who asked to administer a site. Verify the applicant and
-            their authority over the site before approving — submitting the
-            form is not verification.
-          </Text>
-        </View>
+      <Stack.Screen options={{ title: t('adminApplications.title') }} />
+      <ScrollView contentContainerClassName="px-5 pb-8 pt-4">
+        <Text className="mb-4 text-[12px] leading-[1.8] text-dashboard-subtitle">
+          {t('adminApplications.intro')}
+        </Text>
 
-        {error ? (
+        {loading ? (
+          <Text className="text-[12px] text-dashboard-caption">
+            {t('adminApplications.loading')}
+          </Text>
+        ) : error ? (
           <StateView
             variant="error"
             description={error}
-            actionLabel="Retry"
-            onAction={() => {
-              void load();
-            }}
+            actionLabel={t('adminApplications.retry')}
+            onAction={() => { void load(); }}
           />
-        ) : null}
-
-        {notice ? (
-          <View
-            className="mb-4 rounded-md px-3 py-2"
-            style={{ backgroundColor: dashboardColors.statMintSoft }}
-          >
-            <Text
-              className="text-[11px] leading-[1.6]"
-              style={{ color: dashboardColors.statMintDeep }}
-            >
-              {notice}
-            </Text>
-          </View>
-        ) : null}
-
-        {loading && applications === null ? (
-          <StateView variant="loading" title="Loading applications…" />
-        ) : null}
-
-        {applications !== null && applications.length === 0 ? (
+        ) : (applications ?? []).length === 0 ? (
           <StateView
             variant="empty"
-            icon={UserCheck}
-            title="No pending applications"
-            description="Site-admin applications filed through public signup appear here."
+            icon={ShieldCheck}
+            title={t('adminApplications.nonePendingTitle')}
+            description={t('adminApplications.nonePendingDesc')}
           />
-        ) : null}
-
-        {(applications ?? []).map((application) => (
-          <Card key={application.id} className="mb-3">
-            <View className="flex-row items-center gap-3">
-              <View
-                className="h-10 w-10 items-center justify-center rounded-full"
-                style={{ backgroundColor: dashboardColors.statCitronSoft }}
-              >
-                <ShieldCheck
-                  color={dashboardColors.statCitronDeep}
-                  size={19}
-                  strokeWidth={1.8}
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-[13px] font-semibold text-ink">
-                  User #{application.userId} → Site #{application.siteId}
-                </Text>
-                <Text className="mt-0.5 text-[10px] text-dashboard-subtitle">
-                  Application #{application.id} · submitted{' '}
-                  {relativeTime(application.createdAt)}
-                </Text>
-              </View>
-            </View>
-            <View className="mt-3 flex-row gap-2">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Approve application #${application.id}`}
-                accessibilityState={{ disabled: decidingId !== null, busy: decidingId === application.id }}
-                disabled={decidingId !== null}
-                onPress={() => {
-                  void decide(application.id, true);
-                }}
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border px-3 py-2.5 active:opacity-90"
-                style={{
-                  backgroundColor: dashboardColors.ctaBg,
-                  borderColor: dashboardColors.ctaBorder,
-                  opacity: decidingId !== null ? 0.55 : 1,
-                }}
-              >
-                <Check color={dashboardColors.ctaText} size={15} strokeWidth={2.4} />
-                <Text
-                  className="text-[12px] font-semibold"
-                  style={{ color: dashboardColors.ctaText }}
+        ) : (
+          <View className="gap-3">
+            {(applications ?? []).map((app) => {
+              const busy = busyId === app.id;
+              return (
+                <View
+                  key={app.id}
+                  className="rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4"
                 >
-                  {decidingId === application.id ? 'Working…' : 'Approve'}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Reject application #${application.id}`}
-                accessibilityState={{ disabled: decidingId !== null, busy: decidingId === application.id }}
-                disabled={decidingId !== null}
-                onPress={() => {
-                  void decide(application.id, false);
-                }}
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border border-dashboard-card-line bg-dashboard-card-bg px-3 py-2.5 active:opacity-90"
-                style={{ opacity: decidingId !== null ? 0.55 : 1 }}
-              >
-                <X
-                  color={dashboardColors.statCoralDeep}
-                  size={15}
-                  strokeWidth={2.4}
-                />
-                <Text
-                  className="text-[12px] font-semibold"
-                  style={{ color: dashboardColors.statCoralDeep }}
-                >
-                  Reject
-                </Text>
-              </Pressable>
-            </View>
-          </Card>
-        ))}
+                  <Text className="text-[13px] font-semibold text-ink">
+                    {t('adminApplications.applicationUserSite', {
+                      userId: app.userId,
+                      siteId: app.siteId,
+                    })}
+                  </Text>
+                  <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                    {t('adminApplications.applicationSubmitted', {
+                      id: app.id,
+                      time: formatDate(app.submittedAt, true),
+                    })}
+                  </Text>
+                  <View className="mt-3 flex-row gap-2">
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('adminApplications.approve')}
+                      accessibilityState={{ disabled: busy }}
+                      disabled={busy}
+                      onPress={() => decide(app.id, true)}
+                      className="flex-1 rounded-md border py-2 active:opacity-80"
+                      style={{
+                        borderColor: dashboardColors.statMintDeep,
+                        backgroundColor: dashboardColors.statMintSoft,
+                      }}
+                    >
+                      <Text
+                        className="text-center text-[12px] font-semibold"
+                        style={{ color: dashboardColors.statMintDeep }}
+                      >
+                        {busy ? t('adminApplications.working') : t('adminApplications.approve')}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('adminApplications.reject')}
+                      accessibilityState={{ disabled: busy }}
+                      disabled={busy}
+                      onPress={() => decide(app.id, false)}
+                      className="flex-1 rounded-md border py-2 active:opacity-80"
+                      style={{
+                        borderColor: dashboardColors.statCoralDeep,
+                        backgroundColor: dashboardColors.statCoralSoft,
+                      }}
+                    >
+                      <Text
+                        className="text-center text-[12px] font-semibold"
+                        style={{ color: dashboardColors.statCoralDeep }}
+                      >
+                        {busy ? t('adminApplications.working') : t('adminApplications.reject')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </Screen>
   );

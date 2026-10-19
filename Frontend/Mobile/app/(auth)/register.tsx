@@ -6,6 +6,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AuthHeading } from '@/components/auth/AuthHeading';
 import { AuthShell } from '@/components/auth/AuthShell';
@@ -21,6 +22,7 @@ import type { UserRole } from '@/types';
  * informational here, matching the existing public-signup contract.
  */
 export default function RegisterScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -38,30 +40,30 @@ export default function RegisterScreen() {
   return (
     <AuthShell>
       <AuthHeading
-        kicker="FIND YOUR PLACE IN FIXFLOW"
-        title="Join your community"
+        kicker={t('auth.register.kicker')}
+        title={t('auth.register.title')}
         titleAccent="."
-        description="Choose how you'll help keep things working."
+        description={t('auth.register.description')}
       />
 
       <View className="gap-3">
         <RoleCard
           icon={ClipboardList}
-          title="I'm a reporter"
-          subtitle="Report and track issues at your site."
+          title={t('auth.register.reporterTitle')}
+          subtitle={t('auth.register.reporterSubtitle')}
           onPress={() => choose('reporter')}
         />
         <RoleCard
           icon={Wrench}
-          title="I'm a technician"
-          subtitle="Register independently. A site contract is optional."
+          title={t('auth.register.technicianTitle')}
+          subtitle={t('auth.register.technicianSubtitle')}
           technician
           onPress={() => choose('technician')}
         />
         <RoleCard
           icon={ShieldCheck}
-          title="I'm a site administrator"
-          subtitle="Apply to manage a site — a super admin approves your request."
+          title={t('auth.register.adminTitle')}
+          subtitle={t('auth.register.adminSubtitle')}
           onPress={() => choose('admin')}
         />
       </View>
@@ -70,26 +72,26 @@ export default function RegisterScreen() {
         <View className="mb-2 flex-row items-center gap-2">
           <ShieldCheck color={authColors.note} size={16} />
           <Text className="text-[11px] text-auth-note">
-            Joining a management team?
+            {t('auth.register.joiningTeam')}
           </Text>
         </View>
-        <ManagedRoleHint role="staff" />
-        <ManagedRoleHint role="super_admin" />
+        <ManagedRoleHint role="staff" t={t} />
+        <ManagedRoleHint role="super_admin" t={t} />
       </View>
 
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel="Sign in"
+        accessibilityLabel={t('auth.register.signIn')}
         onPress={() => router.push('/(auth)/login')}
         className="mt-4 min-h-[44px] items-center justify-center active:opacity-70"
       >
         <Text className="text-center text-[12px] text-auth-body">
-          Already have an account?{' '}
+          {t('auth.register.alreadyHaveAccount')}{' '}
           <Text
             className="text-coral-link"
             style={{ fontFamily: fontFamilies.bodySemiBold }}
           >
-            Sign in
+            {t('auth.register.signIn')}
           </Text>
         </Text>
       </Pressable>
@@ -136,13 +138,13 @@ function RoleCard({
   );
 }
 
-function ManagedRoleHint({ role }: { role: 'staff' | 'super_admin' }) {
+function ManagedRoleHint({ role, t }: { role: 'staff' | 'super_admin'; t: (key: string, vars?: Record<string, unknown>) => string }) {
   return (
     <Text
       className="text-[11px] text-auth-ghost-ink"
       style={{ fontFamily: fontFamilies.bodyMedium }}
     >
-      {roleLabels[role]} — created by an administrator.
+      {t('auth.register.managedRoleHint', { role: roleLabels[role] })}
     </Text>
   );
 }

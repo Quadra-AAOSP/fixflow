@@ -1,479 +1,442 @@
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
-import {
-  Archive,
-  Building2,
-  CheckCircle2,
-  Pencil,
-  Plus,
-  TriangleAlert,
-  X,
-} from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ArrowLeft, Building2, Plus, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
-import { canManageSubsites } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
+import { canManageSubsites } from '@/constants/access';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
+import { useCurrentSite } from '@/stores/site';
 import {
-  archiveSubsite,
   createSubsite,
-  getReportingSetup,
   listSubsites,
   updateSubsite,
+  archiveSubsite,
 } from '@/services/sites';
-import { useCurrentSite } from '@/stores/site';
-import type { ReportingSetup, Subsite } from '@/types';
+import type { Subsite } from '@/types';
 
-/**
- * Site setup — the admin's subsite (building/area) manager, driven by the
- * backend's live readiness check (`GET reporting-setup`). A site is ready for
- * reporting while it has at least one non-archived subsite; archiving the
- * last one flips the site back to "setup required".
- *
- * There is no web counterpart screen — on the web this lives inside the site
- * editor. Mobile gives it a dedicated route so the Home setup banner has
- * somewhere to deep-link.
- */
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
 export default function SiteSetupScreen() {
-  const { user, refresh: refreshAuth } = useAuth();
-  const { site } = useCurrentSite();
-  const siteId = site?.id ?? user?.siteOnboarding?.siteId ?? user?.siteId ?? null;
+  const { t } = useTranslation('common');
+  const router = useRouter();
+  const { user } = useAuth();
+  const { site, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
 
-  const [setup, setSetup] = useState<ReportingSetup | null>(null);
+  const canManage = canManageSubsites(user);
+
   const [subsites, setSubsites] = useState<Subsite[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state — `editing` non-null switches the form into update mode.
-  const [editing, setEditing] = useState<Subsite | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
   const [label, setLabel] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    if (siteId === null) return;
-    setLoading(true);
+    if (!site) return;
     setError(null);
+    setLoading(true);
     try {
-      const [nextSetup, nextSubsites] = await Promise.all([
-        getReportingSetup(siteId),
-        listSubsites(siteId),
-      ]);
-      setSetup(nextSetup);
-      setSubsites(nextSubsites);
+      setSubsites(await listSubsites(site.id));
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : 'Could not load site setup.',
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotLoad'),
       );
     } finally {
       setLoading(false);
     }
-  }, [siteId]);
+  }, [site?.id, t]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
+  useEffect(() => {
+    if (!site) return;
+    void load();
+  }, [site?.id, load]);
 
-  function resetForm() {
-    setEditing(null);
+  function openEdit(row: Subsite) {
+    setEditingId(row.id);
+    setCreating(false);
+    setLabel(row.label);
+    setName(row.name);
+    setDescription(row.description ?? '');
+  }
+
+  function openCreate() {
+    setCreating(true);
+    setEditingId(null);
     setLabel('');
     setName('');
     setDescription('');
-    setFormError(null);
   }
 
-  function startEdit(subsite: Subsite) {
-    setEditing(subsite);
-    setLabel(subsite.label);
-    setName(subsite.name);
-    setDescription(subsite.description ?? '');
-    setFormError(null);
+  function cancelForm() {
+    setCreating(false);
+    setEditingId(null);
+    setLabel('');
+    setName('');
+    setDescription('');
   }
 
-  async function onSubmit() {
-    if (siteId === null) return;
-    const trimmedLabel = label.trim();
-    const trimmedName = name.trim();
-    if (!trimmedLabel || !trimmedName) {
-      setFormError('A label and a name are required (e.g. E5, Classroom building).');
-      return;
-    }
-    setSubmitting(true);
-    setFormError(null);
+  async function saveForm() {
+    if (!site) return;
+    if (!label.trim() || !name.trim()) return;
+    setBusy(true);
     try {
-      const payload = {
-        label: trimmedLabel,
-        name: trimmedName,
-        description: description.trim() || undefined,
-      };
-      if (editing) {
-        await updateSubsite(siteId, editing.id, payload);
-      } else {
-        await createSubsite(siteId, payload);
+      if (creating) {
+        await createSubsite(site.id, {
+          label: label.trim(),
+          name: name.trim(),
+          description: description.trim() || undefined,
+        });
+      } else if (editingId !== null) {
+        await updateSubsite(site.id, editingId, {
+          label: label.trim(),
+          name: name.trim(),
+          description: description.trim() || undefined,
+        });
       }
-      resetForm();
+      cancelForm();
       await load();
-      // The Home setup banner reads `user.siteOnboarding.setupRequired` —
-      // refresh /me so it clears as soon as the first building lands.
-      await refreshAuth().catch(() => {});
     } catch (err) {
-      setFormError(
-        err instanceof ApiError ? err.message : 'Could not save the building.',
+      Alert.alert(
+        t('siteSetup.errors.couldNotSave'),
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSave'),
       );
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   }
 
-  function confirmArchive(subsite: Subsite) {
+  async function confirmArchive(row: Subsite) {
     Alert.alert(
-      `Archive ${subsite.label}?`,
-      'Reporters will no longer be able to select this building. Existing reports keep their location.',
+      t('siteSetup.archiveConfirmTitle', { label: row.label }),
+      t('siteSetup.archiveConfirmBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('siteSetup.archiveConfirmCancel'), style: 'cancel' },
         {
-          text: 'Archive',
+          text: t('siteSetup.archiveConfirmOk'),
           style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              if (siteId === null) return;
-              try {
-                await archiveSubsite(siteId, subsite.id);
-                if (editing?.id === subsite.id) resetForm();
-                await load();
-                await refreshAuth().catch(() => {});
-              } catch (err) {
-                setError(
-                  err instanceof ApiError
-                    ? err.message
-                    : 'Could not archive the building.',
-                );
-              }
-            })();
+          onPress: async () => {
+            try {
+              await archiveSubsite(site.id, row.id);
+              await load();
+            } catch (err) {
+              Alert.alert(
+                t('siteSetup.errors.couldNotArchive'),
+                err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotArchive'),
+              );
+            }
           },
         },
       ],
     );
   }
 
-  if (!user || !canManageSubsites(user)) {
+  // Gated screens — mirror the web `SiteSetupView.vue` guards.
+  if (!canManage) {
     return (
       <Screen>
+        <Stack.Screen options={{ title: t('siteSetup.title') }} />
         <StateView
           variant="empty"
           icon={Building2}
-          title="Site administrators only"
-          description="Only the administrator of a site can manage its buildings and areas."
+          title={t('siteSetup.adminOnlyTitle')}
+          description={t('siteSetup.adminOnlyDesc')}
+        />
+      </Screen>
+    );
+  }
+  if (!site) {
+    if (siteLoading) {
+      return (
+        <Screen>
+          <Stack.Screen options={{ title: t('siteSetup.title') }} />
+          <StateView variant="loading" title={t('siteSetup.loadingBuildings')} />
+        </Screen>
+      );
+    }
+    if (siteError) {
+      return (
+        <Screen>
+          <Stack.Screen options={{ title: t('siteSetup.title') }} />
+          <StateView
+            variant="error"
+            description={siteError.message}
+            actionLabel={t('assignments.errors.retry')}
+            onAction={() => { void refreshSite(); }}
+          />
+        </Screen>
+      );
+    }
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: t('siteSetup.title') }} />
+        <StateView
+          variant="empty"
+          icon={Building2}
+          title={t('siteSetup.noSiteTitle')}
+          description={t('siteSetup.noSiteDesc')}
         />
       </Screen>
     );
   }
 
-  if (siteId === null) {
-    return (
-      <Screen>
-        <StateView
-          variant="empty"
-          icon={Building2}
-          title="No site linked"
-          description="A site must be linked to your account before buildings can be set up."
-        />
-      </Screen>
-    );
-  }
+  const active = (subsites ?? []).filter((s) => s.archivedAt === null);
+  const archived = (subsites ?? []).filter((s) => s.archivedAt !== null);
 
-  const activeSubsites = (subsites ?? []).filter((s) => s.archivedAt === null);
-  const archivedSubsites = (subsites ?? []).filter((s) => s.archivedAt !== null);
+  const editingRow = editingId !== null ? subsites?.find((r) => r.id === editingId) : null;
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerClassName="px-5 pb-12 pt-4"
-          keyboardShouldPersistTaps="handled"
+      <Stack.Screen options={{ title: t('siteSetup.title') }} />
+      <ScrollView contentContainerClassName="px-5 pb-8 pt-4">
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('siteSetup.title')}
+          onPress={() => router.back()}
+          className="mb-2 flex-row items-center gap-1 self-start active:opacity-70"
         >
-          <View className="mb-4">
-            <Text
-              className="text-2xl font-bold text-ink"
-              style={{ letterSpacing: -0.5 }}
-            >
-              Site setup
+          <ArrowLeft color={dashboardColors.teal} size={15} />
+          <Text
+            className="text-[11px] font-semibold"
+            style={{ color: dashboardColors.teal }}
+          >
+            {t('siteSetup.title')}
+          </Text>
+        </Pressable>
+
+        <Text className="mb-4 text-[12px] leading-[1.8] text-dashboard-subtitle">
+          {t('siteSetup.intro')}
+        </Text>
+
+        <Card className="mb-4">
+          {loading ? (
+            <Text className="text-[12px] text-dashboard-caption">
+              {t('siteSetup.loadingBuildings')}
             </Text>
-            <Text className="mt-1 text-[13px] leading-[1.7] text-dashboard-subtitle">
-              Add the labelled buildings and areas reporters pick from when
-              filing a report, for example E5 / Classroom building.
-            </Text>
-          </View>
+          ) : error ? (
+            <Text className="text-[12px] text-tone-danger">{error}</Text>
+          ) : (
+            <>
+              <ReadinessRow active={active.length} archived={archived.length} t={t} />
 
-          {error ? (
-            <StateView
-              variant="error"
-              description={error}
-              actionLabel="Retry"
-              onAction={() => {
-                void load();
-              }}
-            />
-          ) : null}
+              {creating || editingRow ? (
+                <EditForm
+                  t={t}
+                  creating={creating}
+                  label={label}
+                  name={name}
+                  description={description}
+                  onChangeLabel={setLabel}
+                  onChangeName={setName}
+                  onChangeDescription={setDescription}
+                  onCancel={cancelForm}
+                  onSave={saveForm}
+                  busy={busy}
+                />
+              ) : null}
 
-          {/* Readiness header — recalculated by the backend on every load. */}
-          {setup ? (
-            <Card className="mb-4">
-              <View className="flex-row items-center gap-3">
-                <View
-                  className="h-10 w-10 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: setup.reportingReady
-                      ? dashboardColors.statMintSoft
-                      : dashboardColors.statCoralSoft,
-                  }}
-                >
-                  {setup.reportingReady ? (
-                    <CheckCircle2
-                      color={dashboardColors.statMintDeep}
-                      size={20}
-                      strokeWidth={1.9}
-                    />
-                  ) : (
-                    <TriangleAlert
-                      color={dashboardColors.statCoralDeep}
-                      size={20}
-                      strokeWidth={1.9}
-                    />
-                  )}
-                </View>
-                <View className="flex-1">
-                  <Text className="text-[14px] font-semibold text-ink">
-                    {setup.reportingReady
-                      ? 'Reporting is ready'
-                      : 'Setup required'}
-                  </Text>
-                  <Text className="mt-0.5 text-[11px] leading-[1.6] text-dashboard-subtitle">
-                    {setup.reportingReady
-                      ? `${setup.activeSubsiteCount} active building${
-                          setup.activeSubsiteCount === 1 ? '' : 's'
-                        } — reporters can file reports.`
-                      : 'Add at least one building before reporters can file reports.'}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          ) : null}
-
-          {loading && subsites === null ? (
-            <StateView variant="loading" title="Loading buildings…" />
-          ) : null}
-
-          {/* Add / edit form. */}
-          <Card className="mb-4">
-            <View className="mb-3 flex-row items-center justify-between">
-              <Text
-                className="text-[15px] font-semibold text-ink"
-                style={{ letterSpacing: -0.3 }}
-              >
-                {editing ? `Edit ${editing.label}` : 'Add a building'}
-              </Text>
-              {editing ? (
+              {!creating && !editingRow ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Cancel edit"
-                  onPress={resetForm}
-                  className="flex-row items-center gap-1 active:opacity-70"
+                  accessibilityLabel={t('siteSetup.addBuilding')}
+                  onPress={openCreate}
+                  className="flex-row items-center justify-center gap-2 rounded-[11px] border border-dashboard-card-line bg-dashboard-card-bg px-4 py-3 active:opacity-80"
                 >
-                  <X color={dashboardColors.subtitle} size={13} />
-                  <Text className="text-[11px] font-medium text-dashboard-subtitle">
-                    Cancel edit
+                  <Plus color={dashboardColors.teal} size={18} strokeWidth={2.1} />
+                  <Text className="text-[13px] font-semibold text-dashboard-teal">
+                    {t('siteSetup.addBuilding')}
                   </Text>
                 </Pressable>
               ) : null}
-            </View>
-            <View className="flex-row gap-3">
-              <View className="w-24">
-                <TextField
-                  label="Label"
-                  value={label}
-                  onChangeText={setLabel}
-                  maxLength={64}
-                  placeholder="E5"
-                  autoCapitalize="characters"
-                />
-              </View>
-              <View className="flex-1">
-                <TextField
-                  label="Name"
-                  value={name}
-                  onChangeText={setName}
-                  maxLength={255}
-                  placeholder="Classroom building"
-                  autoCapitalize="words"
-                />
-              </View>
-            </View>
-            <TextField
-              label="Description (optional)"
-              value={description}
-              onChangeText={setDescription}
-              maxLength={2000}
-              placeholder="Floors, wings, or access notes"
-            />
-            {formError ? (
-              <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
-                <Text className="text-[11px] leading-[1.7] text-dashboard-error-text">
-                  {formError}
-                </Text>
-              </View>
-            ) : null}
-            <Button
-              label={
-                submitting
-                  ? editing
-                    ? 'Saving…'
-                    : 'Adding…'
-                  : editing
-                    ? 'Save changes'
-                    : 'Add building'
-              }
-              loading={submitting}
-              onPress={() => {
-                void onSubmit();
-              }}
-            />
-          </Card>
+            </>
+          )}
+        </Card>
 
-          {/* Building list. */}
-          {subsites !== null ? (
-            <Card padded={false} className="mb-4">
-              <View className="px-4 pb-2 pt-4">
-                <Text
-                  className="text-[15px] font-semibold text-ink"
-                  style={{ letterSpacing: -0.3 }}
-                >
-                  Buildings &amp; areas
-                </Text>
-                <Text className="mt-0.5 text-[10px] text-dashboard-caption">
-                  {activeSubsites.length} active
-                  {archivedSubsites.length > 0
-                    ? ` · ${archivedSubsites.length} archived`
-                    : ''}
-                </Text>
-              </View>
-
-              {subsites.length === 0 ? (
-                <Text className="px-4 pb-4 text-center text-[11px] text-dashboard-empty">
-                  No buildings yet — add the first one above.
-                </Text>
-              ) : (
-                subsites.map((subsite, index) => {
-                  const archived = subsite.archivedAt !== null;
-                  return (
-                    <View key={subsite.id}>
-                      {index > 0 ? (
-                        <View className="mx-4 border-t border-dashboard-card-line" />
-                      ) : null}
-                      <View
-                        className={`flex-row items-center gap-3 px-4 py-3 ${
-                          archived ? 'opacity-50' : ''
-                        }`}
-                      >
-                        <View
-                          className="rounded-md px-2 py-1"
-                          style={{
-                            backgroundColor: dashboardColors.statMintSoft,
-                          }}
-                        >
-                          <Text
-                            className="text-[11px] font-bold"
-                            style={{ color: dashboardColors.statMintDeep }}
-                          >
-                            {subsite.label}
-                          </Text>
-                        </View>
-                        <View className="flex-1">
-                          <Text
-                            className="text-[12px] font-semibold text-ink"
-                            numberOfLines={1}
-                          >
-                            {subsite.name}
-                            {archived ? ' · Archived' : ''}
-                          </Text>
-                          {subsite.description ? (
-                            <Text
-                              className="mt-0.5 text-[10px] text-dashboard-subtitle"
-                              numberOfLines={1}
-                            >
-                              {subsite.description}
-                            </Text>
-                          ) : null}
-                        </View>
-                        {!archived ? (
-                          <>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Edit ${subsite.label}`}
-                              onPress={() => startEdit(subsite)}
-                              className="p-1.5 active:opacity-60"
-                            >
-                              <Pencil
-                                color={dashboardColors.teal}
-                                size={16}
-                                strokeWidth={1.8}
-                              />
-                            </Pressable>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Archive ${subsite.label}`}
-                              onPress={() => confirmArchive(subsite)}
-                              className="p-1.5 active:opacity-60"
-                            >
-                              <Archive
-                                color={dashboardColors.statCoralDeep}
-                                size={16}
-                                strokeWidth={1.8}
-                              />
-                            </Pressable>
-                          </>
-                        ) : null}
-                      </View>
-                    </View>
-                  );
-                })
-              )}
-            </Card>
-          ) : null}
-
-          {subsites !== null && subsites.length === 0 ? (
-            <View className="flex-row items-start gap-2 px-1">
-              <Plus color={dashboardColors.teal} size={14} />
-              <Text className="flex-1 text-[10px] leading-[1.7] text-dashboard-caption">
-                Buildings appear in the reporter&apos;s location picker as soon
-                as they are added. The backend cannot know whether every real
-                building has been entered — add each one your reporters need.
+        <Card padded={false}>
+          <View className="px-4 pb-2 pt-4">
+            <Text className="text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+              {t('siteSetup.buildingsHeader')}
+            </Text>
+            {subsites !== null && (
+              <Text className="mt-0.5 text-[10px] text-dashboard-subtitle">
+                {t('siteSetup.activeCount', { count: active.length })}
+                {archived.length > 0
+                  ? ` · ${t('siteSetup.archivedCount', { count: archived.length })}`
+                  : ''}
               </Text>
-            </View>
-          ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+            )}
+          </View>
+          {subsites === null || loading ? null : active.length === 0 && archived.length === 0 ? (
+            <Text className="px-4 pb-4 text-center text-[11px] text-dashboard-caption">
+              {t('siteSetup.noBuildings')}
+            </Text>
+          ) : (
+            [
+              ...active.map((s) => ({ row: s, archived: false })),
+              ...archived.map((s) => ({ row: s, archived: true })),
+            ].map((entry, idx) => (
+              <View key={entry.row.id}>
+                {idx > 0 ? (
+                  <View className="mx-4 border-t border-dashboard-card-line" />
+                ) : null}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={entry.row.label}
+                  onPress={() => openEdit(entry.row)}
+                  className="flex-row items-center justify-between px-4 py-3 active:opacity-80"
+                >
+                  <View className="flex-1">
+                    <Text className="text-[12px] font-semibold text-ink">
+                      {entry.row.label} · {entry.row.name}
+                      {entry.archived ? t('siteSetup.archivedSuffix') : ''}
+                    </Text>
+                    {entry.row.description ? (
+                      <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                        {entry.row.description}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {!entry.archived ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('siteSetup.archiveConfirmTitle', { label: entry.row.label })}
+                      onPress={() => confirmArchive(entry.row)}
+                      className="h-7 w-7 items-center justify-center rounded-full active:opacity-70"
+                    >
+                      <X color={dashboardColors.statCoralDeep} size={14} />
+                    </Pressable>
+                  ) : null}
+                </Pressable>
+              </View>
+            ))
+          )}
+        </Card>
+
+        <Text className="mt-4 text-[10px] leading-[1.8] text-dashboard-caption">
+          {t('siteSetup.helper')}
+        </Text>
+      </ScrollView>
     </Screen>
+  );
+}
+
+function ReadinessRow({
+  active, archived, t,
+}: {
+  active: number;
+  archived: number;
+  t: TranslateFn;
+}) {
+  const ready = active > 0;
+  return (
+    <View
+      className="mb-3 rounded-md border px-3 py-2"
+      style={{
+        backgroundColor: ready
+          ? dashboardColors.statMintSoft
+          : dashboardColors.statCitronSoft,
+        borderColor: ready
+          ? dashboardColors.statMintSoft
+          : dashboardColors.statCitronSoft,
+      }}
+    >
+      <Text
+        className="text-[12px] font-semibold"
+        style={{
+          color: ready
+            ? dashboardColors.statMintDeep
+            : dashboardColors.statCitronDeep,
+        }}
+      >
+        {ready
+          ? t('siteSetup.readinessReady')
+          : t('siteSetup.readinessSetupRequired')}
+      </Text>
+      <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+        {ready
+          ? t('siteSetup.readinessReadyDesc', { count: active, plural: active === 1 ? '' : 's' })
+          : t('siteSetup.readinessSetupRequiredDesc')}
+      </Text>
+    </View>
+  );
+}
+
+function EditForm({
+  t, creating, label, name, description,
+  onChangeLabel, onChangeName, onChangeDescription,
+  onCancel, onSave, busy,
+}: {
+  t: TranslateFn;
+  creating: boolean;
+  label: string; name: string; description: string;
+  onChangeLabel: (v: string) => void;
+  onChangeName: (v: string) => void;
+  onChangeDescription: (v: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+  busy: boolean;
+}) {
+  const valid = label.trim().length > 0 && name.trim().length > 0;
+  return (
+    <View className="mb-3 rounded-lg border border-dashboard-card-line bg-dashboard-card-bg p-3">
+      <Text className="mb-2 text-[12px] font-semibold text-ink">
+        {creating ? t('siteSetup.addBuilding') : t('siteSetup.editBuilding', { label })}
+      </Text>
+      <TextField
+        label={t('siteSetup.labelField')}
+        value={label}
+        onChangeText={onChangeLabel}
+        placeholder={t('siteSetup.labelPlaceholder')}
+      />
+      <TextField
+        label={t('siteSetup.nameField')}
+        value={name}
+        onChangeText={onChangeName}
+        placeholder={t('siteSetup.namePlaceholder')}
+      />
+      <TextField
+        label={t('siteSetup.descField')}
+        value={description}
+        onChangeText={onChangeDescription}
+        multiline
+        numberOfLines={2}
+        placeholder={t('siteSetup.descPlaceholder')}
+      />
+      {!valid ? (
+        <Text className="mb-2 text-[10px] text-tone-danger">
+          {t('siteSetup.buildingRequired')}
+        </Text>
+      ) : null}
+      <View className="mt-1 flex-row gap-2">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('siteSetup.cancelEdit')}
+          onPress={onCancel}
+          className="flex-1 rounded-md border border-dashboard-card-line bg-dashboard-card-bg py-2 active:opacity-80"
+        >
+          <Text className="text-center text-[11px] font-semibold text-dashboard-caption">
+            {t('siteSetup.cancelEdit')}
+          </Text>
+        </Pressable>
+        <Button
+          label={creating ? t('siteSetup.addBuildingButton') : t('siteSetup.saveChanges')}
+          onPress={onSave}
+          loading={busy}
+          disabled={!valid || busy}
+          className="flex-1"
+        />
+      </View>
+    </View>
   );
 }

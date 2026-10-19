@@ -1,6 +1,7 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AuthButton } from '@/components/auth/AuthButton';
 import { AuthField } from '@/components/auth/AuthField';
@@ -26,6 +27,7 @@ type Details = {
  * be matched later.
  */
 export default function RegisterTechnicianScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
 
@@ -65,7 +67,7 @@ export default function RegisterTechnicianScreen() {
     try {
       payload = buildRegistrationPayload({ ...details, role: 'technician', siteId: '' });
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Unable to prepare your form.');
+      setServerError(err instanceof Error ? err.message : t('auth.registerTechnician.errors.prepareForm'));
       return;
     }
 
@@ -76,12 +78,10 @@ export default function RegisterTechnicianScreen() {
       try {
         await login({ email: payload.email, password: payload.password });
       } catch {
-        setServerError(
-          'Your account was created, but automatic sign-in did not finish. Sign in with your new account.',
-        );
+        setServerError(t('auth.registerTechnician.errors.accountCreatedButAutoSignInFailed'));
       }
     } catch (err) {
-      setServerError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      setServerError(err instanceof ApiError ? err.message : t('auth.registerTechnician.errors.generic'));
     } finally {
       setSubmitting(false);
     }
@@ -94,14 +94,14 @@ export default function RegisterTechnicianScreen() {
           className="text-[26px] leading-8 text-auth-ink"
           style={{ fontFamily: fontFamilies.headBold, letterSpacing: -0.8 }}
         >
-          Your technician account is ready
+          {t('auth.registerTechnician.accountReadyTitle')}
         </Text>
         <Text className="mt-3.5 text-[12px] leading-[21px] text-auth-body">
-          {serverError ?? 'Next: add your trade and specialty under Profile → Trade.'}
+          {serverError ?? t('auth.registerTechnician.accountReadyBody')}
         </Text>
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel="Continue to sign in"
+          accessibilityLabel={t('auth.registerTechnician.continueSignIn')}
           onPress={() => router.replace('/(auth)/login')}
           className="mt-2 self-start py-2.5 active:opacity-70"
         >
@@ -109,7 +109,7 @@ export default function RegisterTechnicianScreen() {
             className="text-[11px] text-coral-link"
             style={{ fontFamily: fontFamilies.bodySemiBold }}
           >
-            Continue to sign in →
+            {t('auth.registerTechnician.continueSignIn')}
           </Text>
         </Pressable>
       </AuthShell>
@@ -118,44 +118,43 @@ export default function RegisterTechnicianScreen() {
 
   return (
     <AuthShell>
-      <BackToRoles router={router} />
+      <BackToRoles router={router} t={t} />
       <AuthHeading
-        kicker="TECHNICIAN SIGN-UP"
-        title="Create your technician account"
+        kicker={t('auth.registerTechnician.kicker')}
+        title={t('auth.registerTechnician.title')}
         titleAccent="."
-        description="Register independently. A site contract is optional."
+        description={t('auth.registerTechnician.description')}
       />
 
       <Text className="mb-6 text-[11px] leading-[20px] text-auth-body">
-        Start with no contracted sites. You can remain independent and arrange
-        site contracts later.
+        {t('auth.registerTechnician.independentNote')}
       </Text>
 
       <View className="flex-row gap-3">
         <AuthField
-          label="Legal first name"
+          label={t('auth.registerTechnician.firstName')}
           value={details.firstName}
           onChangeText={(v) => update('firstName', v)}
           error={errors.firstName}
           autoCapitalize="words"
           textContentType="givenName"
           className="flex-1"
-          placeholder="Alexander"
+          placeholder={t('auth.registerTechnician.firstNamePlaceholder')}
         />
         <AuthField
-          label="Legal last name"
+          label={t('auth.registerTechnician.lastName')}
           value={details.lastName}
           onChangeText={(v) => update('lastName', v)}
           error={errors.lastName}
           autoCapitalize="words"
           textContentType="familyName"
           className="flex-1"
-          placeholder="Nguyen"
+          placeholder={t('auth.registerTechnician.lastNamePlaceholder')}
         />
       </View>
 
       <AuthField
-        label="Email"
+        label={t('auth.registerTechnician.email')}
         value={details.email}
         onChangeText={(v) => update('email', v)}
         error={errors.email}
@@ -164,45 +163,43 @@ export default function RegisterTechnicianScreen() {
         keyboardType="email-address"
         textContentType="emailAddress"
         autoComplete="email"
-        placeholder="you@example.com"
+        placeholder={t('auth.registerTechnician.emailPlaceholder')}
       />
 
       <AuthField
-        label="Password"
+        label={t('auth.registerTechnician.password')}
         value={details.password}
         onChangeText={(v) => update('password', v)}
         error={errors.password}
         secureTextEntry
         textContentType="newPassword"
         autoComplete="new-password"
-        placeholder="At least 15 characters"
+        placeholder={t('auth.registerTechnician.passwordPlaceholder')}
       />
 
       <AuthField
-        label="Contact phone"
+        label={t('auth.registerTechnician.contactPhone')}
         value={details.phone}
         onChangeText={(v) => update('phone', v)}
         error={errors.phone}
         keyboardType="phone-pad"
         textContentType="telephoneNumber"
         autoComplete="tel"
-        placeholder="+65 …"
+        placeholder={t('auth.registerTechnician.phonePlaceholder')}
       />
 
       <AuthField
-        label="Business or correspondence address"
+        label={t('auth.registerTechnician.address')}
         value={details.address}
         onChangeText={(v) => update('address', v)}
         error={errors.address}
         autoCapitalize="sentences"
         textContentType="fullStreetAddress"
         autoComplete="street-address"
-        placeholder="Street, city, postcode"
+        placeholder={t('auth.registerTechnician.addressPlaceholder')}
       />
       <Text className="-mt-3 mb-4 text-[10px] leading-[17px] text-auth-body">
-        Registration creates an account; it does not verify your identity or
-        qualifications. Before site work, arrange qualification, licence,
-        insurance, and reference checks with the site administrator.
+        {t('auth.registerTechnician.qualificationNotice')}
       </Text>
 
       {serverError ? (
@@ -212,7 +209,7 @@ export default function RegisterTechnicianScreen() {
       ) : null}
 
       <AuthButton
-        label="Create account & add trade →"
+        label={t('auth.registerTechnician.submit')}
         loading={submitting}
         onPress={submit}
       />

@@ -2,6 +2,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AuthButton } from '@/components/auth/AuthButton';
 import { AuthField } from '@/components/auth/AuthField';
@@ -26,6 +27,7 @@ type Details = {
  * they submit; the server still runs its own policy checks.
  */
 export default function RegisterReporterScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
 
@@ -66,7 +68,7 @@ export default function RegisterReporterScreen() {
     try {
       payload = buildRegistrationPayload({ ...details, role: 'reporter' });
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Unable to prepare your form.');
+      setServerError(err instanceof Error ? err.message : t('auth.registerReporter.errors.prepareForm'));
       return;
     }
 
@@ -77,12 +79,10 @@ export default function RegisterReporterScreen() {
       try {
         await login({ email: payload.email, password: payload.password });
       } catch {
-        setServerError(
-          'Your account was created, but automatic sign-in did not finish. Sign in with your new account.',
-        );
+        setServerError(t('auth.registerReporter.errors.accountCreatedButAutoSignInFailed'));
       }
     } catch (err) {
-      setServerError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      setServerError(err instanceof ApiError ? err.message : t('auth.registerReporter.errors.generic'));
     } finally {
       setSubmitting(false);
     }
@@ -95,14 +95,14 @@ export default function RegisterReporterScreen() {
           className="text-[26px] leading-8 text-auth-ink"
           style={{ fontFamily: fontFamilies.headBold, letterSpacing: -0.8 }}
         >
-          Your reporter account is ready
+          {t('auth.registerReporter.accountReadyTitle')}
         </Text>
         <Text className="mt-3.5 text-[12px] leading-[21px] text-auth-body">
-          {serverError ?? 'Sign in with the email and password you just chose.'}
+          {serverError ?? t('auth.registerReporter.accountReadyBody')}
         </Text>
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel="Continue to sign in"
+          accessibilityLabel={t('auth.registerReporter.continueSignIn')}
           onPress={() => router.replace('/(auth)/login')}
           className="mt-2 self-start py-2.5 active:opacity-70"
         >
@@ -110,7 +110,7 @@ export default function RegisterReporterScreen() {
             className="text-[11px] text-coral-link"
             style={{ fontFamily: fontFamilies.bodySemiBold }}
           >
-            Continue to sign in →
+            {t('auth.registerReporter.continueSignIn')}
           </Text>
         </Pressable>
       </AuthShell>
@@ -119,44 +119,43 @@ export default function RegisterReporterScreen() {
 
   return (
     <AuthShell>
-      <BackToRoles router={router} />
+      <BackToRoles router={router} t={t} />
       <AuthHeading
-        kicker="REPORTER SIGN-UP"
-        title="Create your reporter account"
+        kicker={t('auth.registerReporter.kicker')}
+        title={t('auth.registerReporter.title')}
         titleAccent="."
-        description="You'll be the person who files issues at your site."
+        description={t('auth.registerReporter.description')}
       />
 
       <Text className="mb-6 text-[11px] leading-[20px] text-auth-body">
-        Your site administrator will provide the site ID to use here. Contact
-        them if you don't have it yet.
+        {t('auth.registerReporter.siteIdHelp')}
       </Text>
 
       <View className="flex-row gap-3">
         <AuthField
-          label="First name"
+          label={t('auth.registerReporter.firstName')}
           value={details.firstName}
           onChangeText={(v) => update('firstName', v)}
           error={errors.firstName}
           autoCapitalize="words"
           textContentType="givenName"
           className="flex-1"
-          placeholder="Alex"
+          placeholder={t('auth.registerReporter.firstNamePlaceholder')}
         />
         <AuthField
-          label="Last name"
+          label={t('auth.registerReporter.lastName')}
           value={details.lastName}
           onChangeText={(v) => update('lastName', v)}
           error={errors.lastName}
           autoCapitalize="words"
           textContentType="familyName"
           className="flex-1"
-          placeholder="Ng"
+          placeholder={t('auth.registerReporter.lastNamePlaceholder')}
         />
       </View>
 
       <AuthField
-        label="Email"
+        label={t('auth.registerReporter.email')}
         value={details.email}
         onChangeText={(v) => update('email', v)}
         error={errors.email}
@@ -165,38 +164,38 @@ export default function RegisterReporterScreen() {
         keyboardType="email-address"
         textContentType="emailAddress"
         autoComplete="email"
-        placeholder="you@example.com"
+        placeholder={t('auth.registerReporter.emailPlaceholder')}
       />
 
       <AuthField
-        label="Password"
+        label={t('auth.registerReporter.password')}
         value={details.password}
         onChangeText={(v) => update('password', v)}
         error={errors.password}
         secureTextEntry
         textContentType="newPassword"
         autoComplete="new-password"
-        placeholder="At least 15 characters"
+        placeholder={t('auth.registerReporter.passwordPlaceholder')}
       />
 
       <AuthField
-        label="Site ID"
+        label={t('auth.registerReporter.siteId')}
         value={details.siteId}
         onChangeText={(v) => update('siteId', v)}
         error={errors.siteId}
         keyboardType="number-pad"
-        placeholder="e.g. 1"
+        placeholder={t('auth.registerReporter.siteIdPlaceholder')}
       />
 
       <AuthField
-        label="Phone (optional)"
+        label={t('auth.registerReporter.phoneOptional')}
         value={details.phone}
         onChangeText={(v) => update('phone', v)}
         error={errors.phone}
         keyboardType="phone-pad"
         textContentType="telephoneNumber"
         autoComplete="tel"
-        placeholder="+65 …"
+        placeholder={t('auth.registerReporter.phonePlaceholder')}
       />
 
       {serverError ? (
@@ -206,7 +205,7 @@ export default function RegisterReporterScreen() {
       ) : null}
 
       <AuthButton
-        label="Create reporter account →"
+        label={t('auth.registerReporter.submit')}
         loading={submitting}
         onPress={submit}
       />
@@ -214,17 +213,23 @@ export default function RegisterReporterScreen() {
   );
 }
 
-export function BackToRoles({ router }: { router: ReturnType<typeof useRouter> }) {
+export function BackToRoles({
+  router,
+  t,
+}: {
+  router: ReturnType<typeof useRouter>;
+  t: (key: string) => string;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Change role"
+      accessibilityLabel={t('auth.registerReporter.changeRole')}
       disabled={false}
       onPress={() => router.replace('/(auth)/register')}
       className="mb-4 min-h-[30px] flex-row items-center gap-1.5 active:opacity-60"
     >
       <ArrowLeft color={authColors.note} size={14} />
-      <Text className="text-[10px] text-auth-note">Change role</Text>
+      <Text className="text-[10px] text-auth-note">{t('auth.registerReporter.changeRole')}</Text>
     </Pressable>
   );
 }

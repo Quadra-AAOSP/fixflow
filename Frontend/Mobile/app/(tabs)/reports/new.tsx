@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { ArrowLeft, ArrowRight, Building2, House, Plus } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -36,23 +37,11 @@ const URGENCY_OPTIONS: SegmentedOption<Urgency>[] = (
   Object.keys(urgencyLabels) as Urgency[]
 ).map((value) => ({ value, label: urgencyLabels[value] }));
 
-const VISIBILITY_OPTIONS: SegmentedOption<ReportVisibility>[] = [
-  { value: 'public', label: 'Public' },
-  { value: 'private', label: 'Private' },
-];
-
 /**
  * "Report an issue" form. Mirrors `ReportFormView.vue`:
- *   - "All reports" back link in the card heading
- *   - "Report an issue" title + dialog intro that names the site
- *   - Description (required, multiline)
- *   - Address (optional)
- *   - Category picker (driven by the site's rules)
- *   - Urgency segmented control (Low/Medium/High/Critical)
- *   - "Why this urgency?" reason (optional)
- *   - Mint "Submit report" CTA
  */
 export default function NewReportScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
   const { user } = useAuth();
   const {
@@ -109,12 +98,12 @@ export default function NewReportScreen() {
       setRulesError(
         err instanceof ApiError
           ? err.message
-          : 'Could not load the category list.',
+          : t('reports.new.categoryLoadFail'),
       );
     } finally {
       setRulesLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const siteType = site?.type;
@@ -134,12 +123,12 @@ export default function NewReportScreen() {
       setSubsitesError(
         err instanceof ApiError
           ? err.message
-          : 'Could not load the building list.',
+          : t('reports.new.buildingLoadFail'),
       );
     } finally {
       setSubsitesLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!site) return;
@@ -149,20 +138,20 @@ export default function NewReportScreen() {
   function validateForm(): Record<string, string> {
     const next: Record<string, string> = {};
     const trimmedDescription = description.trim();
-    if (!trimmedDescription) next.description = 'Describe the issue.';
+    if (!trimmedDescription) next.description = t('reports.new.descErrors.required');
     else if (trimmedDescription.length < 10)
-      next.description = 'Give a bit more detail — at least 10 characters.';
+      next.description = t('reports.new.descErrors.tooShort');
     else if (trimmedDescription.length > 10_000)
-      next.description = 'Keep the description under 10,000 characters.';
+      next.description = t('reports.new.descErrors.tooLong');
 
-    if (!category) next.category = 'Choose a category.';
-    if (!urgency) next.urgency = 'Pick an urgency level.';
+    if (!category) next.category = t('reports.new.categoryError');
+    if (!urgency) next.urgency = t('reports.new.urgencyError');
 
     if (activeSubsites.length > 0 && subsiteId === null)
-      next.subsiteId = 'Choose a building or area.';
+      next.subsiteId = t('reports.new.buildingError');
 
     if (address.trim().length > 512)
-      next.address = 'Keep the location detail under 512 characters.';
+      next.address = t('reports.new.addressTooLong');
 
     return next;
   }
@@ -174,7 +163,7 @@ export default function NewReportScreen() {
     if (Object.keys(all).length > 0) return;
 
     if (!site) {
-      setServerError('Site is not loaded yet. Please try again in a moment.');
+      setServerError(t('reports.new.siteNotLoaded'));
       return;
     }
 
@@ -195,7 +184,7 @@ export default function NewReportScreen() {
       if (err instanceof ApiError) {
         setServerError(err.message);
       } else {
-        setServerError('Unable to reach the server.');
+        setServerError(t('reports.new.noConnection'));
       }
     } finally {
       setSubmitting(false);
@@ -211,8 +200,8 @@ export default function NewReportScreen() {
         <StateView
           variant="empty"
           icon={House}
-          title="Your account cannot create reports."
-          description="Technician accounts resolve reports rather than file them."
+          title={t('reports.new.permissionsTitle')}
+          description={t('reports.new.permissionsDesc')}
         />
       </Screen>
     );
@@ -221,7 +210,7 @@ export default function NewReportScreen() {
     if (siteLoading) {
       return (
         <Screen>
-          <StateView variant="loading" title="Loading site…" />
+          <StateView variant="loading" title={t('reports.new.loadingSite')} />
         </Screen>
       );
     }
@@ -230,9 +219,9 @@ export default function NewReportScreen() {
         <Screen>
           <StateView
             variant="error"
-            title="Could not load site"
+            title={t('reports.new.couldNotLoadSite')}
             description={siteError.message}
-            actionLabel="Retry"
+            actionLabel={t('reports.new.retry')}
             onAction={() => {
               void refreshSite();
             }}
@@ -245,8 +234,8 @@ export default function NewReportScreen() {
         <StateView
           variant="empty"
           icon={House}
-          title="No site linked"
-          description="A site must be linked before you can file a report."
+          title={t('reports.new.noSiteTitle')}
+          description={t('reports.new.noSiteDesc')}
         />
       </Screen>
     );
@@ -263,13 +252,13 @@ export default function NewReportScreen() {
         <StateView
           variant="empty"
           icon={Building2}
-          title="No buildings set up yet"
+          title={t('reports.new.noBuildingsTitle')}
           description={
             manage
-              ? 'Add at least one building or area before reports can be filed at this site.'
-              : 'Your site administrator has not added any buildings yet. Reports cannot be filed until at least one exists.'
+              ? t('reports.new.noBuildingsDescAdmin')
+              : t('reports.new.noBuildingsDescReporter')
           }
-          actionLabel={manage ? 'Open site setup' : undefined}
+          actionLabel={manage ? t('reports.new.openSiteSetup') : undefined}
           onAction={
             manage ? () => router.push('/more/site-setup') : undefined
           }
@@ -283,6 +272,11 @@ export default function NewReportScreen() {
     label: humanize(r.category),
   }));
 
+  const VISIBILITY_OPTIONS: SegmentedOption<ReportVisibility>[] = [
+    { value: 'public', label: t('reports.new.visibilityPublic') },
+    { value: 'private', label: t('reports.new.visibilityPrivate') },
+  ];
+
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -295,7 +289,7 @@ export default function NewReportScreen() {
         >
           <Pressable
             accessibilityRole="link"
-            accessibilityLabel="All reports"
+            accessibilityLabel={t('reports.new.allReports')}
             onPress={() => router.back()}
             className="mb-2 flex-row items-center gap-1 self-start active:opacity-70"
           >
@@ -304,7 +298,7 @@ export default function NewReportScreen() {
               className="text-[11px] font-semibold"
               style={{ color: dashboardColors.teal }}
             >
-              All reports
+              {t('reports.new.allReports')}
             </Text>
           </Pressable>
 
@@ -320,22 +314,21 @@ export default function NewReportScreen() {
                 className="text-2xl font-bold text-ink"
                 style={{ letterSpacing: -0.5 }}
               >
-                Report an issue
+                {t('reports.new.title')}
               </Text>
               <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-                Describe what needs attention at {site.name}.
+                {t('reports.new.intro', { site: site.name })}
               </Text>
             </View>
           </View>
 
           <Text className="mb-4 text-[12px] leading-[1.8] text-dashboard-subtitle">
-            Your report will be saved to the maintenance system and routed to a
-            technician.
+            {t('reports.new.savedNotice')}
           </Text>
 
           <Card className="mb-4">
             <TextField
-              label="What happened?"
+              label={t('reports.new.descLabel')}
               value={description}
               onChangeText={(v) => {
                 setDescription(v);
@@ -344,11 +337,11 @@ export default function NewReportScreen() {
               }}
               multiline
               numberOfLines={5}
-              placeholder="Describe the issue and what you noticed."
+              placeholder={t('reports.new.descPlaceholder')}
               error={errors.description}
             />
             <TextField
-              label="Location detail (optional)"
+              label={t('reports.new.addressLabel')}
               value={address}
               onChangeText={(v) => {
                 setAddress(v);
@@ -356,11 +349,11 @@ export default function NewReportScreen() {
                   setErrors((e) => { const c = { ...e }; delete c.address; return c; });
               }}
               maxLength={512}
-              placeholder="Floor, or room"
+              placeholder={t('reports.new.addressPlaceholder')}
               error={errors.address}
             />
             <Picker
-              label="Building / area"
+              label={t('reports.new.buildingLabel')}
               value={subsiteId !== null ? String(subsiteId) : null}
               options={activeSubsites.map((s) => ({
                 value: String(s.id),
@@ -372,10 +365,10 @@ export default function NewReportScreen() {
                   setErrors((e) => { const c = { ...e }; delete c.subsiteId; return c; });
               }}
               placeholder={
-                subsitesLoading ? 'Loading buildings…' : 'Choose a building'
+                subsitesLoading ? t('reports.new.buildingPlaceholderLoading') : t('reports.new.buildingPlaceholderChoose')
               }
               emptyMessage={
-                subsitesError ?? 'No buildings are available at this site.'
+                subsitesError ?? t('reports.new.buildingLoadError')
               }
               disabled={subsitesLoading || activeSubsites.length === 0}
             />
@@ -395,21 +388,21 @@ export default function NewReportScreen() {
               >
                 <Text className="text-[10px] font-medium text-tone-danger">
                   {subsitesError}{' '}
-                  <Text className="font-semibold underline">Retry</Text>
+                  <Text className="font-semibold underline">{t('reports.new.retry')}</Text>
                 </Text>
               </Pressable>
             ) : null}
             <Picker
-              label="Category"
+              label={t('reports.new.categoryLabel')}
               value={category}
               options={categoryOptions}
               onChange={setCategory}
               placeholder={
-                rulesLoading ? 'Loading categories…' : 'Choose a category'
+                rulesLoading ? t('reports.new.categoryPlaceholderLoading') : t('reports.new.categoryPlaceholderChoose')
               }
               emptyMessage={
                 rulesError ??
-                'No reporting categories are available for this site. Ask your administrator to configure them.'
+                t('reports.new.categoryLoadError')
               }
               disabled={rulesLoading || rules.length === 0}
             />
@@ -424,12 +417,12 @@ export default function NewReportScreen() {
               >
                 <Text className="text-[10px] font-medium text-tone-danger">
                   {rulesError}{' '}
-                  <Text className="font-semibold underline">Retry</Text>
+                  <Text className="font-semibold underline">{t('reports.new.retry')}</Text>
                 </Text>
               </Pressable>
             ) : null}
 
-            <Text className="mb-2 text-sm font-medium text-ink">Your urgency</Text>
+            <Text className="mb-2 text-sm font-medium text-ink">{t('reports.new.urgencyLabel')}</Text>
             <SegmentedControl
               options={URGENCY_OPTIONS}
               value={urgency}
@@ -438,15 +431,15 @@ export default function NewReportScreen() {
             />
 
             <TextField
-              label="Why this urgency? (optional)"
+              label={t('reports.new.urgencyReasonLabel')}
               value={reason}
               onChangeText={setReason}
               multiline
               numberOfLines={3}
-              placeholder="Explain how this issue affects the space."
+              placeholder={t('reports.new.urgencyReasonPlaceholder')}
             />
 
-            <Text className="mb-2 text-sm font-medium text-ink">Visibility</Text>
+            <Text className="mb-2 text-sm font-medium text-ink">{t('reports.new.visibilityLabel')}</Text>
             <SegmentedControl
               options={VISIBILITY_OPTIONS}
               value={visibility}
@@ -454,8 +447,8 @@ export default function NewReportScreen() {
             />
             <Text className="mb-4 mt-1.5 text-[10px] leading-[1.65] text-dashboard-subtitle">
               {visibility === 'private'
-                ? 'Only you, site staff/admin, and the assigned technician can see a private report.'
-                : 'Public reports are visible to other reporters at your site, who can join them.'}
+                ? t('reports.new.visibilityPrivateHint')
+                : t('reports.new.visibilityPublicHint')}
             </Text>
 
             {serverError ? (
@@ -468,7 +461,7 @@ export default function NewReportScreen() {
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Submit report"
+              accessibilityLabel={t('reports.new.submit')}
               accessibilityState={{ disabled: submitting, busy: submitting }}
               disabled={submitting}
               onPress={onSubmit}
@@ -483,7 +476,7 @@ export default function NewReportScreen() {
                 className="text-[14px] font-semibold"
                 style={{ color: dashboardColors.ctaText }}
               >
-                {submitting ? 'Submitting…' : 'Submit report'}
+                {submitting ? t('reports.new.submitting') : t('reports.new.submit')}
               </Text>
               <ArrowRight color={dashboardColors.ctaText} size={17} strokeWidth={2.2} />
             </Pressable>

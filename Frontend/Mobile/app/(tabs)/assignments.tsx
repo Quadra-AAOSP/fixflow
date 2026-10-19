@@ -8,7 +8,9 @@ import {
   Text,
   View,
 } from 'react-native';
+import { ScrollView } from 'react-native';
 import { ClipboardList, Search, Wrench } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { FilterTabs } from '@/components/ui/FilterTabs';
 import { Screen } from '@/components/ui/Screen';
@@ -45,16 +47,9 @@ function toneBarClass(report: Report): string {
 
 /**
  * "Assignments" tab. Mirrors `AssignmentsView.vue`:
- *   - Card heading with site name, active count, and technician headcount
- *   - "Open a report to assign or reassign a technician" / "View the current
- *     assignments for your site" dialog intro
- *   - Search + status filter
- *   - List of report cards with a status-tinted bottom bar
- *
- *   - `technician`     → only unresolved reports assigned to them
- *   - `staff | admin | super_admin` → every unresolved report at this site
  */
 export default function AssignmentsScreen() {
+  const { t } = useTranslation('common');
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
@@ -76,7 +71,7 @@ export default function AssignmentsScreen() {
       setReports(result);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : 'Could not load reports.',
+        err instanceof ApiError ? err.message : t('assignments.errors.couldNotLoad'),
       );
     } finally {
       setLoading(false);
@@ -165,7 +160,7 @@ export default function AssignmentsScreen() {
     if (siteLoading) {
       return (
         <Screen>
-          <StateView variant="loading" title="Loading site…" />
+          <StateView variant="loading" title={t('assignments.loadingSite')} />
         </Screen>
       );
     }
@@ -174,9 +169,9 @@ export default function AssignmentsScreen() {
         <Screen>
           <StateView
             variant="error"
-            title="Could not load site"
+            title={t('assignments.couldNotLoadTitle')}
             description={siteError.message}
-            actionLabel="Retry"
+            actionLabel={t('assignments.errors.retry')}
             onAction={() => {
               void refreshSite();
             }}
@@ -189,8 +184,8 @@ export default function AssignmentsScreen() {
         <StateView
           variant="empty"
           icon={Wrench}
-          title="No site linked"
-          description="Your account is not assigned to a site yet, so there are no assignments to show."
+          title={t('assignments.noSiteTitle')}
+          description={t('assignments.noSiteDesc')}
         />
       </Screen>
     );
@@ -201,9 +196,9 @@ export default function AssignmentsScreen() {
       <Screen>
         <StateView
           variant="error"
-          title="Could not load assignments"
+          title={t('assignments.couldNotLoadTitle')}
           description={error}
-          actionLabel="Retry"
+          actionLabel={t('assignments.errors.retry')}
           onAction={() => {
             void load();
           }}
@@ -217,11 +212,7 @@ export default function AssignmentsScreen() {
     // at a glance — "Assigned to me" and "Available to claim".
     return (
       <Screen>
-        <FlatList
-        renderItem={() => null}
-        data={[] as Report[]}
-          keyExtractor={(item) => String(item.id)}
-          className="flex-1"
+        <ScrollView
           contentContainerClassName="grow px-5 pb-6 pt-4"
           keyboardShouldPersistTaps="handled"
           refreshControl={
@@ -231,60 +222,54 @@ export default function AssignmentsScreen() {
               tintColor={palette.primary}
             />
           }
-          ListHeaderComponent={
-            <View>
-              <View className="mb-2 flex-row items-center gap-3">
-                <View
-                  className="rounded-xl p-3"
-                  style={{ backgroundColor: dashboardColors.statMintSoft }}
-                >
-                  <ClipboardList color={dashboardColors.statMintDeep} size={26} />
-                </View>
-                <View className="flex-1">
-                  <Text
-                    className="text-xl font-bold text-ink"
-                    style={{ letterSpacing: -0.4 }}
-                  >
-                    My assignments
-                  </Text>
-                  <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-                    {site.name}
-                    {reports !== null
-                      ? ` · ${assignedToMe.length} assigned${
-                          availableToClaim.length > 0
-                            ? ` · ${availableToClaim.length} claimable`
-                            : ''
-                        }`
-                      : ''}
-                  </Text>
-                </View>
-              </View>
+        >
+          <View className="mb-2 flex-row items-center gap-3">
+            <View
+              className="rounded-xl p-3"
+              style={{ backgroundColor: dashboardColors.statMintSoft }}
+            >
+              <ClipboardList color={dashboardColors.statMintDeep} size={26} />
             </View>
-          }
-          ListEmptyComponent={
-            loading ? (
-              <StateView variant="loading" title="Loading assignments…" />
-            ) : error && reports === null ? (
-              <StateView
-                variant="error"
-                title="Could not load assignments"
-                description={error}
-                actionLabel="Retry"
-                onAction={() => { void load(); }}
-              />
-            ) : null
-          }
-          ListFooterComponent={
-            loading || reports === null ? null : (
-              <TechnicianSections
-                assigned={assignedToMe}
-                available={availableToClaim}
-                onOpen={(id) => router.push(`/reports/${id}`)}
-                siteName={(id) => siteName(id)}
-              />
-            )
-          }
-        />
+            <View className="flex-1">
+              <Text
+                className="text-xl font-bold text-ink"
+                style={{ letterSpacing: -0.4 }}
+              >
+                {t('assignments.myAssignmentsTitle')}
+              </Text>
+              <Text className="mt-0.5 text-xs text-dashboard-subtitle">
+                {site.name}
+                {reports !== null
+                  ? ` · ${t('assignments.assignedCount', { count: assignedToMe.length })}${
+                      availableToClaim.length > 0
+                        ? ` · ${t('assignments.claimableCount', { count: availableToClaim.length })}`
+                        : ''
+                    }`
+                  : ''}
+              </Text>
+            </View>
+          </View>
+
+          {loading ? (
+            <StateView variant="loading" title={t('assignments.loading')} />
+          ) : error && reports === null ? (
+            <StateView
+              variant="error"
+              title={t('assignments.couldNotLoadTitle')}
+              description={error}
+              actionLabel={t('assignments.errors.retry')}
+              onAction={() => { void load(); }}
+            />
+          ) : (
+            <TechnicianSections
+              t={t}
+              assigned={assignedToMe}
+              available={availableToClaim}
+              onOpen={(id) => router.push(`/reports/${id}`)}
+              siteName={(id) => siteName(id)}
+            />
+          )}
+        </ScrollView>
       </Screen>
     );
   }
@@ -321,16 +306,18 @@ export default function AssignmentsScreen() {
                   className="text-xl font-bold text-ink"
                   style={{ letterSpacing: -0.4 }}
                 >
-                  Current assignments
+                  {t('assignments.currentAssignmentsTitle')}
                 </Text>
                 <Text className="mt-0.5 text-xs text-dashboard-subtitle">
                   {site.name}
                   {reports !== null
-                    ? ` · ${scoped.length} active report${
-                        scoped.length === 1 ? '' : 's'
-                      } · ${technicianCount} assigned technician${
-                        technicianCount === 1 ? '' : 's'
-                      }`
+                    ? ` · ${t('assignments.activeReportCount', {
+                        count: scoped.length,
+                        plural: scoped.length === 1 ? '' : 's',
+                      })} · ${t('assignments.assignedTechnicianCount', {
+                        count: technicianCount,
+                        plural: technicianCount === 1 ? '' : 's',
+                      })}`
                     : ''}
                 </Text>
               </View>
@@ -338,14 +325,14 @@ export default function AssignmentsScreen() {
 
             <Text className="mb-3 text-[12px] leading-[1.7] text-dashboard-subtitle">
               {canAssign
-                ? 'Open a report to assign or reassign a technician.'
-                : 'View the current assignments for your site.'}
+                ? t('assignments.adminIntroCanAssign')
+                : t('assignments.adminIntroViewOnly')}
             </Text>
 
             <View className="mb-3 flex-row gap-3">
               <View className="flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-3">
                 <Text className="text-[10px] font-medium uppercase tracking-wide text-dashboard-subtitle">
-                  Active
+                  {t('assignments.statsActive')}
                 </Text>
                 <Text
                   className="mt-1 text-xl font-bold"
@@ -356,7 +343,7 @@ export default function AssignmentsScreen() {
               </View>
               <View className="flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-3">
                 <Text className="text-[10px] font-medium uppercase tracking-wide text-dashboard-subtitle">
-                  Technicians
+                  {t('assignments.statsTechnicians')}
                 </Text>
                 <Text
                   className="mt-1 text-xl font-bold"
@@ -371,7 +358,7 @@ export default function AssignmentsScreen() {
               <SearchField
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search assignments…"
+                placeholder={t('assignments.searchPlaceholder')}
               />
             </View>
 
@@ -386,22 +373,23 @@ export default function AssignmentsScreen() {
         }
         ListEmptyComponent={
           loading ? (
-            <StateView variant="loading" title="Loading assignments…" />
+            <StateView variant="loading" title={t('assignments.loading')} />
           ) : (
             <StateView
               variant="empty"
               icon={Search}
-              title={scoped.length === 0 ? 'Nothing in the queue' : 'No matches'}
+              title={scoped.length === 0 ? t('assignments.nothingInQueue') : t('assignments.noMatches')}
               description={
                 scoped.length === 0
-                  ? 'No unresolved reports at this site right now.'
-                  : 'Try a different filter or search term.'
+                  ? t('assignments.nothingInQueueDescAdmin')
+                  : t('assignments.noMatchesDesc')
               }
             />
           )
         }
         renderItem={({ item }) => (
           <ReportCard
+            t={t}
             report={item}
             siteName={siteName(item.siteId)}
             onPress={() => router.push(`/reports/${item.id}`)}
@@ -412,11 +400,15 @@ export default function AssignmentsScreen() {
   );
 }
 
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
 function ReportCard({
+  t,
   report,
   siteName,
   onPress,
 }: {
+  t: TranslateFn;
   report: Report;
   siteName: string;
   onPress: () => void;
@@ -424,8 +416,8 @@ function ReportCard({
   const urgency: Urgency = effectiveUrgency(report);
   const assignee =
     report.assignedTechnicianId == null
-      ? 'Unassigned'
-      : `Technician #${report.assignedTechnicianId}`;
+      ? t('assignments.unassigned')
+      : t('assignments.technicianId', { id: report.assignedTechnicianId });
   return (
     <Pressable
       onPress={onPress}
@@ -475,11 +467,13 @@ function ReportCard({
  * yet, so claiming is read-only for now).
  */
 function TechnicianSections({
+  t,
   assigned,
   available,
   onOpen,
   siteName,
 }: {
+  t: TranslateFn;
   assigned: Report[];
   available: Report[];
   onOpen: (id: number) => void;
@@ -490,27 +484,27 @@ function TechnicianSections({
       <StateView
         variant="empty"
         icon={Search}
-        title="Nothing in the queue"
-        description="You have no assigned work and nothing available to claim right now."
+        title={t('assignments.nothingInQueue')}
+        description={t('assignments.nothingInQueueDescTechnician')}
       />
     );
   }
   return (
     <View className="mt-2">
       {assigned.length > 0 ? (
-        <SectionHeader title={`Assigned to me (${assigned.length})`} tone="mint" />
+        <SectionHeader title={t('assignments.assignedToMe', { count: assigned.length })} tone="mint" />
       ) : null}
       {assigned.map((r) => (
         <View key={r.id} className="mb-3">
-          <ReportCard report={r} siteName={siteName(r.siteId)} onPress={() => onOpen(r.id)} />
+          <ReportCard t={t} report={r} siteName={siteName(r.siteId)} onPress={() => onOpen(r.id)} />
         </View>
       ))}
       {available.length > 0 ? (
-        <SectionHeader title={`Available to claim (${available.length})`} tone="citron" />
+        <SectionHeader title={t('assignments.availableToClaim', { count: available.length })} tone="citron" />
       ) : null}
       {available.map((r) => (
         <View key={r.id} className="mb-3">
-          <ReportCard report={r} siteName={siteName(r.siteId)} onPress={() => onOpen(r.id)} />
+          <ReportCard t={t} report={r} siteName={siteName(r.siteId)} onPress={() => onOpen(r.id)} />
         </View>
       ))}
     </View>

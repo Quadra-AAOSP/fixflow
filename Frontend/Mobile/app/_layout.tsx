@@ -19,12 +19,14 @@ import {
 } from '@expo-google-fonts/manrope';
 import 'react-native-reanimated';
 import '../global.css';
+import '@/constants/i18n';
 
 import { themeColors, dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useConnectivity } from '@/hooks/useConnectivity';
 import { AuthProvider } from '@/stores/auth';
 import { ThemeModeProvider, useThemeMode } from '@/stores/theme';
+import { useTranslation } from 'react-i18next';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -109,6 +111,7 @@ function RootLayoutNav() {
  */
 function OfflineBanner() {
   const { offline, retry } = useConnectivity();
+  const { t } = useTranslation('common');
   if (!offline) return null;
   return (
     <View
@@ -119,8 +122,7 @@ function OfflineBanner() {
         className="flex-1 text-[11px] leading-[16px]"
         style={{ color: dashboardColors.statCitronDeep }}
       >
-        Offline — check your connection. Reports can't be filed or updated
-        until the app reconnects.
+        {t('offlineBanner.offlineText')}
       </Text>
       <Pressable
         accessibilityRole="button"
@@ -137,7 +139,7 @@ function OfflineBanner() {
           className="text-[10px] font-semibold"
           style={{ color: dashboardColors.statCitronDeep }}
         >
-          Retry
+          {t('offlineBanner.retry')}
         </Text>
       </Pressable>
     </View>

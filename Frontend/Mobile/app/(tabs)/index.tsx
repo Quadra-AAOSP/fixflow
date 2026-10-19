@@ -28,6 +28,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { PlantArt } from '@/components/dashboard/PlantArt';
 import { Button } from '@/components/ui/Button';
@@ -68,41 +69,15 @@ const CATEGORY_LIMIT = 4;
 /** Maps the mobile's ReportFilter union onto the 4 dashboard stat cards. */
 type StatConfig = {
   filter: ReportFilter;
-  label: string;
-  note: string;
   tone: DashboardStatTone;
   icon: LucideIcon;
 };
 
 const STATS: StatConfig[] = [
-  {
-    filter: 'open',
-    label: 'Open reports',
-    note: 'Open, routed, reopened, escalated',
-    tone: 'coral',
-    icon: FileText,
-  },
-  {
-    filter: 'progress',
-    label: 'In progress',
-    note: 'Assigned and in progress',
-    tone: 'mint',
-    icon: Settings,
-  },
-  {
-    filter: 'resolved',
-    label: 'Resolved',
-    note: 'Awaiting confirmation or confirmed',
-    tone: 'citron',
-    icon: CircleCheck,
-  },
-  {
-    filter: 'urgent',
-    label: 'Urgent',
-    note: 'Active high or critical urgency',
-    tone: 'coral-danger',
-    icon: TriangleAlert,
-  },
+  { filter: 'open', tone: 'coral', icon: FileText },
+  { filter: 'progress', tone: 'mint', icon: Settings },
+  { filter: 'resolved', tone: 'citron', icon: CircleCheck },
+  { filter: 'urgent', tone: 'coral-danger', icon: TriangleAlert },
 ];
 
 /**
@@ -112,8 +87,6 @@ const STATS: StatConfig[] = [
  */
 type AttentionDef = {
   key: string;
-  label: string;
-  hint: string;
   predicate: (report: Report) => boolean;
   /** Report-list filter the row deep-links to. */
   filter: ReportFilter;
@@ -126,8 +99,6 @@ type AttentionItem = Omit<AttentionDef, 'predicate'> & { count: number };
 const ATTENTION_DEFS: AttentionDef[] = [
   {
     key: 'urgent',
-    label: 'Urgent reports',
-    hint: 'High or critical urgency, still active',
     predicate: isUrgent,
     filter: 'urgent',
     icon: TriangleAlert,
@@ -135,8 +106,6 @@ const ATTENTION_DEFS: AttentionDef[] = [
   },
   {
     key: 'escalated',
-    label: 'Escalated',
-    hint: 'Past the service window the site expects',
     predicate: (report) => report.status === 'escalated',
     filter: 'open',
     icon: Activity,
@@ -144,8 +113,6 @@ const ATTENTION_DEFS: AttentionDef[] = [
   },
   {
     key: 'unassigned',
-    label: 'Waiting for a technician',
-    hint: 'Nobody has picked these up yet',
     predicate: isUnassigned,
     filter: 'open',
     icon: ClipboardList,
@@ -153,8 +120,6 @@ const ATTENTION_DEFS: AttentionDef[] = [
   },
   {
     key: 'awaiting',
-    label: 'Awaiting confirmation',
-    hint: 'Resolved and waiting on the reporter',
     predicate: (report) => report.status === 'resolved_pending_confirmation',
     filter: 'resolved',
     icon: CircleCheck,
@@ -184,24 +149,9 @@ const ATTENTION_LABELS: Record<'coral' | 'mint' | 'citron', {
  * Dashboard for non-technician accounts. Mirrors `HomeView.vue` and then
  * adds the operational blocks a phone needs to answer "what should I do
  * next?" without opening the Reports tab:
- *   - Welcome banner (greeting + tagline + 3 value pills + plant art + CTA)
- *   - Site row (interactive site switcher + sync freshness + refresh)
- *   - Needs attention card (urgent / escalated / unassigned / awaiting
- *     confirmation, each deep-linking into the matching report list)
- *   - 2×2 stat grid (selected state drives the Recent Reports filter)
- *   - Maintenance Overview card with this/last week toggle, week total,
- *     week-over-week delta, and stacked chart
- *   - Reports by category card (top categories, tap to search that category)
- *   - Recent Reports card (filtered by the active stat, with a clear-filter
- *     pill when a filter is set, urgency + age per row)
- *   - Recent Updates card (status-tinted avatars, relative timestamps)
- *   - Quick Actions card (2×2)
- *   - Floating "+ New report" button (bottom-right)
- *
- * A site with no reports yet renders an onboarding card instead of the
- * zeroed-out analytics so the first screen is never a wall of zeros.
  */
 export default function HomeScreen() {
+  const { t } = useTranslation('common');
   const palette = themeColors();
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -231,7 +181,7 @@ export default function HomeScreen() {
         return;
       }
       setError(
-        err instanceof ApiError ? err.message : 'Could not load reports.',
+        err instanceof ApiError ? err.message : t('home.errors.couldNotLoad'),
       );
     } finally {
       setLoading(false);
@@ -274,13 +224,19 @@ export default function HomeScreen() {
       : Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100);
 
   const periodTotal = period === 0 ? thisWeekTotal : lastWeekTotal;
-  const overviewSubtitle = `Reports created ${
-    period === 0 ? 'this week' : 'last week'
-  }, grouped by current status · ${periodTotal} total${
-    period === 0 && weekDeltaPct !== null
-      ? ` · ${weekDeltaPct >= 0 ? '▲' : '▼'} ${Math.abs(weekDeltaPct)}% vs last week`
-      : ''
-  }`;
+  const periodLabel = period === 0
+    ? t('home.maintenanceOverview.thisWeek')
+    : t('home.maintenanceOverview.lastWeek');
+  const overviewSubtitle = t('home.maintenanceOverview.subtitle', {
+    period: periodLabel,
+    total: periodTotal,
+    delta: period === 0 && weekDeltaPct !== null
+      ? t('home.maintenanceOverview.deltaVsLastWeek', {
+          sign: weekDeltaPct >= 0 ? '▲' : '▼',
+          pct: Math.abs(weekDeltaPct),
+        })
+      : '',
+  });
 
   const attention: AttentionItem[] = ATTENTION_DEFS.map((def) => ({
     ...def,
@@ -343,16 +299,16 @@ export default function HomeScreen() {
   };
 
   const fileDisabledReason = !site
-    ? 'A site must be linked before reports can be filed.'
+    ? t('home.reportDisabledReasons.noSite')
     : user?.role === 'technician'
-      ? 'Technician accounts resolve reports rather than file them.'
+      ? t('home.reportDisabledReasons.technician')
       : null;
 
   const greeting = (() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('home.greetings.morning');
+    if (hour < 18) return t('home.greetings.afternoon');
+    return t('home.greetings.evening');
   })();
 
   function gotoFilter(filter: ReportFilter) {
@@ -390,7 +346,7 @@ export default function HomeScreen() {
     activeStatus === 'all'
       ? null
       : activeStatus === 'urgent'
-        ? 'Urgent'
+        ? t('home.statLabels.urgent.label')
         : groupLabels[activeStatus];
 
   // First-login setup gate: a site administrator whose site has no active
@@ -416,22 +372,19 @@ export default function HomeScreen() {
             className="text-center text-xl font-bold text-ink"
             style={{ letterSpacing: -0.5 }}
           >
-            Set up {site?.name ?? 'your site'}
+            {t('home.setupGate.title', { site: site?.name ?? t('home.setupGate.titleFallback') })}
           </Text>
           <Text className="mt-2 text-center text-[12px] leading-[1.8] text-dashboard-subtitle">
-            Reporters can&apos;t file reports until the site has at least one
-            building or area. Add the labelled locations your reporters will
-            pick from — for example E5 / Classroom building.
+            {t('home.setupGate.subtitle')}
           </Text>
           <View className="mt-6 w-full">
             <Button
-              label="Open site setup"
+              label={t('home.setupGate.cta')}
               onPress={() => router.push('/more/site-setup')}
             />
           </View>
           <Text className="mt-4 text-center text-[10px] leading-[1.7] text-dashboard-caption">
-            You can still use the other tabs. This screen clears itself once
-            the first building is added.
+            {t('home.setupGate.helper')}
           </Text>
         </View>
       </Screen>
@@ -452,6 +405,7 @@ export default function HomeScreen() {
         }
       >
         <WelcomeBanner
+          t={t}
           greeting={greeting}
           firstName={user?.firstName}
           ctaDisabled={!canFile}
@@ -459,6 +413,7 @@ export default function HomeScreen() {
         />
 
         <SiteRow
+          t={t}
           loading={loading || refreshing}
           error={reports === null ? error : null}
           lastSynced={lastSynced}
@@ -469,6 +424,7 @@ export default function HomeScreen() {
 
         {applicationStatus === 'pending' || applicationStatus === 'approved' ? (
           <ApplicationStatusBanner
+            t={t}
             status={applicationStatus}
             onPress={() => router.push('/more/admin-application')}
           />
@@ -479,8 +435,8 @@ export default function HomeScreen() {
         {reports !== null && error ? (
           <StateView
             variant="error"
-            description={`Could not refresh: ${error}`}
-            actionLabel="Retry"
+            description={t('home.errors.couldNotRefresh', { detail: error })}
+            actionLabel={t('home.errors.retry')}
             onAction={() => {
               void load();
             }}
@@ -492,9 +448,9 @@ export default function HomeScreen() {
         {error && reports === null ? (
           <StateView
             variant="error"
-            title="Could not load reports"
+            title={t('home.errors.couldNotLoadTitle')}
             description={error}
-            actionLabel="Retry"
+            actionLabel={t('home.errors.retry')}
             onAction={() => {
               void load();
             }}
@@ -506,11 +462,13 @@ export default function HomeScreen() {
           allReports.length === 0 ? (
             <>
               <EmptyHomeCard
+                t={t}
                 siteName={site.name}
                 canFile={canFile}
                 onPressCreate={gotoNewReport}
               />
               <QuickActionsCard
+                t={t}
                 flags={quickActionFlags}
                 onPressCreate={gotoNewReport}
                 onPressBrowse={() => gotoReports('all')}
@@ -524,6 +482,7 @@ export default function HomeScreen() {
           ) : (
             <>
               <AttentionCard
+                t={t}
                 items={attention}
                 reportCount={attentionReportCount}
                 onPressItem={gotoReports}
@@ -533,8 +492,8 @@ export default function HomeScreen() {
                 {STATS.slice(0, 2).map((stat) => (
                   <StatCard
                     key={stat.filter}
-                    label={stat.label}
-                    note={stat.note}
+                    label={t(`home.statLabels.${stat.filter}.label`)}
+                    note={t(`home.statLabels.${stat.filter}.note`)}
                     value={reportsLoadedValue(loading, summaryFor(summary, stat.filter))}
                     tone={stat.tone}
                     icon={stat.icon}
@@ -547,8 +506,8 @@ export default function HomeScreen() {
                 {STATS.slice(2, 4).map((stat) => (
                   <StatCard
                     key={stat.filter}
-                    label={stat.label}
-                    note={stat.note}
+                    label={t(`home.statLabels.${stat.filter}.label`)}
+                    note={t(`home.statLabels.${stat.filter}.note`)}
                     value={reportsLoadedValue(loading, summaryFor(summary, stat.filter))}
                     tone={stat.tone}
                     icon={stat.icon}
@@ -559,6 +518,7 @@ export default function HomeScreen() {
               </View>
 
               <MaintenanceOverviewCard
+                t={t}
                 period={period}
                 onChangePeriod={setPeriod}
                 buckets={weekBuckets}
@@ -568,12 +528,14 @@ export default function HomeScreen() {
               />
 
               <CategoryCard
+                t={t}
                 slices={categorySlices}
                 onPressCategory={gotoCategory}
                 onPressAll={() => gotoReports('all')}
               />
 
               <RecentReportsCard
+                t={t}
                 filterLabel={filterLabel}
                 onClearFilter={clearFilter}
                 reports={filteredRecent}
@@ -583,12 +545,14 @@ export default function HomeScreen() {
               />
 
               <RecentUpdatesCard
+                t={t}
                 reports={updates}
                 onPressAll={() => gotoReports('all')}
                 onPressRow={gotoReport}
               />
 
               <QuickActionsCard
+                t={t}
                 flags={quickActionFlags}
                 onPressCreate={gotoNewReport}
                 onPressBrowse={() => gotoReports('all')}
@@ -608,7 +572,7 @@ export default function HomeScreen() {
       {canFile ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="New report"
+          accessibilityLabel={t('home.reportIssue')}
           onPress={gotoNewReport}
           className="absolute bottom-6 right-5 h-[52px] w-[52px] items-center justify-center rounded-full bg-dashboard-fab-bg active:opacity-90"
           style={{
@@ -636,12 +600,16 @@ export default function HomeScreen() {
 /*  Sub-components                                                            */
 /* -------------------------------------------------------------------------- */
 
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
 function WelcomeBanner({
+  t,
   greeting,
   firstName,
   ctaDisabled,
   onPressCta,
 }: {
+  t: TranslateFn;
   greeting: string;
   firstName: string | undefined;
   ctaDisabled: boolean;
@@ -661,22 +629,22 @@ function WelcomeBanner({
           {firstName ? `, ${firstName}` : ''}
         </Text>
         <Text className="mt-1 text-[14px] text-dashboard-banner-subtitle">
-          Let&apos;s keep every space working beautifully.
+          {t('home.bannerTagline')}
         </Text>
         <View className="mt-3 flex-row flex-wrap gap-x-4 gap-y-1">
           <ValuePill icon={Leaf} color={dashboardColors.statCoralDeep}>
-            Safe spaces
+            {t('home.valuePills.safeSpaces')}
           </ValuePill>
           <ValuePill icon={Heart} color={dashboardColors.statCoralDeep}>
-            Happy people
+            {t('home.valuePills.happyPeople')}
           </ValuePill>
           <ValuePill icon={Users} color={dashboardColors.statMintDeep}>
-            Stronger communities
+            {t('home.valuePills.strongerCommunities')}
           </ValuePill>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Report an issue"
+          accessibilityLabel={t('home.reportIssue')}
           onPress={onPressCta}
           disabled={ctaDisabled}
           className={`mt-3 flex-row items-center gap-2 self-start rounded-[11px] border px-4 py-2.5 active:opacity-90 ${
@@ -697,7 +665,7 @@ function WelcomeBanner({
             className="text-[14px] font-semibold"
             style={{ color: dashboardColors.ctaText }}
           >
-            Report an issue
+            {t('home.reportIssue')}
           </Text>
         </Pressable>
       </View>
@@ -732,23 +700,25 @@ function ValuePill({
  * the old full-width Data connection card.
  */
 function SiteRow({
+  t,
   loading,
   error,
   lastSynced,
   onRefresh,
 }: {
+  t: TranslateFn;
   loading: boolean;
   error: string | null;
   lastSynced: Date | null;
   onRefresh: () => void;
 }) {
   const syncLabel = loading
-    ? 'Refreshing…'
+    ? t('home.sync.refreshing')
     : error
-      ? 'Refresh failed'
+      ? t('home.sync.failed')
       : lastSynced
-        ? `Updated ${relativeTime(lastSynced.toISOString())}`
-        : 'Not synced yet';
+        ? t('home.sync.updatedAgo', { time: relativeTime(lastSynced.toISOString()) })
+        : t('home.sync.notSynced');
 
   return (
     <View className="mb-3 mt-1 flex-row items-center justify-between gap-2 px-1">
@@ -761,7 +731,7 @@ function SiteRow({
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Refresh dashboard"
+        accessibilityLabel={t('home.sync.accessibilityLabel')}
         accessibilityState={{ disabled: loading }}
         disabled={loading}
         onPress={onRefresh}
@@ -785,9 +755,11 @@ function SiteRow({
  * Links to the full status screen under More.
  */
 function ApplicationStatusBanner({
+  t,
   status,
   onPress,
 }: {
+  t: TranslateFn;
   status: 'pending' | 'approved';
   onPress: () => void;
 }) {
@@ -797,8 +769,8 @@ function ApplicationStatusBanner({
       accessibilityRole="button"
       accessibilityLabel={
         approved
-          ? 'Admin application approved'
-          : 'Admin application pending'
+          ? t('home.applicationBanner.approvedTitle')
+          : t('home.applicationBanner.pendingTitle')
       }
       onPress={onPress}
       className="mb-3 active:opacity-80"
@@ -821,13 +793,13 @@ function ApplicationStatusBanner({
           <View className="flex-1">
             <Text className="text-[13px] font-semibold text-ink">
               {approved
-                ? 'Admin application approved'
-                : 'Admin application pending'}
+                ? t('home.applicationBanner.approvedTitle')
+                : t('home.applicationBanner.pendingTitle')}
             </Text>
             <Text className="mt-0.5 text-[10px] leading-[1.6] text-dashboard-subtitle">
               {approved
-                ? 'Sign out and back in to activate your administrator role.'
-                : 'A super administrator is reviewing your request to administer a site.'}
+                ? t('home.applicationBanner.approvedBody')
+                : t('home.applicationBanner.pendingBody')}
             </Text>
           </View>
           <ChevronRight color={dashboardColors.subtitle} size={16} />
@@ -843,10 +815,12 @@ function ApplicationStatusBanner({
  * the phone never invents its own triage rules.
  */
 function AttentionCard({
+  t,
   items,
   reportCount,
   onPressItem,
 }: {
+  t: TranslateFn;
   items: AttentionItem[];
   /** Distinct reports across every bucket — buckets overlap, so they are
       never summed. */
@@ -855,6 +829,13 @@ function AttentionCard({
 }) {
   const active = items.filter((item) => item.count > 0);
 
+  const keyMap: Record<string, string> = {
+    urgent: 'home.attention.urgent',
+    escalated: 'home.attention.escalated',
+    unassigned: 'home.attention.unassigned',
+    awaiting: 'home.attention.awaiting',
+  };
+
   return (
     <Card padded={false} className="mb-4">
       <View className="flex-row items-center justify-between px-4 pb-2 pt-4">
@@ -862,11 +843,14 @@ function AttentionCard({
           className="text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.4 }}
         >
-          Needs attention
+          {t('home.attention.header')}
         </Text>
         {reportCount > 0 ? (
           <Text className="text-[10px] text-dashboard-caption">
-            {reportCount} report{reportCount === 1 ? '' : 's'}
+            {t('home.attention.reportCount', {
+              count: reportCount,
+              plural: reportCount === 1 ? '' : 's',
+            })}
           </Text>
         ) : null}
       </View>
@@ -882,80 +866,84 @@ function AttentionCard({
           </View>
           <View className="flex-1">
             <Text className="text-[12px] font-semibold text-ink">
-              You&apos;re all caught up
+              {t('home.attention.allCaughtUp')}
             </Text>
             <Text className="mt-0.5 text-[10px] text-dashboard-subtitle">
-              Nothing urgent, escalated, or waiting for a technician.
+              {t('home.attention.allCaughtUpHint')}
             </Text>
           </View>
         </View>
       ) : (
-        active.map((item, index) => (
-          <View key={item.key}>
-            {index > 0 ? (
-              <View className="mx-4 border-t border-dashboard-card-line" />
-            ) : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${item.count} ${item.label}`}
-              onPress={() => onPressItem(item.filter)}
-              className="flex-row items-center gap-3 px-4 py-3 active:opacity-80"
-            >
-              <View
-                className={`h-9 w-9 items-center justify-center rounded-full ${
-                  ATTENTION_LABELS[item.tone].disc
-                }`}
+        active.map((item, index) => {
+          const key = keyMap[item.key];
+          return (
+            <View key={item.key}>
+              {index > 0 ? (
+                <View className="mx-4 border-t border-dashboard-card-line" />
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${item.count} ${t(`${key}.label`)}`}
+                onPress={() => onPressItem(item.filter)}
+                className="flex-row items-center gap-3 px-4 py-3 active:opacity-80"
               >
-                <item.icon
-                  color={
-                    item.tone === 'coral'
-                      ? dashboardColors.statCoralDeep
-                      : item.tone === 'mint'
-                        ? dashboardColors.statMintDeep
-                        : dashboardColors.statCitronDeep
-                  }
-                  size={17}
-                  strokeWidth={1.8}
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-[12px] font-semibold text-ink">
-                  {item.label}
-                </Text>
-                <Text
-                  className="mt-0.5 text-[10px] text-dashboard-caption"
-                  numberOfLines={2}
-                >
-                  {item.hint}
-                </Text>
-              </View>
-              <View
-                className={`rounded-full px-2 py-0.5 ${
-                  ATTENTION_LABELS[item.tone].disc
-                }`}
-              >
-                <Text
-                  className={`text-[11px] font-bold ${
-                    ATTENTION_LABELS[item.tone].ink
+                <View
+                  className={`h-9 w-9 items-center justify-center rounded-full ${
+                    ATTENTION_LABELS[item.tone].disc
                   }`}
                 >
-                  {item.count}
-                </Text>
-              </View>
-              <ChevronRight
-                color={dashboardColors.subtitle}
-                size={16}
-                strokeWidth={1.6}
-              />
-            </Pressable>
-          </View>
-        ))
+                  <item.icon
+                    color={
+                      item.tone === 'coral'
+                        ? dashboardColors.statCoralDeep
+                        : item.tone === 'mint'
+                          ? dashboardColors.statMintDeep
+                          : dashboardColors.statCitronDeep
+                    }
+                    size={17}
+                    strokeWidth={1.8}
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[12px] font-semibold text-ink">
+                    {t(`${key}.label`)}
+                  </Text>
+                  <Text
+                    className="mt-0.5 text-[10px] text-dashboard-caption"
+                    numberOfLines={2}
+                  >
+                    {t(`${key}.hint`)}
+                  </Text>
+                </View>
+                <View
+                  className={`rounded-full px-2 py-0.5 ${
+                    ATTENTION_LABELS[item.tone].disc
+                  }`}
+                >
+                  <Text
+                    className={`text-[11px] font-bold ${
+                      ATTENTION_LABELS[item.tone].ink
+                    }`}
+                  >
+                    {item.count}
+                  </Text>
+                </View>
+                <ChevronRight
+                  color={dashboardColors.subtitle}
+                  size={16}
+                  strokeWidth={1.6}
+                />
+              </Pressable>
+            </View>
+          );
+        })
       )}
     </Card>
   );
 }
 
 function MaintenanceOverviewCard({
+  t,
   period,
   onChangePeriod,
   buckets,
@@ -963,6 +951,7 @@ function MaintenanceOverviewCard({
   loading,
   subtitle,
 }: {
+  t: TranslateFn;
   period: 0 | -1;
   onChangePeriod: (next: 0 | -1) => void;
   buckets: ReturnType<typeof weeklyChart>;
@@ -975,25 +964,25 @@ function MaintenanceOverviewCard({
       <View className="mb-3 flex-row items-start justify-between">
         <View className="flex-1 pr-3">
           <Text className="text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.4 }}>
-            Maintenance overview
+            {t('home.maintenanceOverview.header')}
           </Text>
           <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
             {subtitle}
           </Text>
         </View>
-        <PeriodToggle value={period} onChange={onChangePeriod} />
+        <PeriodToggle t={t} value={period} onChange={onChangePeriod} />
       </View>
 
       {loading && buckets.every((b) => b.values.every((v) => v === 0)) ? (
         <Text className="py-8 text-center text-[11px] text-dashboard-empty">
-          Loading report data…
+          {t('home.maintenanceOverview.loadingData')}
         </Text>
       ) : (
         <>
           <WeeklyChart buckets={buckets} />
           {isEmpty ? (
             <Text className="mt-2 text-center text-[10px] text-dashboard-caption">
-              No reports were created during this week.
+              {t('home.maintenanceOverview.noReportsThisWeek')}
             </Text>
           ) : null}
         </>
@@ -1003,9 +992,11 @@ function MaintenanceOverviewCard({
 }
 
 function PeriodToggle({
+  t,
   value,
   onChange,
 }: {
+  t: TranslateFn;
   value: 0 | -1;
   onChange: (next: 0 | -1) => void;
 }) {
@@ -1026,7 +1017,9 @@ function PeriodToggle({
                 active ? 'text-dashboard-teal' : 'text-dashboard-subtitle'
               }`}
             >
-              {option === 0 ? 'This week' : 'Last week'}
+              {option === 0
+                ? t('home.maintenanceOverview.thisWeek')
+                : t('home.maintenanceOverview.lastWeek')}
             </Text>
           </Pressable>
         );
@@ -1048,10 +1041,12 @@ type CategorySlice = {
  * on the Reports tab (the list screen already supports `?q=`).
  */
 function CategoryCard({
+  t,
   slices,
   onPressCategory,
   onPressAll,
 }: {
+  t: TranslateFn;
   slices: CategorySlice[];
   onPressCategory: (category: string) => void;
   onPressAll: () => void;
@@ -1073,20 +1068,20 @@ function CategoryCard({
             className="text-[15px] font-semibold text-ink"
             style={{ letterSpacing: -0.4 }}
           >
-            Reports by category
+            {t('home.category.header')}
           </Text>
           <Text className="mt-0.5 text-[10px] text-dashboard-caption">
-            Where maintenance issues concentrate
+            {t('home.category.subtitle')}
           </Text>
         </View>
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel="View all reports by category"
+          accessibilityLabel={t('home.category.viewAll')}
           onPress={onPressAll}
           className="flex-row items-center gap-1 active:opacity-70"
         >
           <Text className="text-[11px] font-medium text-dashboard-teal">
-            View all
+            {t('home.category.viewAll')}
           </Text>
           <ArrowRight color={dashboardColors.teal} size={12} />
         </Pressable>
@@ -1125,7 +1120,7 @@ function CategoryCard({
                 />
               </View>
               <Text className="mt-1 text-[9px] text-dashboard-caption">
-                {slice.open} still open
+                {t('home.category.stillOpen', { count: slice.open })}
               </Text>
             </Pressable>
           );
@@ -1136,6 +1131,7 @@ function CategoryCard({
 }
 
 function RecentReportsCard({
+  t,
   filterLabel,
   onClearFilter,
   reports,
@@ -1143,6 +1139,7 @@ function RecentReportsCard({
   onPressAll,
   onPressRow,
 }: {
+  t: TranslateFn;
   filterLabel: string | null;
   onClearFilter: () => void;
   reports: Report[];
@@ -1154,16 +1151,16 @@ function RecentReportsCard({
     <Card padded={false} className="mb-4">
       <View className="flex-row items-center justify-between px-4 pb-2 pt-4">
         <Text className="text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.4 }}>
-          Recent reports
+          {t('home.recentReports.header')}
         </Text>
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel="View all recent reports"
+          accessibilityLabel={t('home.recentReports.viewAll')}
           onPress={onPressAll}
           className="flex-row items-center gap-1 active:opacity-70"
         >
           <Text className="text-[11px] font-medium text-dashboard-teal">
-            View all
+            {t('home.recentReports.viewAll')}
           </Text>
           <ArrowRight color={dashboardColors.teal} size={12} />
         </Pressable>
@@ -1176,12 +1173,12 @@ function RecentReportsCard({
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Clear filter"
+            accessibilityLabel={t('home.recentReports.clearFilter')}
             onPress={onClearFilter}
             className="active:opacity-70"
           >
             <Text className="text-[10px] font-medium text-dashboard-teal underline">
-              Clear filter
+              {t('home.recentReports.clearFilter')}
             </Text>
           </Pressable>
         </View>
@@ -1190,8 +1187,8 @@ function RecentReportsCard({
       {reports.length === 0 ? (
         <Text className="px-4 pb-4 text-center text-[11px] text-dashboard-empty">
           {activeFilter === 'all'
-            ? 'No reports yet — file one to seed this list.'
-            : 'No reports match this view.'}
+            ? t('home.recentReports.noReportsYet')
+            : t('home.recentReports.noMatch')}
         </Text>
       ) : (
         reports.map((report, index) => (
@@ -1231,7 +1228,7 @@ function RecentReportsCard({
                 </Text>
                 {isUnassigned(report) ? (
                   <Text className="text-[10px] text-dashboard-caption">
-                    · Unassigned
+                    {t('home.recentReports.unassignedLabel')}
                   </Text>
                 ) : null}
               </View>
@@ -1244,10 +1241,12 @@ function RecentReportsCard({
 }
 
 function RecentUpdatesCard({
+  t,
   reports,
   onPressAll,
   onPressRow,
 }: {
+  t: TranslateFn;
   reports: Report[];
   onPressAll: () => void;
   onPressRow: (id: number) => void;
@@ -1256,16 +1255,16 @@ function RecentUpdatesCard({
     <Card padded={false} className="mb-4">
       <View className="flex-row items-center justify-between px-4 pb-2 pt-4">
         <Text className="text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.4 }}>
-          Recent updates
+          {t('home.recentUpdates.header')}
         </Text>
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel="View all recent updates"
+          accessibilityLabel={t('home.recentUpdates.viewAll')}
           onPress={onPressAll}
           className="flex-row items-center gap-1 active:opacity-70"
         >
           <Text className="text-[11px] font-medium text-dashboard-teal">
-            View all
+            {t('home.recentUpdates.viewAll')}
           </Text>
           <ArrowRight color={dashboardColors.teal} size={12} />
         </Pressable>
@@ -1273,7 +1272,7 @@ function RecentUpdatesCard({
 
       {reports.length === 0 ? (
         <Text className="px-4 pb-4 text-center text-[11px] text-dashboard-empty">
-          No report updates yet.
+          {t('home.recentUpdates.noUpdatesYet')}
         </Text>
       ) : (
         <View className="px-3 pb-3">
@@ -1291,7 +1290,7 @@ function RecentUpdatesCard({
                   className="text-[12px] font-semibold text-ink"
                   numberOfLines={1}
                 >
-                  Report #{report.id}
+                  {t('home.recentUpdates.reportPrefix', { id: report.id })}
                   <Text className="font-normal text-dashboard-subtitle">
                     {'  ·  '}
                     {statusLabels[report.status]}
@@ -1323,6 +1322,7 @@ type QuickActionFlags = {
 };
 
 function QuickActionsCard({
+  t,
   flags,
   onPressCreate,
   onPressBrowse,
@@ -1332,6 +1332,7 @@ function QuickActionsCard({
   onPressTeamAccess,
   onPressApplications,
 }: {
+  t: TranslateFn;
   flags: QuickActionFlags;
   onPressCreate: () => void;
   onPressBrowse: () => void;
@@ -1345,65 +1346,72 @@ function QuickActionsCard({
     <Card padded={false} className="mb-4">
       <View className="px-4 pb-2 pt-4">
         <Text className="text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.4 }}>
-          Quick actions
+          {t('home.quickActions.header')}
         </Text>
       </View>
       <View className="flex-row flex-wrap gap-2 px-3 pb-3">
         {flags.canCreate ? (
           <ActionTile
+            t={t}
             icon={Plus}
-            title="Create report"
-            subtitle="Log a new issue"
+            titleKey="home.quickActions.createReport.title"
+            subtitleKey="home.quickActions.createReport.subtitle"
             tone="mint"
             onPress={onPressCreate}
           />
         ) : null}
         {flags.canSetupSite ? (
           <ActionTile
+            t={t}
             icon={Building2}
-            title="Site setup"
-            subtitle="Buildings & readiness"
+            titleKey="home.quickActions.siteSetup.title"
+            subtitleKey="home.quickActions.siteSetup.subtitle"
             tone="neutral"
             onPress={onPressSiteSetup}
           />
         ) : null}
         {flags.canProvisionUsers ? (
           <ActionTile
+            t={t}
             icon={UserPlus}
-            title="Team access"
-            subtitle="Provision accounts"
+            titleKey="home.quickActions.teamAccess.title"
+            subtitleKey="home.quickActions.teamAccess.subtitle"
             tone="neutral"
             onPress={onPressTeamAccess}
           />
         ) : null}
         {flags.reviewApplications ? (
           <ActionTile
+            t={t}
             icon={ShieldCheck}
-            title="Applications"
-            subtitle="Site-admin requests"
+            titleKey="home.quickActions.applications.title"
+            subtitleKey="home.quickActions.applications.subtitle"
             tone="neutral"
             onPress={onPressApplications}
           />
         ) : null}
         <ActionTile
+          t={t}
           icon={FileText}
-          title="Browse reports"
-          subtitle="Search and filter"
+          titleKey="home.quickActions.browseReports.title"
+          subtitleKey="home.quickActions.browseReports.subtitle"
           tone="neutral"
           onPress={onPressBrowse}
         />
         <ActionTile
+          t={t}
           icon={Users}
-          title="Assignments"
-          subtitle="Current technician workload"
+          titleKey="home.quickActions.assignments.title"
+          subtitleKey="home.quickActions.assignments.subtitle"
           tone="neutral"
           onPress={onPressAssignments}
         />
         {flags.hasSite ? (
           <ActionTile
+            t={t}
             icon={Leaf}
-            title="Your sites"
-            subtitle="View site information"
+            titleKey="home.quickActions.yourSites.title"
+            subtitleKey="home.quickActions.yourSites.subtitle"
             tone="neutral"
             onPress={onPressSites}
           />
@@ -1414,15 +1422,17 @@ function QuickActionsCard({
 }
 
 function ActionTile({
+  t,
   icon: Icon,
-  title,
-  subtitle,
+  titleKey,
+  subtitleKey,
   tone,
   onPress,
 }: {
+  t: TranslateFn;
   icon: LucideIcon;
-  title: string;
-  subtitle: string;
+  titleKey: string;
+  subtitleKey: string;
   /** `mint` is the create-report variant on the web; everything else is
       neutral grey on cream. */
   tone: 'mint' | 'neutral';
@@ -1436,7 +1446,7 @@ function ActionTile({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={t(titleKey)}
       onPress={onPress}
       className="flex-1 min-w-[48%] flex-row items-center gap-2.5 rounded-lg border border-dashboard-card-line p-3 active:opacity-80"
       style={{ backgroundColor: tone === 'mint' ? dashboardColors.tealSoft : dashboardColors.cardBg }}
@@ -1452,13 +1462,13 @@ function ActionTile({
           className="text-[12px] font-semibold text-ink"
           numberOfLines={1}
         >
-          {title}
+          {t(titleKey)}
         </Text>
         <Text
           className="mt-0.5 text-[9px] text-dashboard-caption"
           numberOfLines={2}
         >
-          {subtitle}
+          {t(subtitleKey)}
         </Text>
       </View>
     </Pressable>
@@ -1470,10 +1480,12 @@ function ActionTile({
  * analytics (all of which would be zero) with the one action that matters.
  */
 function EmptyHomeCard({
+  t,
   siteName,
   canFile,
   onPressCreate,
 }: {
+  t: TranslateFn;
   siteName: string;
   canFile: boolean;
   onPressCreate: () => void;
@@ -1495,16 +1507,15 @@ function EmptyHomeCard({
           className="mt-3 text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          No reports yet at {siteName}
+          {t('home.emptyHome.title', { site: siteName })}
         </Text>
         <Text className="mt-1 text-center text-[11px] leading-[1.7] text-dashboard-subtitle">
-          File the first report and this dashboard starts tracking open work,
-          urgency, and weekly progress.
+          {t('home.emptyHome.subtitle')}
         </Text>
         {canFile ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="File your first report"
+            accessibilityLabel={t('home.emptyHome.firstReport')}
             onPress={onPressCreate}
             className="mt-4 flex-row items-center gap-2 rounded-[11px] border px-4 py-2.5 active:opacity-90"
             style={{
@@ -1517,7 +1528,7 @@ function EmptyHomeCard({
               className="text-[13px] font-semibold"
               style={{ color: dashboardColors.ctaText }}
             >
-              File your first report
+              {t('home.emptyHome.firstReport')}
             </Text>
           </Pressable>
         ) : null}

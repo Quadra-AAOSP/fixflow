@@ -2,6 +2,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { ShieldCheck } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AuthButton } from '@/components/auth/AuthButton';
 import { AuthField } from '@/components/auth/AuthField';
@@ -26,6 +27,7 @@ type Details = {
  * in again after approval.
  */
 export default function RegisterAdminApplyScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
 
@@ -65,7 +67,7 @@ export default function RegisterAdminApplyScreen() {
     try {
       payload = buildRegistrationPayload({ ...details, role: 'admin' });
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Unable to prepare your form.');
+      setServerError(err instanceof Error ? err.message : t('auth.registerAdminApply.errors.prepareForm'));
       return;
     }
 
@@ -76,12 +78,10 @@ export default function RegisterAdminApplyScreen() {
       try {
         await login({ email: payload.email, password: payload.password });
       } catch {
-        setServerError(
-          'Your account was created, but automatic sign-in did not finish. Sign in with your new account.',
-        );
+        setServerError(t('auth.registerAdminApply.errors.accountCreatedButAutoSignInFailed'));
       }
     } catch (err) {
-      setServerError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      setServerError(err instanceof ApiError ? err.message : t('auth.registerAdminApply.errors.generic'));
     } finally {
       setSubmitting(false);
     }
@@ -96,17 +96,16 @@ export default function RegisterAdminApplyScreen() {
             className="text-[22px] text-auth-ink"
             style={{ fontFamily: fontFamilies.headBold, letterSpacing: -0.8 }}
           >
-            Application submitted
+            {t('auth.registerAdminApply.submittedTitle')}
           </Text>
         </View>
         <Text className="mt-2 text-[12px] leading-[21px] text-auth-body">
-          Your account works as a reporter while a super administrator reviews
-          your application. Track it under More → My admin application.
+          {t('auth.registerAdminApply.submittedBody')}
           {serverError ? ` ${serverError}` : ''}
         </Text>
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel="Continue to sign in"
+          accessibilityLabel={t('auth.registerAdminApply.continueSignIn')}
           onPress={() => router.replace('/(auth)/login')}
           className="mt-2 self-start py-2.5 active:opacity-70"
         >
@@ -114,7 +113,7 @@ export default function RegisterAdminApplyScreen() {
             className="text-[11px] text-coral-link"
             style={{ fontFamily: fontFamilies.bodySemiBold }}
           >
-            Continue to sign in →
+            {t('auth.registerAdminApply.continueSignIn')}
           </Text>
         </Pressable>
       </AuthShell>
@@ -123,46 +122,43 @@ export default function RegisterAdminApplyScreen() {
 
   return (
     <AuthShell>
-      <BackToRoles router={router} />
+      <BackToRoles router={router} t={t} />
       <AuthHeading
-        kicker="SITE ADMIN APPLICATION"
-        title="Apply to administer a site"
+        kicker={t('auth.registerAdminApply.kicker')}
+        title={t('auth.registerAdminApply.title')}
         titleAccent="."
-        description="A super administrator reviews your request before the admin role activates."
+        description={t('auth.registerAdminApply.description')}
       />
 
       <Text className="mb-6 text-[11px] leading-[20px] text-auth-body">
-        You will be able to sign in as a reporter immediately. Once approved,
-        sign in again to activate admin access. Super admins perform identity
-        and site-authority checks before approving — this form does not verify
-        you.
+        {t('auth.registerAdminApply.applyNotice')}
       </Text>
 
       <View className="flex-row gap-3">
         <AuthField
-          label="First name"
+          label={t('auth.registerAdminApply.firstName')}
           value={details.firstName}
           onChangeText={(v) => update('firstName', v)}
           error={errors.firstName}
           autoCapitalize="words"
           textContentType="givenName"
           className="flex-1"
-          placeholder="Alex"
+          placeholder={t('auth.registerAdminApply.firstNamePlaceholder')}
         />
         <AuthField
-          label="Last name"
+          label={t('auth.registerAdminApply.lastName')}
           value={details.lastName}
           onChangeText={(v) => update('lastName', v)}
           error={errors.lastName}
           autoCapitalize="words"
           textContentType="familyName"
           className="flex-1"
-          placeholder="Ng"
+          placeholder={t('auth.registerAdminApply.lastNamePlaceholder')}
         />
       </View>
 
       <AuthField
-        label="Email"
+        label={t('auth.registerAdminApply.email')}
         value={details.email}
         onChangeText={(v) => update('email', v)}
         error={errors.email}
@@ -171,38 +167,38 @@ export default function RegisterAdminApplyScreen() {
         keyboardType="email-address"
         textContentType="emailAddress"
         autoComplete="email"
-        placeholder="you@example.com"
+        placeholder={t('auth.registerAdminApply.emailPlaceholder')}
       />
 
       <AuthField
-        label="Password"
+        label={t('auth.registerAdminApply.password')}
         value={details.password}
         onChangeText={(v) => update('password', v)}
         error={errors.password}
         secureTextEntry
         textContentType="newPassword"
         autoComplete="new-password"
-        placeholder="At least 15 characters"
+        placeholder={t('auth.registerAdminApply.passwordPlaceholder')}
       />
 
       <AuthField
-        label="Site ID"
+        label={t('auth.registerAdminApply.siteId')}
         value={details.siteId}
         onChangeText={(v) => update('siteId', v)}
         error={errors.siteId}
         keyboardType="number-pad"
-        placeholder="e.g. 1"
+        placeholder={t('auth.registerAdminApply.siteIdPlaceholder')}
       />
 
       <AuthField
-        label="Phone (optional)"
+        label={t('auth.registerAdminApply.phoneOptional')}
         value={details.phone}
         onChangeText={(v) => update('phone', v)}
         error={errors.phone}
         keyboardType="phone-pad"
         textContentType="telephoneNumber"
         autoComplete="tel"
-        placeholder="+65 …"
+        placeholder={t('auth.registerAdminApply.phonePlaceholder')}
       />
 
       {serverError ? (
@@ -212,7 +208,7 @@ export default function RegisterAdminApplyScreen() {
       ) : null}
 
       <AuthButton
-        label="Submit admin application →"
+        label={t('auth.registerAdminApply.submit')}
         loading={submitting}
         onPress={submit}
       />
