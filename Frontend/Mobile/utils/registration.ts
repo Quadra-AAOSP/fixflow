@@ -11,6 +11,11 @@ export function buildRegistrationPayload(input: RegistrationInput): RegisterPayl
   if (siteId !== null && (!Number.isSafeInteger(siteId) || siteId <= 0)) {
     throw new Error('Enter a valid numeric site ID.');
   }
+  // Reporters and admin applicants must name their site — the backend rejects
+  // a null site for both (`AuthService.resolveSiteForRole`).
+  if ((input.role === 'reporter' || input.role === 'admin') && siteId === null) {
+    throw new Error('Enter the site ID provided by your administrator.');
+  }
   return {
     firstName: input.firstName.trim(), lastName: input.lastName.trim(),
     email: input.email.trim(), password: input.password,

@@ -3,11 +3,14 @@ import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BellRing,
+  Building2,
   ClipboardList,
   House,
   LayoutGrid,
   Plug,
   ScanSearch,
+  ShieldCheck,
+  Store,
   Users,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -20,10 +23,21 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   canCreateSite,
   canEditSite,
+  canManageShop,
+  canManageSubsites,
   canProvision,
   canDecideContracts,
   roleLabels,
 } from '@/constants/access';
+
+type MenuRow = {
+  key: string;
+  title: string;
+  subtitle: string;
+  icon: LucideIcon;
+  /** Omit for a static, non-navigating row. */
+  href?: string;
+};
 
 /**
  * "More" tab — the index route of the nested More stack. Surfaces every
@@ -34,7 +48,10 @@ import {
  * area into this menu so the bottom bar stays at four items.
  *
  * Items are role-aware so the screen stays useful without becoming cluttered
- * for any given account.
+ * for any given account: admins get Site setup + Team access, super_admins
+ * additionally get the admin-application queue, applicants see their own
+ * application status, and shop managers see catalog-management guidance
+ * instead of the customer shop.
  */
 export default function MoreScreen() {
   const router = useRouter();
@@ -46,10 +63,113 @@ export default function MoreScreen() {
 
   if (!user) return null;
 
-  const showSites = canCreateSite(user) || canEditSite(user);
-  const showTeam = canProvision(user);
-  const showContracts =
-    canDecideContracts(user) || user.role === 'technician';
+  const workspaceRows: MenuRow[] = [
+    {
+      key: 'reports',
+      title: 'Reports',
+      subtitle: 'Every report at this site.',
+      icon: ClipboardList,
+      href: '/reports',
+    },
+    {
+      key: 'notifications',
+      title: 'Notifications',
+      subtitle: 'No notifications yet — coming soon.',
+      icon: BellRing,
+      href: '/more/notifications',
+    },
+  ];
+  if (user.adminApplication != null) {
+    workspaceRows.push({
+      key: 'admin-application',
+      title: 'My admin application',
+      subtitle:
+        user.adminApplication.status === 'pending'
+          ? 'Awaiting super-admin review.'
+          : `Application ${user.adminApplication.status}.`,
+      icon: ShieldCheck,
+      href: '/more/admin-application',
+    });
+  }
+
+  const adminRows: MenuRow[] = [];
+  if (canManageSubsites(user)) {
+    adminRows.push({
+      key: 'site-setup',
+      title: 'Site setup',
+      subtitle: user.siteOnboarding?.setupRequired
+        ? 'Required — add your first building.'
+        : 'Manage buildings and reporting readiness.',
+      icon: Building2,
+      href: '/more/site-setup',
+    });
+  }
+  if (canCreateSite(user) || canEditSite(user)) {
+    adminRows.push({
+      key: 'sites',
+      title: 'Sites',
+      subtitle: canCreateSite(user)
+        ? 'Create and edit sites.'
+        : 'Edit sites assigned to you.',
+      icon: House,
+      href: '/more/sites',
+    });
+  }
+  if (canProvision(user)) {
+    adminRows.push({
+      key: 'team-access',
+      title: 'Team access',
+      subtitle: 'Provision staff or admin accounts.',
+      icon: Users,
+      href: '/more/team-access',
+    });
+  }
+  if (user.role === 'super_admin') {
+    adminRows.push({
+      key: 'admin-applications',
+      title: 'Admin applications',
+      subtitle: 'Review site-admin requests.',
+      icon: ShieldCheck,
+      href: '/more/admin-applications',
+    });
+  }
+  if (canDecideContracts(user) || user.role === 'technician') {
+    adminRows.push({
+      key: 'contracts',
+      title: 'Site contracts',
+      subtitle:
+        user.role === 'technician'
+          ? 'Apply or review contracts.'
+          : 'Record site contracts.',
+      icon: Plug,
+      href: '/more/contracts',
+    });
+  }
+
+  // Shop managers administer the catalog (web console) rather than purchase
+  // from it, so they get guidance instead of the customer storefront.
+  const shopRows: MenuRow[] =
+    user.role === 'shop_manager'
+      ? [
+          {
+            key: 'shop-admin',
+            title: 'Shop management',
+            subtitle:
+              'Catalog management lives in the web admin console.',
+            icon: Store,
+          },
+        ]
+      : [
+          {
+            key: 'shop',
+            title: 'Shop',
+            subtitle: canManageShop(user)
+              ? 'Browse supplies · you also manage the catalog (web).'
+              : 'Browse and order maintenance supplies.',
+            icon: ScanSearch,
+            href: '/more/shop',
+          },
+        ];
 
   return (
     <Screen>
@@ -84,85 +204,50 @@ export default function MoreScreen() {
         </View>
 
         <SectionLabel>Workspace</SectionLabel>
-        <Card padded={false} className="mb-6">
-          <ListRow
-            title="Reports"
-            subtitle="Every report at this site."
-            icon={ClipboardList}
-            className="px-4 py-3"
-            onPress={() => router.push('/reports')}
-          />
-          <View className="mx-4 border-t border-dashboard-card-line" />
-          <ListRow
-            title="Notifications"
-            subtitle="No notifications yet — coming soon."
-            icon={BellRing}
-            className="px-4 py-3"
-            onPress={() => router.push('/more/notifications')}
-          />
-        </Card>
+        <MenuCard rows={workspaceRows} onPress={(href) => router.push(href)} />
 
-        {showSites || showTeam || showContracts ? (
-          <SectionLabel>Administration</SectionLabel>
+        {adminRows.length > 0 ? (
+          <>
+            <SectionLabel>Administration</SectionLabel>
+            <MenuCard
+              rows={adminRows}
+              onPress={(href) => router.push(href)}
+            />
+          </>
         ) : null}
-        <Card padded={false} className="mb-6">
-          {showSites ? (
-            <ListRow
-              title="Sites"
-              subtitle={
-                canCreateSite(user)
-                  ? 'Create and edit sites.'
-                  : 'Edit sites assigned to you.'
-              }
-              icon={House}
-              className="px-4 py-3"
-              onPress={() => router.push('/more/sites')}
-            />
-          ) : null}
-          {showSites && showTeam ? (
-            <View className="mx-4 border-t border-dashboard-card-line" />
-          ) : null}
-          {showTeam ? (
-            <ListRow
-              title="Team access"
-              subtitle="Provision staff or admin accounts."
-              icon={Users}
-              className="px-4 py-3"
-              onPress={() => router.push('/more/team-access')}
-            />
-          ) : null}
-          {showContracts ? (
-            <>
-              {showSites || showTeam ? (
-                <View className="mx-4 border-t border-dashboard-card-line" />
-              ) : null}
-              <ListRow
-                title="Site contracts"
-                subtitle={
-                  user.role === 'technician'
-                    ? 'Apply or review contracts.'
-                    : 'Record site contracts.'
-                }
-                icon={Plug}
-                className="px-4 py-3"
-                onPress={() => router.push('/more/contracts')}
-              />
-            </>
-          ) : null}
-        </Card>
 
         <SectionLabel>Shop</SectionLabel>
-        <Card padded={false} className="mb-6">
-          <ListRow
-            title="Shop"
-            subtitle="Browse and order maintenance supplies."
-            icon={ScanSearch}
-            className="px-4 py-3"
-            onPress={() => router.push('/more/shop')}
-          />
-        </Card>
+        <MenuCard rows={shopRows} onPress={(href) => router.push(href)} />
       </ScrollView>
     </Screen>
+  );
+}
+
+/** Card containing the rows of one section, with hairline dividers. */
+function MenuCard({
+  rows,
+  onPress,
+}: {
+  rows: MenuRow[];
+  onPress: (href: string) => void;
+}) {
+  return (
+    <Card padded={false} className="mb-6">
+      {rows.map((row, index) => (
+        <View key={row.key}>
+          {index > 0 ? (
+            <View className="mx-4 border-t border-dashboard-card-line" />
+          ) : null}
+          <ListRow
+            title={row.title}
+            subtitle={row.subtitle}
+            icon={row.icon}
+            className="px-4 py-3"
+            onPress={row.href ? () => onPress(row.href as string) : undefined}
+          />
+        </View>
+      ))}
+    </Card>
   );
 }
 

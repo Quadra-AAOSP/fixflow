@@ -23,8 +23,8 @@ import type { UserRole } from '@/types';
 import { buildRegistrationPayload } from '@/utils/registration';
 
 /** Roles offered on the public signup screen, in the web's order. */
-type PublicRole = 'reporter' | 'technician';
-type ManagedRole = 'admin' | 'staff' | 'super_admin';
+type PublicRole = 'reporter' | 'technician' | 'admin';
+type ManagedRole = 'staff' | 'super_admin';
 
 type Details = {
   firstName: string;
@@ -66,17 +66,26 @@ const PUBLIC_ROLE_CARDS: {
     subtitle: 'Register independently. A site contract is optional.',
     technician: true,
   },
+  {
+    role: 'admin',
+    icon: ShieldCheck,
+    title: 'I’m a site administrator',
+    subtitle: 'Apply to manage a site — a super admin approves your request.',
+  },
 ];
 
-const MANAGED_ROLES: ManagedRole[] = ['admin', 'staff', 'super_admin'];
+const MANAGED_ROLES: ManagedRole[] = ['staff', 'super_admin'];
 
 /**
  * Sign-up. Mirrors `Frontend/Web/src/views/auth/RegisterView.vue`, including
  * its two-step flow: pick a role, then complete the form (or, for the managed
  * roles, read why an administrator must create the account).
  *
- * The backend only accepts `reporter` / `technician` from this endpoint, so
- * the managed roles are intentionally informational — exactly as on the web.
+ * The backend accepts `reporter` / `technician` / `admin` from this endpoint.
+ * An `admin` submission is demoted to `reporter` server-side and files a
+ * pending site-admin application (`AuthService.register`); the applicant
+ * tracks it under More → My admin application. Staff and super_admin stay
+ * informational — exactly as on the web.
  */
 export default function RegisterScreen() {
   const router = useRouter();
@@ -143,7 +152,9 @@ export default function RegisterScreen() {
   }
 
   const isPublicRole =
-    selectedRole === 'reporter' || selectedRole === 'technician';
+    selectedRole === 'reporter' ||
+    selectedRole === 'technician' ||
+    selectedRole === 'admin';
   const isTechnician = selectedRole === 'technician';
 
   if (accountCreated) {
@@ -156,7 +167,10 @@ export default function RegisterScreen() {
           Your account is ready
         </Text>
         <Text className="mt-3.5 text-[12px] leading-[21px] text-auth-body">
-          {error ?? 'You can now sign in.'}
+          {error ??
+            (selectedRole === 'admin'
+              ? 'You can sign in now — your account works as a reporter while a super administrator reviews your application. Track it under More → My admin application.'
+              : 'You can now sign in.')}
         </Text>
         <Pressable
           accessibilityRole="link"
@@ -350,7 +364,9 @@ function PublicRoleForm({
       <Text className="mb-6 text-[11px] leading-[20px] text-auth-body">
         {isTechnician
           ? 'Start with no contracted sites. You can remain independent and arrange site contracts later.'
-          : 'Your site administrator will provide the site ID to use when registering.'}
+          : role === 'admin'
+            ? 'You register as a reporter immediately. A super administrator reviews your application and activates the admin role — sign in again once it is approved.'
+            : 'Your site administrator will provide the site ID to use when registering.'}
       </Text>
 
       <View className="flex-row gap-3">
@@ -400,7 +416,7 @@ function PublicRoleForm({
         works well.
       </FieldHint>
 
-      {role === 'reporter' ? (
+      {role === 'reporter' || role === 'admin' ? (
         <>
           <AuthField
             label="Site ID"
@@ -409,7 +425,11 @@ function PublicRoleForm({
             keyboardType="number-pad"
             placeholder="e.g. 1"
           />
-          <FieldHint>Use the actual ID from your site administrator.</FieldHint>
+          <FieldHint>
+            {role === 'admin'
+              ? 'The ID of the site you are applying to administer.'
+              : 'Use the actual ID from your site administrator.'}
+          </FieldHint>
         </>
       ) : null}
 
@@ -458,7 +478,9 @@ function PublicRoleForm({
           label={
             isTechnician
               ? 'Create account & add trade →'
-              : 'Create reporter account →'
+              : role === 'admin'
+                ? 'Submit admin application →'
+                : 'Create reporter account →'
           }
           loading={submitting}
           onPress={onSubmit}
@@ -486,11 +508,9 @@ function ManagedRolePanel({ role }: { role: ManagedRole }) {
       : 'Your account is created by an administrator';
 
   const body =
-    role === 'admin'
-      ? 'A super administrator must approve your appointment and create your account for a specific site. This role is not available through public signup.'
-      : role === 'staff'
-        ? 'Your site administrator or a super administrator must create your staff account for your site.'
-        : policy?.managedRoleMessage ?? 'Ask an authorized administrator about managed access.';
+    role === 'staff'
+      ? 'Your site administrator or a super administrator must create your staff account for your site.'
+      : policy?.managedRoleMessage ?? 'Ask an authorized administrator about managed access.';
 
   return (
     <View className="my-4 rounded-[13px] bg-auth-managed-bg p-5">

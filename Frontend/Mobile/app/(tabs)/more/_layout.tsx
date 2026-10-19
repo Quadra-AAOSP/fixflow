@@ -36,7 +36,16 @@ export default function MoreStackLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="sites" options={{ title: 'Sites' }} />
+      <Stack.Screen name="site-setup" options={{ title: 'Site setup' }} />
       <Stack.Screen name="team-access" options={{ title: 'Team access' }} />
+      <Stack.Screen
+        name="admin-applications"
+        options={{ title: 'Admin applications' }}
+      />
+      <Stack.Screen
+        name="admin-application"
+        options={{ title: 'Admin application' }}
+      />
       <Stack.Screen name="contracts" options={{ title: 'Site contracts' }} />
       <Stack.Screen name="shop" options={{ headerShown: false }} />
     </Stack>

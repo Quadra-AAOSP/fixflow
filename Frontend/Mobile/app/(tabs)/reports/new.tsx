@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ArrowLeft, ArrowRight, House, Plus } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Building2, House, Plus } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -20,12 +20,14 @@ import {
 } from '@/components/ui/SegmentedControl';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
+import { canManageSubsites } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { createReport } from '@/services/reports';
 import { listSiteRules } from '@/services/siteRules';
-import type { SiteRule, SiteType, Urgency } from '@/types';
+import { listSubsites } from '@/services/sites';
+import type { SiteRule, SiteType, Subsite, Urgency } from '@/types';
 import { useCurrentSite } from '@/stores/site';
 import { humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
@@ -58,6 +60,13 @@ export default function NewReportScreen() {
   const [rules, setRules] = useState<SiteRule[]>([]);
   const [rulesLoading, setRulesLoading] = useState(false);
   const [rulesError, setRulesError] = useState<string | null>(null);
+
+  // The site's buildings/areas. Reports are pinned to one (`subsiteId`) —
+  // a site with zero active subsites cannot accept reports at all.
+  const [subsites, setSubsites] = useState<Subsite[] | null>(null);
+  const [subsitesLoading, setSubsitesLoading] = useState(false);
+  const [subsitesError, setSubsitesError] = useState<string | null>(null);
+  const [subsiteId, setSubsiteId] = useState<number | null>(null);
 
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
@@ -102,17 +111,43 @@ export default function NewReportScreen() {
     void loadRules(siteType);
   }, [site?.type, site?.id, loadRules]);
 
+  // Load the building list alongside the rules, re-running on site change.
+  const loadSubsites = useCallback(async (siteId: number) => {
+    setSubsitesLoading(true);
+    setSubsitesError(null);
+    setSubsites(null);
+    setSubsiteId(null);
+    try {
+      setSubsites(await listSubsites(siteId));
+    } catch (err) {
+      setSubsitesError(
+        err instanceof ApiError
+          ? err.message
+          : 'Could not load the building list.',
+      );
+    } finally {
+      setSubsitesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!site) return;
+    void loadSubsites(site.id);
+  }, [site?.id, loadSubsites]);
+
   async function onSubmit() {
     setError(null);
     const trimmedDescription = description.trim();
-    // Single-message validation — matches the web form's copy.
+    // Single-message validation — matches the web form's copy, plus the
+    // building pick the backend now routes on.
     if (
       !trimmedDescription ||
       !category ||
-      !urgency
+      !urgency ||
+      (activeSubsites.length > 0 && subsiteId === null)
     ) {
       setError(
-        'Choose a site, category, and urgency, and describe the issue.',
+        'Choose a building, category, and urgency, and describe the issue.',
       );
       return;
     }
@@ -134,6 +169,7 @@ export default function NewReportScreen() {
         // only validates that the value matches the actor's own site — which
         // it always does here, since their site list has exactly one entry.
         siteId: site.id,
+        subsiteId: subsiteId ?? undefined,
       });
       // Land on the detail of the report we just filed so the user sees the
       // server's canonical state (timestamps, generated ID) immediately.
@@ -195,6 +231,32 @@ export default function NewReportScreen() {
           icon={House}
           title="No site linked"
           description="A site must be linked before you can file a report."
+        />
+      </Screen>
+    );
+  }
+
+  // Reporting is blocked while the site has no active building — the backend
+  // rejects the report under the default reporting configuration, so the form
+  // is replaced rather than allowed to fail on submit.
+  const activeSubsites = (subsites ?? []).filter((s) => s.archivedAt === null);
+  if (subsites !== null && !subsitesLoading && activeSubsites.length === 0) {
+    const manage = canManageSubsites(user);
+    return (
+      <Screen>
+        <StateView
+          variant="empty"
+          icon={Building2}
+          title="No buildings set up yet"
+          description={
+            manage
+              ? 'Add at least one building or area before reports can be filed at this site.'
+              : 'Your site administrator has not added any buildings yet. Reports cannot be filed until at least one exists.'
+          }
+          actionLabel={manage ? 'Open site setup' : undefined}
+          onAction={
+            manage ? () => router.push('/more/site-setup') : undefined
+          }
         />
       </Screen>
     );
@@ -264,12 +326,42 @@ export default function NewReportScreen() {
               placeholder="Describe the issue and what you noticed."
             />
             <TextField
-              label="Location (optional)"
+              label="Location detail (optional)"
               value={address}
               onChangeText={setAddress}
               maxLength={512}
-              placeholder="Building, floor, or room"
+              placeholder="Floor, or room"
             />
+            <Picker
+              label="Building / area"
+              value={subsiteId !== null ? String(subsiteId) : null}
+              options={activeSubsites.map((s) => ({
+                value: String(s.id),
+                label: `${s.label} — ${s.name}`,
+              }))}
+              onChange={(value) => setSubsiteId(Number(value))}
+              placeholder={
+                subsitesLoading ? 'Loading buildings…' : 'Choose a building'
+              }
+              emptyMessage={
+                subsitesError ?? 'No buildings are available at this site.'
+              }
+              disabled={subsitesLoading || activeSubsites.length === 0}
+            />
+            {subsitesError ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  if (site) void loadSubsites(site.id);
+                }}
+                className="mb-3 mt-1 self-start active:opacity-70"
+              >
+                <Text className="text-[10px] font-medium text-tone-danger">
+                  {subsitesError}{' '}
+                  <Text className="font-semibold underline">Retry</Text>
+                </Text>
+              </Pressable>
+            ) : null}
             <Picker
               label="Category"
               value={category}

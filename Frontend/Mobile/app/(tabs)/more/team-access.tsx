@@ -43,9 +43,7 @@ export default function TeamAccessScreen() {
   const [loadingSites, setLoadingSites] = useState(false);
   const [sitesError, setSitesError] = useState<string | null>(null);
 
-  const [role, setRole] = useState<Extract<UserRole, 'staff' | 'admin'> | null>(
-    null,
-  );
+  const [role, setRole] = useState<UserRole | null>(null);
   const [siteId, setSiteId] = useState<number | null>(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -86,7 +84,7 @@ export default function TeamAccessScreen() {
   // with a null value), but only the first time the screen is opened.
   useEffect(() => {
     if (role === null && roles.length > 0) {
-      setRole(roles[0] as Extract<UserRole, 'staff' | 'admin'>);
+      setRole(roles[0]);
     }
   }, [role, roles]);
 
@@ -119,12 +117,16 @@ export default function TeamAccessScreen() {
     label: roleLabels[value],
   }));
 
+  // Shop managers (and super admins) are platform-level accounts — the
+  // backend requires a null siteId for them (`AuthService.resolveSiteForRole`).
+  const siteless = role === 'shop_manager' || role === 'super_admin';
+
   async function onSubmit() {
     if (role === null) {
       setError('Choose a role for the new account.');
       return;
     }
-    if (siteId === null) {
+    if (!siteless && siteId === null) {
       setError('Choose a site for the new account.');
       return;
     }
@@ -137,8 +139,8 @@ export default function TeamAccessScreen() {
       return;
     }
     const payload: ProvisionUserPayload = {
-      role,
-      siteId,
+      role: role as ProvisionUserPayload['role'],
+      siteId: siteless ? null : siteId,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim().toLowerCase(),
@@ -154,8 +156,10 @@ export default function TeamAccessScreen() {
       // Full success notice — same shape as the web's `.draft-notice`:
       // "{Role} account created for {name} ({email}), at {site}."
       const siteName =
-        sites?.find((site) => site.id === created.siteId)?.name ??
-        `Site #${created.siteId ?? ''}`;
+        created.siteId === null
+          ? 'no site (platform-level account)'
+          : (sites?.find((site) => site.id === created.siteId)?.name ??
+            `Site #${created.siteId}`);
       setConfirmation(
         `${roleLabels[created.role]} account created for ${created.firstName} ` +
           `${created.lastName} (${created.email}), at ${siteName}. ` +
@@ -202,12 +206,13 @@ export default function TeamAccessScreen() {
             </Text>
             <Text className="mt-1 text-[13px] leading-[1.7] text-dashboard-subtitle">
               {user.role === 'super_admin'
-                ? 'Create site-administrator and staff accounts for approved team members.'
+                ? 'Create site-administrator, staff, and shop-manager accounts for approved team members.'
                 : 'Create staff accounts for your site.'}
             </Text>
             <Text className="mt-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
-              Site administrators are appointed by a super administrator.
-              Every account is tied to a specific site.
+              Site administrators are appointed by a super administrator. Staff
+              and site-admin accounts are tied to a specific site; shop
+              managers are platform-level.
             </Text>
           </View>
           <ShieldCheck color={dashboardColors.statMintDeep} size={30} />
@@ -232,7 +237,7 @@ export default function TeamAccessScreen() {
           </Card>
         ) : null}
 
-        {!loadingSites && (sites?.length ?? 0) === 0 ? (
+        {!loadingSites && (sites?.length ?? 0) === 0 && !siteless ? (
           <StateView
             variant="empty"
             title="No sites available"
@@ -240,7 +245,7 @@ export default function TeamAccessScreen() {
           />
         ) : null}
 
-        {(sites?.length ?? 0) > 0 ? (
+        {siteless || (sites?.length ?? 0) > 0 ? (
           <Card className="mb-4">
             {confirmation ? (
               <View
@@ -262,21 +267,28 @@ export default function TeamAccessScreen() {
                 <Picker
                   label="Role"
                   value={role ?? roles[0]}
-                  onChange={(value) =>
-                    setRole(value as Extract<UserRole, 'staff' | 'admin'>)
-                  }
+                  onChange={(value) => setRole(value as UserRole)}
                   options={roleOptions}
                 />
               </View>
-              <View className="flex-1">
-                <Picker
-                  label="Site"
-                  value={siteId !== null ? String(siteId) : null}
-                  onChange={(value) => setSiteId(Number(value))}
-                  options={siteOptions}
-                />
-              </View>
+              {!siteless ? (
+                <View className="flex-1">
+                  <Picker
+                    label="Site"
+                    value={siteId !== null ? String(siteId) : null}
+                    onChange={(value) => setSiteId(Number(value))}
+                    options={siteOptions}
+                  />
+                </View>
+              ) : null}
             </View>
+
+            {siteless ? (
+              <Text className="-mt-2 mb-4 text-[10px] leading-[1.65] text-dashboard-subtitle">
+                {roleLabels[role ?? 'staff']} accounts are platform-level and
+                are not tied to a site.
+              </Text>
+            ) : null}
 
             <View className="flex-row gap-3">
               <View className="flex-1">

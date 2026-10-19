@@ -2,17 +2,21 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Activity,
   ArrowRight,
+  Building2,
   CheckCircle2,
   ChevronRight,
   CircleCheck,
   ClipboardList,
   FileText,
   Heart,
+  Hourglass,
   Leaf,
   Plus,
   RefreshCw,
   Settings,
+  ShieldCheck,
   TriangleAlert,
+  UserPlus,
   Users,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -34,6 +38,10 @@ import { StateView } from '@/components/ui/StateView';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
 import { WeeklyChart } from '@/components/ui/WeeklyChart';
 import { dashboardColors, themeColors } from '@/constants/theme';
+import {
+  canManageSubsites,
+  canProvision,
+} from '@/constants/access';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
@@ -320,6 +328,19 @@ export default function HomeScreen() {
   const canFile =
     site !== null && user !== null && user.role !== 'technician';
 
+  // Role-differentiated home: admins get the setup banner until their site
+  // has a building, applicants see their admin-application status, and the
+  // quick actions expose each role's actual capabilities.
+  const showSetupBanner = user?.siteOnboarding?.setupRequired === true;
+  const applicationStatus = user?.adminApplication?.status ?? null;
+  const quickActionFlags = {
+    canCreate: canFile,
+    canSetupSite: canManageSubsites(user),
+    canProvisionUsers: canProvision(user),
+    reviewApplications: user?.role === 'super_admin',
+    hasSite: site !== null || user?.siteId != null,
+  };
+
   const fileDisabledReason = !site
     ? 'A site must be linked before reports can be filed.'
     : user?.role === 'technician'
@@ -400,6 +421,20 @@ export default function HomeScreen() {
           }}
         />
 
+        {showSetupBanner ? (
+          <SetupRequiredBanner
+            siteName={site?.name ?? 'your site'}
+            onPress={() => router.push('/more/site-setup')}
+          />
+        ) : null}
+
+        {applicationStatus === 'pending' || applicationStatus === 'approved' ? (
+          <ApplicationStatusBanner
+            status={applicationStatus}
+            onPress={() => router.push('/more/admin-application')}
+          />
+        ) : null}
+
         {/* A failed refresh keeps the last good data on screen, so the error
             surfaces as a strip instead of blanking the dashboard. */}
         {reports !== null && error ? (
@@ -437,11 +472,14 @@ export default function HomeScreen() {
                 onPressCreate={gotoNewReport}
               />
               <QuickActionsCard
-                canCreate={canFile}
+                flags={quickActionFlags}
                 onPressCreate={gotoNewReport}
                 onPressBrowse={() => gotoReports('all')}
                 onPressAssignments={() => router.push('/assignments')}
                 onPressSites={() => router.push('/more/sites')}
+                onPressSiteSetup={() => router.push('/more/site-setup')}
+                onPressTeamAccess={() => router.push('/more/team-access')}
+                onPressApplications={() => router.push('/more/admin-applications')}
               />
             </>
           ) : (
@@ -512,11 +550,14 @@ export default function HomeScreen() {
               />
 
               <QuickActionsCard
-                canCreate={canFile}
+                flags={quickActionFlags}
                 onPressCreate={gotoNewReport}
                 onPressBrowse={() => gotoReports('all')}
                 onPressAssignments={() => router.push('/assignments')}
                 onPressSites={() => router.push('/more/sites')}
+                onPressSiteSetup={() => router.push('/more/site-setup')}
+                onPressTeamAccess={() => router.push('/more/team-access')}
+                onPressApplications={() => router.push('/more/admin-applications')}
               />
             </>
           )
@@ -697,6 +738,108 @@ function SiteRow({
         />
       </Pressable>
     </View>
+  );
+}
+
+/**
+ * Coral setup banner for a site administrator whose site has no active
+ * building. Driven by `user.siteOnboarding.setupRequired` (recalculated by
+ * the backend on every /me), so it clears itself once the first subsite is
+ * added and the session refreshes.
+ */
+function SetupRequiredBanner({
+  siteName,
+  onPress,
+}: {
+  siteName: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      className="mb-3 active:opacity-80"
+    >
+      <View
+        className="rounded-[11px] border p-4"
+        style={{
+          backgroundColor: dashboardColors.statCoralSoft,
+          borderColor: dashboardColors.statCoralSoft,
+        }}
+      >
+        <View className="flex-row items-center gap-3">
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-dashboard-card-bg">
+            <Building2
+              color={dashboardColors.statCoralDeep}
+              size={19}
+              strokeWidth={1.9}
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="text-[13px] font-semibold text-ink">
+              Finish setting up {siteName}
+            </Text>
+            <Text className="mt-0.5 text-[10px] leading-[1.6] text-dashboard-subtitle">
+              Reporters can&apos;t file reports until you add at least one
+              building or area.
+            </Text>
+          </View>
+          <ArrowRight color={dashboardColors.statCoralDeep} size={16} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+/**
+ * Citron status banner for a reporter with a live site-admin application.
+ * Links to the full status screen under More.
+ */
+function ApplicationStatusBanner({
+  status,
+  onPress,
+}: {
+  status: 'pending' | 'approved';
+  onPress: () => void;
+}) {
+  const approved = status === 'approved';
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      className="mb-3 active:opacity-80"
+    >
+      <View
+        className="rounded-[11px] border p-4"
+        style={{
+          backgroundColor: dashboardColors.statCitronSoft,
+          borderColor: dashboardColors.statCitronSoft,
+        }}
+      >
+        <View className="flex-row items-center gap-3">
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-dashboard-card-bg">
+            <Hourglass
+              color={dashboardColors.statCitronDeep}
+              size={18}
+              strokeWidth={1.9}
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="text-[13px] font-semibold text-ink">
+              {approved
+                ? 'Admin application approved'
+                : 'Admin application pending'}
+            </Text>
+            <Text className="mt-0.5 text-[10px] leading-[1.6] text-dashboard-subtitle">
+              {approved
+                ? 'Sign out and back in to activate your administrator role.'
+                : 'A super administrator is reviewing your request to administer a site.'}
+            </Text>
+          </View>
+          <ChevronRight color={dashboardColors.subtitle} size={16} />
+        </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -1171,18 +1314,32 @@ function RecentUpdatesCard({
   );
 }
 
+type QuickActionFlags = {
+  canCreate: boolean;
+  canSetupSite: boolean;
+  canProvisionUsers: boolean;
+  reviewApplications: boolean;
+  hasSite: boolean;
+};
+
 function QuickActionsCard({
-  canCreate,
+  flags,
   onPressCreate,
   onPressBrowse,
   onPressAssignments,
   onPressSites,
+  onPressSiteSetup,
+  onPressTeamAccess,
+  onPressApplications,
 }: {
-  canCreate: boolean;
+  flags: QuickActionFlags;
   onPressCreate: () => void;
   onPressBrowse: () => void;
   onPressAssignments: () => void;
   onPressSites: () => void;
+  onPressSiteSetup: () => void;
+  onPressTeamAccess: () => void;
+  onPressApplications: () => void;
 }) {
   return (
     <Card padded={false} className="mb-4">
@@ -1192,13 +1349,40 @@ function QuickActionsCard({
         </Text>
       </View>
       <View className="flex-row flex-wrap gap-2 px-3 pb-3">
-        {canCreate ? (
+        {flags.canCreate ? (
           <ActionTile
             icon={Plus}
             title="Create report"
             subtitle="Log a new issue"
             tone="mint"
             onPress={onPressCreate}
+          />
+        ) : null}
+        {flags.canSetupSite ? (
+          <ActionTile
+            icon={Building2}
+            title="Site setup"
+            subtitle="Buildings & readiness"
+            tone="neutral"
+            onPress={onPressSiteSetup}
+          />
+        ) : null}
+        {flags.canProvisionUsers ? (
+          <ActionTile
+            icon={UserPlus}
+            title="Team access"
+            subtitle="Provision accounts"
+            tone="neutral"
+            onPress={onPressTeamAccess}
+          />
+        ) : null}
+        {flags.reviewApplications ? (
+          <ActionTile
+            icon={ShieldCheck}
+            title="Applications"
+            subtitle="Site-admin requests"
+            tone="neutral"
+            onPress={onPressApplications}
           />
         ) : null}
         <ActionTile
@@ -1215,13 +1399,15 @@ function QuickActionsCard({
           tone="neutral"
           onPress={onPressAssignments}
         />
-        <ActionTile
-          icon={Leaf}
-          title="Your sites"
-          subtitle="View site information"
-          tone="neutral"
-          onPress={onPressSites}
-        />
+        {flags.hasSite ? (
+          <ActionTile
+            icon={Leaf}
+            title="Your sites"
+            subtitle="View site information"
+            tone="neutral"
+            onPress={onPressSites}
+          />
+        ) : null}
       </View>
     </Card>
   );
