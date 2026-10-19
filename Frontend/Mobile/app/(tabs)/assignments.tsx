@@ -103,20 +103,37 @@ export default function AssignmentsScreen() {
   const isTechnician = user?.role === 'technician';
   const canAssign = user?.capabilities.assignTechnician ?? false;
 
-  // Scope by role: only reports with an assignee count as assignments —
-  // technicians see their own queue, staff/admin see every assigned
-  // unresolved report at the site. Sorted by assignee, like the web's
-  // `assignments` computed in `AssignmentsView.vue`.
+  // Scope by role: technicians see ONLY their own queue items; staff/admin see
+  // every site report that's in an unresolved queue state. Then split into
+  // "Assigned to me" vs "Available to claim" (unassigned queue items) for the
+  // technician UI, so they have a clean two-section view.
+  const assignedToMe = useMemo(() => {
+    if (!reports || !isTechnician) return [];
+    return reports.filter(
+      (r) => r.policy.inAssignmentQueue && r.assignedTechnicianId === user?.id,
+    );
+  }, [reports, isTechnician, user?.id]);
+
+  const availableToClaim = useMemo(() => {
+    if (!reports || !isTechnician) return [];
+    return reports.filter(
+      (r) => r.policy.inAssignmentQueue && r.assignedTechnicianId === null,
+    );
+  }, [reports, isTechnician]);
+
   const scoped = useMemo(() => {
     if (!reports) return [];
-    return reports
-      .filter(
-        (report) =>
-          report.policy.inAssignmentQueue,
-      )
-      .sort(
-        (a, b) => (a.assignedTechnicianId ?? 0) - (b.assignedTechnicianId ?? 0),
+    const base = reports.filter((r) => r.policy.inAssignmentQueue);
+    if (isTechnician) {
+      // Technician only sees what's either theirs or unassigned (claimable).
+      return base.filter(
+        (r) => r.assignedTechnicianId === null || r.assignedTechnicianId === user?.id,
       );
+    }
+    // Staff/admin see everything unresolved — sorted by assignee.
+    return base.sort(
+      (a, b) => (a.assignedTechnicianId ?? 0) - (b.assignedTechnicianId ?? 0),
+    );
   }, [reports, isTechnician, user?.id]);
 
   const siteName = useCallback(
@@ -195,13 +212,87 @@ export default function AssignmentsScreen() {
     );
   }
 
+  if (isTechnician) {
+    // Technician UI splits into two explicit sections so the queue is legible
+    // at a glance — "Assigned to me" and "Available to claim".
+    return (
+      <Screen>
+        <FlatList
+        renderItem={() => null}
+        data={[] as Report[]}
+          keyExtractor={(item) => String(item.id)}
+          className="flex-1"
+          contentContainerClassName="grow px-5 pb-6 pt-4"
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={palette.primary}
+            />
+          }
+          ListHeaderComponent={
+            <View>
+              <View className="mb-2 flex-row items-center gap-3">
+                <View
+                  className="rounded-xl p-3"
+                  style={{ backgroundColor: dashboardColors.statMintSoft }}
+                >
+                  <ClipboardList color={dashboardColors.statMintDeep} size={26} />
+                </View>
+                <View className="flex-1">
+                  <Text
+                    className="text-xl font-bold text-ink"
+                    style={{ letterSpacing: -0.4 }}
+                  >
+                    My assignments
+                  </Text>
+                  <Text className="mt-0.5 text-xs text-dashboard-subtitle">
+                    {site.name}
+                    {reports !== null
+                      ? ` · ${assignedToMe.length} assigned${
+                          availableToClaim.length > 0
+                            ? ` · ${availableToClaim.length} claimable`
+                            : ''
+                        }`
+                      : ''}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          }
+          ListEmptyComponent={
+            loading ? (
+              <StateView variant="loading" title="Loading assignments…" />
+            ) : error && reports === null ? (
+              <StateView
+                variant="error"
+                title="Could not load assignments"
+                description={error}
+                actionLabel="Retry"
+                onAction={() => { void load(); }}
+              />
+            ) : null
+          }
+          ListFooterComponent={
+            loading || reports === null ? null : (
+              <TechnicianSections
+                assigned={assignedToMe}
+                available={availableToClaim}
+                onOpen={(id) => router.push(`/reports/${id}`)}
+                siteName={(id) => siteName(id)}
+              />
+            )
+          }
+        />
+      </Screen>
+    );
+  }
+
+  // -------- Non-technician UI (staff/admin/super_admin) --------
+
   return (
     <Screen>
-      {/* Heading, stats, search and filters live in the list header so the
-          whole screen is one scrollable surface. Previously they were a
-          separate `ScrollView` sitting above the `FlatList`, which left the
-          list with no room left on short screens — its lower rows were
-          clipped and unreachable. */}
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
@@ -218,9 +309,6 @@ export default function AssignmentsScreen() {
         ItemSeparatorComponent={() => <View className="h-3" />}
         ListHeaderComponent={
           <View>
-            {/* Card heading — mirrors the web's `.card-heading` block in
-                `AssignmentsView.vue` with the title, site + count + technician
-                count summary line, and the dialog intro underneath. */}
             <View className="mb-2 flex-row items-center gap-3">
               <View
                 className="rounded-xl p-3"
@@ -233,16 +321,16 @@ export default function AssignmentsScreen() {
                   className="text-xl font-bold text-ink"
                   style={{ letterSpacing: -0.4 }}
                 >
-                  {isTechnician ? 'My assignments' : 'Current assignments'}
+                  Current assignments
                 </Text>
                 <Text className="mt-0.5 text-xs text-dashboard-subtitle">
                   {site.name}
                   {reports !== null
                     ? ` · ${scoped.length} active report${
                         scoped.length === 1 ? '' : 's'
-                      }${!isTechnician ? ` · ${technicianCount} assigned technician${
+                      } · ${technicianCount} assigned technician${
                         technicianCount === 1 ? '' : 's'
-                      }` : ''}`
+                      }`
                     : ''}
                 </Text>
               </View>
@@ -266,28 +354,24 @@ export default function AssignmentsScreen() {
                   {scoped.length}
                 </Text>
               </View>
-              {!isTechnician ? (
-                <View className="flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-3">
-                  <Text className="text-[10px] font-medium uppercase tracking-wide text-dashboard-subtitle">
-                    Technicians
-                  </Text>
-                  <Text
-                    className="mt-1 text-xl font-bold"
-                    style={{ color: dashboardColors.statCitronDeep }}
-                  >
-                    {technicianCount}
-                  </Text>
-                </View>
-              ) : null}
+              <View className="flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-3">
+                <Text className="text-[10px] font-medium uppercase tracking-wide text-dashboard-subtitle">
+                  Technicians
+                </Text>
+                <Text
+                  className="mt-1 text-xl font-bold"
+                  style={{ color: dashboardColors.statCitronDeep }}
+                >
+                  {technicianCount}
+                </Text>
+              </View>
             </View>
 
             <View className="mb-3">
               <SearchField
                 value={query}
                 onChangeText={setQuery}
-                placeholder={
-                  isTechnician ? 'Search your work…' : 'Search assignments…'
-                }
+                placeholder="Search assignments…"
               />
             </View>
 
@@ -307,16 +391,10 @@ export default function AssignmentsScreen() {
             <StateView
               variant="empty"
               icon={Search}
-              title={
-                scoped.length === 0
-                  ? isTechnician
-                    ? 'No work assigned to you'
-                    : 'Nothing in the queue'
-                  : 'No matches'
-              }
+              title={scoped.length === 0 ? 'Nothing in the queue' : 'No matches'}
               description={
                 scoped.length === 0
-                  ? 'Reports assigned to you will show up here once a manager routes them.'
+                  ? 'No unresolved reports at this site right now.'
                   : 'Try a different filter or search term.'
               }
             />
@@ -352,6 +430,7 @@ function ReportCard({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={`Open ${report.description}`}
       className="rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4 active:opacity-80"
     >
       <View className="mb-1 flex-row items-center justify-between gap-2">
@@ -385,5 +464,71 @@ function ReportCard({
       </View>
       <View className={`mt-3 h-1 rounded-full ${toneBarClass(report)}`} />
     </Pressable>
+  );
+}
+
+/**
+ * Two-section rendering for the technician queue — the split UI spec item
+ * 8.2 ("assigned section") + 8.3 ("claimable section"). "Available to claim"
+ * items show an inline pill; tapping navigates to the report detail which
+ * will still show the "unassigned" card (backend `POST /claim` doesn't exist
+ * yet, so claiming is read-only for now).
+ */
+function TechnicianSections({
+  assigned,
+  available,
+  onOpen,
+  siteName,
+}: {
+  assigned: Report[];
+  available: Report[];
+  onOpen: (id: number) => void;
+  siteName: (id: number | null) => string;
+}) {
+  if (assigned.length === 0 && available.length === 0) {
+    return (
+      <StateView
+        variant="empty"
+        icon={Search}
+        title="Nothing in the queue"
+        description="You have no assigned work and nothing available to claim right now."
+      />
+    );
+  }
+  return (
+    <View className="mt-2">
+      {assigned.length > 0 ? (
+        <SectionHeader title={`Assigned to me (${assigned.length})`} tone="mint" />
+      ) : null}
+      {assigned.map((r) => (
+        <View key={r.id} className="mb-3">
+          <ReportCard report={r} siteName={siteName(r.siteId)} onPress={() => onOpen(r.id)} />
+        </View>
+      ))}
+      {available.length > 0 ? (
+        <SectionHeader title={`Available to claim (${available.length})`} tone="citron" />
+      ) : null}
+      {available.map((r) => (
+        <View key={r.id} className="mb-3">
+          <ReportCard report={r} siteName={siteName(r.siteId)} onPress={() => onOpen(r.id)} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Mini section header for the technician queue split — colored dot + title. */
+function SectionHeader({ title, tone }: { title: string; tone: 'mint' | 'citron' }) {
+  const bg = tone === 'mint' ? dashboardColors.statMintDeep : dashboardColors.statCitronDeep;
+  return (
+    <View className="mb-2 mt-3 flex-row items-center gap-2">
+      <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: bg }} />
+      <Text
+        className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-subtitle"
+        style={{ letterSpacing: 1.2 }}
+      >
+        {title}
+      </Text>
+    </View>
   );
 }

@@ -242,6 +242,7 @@ export default function ProfileScreen() {
               </Text>
               <Pressable
                 accessibilityRole="link"
+                accessibilityLabel="View contract options"
                 onPress={() => router.push('/more/contracts')}
                 className="mt-3 flex-row items-center gap-1.5 self-start active:opacity-70"
               >
@@ -312,6 +313,8 @@ export default function ProfileScreen() {
             <>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel="Refresh session now"
+                accessibilityState={{ disabled: manualRefreshing, busy: manualRefreshing }}
                 disabled={manualRefreshing}
                 onPress={onManualRefresh}
                 className="mb-3 flex-row items-center justify-center gap-2 rounded-[10px] border border-auth-line bg-auth-panel px-4 py-2.5 active:opacity-80"

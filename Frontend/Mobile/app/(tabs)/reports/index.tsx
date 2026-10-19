@@ -323,6 +323,7 @@ function ReportsHeader({
         {canCreate ? (
           <Pressable
             accessibilityRole="link"
+            accessibilityLabel="New report"
             onPress={onCreate}
             className="flex-row items-center gap-2 rounded-[11px] border px-3.5 py-2.5 active:opacity-90"
             style={{
@@ -362,6 +363,7 @@ function ReportsHeader({
                 onPress={open}
                 disabled={disabled}
                 accessibilityRole="button"
+                accessibilityLabel="Filter by status"
                 accessibilityState={{ disabled }}
                 className="flex-row items-center gap-2 rounded-[7px] border border-dashboard-card-line bg-card px-2.5 py-1.5 active:opacity-80"
               >
@@ -385,6 +387,7 @@ function ReportsHeader({
             </Text>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Clear search"
               onPress={() => onChangeQuery('')}
               className="active:opacity-70"
             >
@@ -424,6 +427,7 @@ function ReportRow({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={`Open ${report.description}`}
       className="flex-row items-start gap-2.5 py-3 active:opacity-80"
     >
       <ReportStatusIcon status={report.status} />

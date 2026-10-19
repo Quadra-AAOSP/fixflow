@@ -795,6 +795,11 @@ function ApplicationStatusBanner({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={
+        approved
+          ? 'Admin application approved'
+          : 'Admin application pending'
+      }
       onPress={onPress}
       className="mb-3 active:opacity-80"
     >
@@ -1076,6 +1081,7 @@ function CategoryCard({
         </View>
         <Pressable
           accessibilityRole="link"
+          accessibilityLabel="View all reports by category"
           onPress={onPressAll}
           className="flex-row items-center gap-1 active:opacity-70"
         >
@@ -1152,6 +1158,7 @@ function RecentReportsCard({
         </Text>
         <Pressable
           accessibilityRole="link"
+          accessibilityLabel="View all recent reports"
           onPress={onPressAll}
           className="flex-row items-center gap-1 active:opacity-70"
         >
@@ -1169,6 +1176,7 @@ function RecentReportsCard({
           </Text>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Clear filter"
             onPress={onClearFilter}
             className="active:opacity-70"
           >
@@ -1193,6 +1201,7 @@ function RecentReportsCard({
             ) : null}
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel={`Open ${report.description}`}
               onPress={() => onPressRow(report.id)}
               className="px-4 py-3 active:opacity-80"
             >
@@ -1251,6 +1260,7 @@ function RecentUpdatesCard({
         </Text>
         <Pressable
           accessibilityRole="link"
+          accessibilityLabel="View all recent updates"
           onPress={onPressAll}
           className="flex-row items-center gap-1 active:opacity-70"
         >
@@ -1271,6 +1281,7 @@ function RecentUpdatesCard({
             <Pressable
               key={report.id}
               accessibilityRole="link"
+              accessibilityLabel={`Open report ${report.id}`}
               onPress={() => onPressRow(report.id)}
               className="flex-row items-center gap-3 px-1 py-2.5 active:opacity-80"
             >
@@ -1425,6 +1436,7 @@ function ActionTile({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={title}
       onPress={onPress}
       className="flex-1 min-w-[48%] flex-row items-center gap-2.5 rounded-lg border border-dashboard-card-line p-3 active:opacity-80"
       style={{ backgroundColor: tone === 'mint' ? dashboardColors.tealSoft : dashboardColors.cardBg }}

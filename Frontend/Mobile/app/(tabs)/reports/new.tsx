@@ -295,6 +295,7 @@ export default function NewReportScreen() {
         >
           <Pressable
             accessibilityRole="link"
+            accessibilityLabel="All reports"
             onPress={() => router.back()}
             className="mb-2 flex-row items-center gap-1 self-start active:opacity-70"
           >
@@ -386,6 +387,7 @@ export default function NewReportScreen() {
             {subsitesError ? (
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel="Retry loading buildings"
                 onPress={() => {
                   if (site) void loadSubsites(site.id);
                 }}
@@ -414,6 +416,7 @@ export default function NewReportScreen() {
             {rulesError ? (
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel="Retry loading categories"
                 onPress={() => {
                   if (site?.type) void loadRules(site.type);
                 }}
@@ -465,6 +468,8 @@ export default function NewReportScreen() {
 
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Submit report"
+              accessibilityState={{ disabled: submitting, busy: submitting }}
               disabled={submitting}
               onPress={onSubmit}
               className="mt-1 flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"

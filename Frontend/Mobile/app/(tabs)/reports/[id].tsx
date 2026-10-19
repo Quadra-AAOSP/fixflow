@@ -214,6 +214,7 @@ export default function ReportDetailScreen() {
         <View className="mb-3 flex-row items-center justify-between">
           <Pressable
             accessibilityRole="link"
+            accessibilityLabel="All reports"
             onPress={() => router.push('/reports')}
             className="flex-row items-center gap-1 active:opacity-70"
           >
@@ -428,6 +429,8 @@ export default function ReportDetailScreen() {
             </Text>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Join this report"
+              accessibilityState={{ disabled: joining, busy: joining }}
               disabled={joining}
               onPress={onJoin}
               className="flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"

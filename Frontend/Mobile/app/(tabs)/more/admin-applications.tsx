@@ -182,6 +182,8 @@ export default function AdminApplicationsScreen() {
             <View className="mt-3 flex-row gap-2">
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={`Approve application #${application.id}`}
+                accessibilityState={{ disabled: decidingId !== null, busy: decidingId === application.id }}
                 disabled={decidingId !== null}
                 onPress={() => {
                   void decide(application.id, true);
@@ -203,6 +205,8 @@ export default function AdminApplicationsScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={`Reject application #${application.id}`}
+                accessibilityState={{ disabled: decidingId !== null, busy: decidingId === application.id }}
                 disabled={decidingId !== null}
                 onPress={() => {
                   void decide(application.id, false);

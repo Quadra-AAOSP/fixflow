@@ -102,6 +102,7 @@ export default function RegisterReporterScreen() {
         </Text>
         <Pressable
           accessibilityRole="link"
+          accessibilityLabel="Continue to sign in"
           onPress={() => router.replace('/(auth)/login')}
           className="mt-2 self-start py-2.5 active:opacity-70"
         >
@@ -217,6 +218,7 @@ export function BackToRoles({ router }: { router: ReturnType<typeof useRouter> }
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel="Change role"
       disabled={false}
       onPress={() => router.replace('/(auth)/register')}
       className="mb-4 min-h-[30px] flex-row items-center gap-1.5 active:opacity-60"

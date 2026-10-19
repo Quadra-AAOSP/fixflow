@@ -106,6 +106,7 @@ export default function RegisterAdminApplyScreen() {
         </Text>
         <Pressable
           accessibilityRole="link"
+          accessibilityLabel="Continue to sign in"
           onPress={() => router.replace('/(auth)/login')}
           className="mt-2 self-start py-2.5 active:opacity-70"
         >

@@ -297,6 +297,7 @@ export default function SiteSetupScreen() {
               {editing ? (
                 <Pressable
                   accessibilityRole="button"
+                  accessibilityLabel="Cancel edit"
                   onPress={resetForm}
                   className="flex-row items-center gap-1 active:opacity-70"
                 >
