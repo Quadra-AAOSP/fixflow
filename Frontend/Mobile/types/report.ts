@@ -27,6 +27,7 @@ export type ReportStatus =
 export type Report = {
   id: number;
   siteId: number | null;
+  subsiteId: number | null;
   createdByUserId: number | null;
   createdByName: string | null;
   description: string;
@@ -64,6 +65,8 @@ export type CreateReportPayload = {
   reporterReason?: string;
   /** Required only for super_admin; non-admins default to their own site. */
   siteId?: number;
+  /** Building/area within the site. Required whenever the site has subsites. */
+  subsiteId?: number;
 };
 
 /** Mirrors backend `ReportReporterResponse`. */

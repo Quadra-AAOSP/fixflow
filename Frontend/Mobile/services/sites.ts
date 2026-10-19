@@ -1,6 +1,7 @@
 import { api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
+  ReportingSetup,
   Site,
   Subsite,
   SubsiteAlert,
@@ -55,6 +56,28 @@ export function createSubsite(
   payload: SubsitePayload,
 ): Promise<Subsite> {
   return api.post<Subsite>(endpoints.sites.subsites(siteId), payload);
+}
+
+export function updateSubsite(
+  siteId: number,
+  id: number,
+  payload: SubsitePayload,
+): Promise<Subsite> {
+  return api.put<Subsite>(endpoints.sites.subsite(siteId, id), payload);
+}
+
+/** Archives a subsite — it stays listed but stops accepting new reports. */
+export function archiveSubsite(siteId: number, id: number): Promise<Subsite> {
+  return api.post<Subsite>(endpoints.sites.archiveSubsite(siteId, id));
+}
+
+/**
+ * Live reporting readiness for a site. The backend recalculates this on every
+ * call (`SubsiteService.setup`) — archiving the last building flips
+ * `reportingReady` back to false.
+ */
+export function getReportingSetup(siteId: number): Promise<ReportingSetup> {
+  return api.get<ReportingSetup>(endpoints.sites.reportingSetup(siteId));
 }
 
 /** Flags that a subsite is missing or mislabelled. */

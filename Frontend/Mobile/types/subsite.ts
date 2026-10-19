@@ -10,6 +10,15 @@ export type Subsite = {
   label: string;
   name: string;
   description: string | null;
+  /** Non-null once archived; archived subsites cannot receive new reports. */
+  archivedAt: string | null;
+};
+
+/** Mirrors backend `SubsiteService.SetupStatus` (GET reporting-setup). */
+export type ReportingSetup = {
+  siteId: number;
+  reportingReady: boolean;
+  activeSubsiteCount: number;
 };
 
 /** Mirrors backend `SubsiteRequest`. */

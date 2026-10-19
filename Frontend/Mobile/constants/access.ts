@@ -7,6 +7,7 @@ export const roleLabels: Record<UserRole, string> = {
   staff: 'Site staff',
   admin: 'Site administrator',
   super_admin: 'Super administrator',
+  shop_manager: 'Shop manager',
 };
 
 
@@ -17,3 +18,6 @@ export const canEditSite = (user: User | null | undefined): boolean => user?.cap
 export const canAssignTechnician = (user: User | null | undefined): boolean => user?.capabilities?.assignTechnician ?? false;
 export const canCreateReport = (user: User | null | undefined): boolean => user?.capabilities?.createReport ?? false;
 export const provisionableRoles = (user: User | null | undefined): UserRole[] => user?.capabilities?.provisionableRoles ?? [];
+export const canManageShop = (user: User | null | undefined): boolean => user?.capabilities?.manageShop ?? false;
+/** True for the admin of a site (site-bound accounts only). */
+export const canManageSubsites = (user: User | null | undefined): boolean => user?.siteOnboarding?.canManageSubsites ?? false;
