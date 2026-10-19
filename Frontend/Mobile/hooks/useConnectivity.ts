@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
-import { fetchApi } from '@/lib/apiClient';
+import { api } from '@/lib/apiClient';
 
 /**
  * Lightweight "is the backend reachable?" hook — no extra native deps needed.
@@ -22,7 +22,7 @@ export function useConnectivity() {
 
   const probe = useCallback(async () => {
     try {
-      await fetchApi('/api/auth/policy');
+      await api.get('/api/auth/policy');
       setOffline(false);
     } catch (err: unknown) {
       // Network-level errors are the only ones that should flip us to offline.
