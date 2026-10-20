@@ -347,7 +347,7 @@ export default function HomeScreen() {
       ? null
       : activeStatus === 'urgent'
         ? t('home.statLabels.urgent.label')
-        : groupLabels[activeStatus];
+        : t(groupLabels[activeStatus]);
 
   // First-login setup gate: a site administrator whose site has no active
   // building lands on this screen instead of the dashboard. Authentication is
@@ -1303,7 +1303,7 @@ function RecentUpdatesCard({
                   {t('home.recentUpdates.reportPrefix', { id: report.id })}
                   <Text className="font-normal text-dashboard-subtitle">
                     {'  ·  '}
-                    {statusLabels[report.status]}
+                    {t(statusLabels[report.status])}
                   </Text>
                 </Text>
                 <Text className="mt-0.5 text-[10px] text-dashboard-caption">

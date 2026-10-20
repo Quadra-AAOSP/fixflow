@@ -51,7 +51,7 @@ export default function ProfileScreen() {
     return <Screen>{null}</Screen>;
   }
 
-  const roleLabel = roleLabels[user.role];
+  const roleLabel = t(roleLabels[user.role]);
   const siteName =
     user.siteId !== null && site ? site.name : t('profile.dash');
 

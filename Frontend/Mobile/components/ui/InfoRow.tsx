@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 type InfoRowProps = {
   label: string;
@@ -19,6 +20,7 @@ export function InfoRow({
   children,
   className,
 }: InfoRowProps) {
+  const { t } = useTranslation('common');
   const hasValue =
     children !== undefined &&
     children !== null &&
@@ -36,7 +38,9 @@ export function InfoRow({
       ) : hasValue ? (
         <Text className="mt-0.5 text-sm text-ink">{String(value)}</Text>
       ) : (
-        <Text className="mt-0.5 text-sm text-muted">Not available</Text>
+        <Text className="mt-0.5 text-sm text-muted">
+          {t('components.infoRow.notAvailable')}
+        </Text>
       )}
     </View>
   );

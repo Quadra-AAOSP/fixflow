@@ -508,7 +508,16 @@
       "nameLabel": "名称",
       "namePlaceholder": "例如 主校区",
       "typeLabel": "类型",
+      "types": {
+        "school": "学校",
+        "hostel": "宿舍",
+        "hotel": "酒店"
+      },
       "contractStatusLabel": "合同状态",
+      "contractStatuses": {
+        "contracted": "已签约",
+        "uncontracted": "未签约"
+      },
       "addressLabel": "地址",
       "descriptionLabel": "描述",
       "imageUrlLabel": "图片 URL",
@@ -573,6 +582,12 @@
       "allProducts": "全部商品",
       "productCount": "{count} 件商品",
       "sortLabel": "排序",
+      "sortOptions": {
+        "featured": "推荐",
+        "priceAsc": "价格 ↑",
+        "priceDesc": "价格 ↓",
+        "name": "名称"
+      },
       "couldNotLoadCatalog": "无法加载商品目录。",
       "couldNotLoadCatalogTitle": "无法加载商品目录",
       "couldNotLoadOrders": "无法加载您的订单。",
@@ -584,8 +599,10 @@
       "basketCount": "{count} 件商品",
       "review": "查看 →",
       "noImage": "暂无图片",
+      "noImageShort": "暂无图片",
       "noDescription": "未提供描述。",
       "outOfStock": "缺货",
+      "inStock": "有货",
       "inStockCount": "库存 {count} 件",
       "quantityInBasket": "购物篮中 {count} 件",
       "tapToAdd": "点击 + 加入购物篮",
@@ -847,9 +864,145 @@
     "checkForUpdates": "检查更新",
     "liveNote": "每次打开此页面时都会向服务器实时查询状态。"
   },
+  "components": {
+    "siteSwitcher": {
+      "couldNotLoad": "无法加载站点",
+      "loading": "正在加载站点…",
+      "noSite": "未关联站点",
+      "switchLabel": "切换站点",
+      "switchHint": "打开可供您工作的站点列表"
+    },
+    "infoRow": {
+      "notAvailable": "暂无信息"
+    },
+    "picker": {
+      "placeholder": "请选择…",
+      "emptyMessage": "暂无可用选项",
+      "done": "完成"
+    },
+    "quantityStepper": {
+      "decrease": "减少数量",
+      "increase": "增加数量"
+    },
+    "searchField": {
+      "placeholder": "搜索…",
+      "clear": "清除搜索"
+    },
+    "siteCard": {
+      "noAddress": "未提供地址。",
+      "noDescription": "未提供描述。",
+      "viewReports": "查看报修 →",
+      "editSite": "编辑站点",
+      "editA11y": "编辑 {name}",
+      "contract": "合同：{contract} · 站点编号：{id}"
+    },
+    "plantArt": {
+      "a11yLabel": "盆栽"
+    },
+    "weeklyChart": {
+      "open": "待处理",
+      "inProgress": "进行中",
+      "resolved": "已解决"
+    },
+    "headerBack": {
+      "a11yLabel": "返回"
+    },
+    "modalSheet": {
+      "close": "关闭"
+    },
+    "authShell": {
+      "homeA11y": "fixflow 首页",
+      "joinCommunity": "加入你的社区",
+      "storyKicker": "一点点用心，带来长久的改变",
+      "storyPlaces": "美好的空间。",
+      "storyPeople": "快乐的人们。",
+      "storyAccent": "让它一直如此。",
+      "storyBody": "从一个漏水的水龙头到一盏闪烁的灯，帮助您所共享的场所更像一个家。",
+      "storyReport": "报修。",
+      "storyTrack": "跟踪。",
+      "storyHome": "宾至如归。",
+      "footerMadeFor": "为我们共享的场所而做。",
+      "footerSectors": "学校 · 宿舍 · 酒店"
+    },
+    "tradeProfile": {
+      "heading": "您的技能档案",
+      "intro": "创建账户后添加您的工种。这些信息为自行申报，并非经核实的资质。",
+      "saved": "已保存：{category} · {specialty} · 熟练度 {proficiency}/5。",
+      "addAnother": "添加另一项技能 →",
+      "primaryTrade": "主工种",
+      "specialtyLabel": "专长及您有资格从事的工作",
+      "proficiencyLabel": "自评熟练度",
+      "chooseCategory": "选择类别…",
+      "categoryPlaceholder": "例如 电气",
+      "specialtyPlaceholder": "例如 低压布线",
+      "chooseLevel": "选择等级",
+      "saving": "正在保存…",
+      "save": "保存技能详情",
+      "previousSkillsNote": "暂无法显示此前保存的技能。请仅添加尚未提交过的技能。",
+      "beforeYouStart": "在站点开始工作之前",
+      "reviewBody": "请与站点管理员安排一次审核，内容涵盖您的身份、相关工作经历与推荐人、资质、适用的行业执照及有效期，以及适合该工作的保险。具体要求取决于工种和所在地。",
+      "evidenceNote": "暂不支持安全证据上传和审批跟踪。请勿在此输入身份号码或文件链接。已保存的技能或站点合同并非审核通过的凭证。",
+      "levels": {
+        "beginner": "初学者",
+        "basicExperience": "具备基础实践经验",
+        "independent": "能独立完成日常工作",
+        "advanced": "进阶工作",
+        "expert": "专家"
+      },
+      "errors": {
+        "categoryRequired": "类别为必填项。",
+        "specialtyRequired": "专长为必填项。",
+        "chooseProficiency": "请选择熟练度等级。",
+        "categoryTooLong": "类别不得超过 {max} 个字符。",
+        "specialtyTooLong": "专长不得超过 {max} 个字符。",
+        "proficiencyRange": "熟练度必须在 1 到 5 之间。",
+        "saveFailed": "目前无法保存该技能。",
+        "duplicateSuffix": " 如果连接中断，请先与管理员确认再重新提交，以免重复添加技能。"
+      }
+    }
+  },
+  "labels": {
+    "status": {
+      "open": "待处理",
+      "routed": "已路由",
+      "assigned": "已分配",
+      "in_progress": "进行中",
+      "resolved_pending_confirmation": "待确认",
+      "confirmed": "已确认",
+      "reopened": "已重开",
+      "escalated": "已升级"
+    },
+    "urgency": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "critical": "紧急"
+    },
+    "group": {
+      "open": "待处理",
+      "progress": "进行中",
+      "resolved": "已解决"
+    },
+    "filter": {
+      "all": "全部",
+      "open": "待处理",
+      "progress": "进行中",
+      "resolved": "已解决",
+      "urgent": "紧急"
+    },
+    "role": {
+      "reporter": "报修人",
+      "technician": "技师",
+      "staff": "站点员工",
+      "admin": "站点管理员",
+      "super_admin": "超级管理员",
+      "shop_manager": "物资管理员"
+    }
+  },
   "errors": {
     "network": "无法连接到服务器，请检查网络及 API 地址。",
     "unauthorized": "您的会话已过期，请重新登录。",
-    "couldNotLoadTitle": "无法加载报修"
+    "couldNotLoadTitle": "无法加载报修",
+    "reLoginFailed": "自动登录失败。请在应用重新打开后手动登录。"
   }
 }

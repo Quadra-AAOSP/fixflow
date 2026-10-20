@@ -144,7 +144,7 @@ function ManagedRoleHint({ role, t }: { role: 'staff' | 'super_admin'; t: (key: 
       className="text-[11px] text-auth-ghost-ink"
       style={{ fontFamily: fontFamilies.bodyMedium }}
     >
-      {t('auth.register.managedRoleHint', { role: roleLabels[role] })}
+      {t('auth.register.managedRoleHint', { role: t(roleLabels[role]) })}
     </Text>
   );
 }

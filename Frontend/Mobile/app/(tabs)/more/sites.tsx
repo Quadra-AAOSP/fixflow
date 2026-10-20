@@ -30,15 +30,18 @@ import type { ContractStatus, Site, SiteType } from '@/types';
 import type { SitePayload } from '@/services/sites';
 import { humanize } from '@/utils/format';
 
-const SITE_TYPES: { value: SiteType; label: string }[] = [
-  { value: 'school', label: 'School' },
-  { value: 'hostel', label: 'Hostel' },
-  { value: 'hotel', label: 'Hotel' },
+// Label values are i18n keys, resolved against `t` inside the component body —
+// reading translations at module scope would capture whichever locale was
+// active at import time.
+const SITE_TYPES: { value: SiteType; labelKey: string }[] = [
+  { value: 'school', labelKey: 'more.sites.types.school' },
+  { value: 'hostel', labelKey: 'more.sites.types.hostel' },
+  { value: 'hotel', labelKey: 'more.sites.types.hotel' },
 ];
 
-const CONTRACT_STATUSES: { value: ContractStatus; label: string }[] = [
-  { value: 'contracted', label: 'Contracted' },
-  { value: 'uncontracted', label: 'Uncontracted' },
+const CONTRACT_STATUSES: { value: ContractStatus; labelKey: string }[] = [
+  { value: 'contracted', labelKey: 'more.sites.contractStatuses.contracted' },
+  { value: 'uncontracted', labelKey: 'more.sites.contractStatuses.uncontracted' },
 ];
 
 /**
@@ -375,13 +378,19 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
         label={t('more.sites.typeLabel')}
         value={type}
         onChange={(value) => setType(value as SiteType)}
-        options={SITE_TYPES}
+        options={SITE_TYPES.map((option) => ({
+          value: option.value,
+          label: t(option.labelKey),
+        }))}
       />
       <Picker
         label={t('more.sites.contractStatusLabel')}
         value={contractStatus}
         onChange={(value) => setContractStatus(value as ContractStatus)}
-        options={CONTRACT_STATUSES}
+        options={CONTRACT_STATUSES.map((option) => ({
+          value: option.value,
+          label: t(option.labelKey),
+        }))}
       />
       <TextField
         label={t('more.sites.addressLabel')}

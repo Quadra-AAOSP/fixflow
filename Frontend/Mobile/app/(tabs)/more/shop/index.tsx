@@ -416,7 +416,10 @@ export default function ShopIndexScreen() {
               label={t('more.shop.sortLabel')}
               value={sort}
               onChange={(value) => setSort(value as ShopSortKey)}
-              options={SHOP_SORT_OPTIONS}
+              options={SHOP_SORT_OPTIONS.map((option) => ({
+                value: option.value,
+                label: t(option.labelKey),
+              }))}
             />
           </View>
         </View>

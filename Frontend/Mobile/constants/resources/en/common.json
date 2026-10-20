@@ -508,7 +508,16 @@
       "nameLabel": "Name",
       "namePlaceholder": "e.g. Main Campus",
       "typeLabel": "Type",
+      "types": {
+        "school": "School",
+        "hostel": "Hostel",
+        "hotel": "Hotel"
+      },
       "contractStatusLabel": "Contract status",
+      "contractStatuses": {
+        "contracted": "Contracted",
+        "uncontracted": "Uncontracted"
+      },
       "addressLabel": "Address",
       "descriptionLabel": "Description",
       "imageUrlLabel": "Image URL",
@@ -573,6 +582,12 @@
       "allProducts": "All products",
       "productCount": "{count} product{plural}",
       "sortLabel": "Sort",
+      "sortOptions": {
+        "featured": "Featured",
+        "priceAsc": "Price ↑",
+        "priceDesc": "Price ↓",
+        "name": "Name"
+      },
       "couldNotLoadCatalog": "Could not load the catalog.",
       "couldNotLoadCatalogTitle": "Could not load the catalog",
       "couldNotLoadOrders": "Could not load your orders.",
@@ -584,8 +599,10 @@
       "basketCount": "{count} item{plural}",
       "review": "Review →",
       "noImage": "No image available",
+      "noImageShort": "No image",
       "noDescription": "No description provided.",
       "outOfStock": "Out of stock",
+      "inStock": "In stock",
       "inStockCount": "{count} in stock",
       "quantityInBasket": "{count} in basket",
       "tapToAdd": "Tap + to add to your basket",
@@ -847,9 +864,145 @@
     "checkForUpdates": "Check for updates",
     "liveNote": "Status is checked live against the server each time this screen opens."
   },
+  "components": {
+    "siteSwitcher": {
+      "couldNotLoad": "Could not load site",
+      "loading": "Loading site…",
+      "noSite": "No site linked",
+      "switchLabel": "Switch site",
+      "switchHint": "Opens the list of sites you can work on"
+    },
+    "infoRow": {
+      "notAvailable": "Not available"
+    },
+    "picker": {
+      "placeholder": "Select…",
+      "emptyMessage": "No options available",
+      "done": "Done"
+    },
+    "quantityStepper": {
+      "decrease": "Decrease quantity",
+      "increase": "Increase quantity"
+    },
+    "searchField": {
+      "placeholder": "Search…",
+      "clear": "Clear search"
+    },
+    "siteCard": {
+      "noAddress": "No address provided.",
+      "noDescription": "No description provided.",
+      "viewReports": "View reports →",
+      "editSite": "Edit site",
+      "editA11y": "Edit {name}",
+      "contract": "Contract: {contract} · Site ID: {id}"
+    },
+    "plantArt": {
+      "a11yLabel": "Potted plants"
+    },
+    "weeklyChart": {
+      "open": "Open",
+      "inProgress": "In progress",
+      "resolved": "Resolved"
+    },
+    "headerBack": {
+      "a11yLabel": "Back"
+    },
+    "modalSheet": {
+      "close": "Close"
+    },
+    "authShell": {
+      "homeA11y": "fixflow home",
+      "joinCommunity": "Join your community",
+      "storyKicker": "A LITTLE CARE GOES A LONG WAY",
+      "storyPlaces": "Good spaces.",
+      "storyPeople": "Happy people.",
+      "storyAccent": "Let’s keep it that way.",
+      "storyBody": "From a leaky tap to a flickering light, help make the places you share feel a little more like home.",
+      "storyReport": "Report it.",
+      "storyTrack": "Track it.",
+      "storyHome": "Feel at home.",
+      "footerMadeFor": "Made for the places we share.",
+      "footerSectors": "Schools · Hostels · Hotels"
+    },
+    "tradeProfile": {
+      "heading": "Your trade profile",
+      "intro": "Add your trade after creating your account. These details are self-reported, not verified qualifications.",
+      "saved": "Saved: {category} · {specialty} · proficiency {proficiency}/5.",
+      "addAnother": "Add another trade →",
+      "primaryTrade": "Primary trade",
+      "specialtyLabel": "Specialty and work you are qualified to undertake",
+      "proficiencyLabel": "Self-assessed proficiency",
+      "chooseCategory": "Choose a category…",
+      "categoryPlaceholder": "e.g. electrical",
+      "specialtyPlaceholder": "e.g. low-voltage wiring",
+      "chooseLevel": "Choose a level",
+      "saving": "Saving…",
+      "save": "Save trade details",
+      "previousSkillsNote": "Previously saved skills cannot be displayed yet. Only add a trade you have not already submitted.",
+      "beforeYouStart": "Before you start work at a site",
+      "reviewBody": "Arrange a review with the site administrator covering your identity, relevant work history and references, qualifications, applicable trade licences and expiry dates, and insurance appropriate to the work. Requirements depend on the trade and location.",
+      "evidenceNote": "Secure evidence uploads and approval tracking are not available yet. Do not enter identity numbers or document links here. A saved trade or site contract is not proof of vetting.",
+      "levels": {
+        "beginner": "Beginner",
+        "basicExperience": "Basic practical experience",
+        "independent": "Independent routine work",
+        "advanced": "Advanced work",
+        "expert": "Expert"
+      },
+      "errors": {
+        "categoryRequired": "Category is required.",
+        "specialtyRequired": "Specialty is required.",
+        "chooseProficiency": "Choose a proficiency level.",
+        "categoryTooLong": "Category must be {max} characters or fewer.",
+        "specialtyTooLong": "Specialty must be {max} characters or fewer.",
+        "proficiencyRange": "Proficiency must be between 1 and 5.",
+        "saveFailed": "Could not save the trade right now.",
+        "duplicateSuffix": " If the connection was interrupted, confirm with an administrator before submitting again to avoid a duplicate skill."
+      }
+    }
+  },
+  "labels": {
+    "status": {
+      "open": "Open",
+      "routed": "Routed",
+      "assigned": "Assigned",
+      "in_progress": "In progress",
+      "resolved_pending_confirmation": "Awaiting confirmation",
+      "confirmed": "Confirmed",
+      "reopened": "Reopened",
+      "escalated": "Escalated"
+    },
+    "urgency": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "group": {
+      "open": "Open",
+      "progress": "In progress",
+      "resolved": "Resolved"
+    },
+    "filter": {
+      "all": "All",
+      "open": "Open",
+      "progress": "In progress",
+      "resolved": "Resolved",
+      "urgent": "Urgent"
+    },
+    "role": {
+      "reporter": "Reporter",
+      "technician": "Technician",
+      "staff": "Site staff",
+      "admin": "Site administrator",
+      "super_admin": "Super administrator",
+      "shop_manager": "Shop manager"
+    }
+  },
   "errors": {
     "network": "Unable to reach the server. Check your connection and API URL.",
     "unauthorized": "Your session has expired. Please sign in again.",
-    "couldNotLoadTitle": "Could not load reports"
+    "couldNotLoadTitle": "Could not load reports",
+    "reLoginFailed": "Automatic sign-in failed. Sign in manually when the app re-opens."
   }
 }

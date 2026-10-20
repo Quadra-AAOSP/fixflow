@@ -116,7 +116,7 @@ export default function TeamAccessScreen() {
   }));
   const roleOptions = roles.map((value) => ({
     value,
-    label: roleLabels[value],
+    label: t(roleLabels[value]),
   }));
 
   // Shop managers (and super admins) are platform-level accounts — the
@@ -164,7 +164,7 @@ export default function TeamAccessScreen() {
             `Site #${created.siteId}`);
       setConfirmation(
         t('more.teamAccess.confirmation', {
-          role: roleLabels[created.role],
+          role: t(roleLabels[created.role]),
           name: `${created.firstName} ${created.lastName}`,
           email: created.email,
           site: siteName,
@@ -289,7 +289,7 @@ export default function TeamAccessScreen() {
             {siteless ? (
               <Text className="-mt-2 mb-4 text-[10px] leading-[1.65] text-dashboard-subtitle">
                 {t('more.teamAccess.platformLevelNote', {
-                  role: roleLabels[role ?? 'staff'],
+                  role: t(roleLabels[role ?? 'staff']),
                 })}
               </Text>
             ) : null}

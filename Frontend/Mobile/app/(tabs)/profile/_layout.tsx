@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { authColors, themeColors } from '@/constants/theme';
@@ -17,6 +18,7 @@ import { authColors, themeColors } from '@/constants/theme';
  */
 export default function ProfileStackLayout() {
   const palette = themeColors();
+  const { t } = useTranslation('common');
 
   return (
     <Stack>
@@ -25,7 +27,7 @@ export default function ProfileStackLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Profile',
+          title: t('tabs.profile'),
           headerStyle: { backgroundColor: authColors.bg },
           headerTintColor: authColors.ink,
           headerTitleStyle: { fontWeight: '600', fontSize: 16 },
@@ -35,7 +37,7 @@ export default function ProfileStackLayout() {
       <Stack.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t('settings.title'),
           headerStyle: { backgroundColor: palette.card },
           headerTintColor: palette.ink,
           headerTitleStyle: { fontWeight: '600', fontSize: 16 },

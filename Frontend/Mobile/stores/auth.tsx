@@ -13,6 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import * as authApi from '@/services/auth';
 import { ApiError } from '@/services/auth';
+import i18n from '@/constants/i18n';
 import type { LoginPayload, RegisterPayload, User } from '@/types';
 
 /** Seconds before the backend's idle timeout fires — heartbeat fires this often. */
@@ -128,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         reloginError:
           error instanceof ApiError
             ? error.message
-            : 'Automatic sign-in failed. Sign in manually when the app re-opens.',
+            : i18n.t('errors.reLoginFailed'),
       }));
       await clearCredentials();
       return null;

@@ -1,5 +1,6 @@
 import { Search, X } from 'lucide-react-native';
 import { Pressable, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors, themeColors } from '@/constants/theme';
 
@@ -24,11 +25,13 @@ type SearchFieldProps = {
 export function SearchField({
   value,
   onChangeText,
-  placeholder = 'Search…',
+  placeholder,
   className,
   autoFocus,
 }: SearchFieldProps) {
+  const { t } = useTranslation('common');
   const palette = themeColors();
+  const resolvedPlaceholder = placeholder ?? t('components.searchField.placeholder');
 
   return (
     <View
@@ -40,20 +43,20 @@ export function SearchField({
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         placeholderTextColor={colors.muted}
         autoFocus={autoFocus}
         autoCorrect={false}
         autoCapitalize="none"
         returnKeyType="search"
         className="flex-1 py-2.5 text-[13px] text-ink"
-        accessibilityLabel={placeholder}
+        accessibilityLabel={resolvedPlaceholder}
       />
       {value.length > 0 ? (
         <Pressable
           onPress={() => onChangeText('')}
           accessibilityRole="button"
-          accessibilityLabel="Clear search"
+          accessibilityLabel={t('components.searchField.clear')}
           className="p-1"
         >
           <X color={palette.muted} size={14} />

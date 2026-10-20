@@ -125,7 +125,7 @@ export default function ReportsScreen() {
     () =>
       REPORT_FILTERS.map((option) => ({
         value: option.value,
-        label: option.value === 'all' ? t('reports.list.allReports') : option.label,
+        label: option.value === 'all' ? t('reports.list.allReports') : t(option.labelKey),
       })),
     [t],
   );
@@ -445,7 +445,7 @@ function ReportRow({
         <View className="mt-1.5 flex-row items-center gap-2">
           <StatusBadge status={report.status} />
           <Text className="text-[10px] text-dashboard-subtitle">
-            {urgencyLabels[urgency]} {t('reports.list.urgencySuffix')}
+            {t(urgencyLabels[urgency])} {t('reports.list.urgencySuffix')}
           </Text>
         </View>
         <Text

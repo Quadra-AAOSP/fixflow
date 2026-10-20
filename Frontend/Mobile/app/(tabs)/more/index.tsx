@@ -183,7 +183,7 @@ export default function MoreScreen() {
             {t('more.title')}
           </Text>
           <Text className="mt-0.5 text-[11px] text-dashboard-caption">
-            {t('more.signedInAs', { role: roleLabels[role] })}
+            {t('more.signedInAs', { role: t(roleLabels[role]) })}
             {sitesLabel}
             {applicationStatusLabel ? ` · ${applicationStatusLabel}` : ''}
           </Text>

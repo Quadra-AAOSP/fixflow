@@ -152,7 +152,8 @@ export default function AssignmentsScreen() {
   }, [scoped]);
 
   const filterOptions = REPORT_FILTERS.map((option) => ({
-    ...option,
+    value: option.value,
+    label: t(option.labelKey),
     count: scoped.filter((report) => matchesFilter(report, option.value)).length,
   }));
 

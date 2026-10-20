@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors } from '@/constants/theme';
 import type { WeekBucket } from '@/utils/maintenance';
@@ -12,6 +13,7 @@ const BAR_AREA_HEIGHT = 96;
  * and a charting dependency would be more surface than this needs.
  */
 export function WeeklyChart({ buckets }: { buckets: WeekBucket[] }) {
+  const { t } = useTranslation('common');
   const totals = buckets.map((bucket) =>
     bucket.values.reduce((sum, value) => sum + value, 0),
   );
@@ -66,9 +68,9 @@ export function WeeklyChart({ buckets }: { buckets: WeekBucket[] }) {
       </View>
 
       <View className="mt-4 flex-row justify-center gap-4">
-        <Legend color={colors.primary} label="Open" />
-        <Legend color={colors.accent} label="In progress" />
-        <Legend color={colors.lime} label="Resolved" />
+        <Legend color={colors.primary} label={t('components.weeklyChart.open')} />
+        <Legend color={colors.accent} label={t('components.weeklyChart.inProgress')} />
+        <Legend color={colors.lime} label={t('components.weeklyChart.resolved')} />
       </View>
     </View>
   );

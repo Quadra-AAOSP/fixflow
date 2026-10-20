@@ -303,19 +303,19 @@ export default function ReportDetailScreen() {
           />
           <DefinitionRow
             label={t('reports.detail.definition.reporterUrgency')}
-            value={urgencyLabels[report.reporterUrgency]}
+            value={t(urgencyLabels[report.reporterUrgency])}
           />
           <DefinitionRow
             label={t('reports.detail.definition.aiUrgency')}
             value={
-              report.aiUrgency ? urgencyLabels[report.aiUrgency] : t('reports.detail.definition.notClassified')
+              report.aiUrgency ? t(urgencyLabels[report.aiUrgency]) : t('reports.detail.definition.notClassified')
             }
           />
           <DefinitionRow
             label={t('reports.detail.definition.finalUrgency')}
             value={
               report.finalUrgency
-                ? urgencyLabels[report.finalUrgency]
+                ? t(urgencyLabels[report.finalUrgency])
                 : t('reports.detail.definition.notDetermined')
             }
           />

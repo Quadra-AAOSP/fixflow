@@ -33,10 +33,6 @@ import { useCurrentSite } from '@/stores/site';
 import { humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
 
-const URGENCY_OPTIONS: SegmentedOption<Urgency>[] = (
-  Object.keys(urgencyLabels) as Urgency[]
-).map((value) => ({ value, label: urgencyLabels[value] }));
-
 /**
  * "Report an issue" form. Mirrors `ReportFormView.vue`:
  */
@@ -277,6 +273,11 @@ export default function NewReportScreen() {
     { value: 'private', label: t('reports.new.visibilityPrivate') },
   ];
 
+  // Resolved at render so the labels follow the active locale.
+  const urgencyOptions: SegmentedOption<Urgency>[] = (
+    Object.keys(urgencyLabels) as Urgency[]
+  ).map((value) => ({ value, label: t(urgencyLabels[value]) }));
+
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -424,7 +425,7 @@ export default function NewReportScreen() {
 
             <Text className="mb-2 text-sm font-medium text-ink">{t('reports.new.urgencyLabel')}</Text>
             <SegmentedControl
-              options={URGENCY_OPTIONS}
+              options={urgencyOptions}
               value={urgency}
               onChange={setUrgency}
               className="mb-4"

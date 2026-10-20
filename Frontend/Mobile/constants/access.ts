@@ -1,13 +1,14 @@
 import type { User, UserRole } from '@/types';
 
 // Presentation labels only. Capabilities are supplied by the backend.
+// Values are i18n keys resolved with `t` at render time.
 export const roleLabels: Record<UserRole, string> = {
-  reporter: 'Reporter',
-  technician: 'Technician',
-  staff: 'Site staff',
-  admin: 'Site administrator',
-  super_admin: 'Super administrator',
-  shop_manager: 'Shop manager',
+  reporter: 'labels.role.reporter',
+  technician: 'labels.role.technician',
+  staff: 'labels.role.staff',
+  admin: 'labels.role.admin',
+  super_admin: 'labels.role.super_admin',
+  shop_manager: 'labels.role.shop_manager',
 };
 
 
