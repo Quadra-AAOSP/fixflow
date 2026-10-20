@@ -429,7 +429,9 @@ function ReportRow({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Open ${report.description}`}
+      accessibilityLabel={t('reports.list.openA11y', {
+        description: report.description,
+      })}
       className="flex-row items-start gap-2.5 py-3 active:opacity-80"
     >
       <ReportStatusIcon status={report.status} />

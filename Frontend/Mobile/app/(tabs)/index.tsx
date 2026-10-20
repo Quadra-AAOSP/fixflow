@@ -883,7 +883,10 @@ function AttentionCard({
               ) : null}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${item.count} ${t(`${key}.label`)}`}
+                accessibilityLabel={t('home.attention.itemA11y', {
+                  count: item.count,
+                  label: t(`${key}.label`),
+                })}
                 onPress={() => onPressItem(item.filter)}
                 className="flex-row items-center gap-3 px-4 py-3 active:opacity-80"
               >
@@ -1094,7 +1097,10 @@ function CategoryCard({
             <Pressable
               key={slice.name}
               accessibilityRole="button"
-              accessibilityLabel={`${humanize(slice.name)}, ${slice.total} reports`}
+              accessibilityLabel={t('home.category.rowA11y', {
+                category: humanize(slice.name),
+                count: slice.total,
+              })}
               onPress={() => onPressCategory(slice.name)}
               className={`py-2 active:opacity-70 ${index > 0 ? 'mt-1' : ''}`}
             >
@@ -1198,7 +1204,9 @@ function RecentReportsCard({
             ) : null}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Open ${report.description}`}
+              accessibilityLabel={t('home.recentReports.openA11y', {
+                description: report.description,
+              })}
               onPress={() => onPressRow(report.id)}
               className="px-4 py-3 active:opacity-80"
             >
@@ -1280,7 +1288,9 @@ function RecentUpdatesCard({
             <Pressable
               key={report.id}
               accessibilityRole="link"
-              accessibilityLabel={`Open report ${report.id}`}
+              accessibilityLabel={t('home.recentUpdates.openA11y', {
+                id: report.id,
+              })}
               onPress={() => onPressRow(report.id)}
               className="flex-row items-center gap-3 px-1 py-2.5 active:opacity-80"
             >
@@ -1543,8 +1553,9 @@ function EmptyHomeCard({
  * when the data arrives.
  */
 function HomeSkeleton() {
+  const { t } = useTranslation('common');
   return (
-    <View accessibilityLabel="Loading dashboard">
+    <View accessibilityLabel={t('home.loadingDashboard')}>
       <View className="mb-4 h-[104px] rounded-[11px] border border-dashboard-card-line bg-dashboard-card-bg" />
       <View className="mb-3 flex-row gap-2">
         <View className="h-[76px] flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg" />

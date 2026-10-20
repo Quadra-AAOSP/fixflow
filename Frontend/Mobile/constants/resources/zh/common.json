@@ -316,6 +316,7 @@
     },
     "detail": {
       "allReports": "全部报修",
+      "screenTitle": "报修详情",
       "title": "报修 #{id}",
       "loading": "正在加载报修…",
       "couldNotLoadTitle": "无法加载报修",
@@ -618,6 +619,7 @@
       "keepOrder": "保留订单",
       "cancelOrder": "取消订单",
       "orderNotFound": "未找到订单",
+      "orderScreenTitle": "订单详情",
       "orderTitle": "订单 #{id}",
       "backToShop": "返回商城",
       "placed": "下单于 {date}",

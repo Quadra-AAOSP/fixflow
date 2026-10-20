@@ -380,7 +380,7 @@ export default function NewReportScreen() {
             {subsitesError ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Retry loading buildings"
+                accessibilityLabel={t('reports.new.retryLoadingBuildings')}
                 onPress={() => {
                   if (site) void loadSubsites(site.id);
                 }}
@@ -409,7 +409,7 @@ export default function NewReportScreen() {
             {rulesError ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Retry loading categories"
+                accessibilityLabel={t('reports.new.retryLoadingCategories')}
                 onPress={() => {
                   if (site?.type) void loadRules(site.type);
                 }}

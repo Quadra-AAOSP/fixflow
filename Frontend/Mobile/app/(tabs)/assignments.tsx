@@ -422,7 +422,9 @@ function ReportCard({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Open ${report.description}`}
+      accessibilityLabel={t('assignments.openA11y', {
+        description: report.description,
+      })}
       className="rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4 active:opacity-80"
     >
       <View className="mb-1 flex-row items-center justify-between gap-2">

@@ -63,7 +63,10 @@ async function init() {
     },
     ns: ['common'],
     defaultNS: 'common',
-    interpolation: { escapeValue: false },
+    // The catalogs use single-brace placeholders (`{count}`, `{site}`), not
+    // i18next's default double-brace. Tell i18next to match so the values
+    // actually substitute instead of rendering literally.
+    interpolation: { escapeValue: false, prefix: '{', suffix: '}' },
   });
 }
 

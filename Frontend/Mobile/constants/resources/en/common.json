@@ -316,6 +316,7 @@
     },
     "detail": {
       "allReports": "All reports",
+      "screenTitle": "Report",
       "title": "Report #{id}",
       "loading": "Loading report…",
       "couldNotLoadTitle": "Could not load report",
@@ -618,6 +619,7 @@
       "keepOrder": "Keep order",
       "cancelOrder": "Cancel order",
       "orderNotFound": "Order not found",
+      "orderScreenTitle": "Order details",
       "orderTitle": "Order #{id}",
       "backToShop": "Back to shop",
       "placed": "Placed {date}",

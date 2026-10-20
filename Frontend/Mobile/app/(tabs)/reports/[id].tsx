@@ -217,7 +217,7 @@ export default function ReportDetailScreen() {
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Reload report"
+            accessibilityLabel={t('reports.detail.reloadReport')}
             disabled={loading}
             onPress={() => {
               void load();
