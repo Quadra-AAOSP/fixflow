@@ -128,7 +128,7 @@ export default function SiteSetupScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await archiveSubsite(site.id, row.id);
+              await archiveSubsite(site!.id, row.id);
               await load();
             } catch (err) {
               Alert.alert(

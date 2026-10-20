@@ -8,6 +8,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -30,6 +31,7 @@ import { relativeTime } from '@/utils/format';
 export default function MyAdminApplicationScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { t } = useTranslation('common');
 
   const [application, setApplication] = useState<SiteAdminApplication | null>(
     null,
@@ -46,7 +48,7 @@ export default function MyAdminApplicationScreen() {
       setError(
         err instanceof ApiError
           ? err.message
-          : 'Could not load the application status.',
+          : t('adminApplication.couldNotLoad'),
       );
     } finally {
       setLoading(false);
@@ -66,8 +68,8 @@ export default function MyAdminApplicationScreen() {
         <StateView
           variant="empty"
           icon={ShieldCheck}
-          title="No application on file"
-          description="You have not applied to administer a site."
+          title={t('adminApplication.noApplicationTitle')}
+          description={t('adminApplication.noApplicationDesc')}
         />
       </Screen>
     );
@@ -82,16 +84,16 @@ export default function MyAdminApplicationScreen() {
           icon: CheckCircle2,
           tint: dashboardColors.statMintDeep,
           bg: dashboardColors.statMintSoft,
-          title: 'Application approved',
-          body: 'Your administrator role activates on your next sign-in. Sign out and back in to start managing the site.',
+          title: t('adminApplication.approvedTitle'),
+          body: t('adminApplication.approvedBody'),
         };
       case 'rejected':
         return {
           icon: CircleX,
           tint: dashboardColors.statCoralDeep,
           bg: dashboardColors.statCoralSoft,
-          title: 'Application rejected',
-          body: 'A super administrator declined the request. Your account remains a reporter account — contact them if you believe this is a mistake.',
+          title: t('adminApplication.rejectedTitle'),
+          body: t('adminApplication.rejectedBody'),
         };
       case 'pending':
       default:
@@ -99,8 +101,8 @@ export default function MyAdminApplicationScreen() {
           icon: Hourglass,
           tint: dashboardColors.statCitronDeep,
           bg: dashboardColors.statCitronSoft,
-          title: 'Awaiting review',
-          body: 'A super administrator reviews every site-admin application. Until then your account works as a reporter.',
+          title: t('adminApplication.pendingTitle'),
+          body: t('adminApplication.pendingBody'),
         };
     }
   })();
@@ -116,10 +118,10 @@ export default function MyAdminApplicationScreen() {
               className="text-2xl font-bold text-ink"
               style={{ letterSpacing: -0.5 }}
             >
-              Admin application
+              {t('adminApplication.title')}
             </Text>
             <Text className="mt-1 text-[13px] leading-[1.7] text-dashboard-subtitle">
-              The status of your request to administer a site.
+              {t('adminApplication.intro')}
             </Text>
           </View>
           <ShieldCheck color={dashboardColors.statMintDeep} size={30} />
@@ -129,7 +131,7 @@ export default function MyAdminApplicationScreen() {
           <StateView
             variant="error"
             description={error}
-            actionLabel="Retry"
+            actionLabel={t('adminApplication.retry')}
             onAction={() => {
               void load();
             }}
@@ -137,7 +139,7 @@ export default function MyAdminApplicationScreen() {
         ) : null}
 
         {loading && application === null ? (
-          <StateView variant="loading" title="Checking status…" />
+          <StateView variant="loading" title={t('adminApplication.checking')} />
         ) : null}
 
         {status ? (
@@ -155,8 +157,10 @@ export default function MyAdminApplicationScreen() {
                 </Text>
                 {application ? (
                   <Text className="mt-0.5 text-[10px] text-dashboard-subtitle">
-                    Application #{application.id} · submitted{' '}
-                    {relativeTime(application.createdAt)}
+                    {t('adminApplication.applicationSubmitted', {
+                      id: application.id,
+                      time: relativeTime(application.createdAt),
+                    })}
                   </Text>
                 ) : null}
               </View>
@@ -166,7 +170,9 @@ export default function MyAdminApplicationScreen() {
             </Text>
             {application?.decidedAt ? (
               <Text className="mt-2 text-[10px] text-dashboard-caption">
-                Decided {relativeTime(application.decidedAt)}.
+                {t('adminApplication.decided', {
+                  time: relativeTime(application.decidedAt),
+                })}
               </Text>
             ) : null}
           </Card>
@@ -174,7 +180,7 @@ export default function MyAdminApplicationScreen() {
 
         {status === 'approved' ? (
           <Button
-            label="Sign out to activate"
+            label={t('adminApplication.signOutToActivate')}
             onPress={() => {
               void logout().then(() => router.replace('/(auth)/login'));
             }}
@@ -182,7 +188,11 @@ export default function MyAdminApplicationScreen() {
         ) : (
           <Button
             variant="secondary"
-            label={loading ? 'Refreshing…' : 'Check for updates'}
+            label={
+              loading
+                ? t('adminApplication.refreshing')
+                : t('adminApplication.checkForUpdates')
+            }
             loading={loading}
             onPress={() => {
               void load();
@@ -193,8 +203,7 @@ export default function MyAdminApplicationScreen() {
         <View className="mt-4 flex-row items-start gap-2 px-1">
           <RefreshCw color={dashboardColors.teal} size={13} />
           <Text className="flex-1 text-[10px] leading-[1.7] text-dashboard-caption">
-            Status is checked live against the server each time this screen
-            opens.
+            {t('adminApplication.liveNote')}
           </Text>
         </View>
       </ScrollView>

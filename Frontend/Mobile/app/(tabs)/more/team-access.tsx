@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { ArrowRight, Check, ShieldCheck, UserPlus } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -38,6 +39,7 @@ export default function TeamAccessScreen() {
   const palette = themeColors();
   const { user } = useAuth();
   const policy = useAccountPolicy();
+  const { t } = useTranslation('common');
 
   const [sites, setSites] = useState<Site[] | null>(null);
   const [loadingSites, setLoadingSites] = useState(false);
@@ -69,7 +71,7 @@ export default function TeamAccessScreen() {
       setSites(result);
     } catch (err) {
       setSitesError(
-        err instanceof ApiError ? err.message : 'Could not load sites.',
+        err instanceof ApiError ? err.message : t('more.teamAccess.couldNotLoadSites'),
       );
     } finally {
       setLoadingSites(false);
@@ -101,8 +103,8 @@ export default function TeamAccessScreen() {
       <Screen>
         <StateView
           variant="empty"
-          title="Admins only"
-          description="This screen is reserved for site administrators and super administrators."
+          title={t('more.teamAccess.adminsOnlyTitle')}
+          description={t('more.teamAccess.adminsOnlyDesc')}
         />
       </Screen>
     );
@@ -123,19 +125,19 @@ export default function TeamAccessScreen() {
 
   async function onSubmit() {
     if (role === null) {
-      setError('Choose a role for the new account.');
+      setError(t('more.teamAccess.errors.chooseRole'));
       return;
     }
     if (!siteless && siteId === null) {
-      setError('Choose a site for the new account.');
+      setError(t('more.teamAccess.errors.chooseSite'));
       return;
     }
     if (firstName.trim().length === 0 || lastName.trim().length === 0) {
-      setError('First and last name are required.');
+      setError(t('more.teamAccess.errors.nameRequired'));
       return;
     }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      setError('A valid work email is required.');
+      setError(t('more.teamAccess.errors.emailRequired'));
       return;
     }
     const payload: ProvisionUserPayload = {
@@ -157,13 +159,16 @@ export default function TeamAccessScreen() {
       // "{Role} account created for {name} ({email}), at {site}."
       const siteName =
         created.siteId === null
-          ? 'no site (platform-level account)'
+          ? t('more.teamAccess.noSitePlatform')
           : (sites?.find((site) => site.id === created.siteId)?.name ??
             `Site #${created.siteId}`);
       setConfirmation(
-        `${roleLabels[created.role]} account created for ${created.firstName} ` +
-          `${created.lastName} (${created.email}), at ${siteName}. ` +
-          'This account can now sign in.',
+        t('more.teamAccess.confirmation', {
+          role: roleLabels[created.role],
+          name: `${created.firstName} ${created.lastName}`,
+          email: created.email,
+          site: siteName,
+        }),
       );
       setFirstName('');
       setLastName('');
@@ -175,7 +180,7 @@ export default function TeamAccessScreen() {
       setError(
         err instanceof ApiError
           ? err.message
-          : 'Could not provision the account right now.',
+          : t('more.teamAccess.errors.provisionFailed'),
       );
     } finally {
       setSubmitting(false);
@@ -202,17 +207,15 @@ export default function TeamAccessScreen() {
               className="text-2xl font-bold text-ink"
               style={{ letterSpacing: -0.5 }}
             >
-              Team access
+              {t('more.teamAccess.title')}
             </Text>
             <Text className="mt-1 text-[13px] leading-[1.7] text-dashboard-subtitle">
               {user.role === 'super_admin'
-                ? 'Create site-administrator, staff, and shop-manager accounts for approved team members.'
-                : 'Create staff accounts for your site.'}
+                ? t('more.teamAccess.subtitleSuperAdmin')
+                : t('more.teamAccess.subtitleAdmin')}
             </Text>
             <Text className="mt-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
-              Site administrators are appointed by a super administrator. Staff
-              and site-admin accounts are tied to a specific site; shop
-              managers are platform-level.
+              {t('more.teamAccess.intro')}
             </Text>
           </View>
           <ShieldCheck color={dashboardColors.statMintDeep} size={30} />
@@ -221,9 +224,9 @@ export default function TeamAccessScreen() {
         {sitesError ? (
           <StateView
             variant="error"
-            title="Could not load sites"
+            title={t('more.teamAccess.couldNotLoadSitesTitle')}
             description={sitesError}
-            actionLabel="Retry"
+            actionLabel={t('more.teamAccess.retry')}
             onAction={() => {
               void loadSites();
             }}
@@ -233,15 +236,15 @@ export default function TeamAccessScreen() {
 
         {loadingSites && sites === null ? (
           <Card>
-            <Text className="text-sm text-dashboard-subtitle">Loading sites…</Text>
+            <Text className="text-sm text-dashboard-subtitle">{t('more.teamAccess.loadingSites')}</Text>
           </Card>
         ) : null}
 
         {!loadingSites && (sites?.length ?? 0) === 0 && !siteless ? (
           <StateView
             variant="empty"
-            title="No sites available"
-            description="An accessible site is required before a team account can be created."
+            title={t('more.teamAccess.noSitesTitle')}
+            description={t('more.teamAccess.noSitesDesc')}
           />
         ) : null}
 
@@ -265,7 +268,7 @@ export default function TeamAccessScreen() {
             <View className="flex-row gap-3">
               <View className="flex-1">
                 <Picker
-                  label="Role"
+                  label={t('more.teamAccess.roleLabel')}
                   value={role ?? roles[0]}
                   onChange={(value) => setRole(value as UserRole)}
                   options={roleOptions}
@@ -274,7 +277,7 @@ export default function TeamAccessScreen() {
               {!siteless ? (
                 <View className="flex-1">
                   <Picker
-                    label="Site"
+                    label={t('more.teamAccess.siteLabel')}
                     value={siteId !== null ? String(siteId) : null}
                     onChange={(value) => setSiteId(Number(value))}
                     options={siteOptions}
@@ -285,22 +288,23 @@ export default function TeamAccessScreen() {
 
             {siteless ? (
               <Text className="-mt-2 mb-4 text-[10px] leading-[1.65] text-dashboard-subtitle">
-                {roleLabels[role ?? 'staff']} accounts are platform-level and
-                are not tied to a site.
+                {t('more.teamAccess.platformLevelNote', {
+                  role: roleLabels[role ?? 'staff'],
+                })}
               </Text>
             ) : null}
 
             <View className="flex-row gap-3">
               <View className="flex-1">
                 <TextField
-                  label="First name"
+                  label={t('more.teamAccess.firstNameLabel')}
                   value={firstName}
                   onChangeText={setFirstName}
                   autoCapitalize="words"                />
               </View>
               <View className="flex-1">
                 <TextField
-                  label="Last name"
+                  label={t('more.teamAccess.lastNameLabel')}
                   value={lastName}
                   onChangeText={setLastName}
                   autoCapitalize="words"                />
@@ -308,7 +312,7 @@ export default function TeamAccessScreen() {
             </View>
 
             <TextField
-              label="Work email"
+              label={t('more.teamAccess.emailLabel')}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -316,25 +320,27 @@ export default function TeamAccessScreen() {
               keyboardType="email-address"
             />
             <TextField
-              label="Initial password"
+              label={t('more.teamAccess.passwordLabel')}
               value={password}
               onChangeText={setPassword}
               autoCapitalize="none"
               autoCorrect={false}
               secureTextEntry
-              placeholder={`At least ${policy?.passwordMinLength ?? 'the server-required number of'} characters`}            />
+              placeholder={t('more.teamAccess.passwordPlaceholder', {
+                count: policy?.passwordMinLength ?? 'the server-required number of',
+              })}            />
             <Text className="-mt-3 mb-4 text-[10px] leading-[1.65] text-dashboard-subtitle">
-              Use a unique passphrase of at least {policy?.passwordMinLength ?? 'the required number of'}{' '}
-              characters. This creates an account directly; email invitations
-              and a mandatory first-login password reset are not available yet.
+              {t('more.teamAccess.passwordHint', {
+                count: policy?.passwordMinLength ?? 'the required number of',
+              })}
             </Text>
             <TextField
-              label="Phone (optional)"
+              label={t('more.teamAccess.phoneLabel')}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"            />
             <TextField
-              label="Address (optional)"
+              label={t('more.teamAccess.addressLabel')}
               value={address}
               onChangeText={setAddress}
               autoCapitalize="words"            />
@@ -367,7 +373,9 @@ export default function TeamAccessScreen() {
                 className="text-[14px] font-semibold"
                 style={{ color: dashboardColors.ctaText }}
               >
-                {submitting ? 'Creating account…' : 'Create approved account'}
+                {submitting
+                  ? t('more.teamAccess.creating')
+                  : t('more.teamAccess.createAccount')}
               </Text>
             </Pressable>
           </Card>
@@ -381,17 +389,17 @@ export default function TeamAccessScreen() {
             className="mb-1 text-[15px] font-semibold text-ink"
             style={{ letterSpacing: -0.3 }}
           >
-            Super-admin access is separate
+            {t('more.teamAccess.superAdminSeparate')}
           </Text>
           <Text className="mb-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
-            {policy?.managedRoleMessage ?? 'Managed access is controlled by the backend.'}
+            {policy?.managedRoleMessage ?? t('more.teamAccess.managedAccessFallback')}
           </Text>
           <View className="flex-row items-center gap-1 self-start">
             <Text
               className="text-[11px] font-semibold"
               style={{ color: dashboardColors.teal }}
             >
-              View privileged-access criteria
+              {t('more.teamAccess.viewCriteria')}
             </Text>
             <ArrowRight color={dashboardColors.teal} size={13} />
           </View>
@@ -403,9 +411,7 @@ export default function TeamAccessScreen() {
             belong to the policy section. */}
         {confirmation ? (
           <Text className="mt-3 text-[10px] leading-[1.7] text-dashboard-caption">
-            You can also dismiss a confirmation and the next account can be
-            created in the same session. The initial password should be
-            changed on first sign-in.
+            {t('more.teamAccess.dismissNote')}
           </Text>
         ) : null}
         </ScrollView>

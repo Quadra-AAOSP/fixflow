@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   ShoppingBasket,
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { ModalSheet } from '@/components/ui/ModalSheet';
@@ -54,6 +55,8 @@ import { formatDate, formatMoney, fullName } from '@/utils/format';
 
 const ALL_CATEGORIES = 'all';
 
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
 /**
  * Shop catalog. Mirrors the public `/shop` page on the web build but lives
  * inside the More stack so the bottom tabs stay visible. The basket and
@@ -67,6 +70,7 @@ export default function ShopIndexScreen() {
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useTranslation('common');
 
   const [catalog, setCatalog] = useState<ShopCatalog | null>(null);
   const [loading, setLoading] = useState(false);
@@ -103,7 +107,7 @@ export default function ShopIndexScreen() {
       setCatalog(result);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : 'Could not load the catalog.',
+        err instanceof ApiError ? err.message : t('more.shop.couldNotLoadCatalog'),
       );
     } finally {
       setLoading(false);
@@ -129,7 +133,7 @@ export default function ShopIndexScreen() {
       setOrders(result);
     } catch (err) {
       setOrdersError(
-        err instanceof ApiError ? err.message : 'Could not load your orders.',
+        err instanceof ApiError ? err.message : t('more.shop.couldNotLoadOrders'),
       );
     } finally {
       setOrdersLoading(false);
@@ -202,7 +206,7 @@ export default function ShopIndexScreen() {
     // Same gate the web applies: anonymous browsers can browse, but the
     // checkout path requires a session ("Sign in to checkout").
     if (!user) {
-      setBasketError('Sign in to place an order.');
+      setBasketError(t('more.shop.errors.signInToOrder'));
       return;
     }
     setCheckoutQuoting(true);
@@ -214,7 +218,7 @@ export default function ShopIndexScreen() {
     } catch (err) {
       // Surface the failure inside the basket sheet so the user can retry.
       setBasketError(
-        err instanceof ApiError ? err.message : 'Could not refresh the quote.',
+        err instanceof ApiError ? err.message : t('more.shop.errors.refreshQuote'),
       );
     } finally {
       setCheckoutQuoting(false);
@@ -224,15 +228,15 @@ export default function ShopIndexScreen() {
   async function placeOrder() {
     if (!checkoutQuote) return;
     if (shippingName.trim().length === 0) {
-      setCheckoutError('Shipping name is required.');
+      setCheckoutError(t('more.shop.errors.shippingName'));
       return;
     }
     if (shippingAddress.trim().length === 0) {
-      setCheckoutError('Shipping address is required.');
+      setCheckoutError(t('more.shop.errors.shippingAddress'));
       return;
     }
     if (!user) {
-      setCheckoutError('Sign in to complete checkout.');
+      setCheckoutError(t('more.shop.errors.signInCheckout'));
       return;
     }
     setCheckoutSubmitting(true);
@@ -256,7 +260,7 @@ export default function ShopIndexScreen() {
       setCheckoutError(
         err instanceof ApiError
           ? err.message
-          : 'Could not place the order.',
+          : t('more.shop.errors.placeOrder'),
       );
     } finally {
       setCheckoutSubmitting(false);
@@ -274,15 +278,17 @@ export default function ShopIndexScreen() {
             className="text-[10px] font-bold uppercase tracking-[1.7px] text-shop-foot-text"
             style={{ letterSpacing: 1.7 }}
           >
-            THE FIXFLOW SHOP
+            {t('more.shop.kicker')}
           </Text>
           <Text
             className="mt-1 text-[24px] font-bold leading-tight text-shop-ink"
             style={{ letterSpacing: -0.8 }}
           >
-            A{' '}
-            <Text className="italic text-shop-serif-accent">little care</Text>{' '}
-            starts here.
+            {t('more.shop.headlineBefore')}{' '}
+            <Text className="italic text-shop-serif-accent">
+              {t('more.shop.headlineAccent')}
+            </Text>{' '}
+            {t('more.shop.headlineAfter')}
           </Text>
         </View>
         <View className="flex-row items-center gap-2">
@@ -295,16 +301,17 @@ export default function ShopIndexScreen() {
             <Text
               className="text-[11px] font-semibold text-shop-ink"
             >
-              Orders
+              {t('more.shop.orders')}
             </Text>
             </Pressable>
           ) : null}
           <Pressable
             onPress={() => setBasketSheetOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel={`Open basket, ${basketTotalCount} ${
-              basketTotalCount === 1 ? 'item' : 'items'
-            }`}
+            accessibilityLabel={t('more.shop.basketA11y', {
+              count: basketTotalCount,
+              plural: basketTotalCount === 1 ? '' : 's',
+            })}
             className="flex-row items-center gap-1.5 rounded-full border px-3 py-2 active:opacity-80"
             style={{
               backgroundColor: shopColors.shell,
@@ -315,7 +322,7 @@ export default function ShopIndexScreen() {
             <Text
               className="text-[11px] font-semibold text-shop-ink"
             >
-              Basket
+              {t('more.shop.basket')}
             </Text>
             <View
               className="ml-0.5 min-w-5 items-center justify-center rounded-full px-1.5"
@@ -334,9 +341,9 @@ export default function ShopIndexScreen() {
       {/* Values row — mirrors the web's `.shop-values` strip: colour dots
           over a hairline bottom border. */}
       <View className="mb-3 flex-row flex-wrap gap-x-5 gap-y-1 border-b border-shop-values-line px-5 pb-3">
-        <ValuePill dotClass="bg-shop-mint" label="Tools for the task" />
-        <ValuePill dotClass="bg-shop-coral" label="Parts for the little fixes" />
-        <ValuePill dotClass="bg-shop-citron" label="Care for shared spaces" />
+        <ValuePill dotClass="bg-shop-mint" label={t('more.shop.valueTools')} />
+        <ValuePill dotClass="bg-shop-coral" label={t('more.shop.valueParts')} />
+        <ValuePill dotClass="bg-shop-citron" label={t('more.shop.valueSpaces')} />
       </View>
 
       <View className="px-5">
@@ -344,7 +351,7 @@ export default function ShopIndexScreen() {
           <SearchField
             value={query}
             onChangeText={setQuery}
-            placeholder="Search tools, parts, and supplies…"
+            placeholder={t('more.shop.searchPlaceholder')}
           />
         </View>
 
@@ -368,7 +375,7 @@ export default function ShopIndexScreen() {
                 inStockOnly ? 'text-shop-ink' : 'text-shop-values-text'
               }`}
             >
-              In stock only
+              {t('more.shop.inStockOnly')}
             </Text>
           </Pressable>
           {categories.map((value) => {
@@ -390,7 +397,7 @@ export default function ShopIndexScreen() {
                     selected ? 'text-shop-ink' : 'text-shop-values-text'
                   }`}
                 >
-                  {value === ALL_CATEGORIES ? 'All products' : value}
+                  {value === ALL_CATEGORIES ? t('more.shop.allProducts') : value}
                 </Text>
               </Pressable>
             );
@@ -399,11 +406,14 @@ export default function ShopIndexScreen() {
 
         <View className="mb-3 flex-row items-end justify-between">
           <Text className="text-[10px] uppercase tracking-wide text-shop-foot-text">
-            {filtered.length} {filtered.length === 1 ? 'product' : 'products'}
+            {t('more.shop.productCount', {
+              count: filtered.length,
+              plural: filtered.length === 1 ? '' : 's',
+            })}
           </Text>
           <View className="w-44">
             <Picker
-              label="Sort"
+              label={t('more.shop.sortLabel')}
               value={sort}
               onChange={(value) => setSort(value as ShopSortKey)}
               options={SHOP_SORT_OPTIONS}
@@ -415,9 +425,9 @@ export default function ShopIndexScreen() {
       {error && catalog === null ? (
         <StateView
           variant="error"
-          title="Could not load the catalog"
+          title={t('more.shop.couldNotLoadCatalogTitle')}
           description={error}
-          actionLabel="Retry"
+          actionLabel={t('more.shop.retry')}
           onAction={() => {
             void load();
           }}
@@ -430,9 +440,9 @@ export default function ShopIndexScreen() {
         <StateView
           variant="empty"
           icon={PackageSearch}
-          title="No products match"
-          description="Try a different category, clear the search, or disable the stock filter."
-          actionLabel="Clear filters"
+          title={t('more.shop.noMatchTitle')}
+          description={t('more.shop.noMatchDesc')}
+          actionLabel={t('more.shop.clearFilters')}
           onAction={() => {
             setQuery('');
             setCategory(ALL_CATEGORIES);
@@ -474,8 +484,11 @@ export default function ShopIndexScreen() {
               <Text
                 className="text-sm font-semibold text-shop-ink"
               >
-                {basketTotalCount}{' '}
-                {basketTotalCount === 1 ? 'item' : 'items'} ·{' '}
+                {t('more.shop.basketCount', {
+                  count: basketTotalCount,
+                  plural: basketTotalCount === 1 ? '' : 's',
+                })}{' '}
+                ·{' '}
                 {catalog
                   ? formatMoney(
                       basketSubtotalMinor,
@@ -488,7 +501,7 @@ export default function ShopIndexScreen() {
             <Text
               className="text-sm font-semibold text-shop-ink"
             >
-              Review →
+              {t('more.shop.review')}
             </Text>
           </Pressable>
         </View>
@@ -502,6 +515,7 @@ export default function ShopIndexScreen() {
           activeProduct ? setBasketQuantity(activeProduct.id, value) : undefined
         }
         onClose={() => setActiveProduct(null)}
+        t={t}
       />
 
       <BasketSheet
@@ -515,6 +529,7 @@ export default function ShopIndexScreen() {
         onCheckout={() => {
           void openCheckout();
         }}
+        t={t}
       />
 
       <OrdersSheet
@@ -528,6 +543,7 @@ export default function ShopIndexScreen() {
           setOrdersSheetOpen(false);
           router.push(`/more/shop/${orderId}`);
         }}
+        t={t}
       />
 
       <CheckoutSheet
@@ -546,6 +562,7 @@ export default function ShopIndexScreen() {
           setCheckoutError(null);
         }}
         onPlace={placeOrder}
+        t={t}
       />
     </Screen>
   );
@@ -557,6 +574,7 @@ type ProductDetailSheetProps = {
   quantity: number;
   onChangeQuantity: (value: number) => void;
   onClose: () => void;
+  t: TranslateFn;
 };
 
 function ProductDetailSheet({
@@ -565,6 +583,7 @@ function ProductDetailSheet({
   quantity,
   onChangeQuantity,
   onClose,
+  t,
 }: ProductDetailSheetProps) {
   if (!product) return null;
   const imageUri = safeImageUrl(product.imageUrl);
@@ -579,7 +598,7 @@ function ProductDetailSheet({
         />
       ) : (
         <View className="h-44 items-center justify-center rounded-xl bg-border/40">
-          <Text className="text-xs text-muted">No image available</Text>
+          <Text className="text-xs text-muted">{t('more.shop.noImage')}</Text>
         </View>
       )}
       {product.brand ? (
@@ -588,7 +607,7 @@ function ProductDetailSheet({
         </Text>
       ) : null}
       <Text className="mt-2 text-base text-ink">
-        {product.description ?? 'No description provided.'}
+        {product.description ?? t('more.shop.noDescription')}
       </Text>
       <View className="mt-3 flex-row items-center justify-between">
         <Text className="text-lg font-bold text-primary">
@@ -601,7 +620,9 @@ function ProductDetailSheet({
             outOfStock ? 'text-tone-danger' : 'text-muted'
           }`}
         >
-          {outOfStock ? 'Out of stock' : `${product.stock} in stock`}
+          {outOfStock
+            ? t('more.shop.outOfStock')
+            : t('more.shop.inStockCount', { count: product.stock })}
         </Text>
       </View>
 
@@ -615,8 +636,8 @@ function ProductDetailSheet({
         />
         <Text className="ml-3 flex-1 text-right text-xs text-muted">
           {quantity > 0
-            ? `${quantity} in basket`
-            : 'Tap + to add to your basket'}
+            ? t('more.shop.quantityInBasket', { count: quantity })
+            : t('more.shop.tapToAdd')}
         </Text>
       </View>
     </ModalSheet>
@@ -632,6 +653,7 @@ type BasketSheetProps = {
   quoting: boolean;
   error: string | null;
   onCheckout: () => void;
+  t: TranslateFn;
 };
 
 function BasketSheet({
@@ -643,15 +665,16 @@ function BasketSheet({
   quoting,
   error,
   onCheckout,
+  t,
 }: BasketSheetProps) {
   return (
-    <ModalSheet visible={visible} title="Basket" onClose={onClose} busy={quoting}>
+    <ModalSheet visible={visible} title={t('more.shop.basket')} onClose={onClose} busy={quoting}>
       {lines.length === 0 ? (
         <StateView
           variant="empty"
           icon={ShoppingBasket}
-          title="Your basket is empty"
-          description="Tap a product to add it."
+          title={t('more.shop.emptyBasketTitle')}
+          description={t('more.shop.emptyBasketDesc')}
         />
       ) : (
         <View>
@@ -679,11 +702,13 @@ function BasketSheet({
                 <Pressable
                   onPress={() => onChangeQuantity(line.product.id, 0)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove ${line.product.name} from basket`}
+                  accessibilityLabel={t('more.shop.removeA11y', {
+                    name: line.product.name,
+                  })}
                   className="mt-1 self-start active:opacity-70"
                 >
                   <Text className="text-[11px] font-medium text-tone-danger underline">
-                    Remove
+                    {t('more.shop.remove')}
                   </Text>
                 </Pressable>
               </View>
@@ -701,7 +726,7 @@ function BasketSheet({
 
           {catalog ? (
             <View className="mb-3 flex-row items-center justify-between rounded-lg bg-border/30 px-3 py-2">
-              <Text className="text-xs font-medium text-muted">Subtotal</Text>
+              <Text className="text-xs font-medium text-muted">{t('more.shop.subtotal')}</Text>
               <Text className="text-sm font-semibold text-ink">
                 {formatMoney(
                   lines.reduce(
@@ -722,7 +747,7 @@ function BasketSheet({
 
           <View className="mt-2 flex-row items-center gap-2">
             <Button
-              label={quoting ? 'Quoting…' : 'Continue to checkout'}
+              label={quoting ? t('more.shop.quoting') : t('more.shop.continueCheckout')}
               loading={quoting}
               onPress={onCheckout}
               className="flex-1"
@@ -742,6 +767,7 @@ type OrdersSheetProps = {
   error: string | null;
   onRetry: () => void;
   onSelect: (orderId: string) => void;
+  t: TranslateFn;
 };
 
 function OrdersSheet({
@@ -752,10 +778,11 @@ function OrdersSheet({
   error,
   onRetry,
   onSelect,
+  t,
 }: OrdersSheetProps) {
   const palette = themeColors();
   return (
-    <ModalSheet visible={visible} title="My orders" onClose={onClose}>
+    <ModalSheet visible={visible} title={t('more.shop.myOrders')} onClose={onClose}>
       {loading ? (
         <View className="py-6">
           <ActivityIndicator size="large" color={palette.primary} />
@@ -763,16 +790,16 @@ function OrdersSheet({
       ) : error ? (
         <StateView
           variant="error"
-          title="Could not load orders"
+          title={t('more.shop.couldNotLoadOrdersTitle')}
           description={error}
-          actionLabel="Retry"
+          actionLabel={t('more.shop.retry')}
           onAction={onRetry}
         />
       ) : !orders || orders.length === 0 ? (
         <StateView
           variant="empty"
-          title="No orders yet"
-          description="Orders you place will appear here."
+          title={t('more.shop.noOrdersTitle')}
+          description={t('more.shop.noOrdersDesc')}
         />
       ) : (
         orders.map((order) => (
@@ -791,8 +818,11 @@ function OrdersSheet({
               </Text>
             </View>
             <Text className="mt-0.5 text-xs text-muted">
-              {order.items.length}{' '}
-              {order.items.length === 1 ? 'item' : 'items'} ·{' '}
+              {t('more.shop.basketCount', {
+                count: order.items.length,
+                plural: order.items.length === 1 ? '' : 's',
+              })}{' '}
+              ·{' '}
               {formatMoney(order.totalMinor, order.minorUnitDigits, order.currency)}
             </Text>
             <Text className="mt-0.5 text-xs text-muted">
@@ -818,6 +848,7 @@ type CheckoutSheetProps = {
   onChangeAddress: (value: string) => void;
   onClose: () => void;
   onPlace: () => void;
+  t: TranslateFn;
 };
 
 function CheckoutSheet({
@@ -833,27 +864,30 @@ function CheckoutSheet({
   onChangeAddress,
   onClose,
   onPlace,
+  t,
 }: CheckoutSheetProps) {
   if (!visible || !quote) return null;
   return (
     <ModalSheet
       visible={visible}
-      title="Checkout"
+      title={t('more.shop.checkout')}
       onClose={onClose}
       busy={submitting}
       footer={
         <Button
-          label={submitting ? 'Placing…' : 'Place order'}
+          label={submitting ? t('more.shop.placing') : t('more.shop.placeOrder')}
           loading={submitting}
           onPress={onPlace}
         />
       }
     >
       <View className="mb-3 rounded-xl border border-border bg-card p-3">
-        <Text className="text-sm font-semibold text-ink">Order summary</Text>
+        <Text className="text-sm font-semibold text-ink">
+          {t('more.shop.orderSummary')}
+        </Text>
         {quote.lines.length === 0 ? (
           <Text className="mt-2 text-xs text-muted">
-            Add at least one item to your basket before checking out.
+            {t('more.shop.emptyCheckout')}
           </Text>
         ) : (
           quote.lines.map((line) => (
@@ -877,7 +911,7 @@ function CheckoutSheet({
         {quote.lines.length > 0 ? (
           <View className="mt-3 border-t border-border pt-2">
             <SummaryRow
-              label="Subtotal"
+              label={t('more.shop.subtotal')}
               value={formatMoney(
                 quote.subtotalMinor,
                 quote.minorUnitDigits,
@@ -885,7 +919,7 @@ function CheckoutSheet({
               )}
             />
             <SummaryRow
-              label="Shipping"
+              label={t('more.shop.shipping')}
               value={formatMoney(
                 quote.shippingMinor,
                 quote.minorUnitDigits,
@@ -893,7 +927,7 @@ function CheckoutSheet({
               )}
             />
             <SummaryRow
-              label="Tax"
+              label={t('more.shop.tax')}
               value={formatMoney(
                 quote.taxMinor,
                 quote.minorUnitDigits,
@@ -902,7 +936,7 @@ function CheckoutSheet({
             />
             <View className="mt-2 border-t border-border pt-2">
               <SummaryRow
-                label="Total"
+                label={t('more.shop.total')}
                 bold
                 value={formatMoney(
                   quote.totalMinor,
@@ -916,23 +950,23 @@ function CheckoutSheet({
       </View>
 
       <TextField
-        label="Shipping name"
+        label={t('more.shop.shippingNameLabel')}
         value={name}
         onChangeText={onChangeName}
-        placeholder="Full name"
+        placeholder={t('more.shop.fullNamePlaceholder')}
         autoCapitalize="words"
       />
       <TextField
-        label="Phone (optional)"
+        label={t('more.shop.phoneLabel')}
         value={phone}
         onChangeText={onChangePhone}
         keyboardType="phone-pad"
       />
       <TextField
-        label="Shipping address"
+        label={t('more.shop.shippingAddressLabel')}
         value={address}
         onChangeText={onChangeAddress}
-        placeholder="Street, city, postcode"
+        placeholder={t('more.shop.addressPlaceholder')}
         autoCapitalize="words"
         multiline
         numberOfLines={2}

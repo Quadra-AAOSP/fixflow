@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Screen } from '@/components/ui/Screen';
 import { SegmentedControl, type SegmentedOption } from '@/components/ui/SegmentedControl';
-import { setLocale } from '@/constants/i18n';
+import { setLocale, type SupportedLocale } from '@/constants/i18n';
 import { dashboardColors } from '@/constants/theme';
 import { useThemeMode } from '@/stores/theme';
 
@@ -21,7 +21,7 @@ export default function SettingsScreen() {
   // Sync the persisted i18n locale on mount (e.g. returning after OS locale
   // change). The language segmented control reflects `i18n.language`.
   useEffect(() => {
-    setLocale(i18n.language);
+    setLocale((i18n.language as SupportedLocale) ?? 'en');
   }, [i18n.language]);
 
   const LANGUAGE_OPTIONS: SegmentedOption<string>[] = [
@@ -70,8 +70,8 @@ export default function SettingsScreen() {
           </Text>
           <SegmentedControl
             options={LANGUAGE_OPTIONS}
-            value={i18n.language}
-            onChange={(locale) => setLocale(locale)}
+            value={(i18n.language as SupportedLocale) ?? 'en'}
+            onChange={(locale) => setLocale(locale as SupportedLocale)}
           />
           <Text className="mt-2 text-[10px] leading-[1.6] text-dashboard-caption">
             {t('settings.languageHint')}

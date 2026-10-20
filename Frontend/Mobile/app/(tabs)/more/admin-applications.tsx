@@ -127,7 +127,7 @@ export default function AdminApplicationsScreen() {
                   <Text className="mt-0.5 text-[10px] text-dashboard-caption">
                     {t('adminApplications.applicationSubmitted', {
                       id: app.id,
-                      time: formatDate(app.submittedAt, true),
+                      time: formatDate(app.createdAt, true),
                     })}
                   </Text>
                   <View className="mt-3 flex-row gap-2">

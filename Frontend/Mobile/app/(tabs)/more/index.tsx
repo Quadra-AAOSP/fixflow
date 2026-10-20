@@ -20,7 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 
 import { Screen } from '@/components/ui/Screen';
-import { roleLabels } from '@/constants/access';
+import { roleLabels, canProvision } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
@@ -74,84 +74,86 @@ export default function MoreScreen() {
   ];
 
   if (canManageSite || hasAdminApplication) {
+    const adminItems: (MenuItem | null)[] = [
+      hasAdminApplication
+        ? {
+            icon: ShieldCheck,
+            titleKey: 'more.menu.myAdminApplicationTitle',
+            subtitleKey: null,
+            onPress: () => router.push('/more/admin-application'),
+          }
+        : null,
+      canManageSite
+        ? {
+            icon: Building2,
+            titleKey: 'more.menu.siteSetupTitle',
+            subtitleKey: 'more.menu.siteSetupSubtitleRequired',
+            onPress: () => router.push('/more/site-setup'),
+          }
+        : null,
+      canManageSite
+        ? {
+            icon: Users,
+            titleKey: 'more.menu.sitesTitle',
+            subtitleKey: 'more.menu.sitesSubtitleEdit',
+            onPress: () => router.push('/more/sites'),
+          }
+        : null,
+      canProvisionUser
+        ? {
+            icon: UserCheck,
+            titleKey: 'more.menu.teamAccessTitle',
+            subtitleKey: 'more.menu.teamAccessSubtitle',
+            onPress: () => router.push('/more/team-access'),
+          }
+        : null,
+      canViewAdminApplications
+        ? {
+            icon: ShieldCheck,
+            titleKey: 'more.menu.adminApplicationsTitle',
+            subtitleKey: 'more.menu.adminApplicationsSubtitle',
+            onPress: () => router.push('/more/admin-applications'),
+          }
+        : null,
+      role === 'technician' || canManageSite
+        ? {
+            icon: FileText,
+            titleKey: 'more.menu.siteContractsTitle',
+            subtitleKey:
+              role === 'technician'
+                ? 'more.menu.siteContractsSubtitleTechnician'
+                : 'more.menu.siteContractsSubtitleAdmin',
+            onPress: () => router.push('/more/site-contracts'),
+          }
+        : null,
+    ];
     sections.push({
       key: 'administration',
       labelKey: 'more.sections.administration',
-      items: [
-        hasAdminApplication
-          ? {
-              icon: ShieldCheck,
-              titleKey: 'more.menu.myAdminApplicationTitle',
-              subtitleKey: null,
-              onPress: () => router.push('/more/admin-application'),
-            }
-          : null,
-        canManageSite
-          ? {
-              icon: Building2,
-              titleKey: 'more.menu.siteSetupTitle',
-              subtitleKey: 'more.menu.siteSetupSubtitleRequired',
-              onPress: () => router.push('/more/site-setup'),
-            }
-          : null,
-        canManageSite
-          ? {
-              icon: Users,
-              titleKey: 'more.menu.sitesTitle',
-              subtitleKey: 'more.menu.sitesSubtitleEdit',
-              onPress: () => router.push('/more/sites'),
-            }
-          : null,
-        canProvisionUser
-          ? {
-              icon: UserCheck,
-              titleKey: 'more.menu.teamAccessTitle',
-              subtitleKey: 'more.menu.teamAccessSubtitle',
-              onPress: () => router.push('/more/team-access'),
-            }
-          : null,
-        canViewAdminApplications
-          ? {
-              icon: ShieldCheck,
-              titleKey: 'more.menu.adminApplicationsTitle',
-              subtitleKey: 'more.menu.adminApplicationsSubtitle',
-              onPress: () => router.push('/more/admin-applications'),
-            }
-          : null,
-        role === 'technician' || canManageSite
-          ? {
-              icon: FileText,
-              titleKey: 'more.menu.siteContractsTitle',
-              subtitleKey:
-                role === 'technician'
-                  ? 'more.menu.siteContractsSubtitleTechnician'
-                  : 'more.menu.siteContractsSubtitleAdmin',
-              onPress: () => router.push('/more/site-contracts'),
-            }
-          : null,
-      ].filter((item): item is MenuItem => item !== null),
+      items: adminItems.filter((item): item is MenuItem => item !== null),
     });
   }
 
+  const shopItems: (MenuItem | null)[] = [
+    canManageSite
+      ? {
+          icon: NotepadText,
+          titleKey: 'more.menu.shopManagementTitle',
+          subtitleKey: 'more.menu.shopManagementSubtitle',
+          onPress: () => router.push('/more/shop-management'),
+        }
+      : null,
+    {
+      icon: ShoppingBag,
+      titleKey: 'more.menu.shopTitle',
+      subtitleKey: canManageSite ? 'more.menu.shopSubtitleManager' : 'more.menu.shopSubtitle',
+      onPress: () => router.push('/more/shop'),
+    },
+  ];
   sections.push({
     key: 'shop',
     labelKey: 'more.sections.shop',
-    items: [
-      canManageSite
-        ? {
-            icon: NotepadText,
-            titleKey: 'more.menu.shopManagementTitle',
-            subtitleKey: 'more.menu.shopManagementSubtitle',
-            onPress: () => router.push('/more/shop-management'),
-          }
-        : null,
-      {
-        icon: ShoppingBag,
-        titleKey: 'more.menu.shopTitle',
-        subtitleKey: canManageSite ? 'more.menu.shopSubtitleManager' : 'more.menu.shopSubtitle',
-        onPress: () => router.push('/more/shop'),
-      },
-    ].filter((item): item is MenuItem => item !== null),
+    items: shopItems.filter((item): item is MenuItem => item !== null),
   });
 
   const siteCount = 0; // `me` payload currently omits this — use 0 until Phase 6 backfill.
