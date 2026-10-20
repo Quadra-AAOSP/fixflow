@@ -436,6 +436,8 @@
       "sitesSubtitleEdit": "Edit sites assigned to you.",
       "teamAccessTitle": "Team access",
       "teamAccessSubtitle": "Provision staff or admin accounts.",
+      "techniciansTitle": "Technicians",
+      "techniciansSubtitle": "Availability and site contracts.",
       "adminApplicationsTitle": "Admin applications",
       "adminApplicationsSubtitle": "Review site-admin requests.",
       "siteContractsTitle": "Site contracts",
@@ -527,6 +529,34 @@
         "imageUrl": "Image URL must start with http:// or https://",
         "couldNotSave": "Could not save the site."
       }
+    },
+    "technicians": {
+      "title": "Technicians",
+      "count": "{count} technician{plural}",
+      "subtitleAll": "Availability and site contracts across your sites.",
+      "subtitleAtSite": "Availability and site contracts at {site}.",
+      "notAllowedTitle": "Staff only",
+      "notAllowedDesc": "This screen is available to staff, site administrators, and super administrators.",
+      "couldNotLoad": "Could not load technicians.",
+      "couldNotLoadTitle": "Could not load technicians",
+      "retry": "Retry",
+      "emptyTitle": "No technicians yet",
+      "emptyDesc": "No technician accounts are available to view.",
+      "noContractedTitle": "No technicians contracted at {site}",
+      "noContractedDesc": "Technicians without a contract at this site are listed below.",
+      "sectionAtSite": "Contracted at {site}",
+      "sectionOthers": "Other technicians",
+      "availability": {
+        "available": "Available",
+        "unavailable": "Unavailable"
+      },
+      "skillsLabel": "Skills",
+      "contractsLabel": "Site contracts",
+      "level": "Level {level}",
+      "noSpecialty": "No specialty",
+      "noSkills": "No skills recorded",
+      "noContracts": "No site contracts",
+      "contractLine": "{site} · since {date}"
     },
     "contracts": {
       "title": "Site contracts",

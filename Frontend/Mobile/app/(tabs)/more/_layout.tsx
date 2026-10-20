@@ -50,6 +50,10 @@ export default function MoreStackLayout() {
         options={{ title: t('more.menu.teamAccessTitle') }}
       />
       <Stack.Screen
+        name="technicians"
+        options={{ title: t('more.menu.techniciansTitle') }}
+      />
+      <Stack.Screen
         name="admin-applications"
         options={{ title: t('more.menu.adminApplicationsTitle') }}
       />

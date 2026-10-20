@@ -436,6 +436,8 @@
       "sitesSubtitleEdit": "编辑分配给您的站点。",
       "teamAccessTitle": "团队权限",
       "teamAccessSubtitle": "开通员工或管理员账户。",
+      "techniciansTitle": "技师",
+      "techniciansSubtitle": "在岗情况与站点合同。",
       "adminApplicationsTitle": "管理员申请",
       "adminApplicationsSubtitle": "审核站点管理员申请。",
       "siteContractsTitle": "站点合同",
@@ -527,6 +529,34 @@
         "imageUrl": "图片 URL 必须以 http:// 或 https:// 开头",
         "couldNotSave": "无法保存站点。"
       }
+    },
+    "technicians": {
+      "title": "技师",
+      "count": "{count} 位技师",
+      "subtitleAll": "您各站点的技师在岗情况与站点合同。",
+      "subtitleAtSite": "{site} 的技师在岗情况与站点合同。",
+      "notAllowedTitle": "仅员工可访问",
+      "notAllowedDesc": "此页面可供员工、站点管理员和超级管理员访问。",
+      "couldNotLoad": "无法加载技师。",
+      "couldNotLoadTitle": "无法加载技师",
+      "retry": "重试",
+      "emptyTitle": "暂无技师",
+      "emptyDesc": "暂无可查看的技师账户。",
+      "noContractedTitle": "尚无技师签约 {site}",
+      "noContractedDesc": "未与该站点签约的技师列在下方。",
+      "sectionAtSite": "已签约 {site}",
+      "sectionOthers": "其他技师",
+      "availability": {
+        "available": "在岗",
+        "unavailable": "离岗"
+      },
+      "skillsLabel": "技能",
+      "contractsLabel": "站点合同",
+      "level": "等级 {level}",
+      "noSpecialty": "无专长",
+      "noSkills": "尚未登记技能",
+      "noContracts": "无站点合同",
+      "contractLine": "{site} · 自 {date}"
     },
     "contracts": {
       "title": "站点合同",

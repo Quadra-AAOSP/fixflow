@@ -47,6 +47,8 @@ export default function MoreScreen() {
     user?.role === 'admin' || user?.role === 'super_admin';
   const canProvisionUser = canProvision(user);
   const canViewAdminApplications = user?.role === 'super_admin';
+  const canViewTechnicians =
+    role === 'staff' || role === 'admin' || role === 'super_admin';
 
   // A reporter who applied to be a site admin sees this entry until the
   // super-admin decision lands — even if no site exists yet.
@@ -73,7 +75,7 @@ export default function MoreScreen() {
     },
   ];
 
-  if (canManageSite || hasAdminApplication) {
+  if (canViewTechnicians || hasAdminApplication) {
     const adminItems: (MenuItem | null)[] = [
       hasAdminApplication
         ? {
@@ -105,6 +107,14 @@ export default function MoreScreen() {
             titleKey: 'more.menu.teamAccessTitle',
             subtitleKey: 'more.menu.teamAccessSubtitle',
             onPress: () => router.push('/more/team-access'),
+          }
+        : null,
+      canViewTechnicians
+        ? {
+            icon: Wrench,
+            titleKey: 'more.menu.techniciansTitle',
+            subtitleKey: 'more.menu.techniciansSubtitle',
+            onPress: () => router.push('/more/technicians'),
           }
         : null,
       canViewAdminApplications

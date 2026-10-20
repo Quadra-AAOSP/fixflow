@@ -71,6 +71,10 @@ export const endpoints = {
     create: '/api/technician-contracts',
   },
 
+  technicians: {
+    list: '/api/technicians',
+  },
+
   contractRequests: {
     list: '/api/technician-contract-requests',
     create: '/api/technician-contract-requests',
@@ -106,7 +110,6 @@ export const endpoints = {
  *   GET    /api/technicians/me/availability
  *   GET    /api/reports/assigned-to-me
  *   GET    /api/reports/claimable
- *   GET    /api/technicians
  *   GET    /api/technician-skills
  *   GET    /api/technician-contracts
  *

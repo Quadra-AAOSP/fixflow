@@ -69,3 +69,38 @@ export type ContractDecisionPayload = {
   decision: ContractDecision;
   reason?: string;
 };
+
+/** Mirrors backend technician `AvailabilityStatus` (JSON values are lowercase). */
+export type TechnicianAvailability = 'available' | 'unavailable';
+
+/**
+ * The skill row embedded in a `GET /api/technicians` summary. Trimmed compared
+ * with the write DTO above: no `technicianId`, and `specialty` is nullable.
+ */
+export type TechnicianSummarySkill = {
+  id: number;
+  category: string;
+  specialty: string | null;
+  /** 1–5. */
+  proficiency: number;
+};
+
+/** The contract row embedded in a `GET /api/technicians` summary. Carries the
+ * resolved `siteName` rather than the bare foreign keys of the write DTO. */
+export type TechnicianSummaryContract = {
+  siteId: number;
+  siteName: string;
+  createdAt: string;
+};
+
+/** Mirrors the `GET /api/technicians` list row. */
+export type TechnicianSummary = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  availabilityStatus: TechnicianAvailability;
+  skills: TechnicianSummarySkill[];
+  contracts: TechnicianSummaryContract[];
+};
