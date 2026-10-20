@@ -25,6 +25,7 @@ import { themeColors, dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useConnectivity } from '@/hooks/useConnectivity';
 import { AuthProvider } from '@/stores/auth';
+import { TechnicianAvailabilityProvider } from '@/stores/availability';
 import { ThemeModeProvider, useThemeMode } from '@/stores/theme';
 import { useTranslation } from 'react-i18next';
 
@@ -66,7 +67,9 @@ export default function RootLayout() {
   return (
     <ThemeModeProvider>
       <AuthProvider>
-        <RootLayoutNav />
+        <TechnicianAvailabilityProvider>
+          <RootLayoutNav />
+        </TechnicianAvailabilityProvider>
       </AuthProvider>
     </ThemeModeProvider>
   );

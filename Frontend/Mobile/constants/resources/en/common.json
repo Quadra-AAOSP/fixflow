@@ -781,6 +781,11 @@
       "keepAliveSubtitle": "The app pings the server every 15 minutes while you use it.",
       "autoReloginSubtitle": "Re-open the app after being away — a fresh session is requested automatically if your stored credentials are still valid."
     },
+    "availability": {
+      "kicker": "Availability",
+      "label": "Available for work",
+      "hint": "Saved on this device only. Dispatch sync isn't available yet."
+    },
     "tagline": "Your report. The right people. A little peace of mind.",
     "manualRefreshFailed": "Session could not be refreshed. Try signing in again."
   },
@@ -818,6 +823,10 @@
   "workspace": {
     "title": "Your technician workspace",
     "subtitle": "Your skills. Your choice of sites.",
+    "availability": {
+      "available": "Available for work",
+      "unavailable": "Not available for work"
+    },
     "tradeProfile": "Trade profile",
     "howAccountWorks": "How your account works",
     "info": {

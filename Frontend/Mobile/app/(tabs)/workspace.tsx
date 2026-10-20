@@ -25,6 +25,7 @@ import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
+import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
 import type { Report } from '@/types';
 import { statusGroup } from '@/utils/maintenance';
@@ -45,6 +46,10 @@ export default function WorkspaceScreen() {
   const { user } = useAuth();
   const { t } = useTranslation('common');
   const { site, sites } = useCurrentSite();
+  const {
+    available,
+    loading: availabilityLoading,
+  } = useTechnicianAvailability();
   const [reports, setReports] = useState<Report[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,6 +98,39 @@ export default function WorkspaceScreen() {
             <Text className="mt-1 text-[14px] text-dashboard-banner-subtitle">
               {t('workspace.subtitle')}
             </Text>
+            {!availabilityLoading ? (
+              <View
+                className="mt-2 flex-row items-center gap-1.5 self-start rounded-full px-2.5 py-1"
+                style={{
+                  backgroundColor: available
+                    ? dashboardColors.statMintSoft
+                    : dashboardColors.statCitronSoft,
+                }}
+              >
+                <View
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{
+                    backgroundColor: available
+                      ? dashboardColors.statMintDeep
+                      : dashboardColors.statCitronDeep,
+                  }}
+                />
+                <Text
+                  className="text-[10px] font-semibold"
+                  style={{
+                    color: available
+                      ? dashboardColors.statMintDeep
+                      : dashboardColors.statCitronDeep,
+                  }}
+                >
+                  {t(
+                    available
+                      ? 'workspace.availability.available'
+                      : 'workspace.availability.unavailable',
+                  )}
+                </Text>
+              </View>
+            ) : null}
             <SiteSwitcher />
           </View>
           <Wrench color={dashboardColors.statMintDeep} size={42} strokeWidth={1.6} />

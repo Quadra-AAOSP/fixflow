@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { Settings } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { roleLabels } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
+import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
 import { ApiError } from '@/lib/apiClient';
 import { humanize } from '@/utils/format';
@@ -25,6 +26,11 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout: clearSession } = useAuth();
   const { site } = useCurrentSite();
+  const {
+    available,
+    setAvailable,
+    loading: availabilityLoading,
+  } = useTechnicianAvailability();
 
   const [signingOut, setSigningOut] = useState(false);
 
@@ -163,6 +169,38 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         </Card>
+
+        {/* Technician availability — device-local preference, not dispatched. */}
+        {user.role === 'technician' && !availabilityLoading ? (
+          <Card padded={false} className="mb-4">
+            <View className="border-b border-dashboard-card-line px-4 py-3">
+              <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+                {t('profile.availability.kicker')}
+              </Text>
+            </View>
+            <View className="flex-row items-center justify-between gap-4 px-4 py-3">
+              <View className="flex-1">
+                <Text className="text-[13px] font-semibold text-ink">
+                  {t('profile.availability.label')}
+                </Text>
+                <Text className="mt-0.5 text-[11px] leading-[1.6] text-dashboard-caption">
+                  {t('profile.availability.hint')}
+                </Text>
+              </View>
+              <Switch
+                accessibilityRole="switch"
+                accessibilityLabel={t('profile.availability.label')}
+                value={available}
+                onValueChange={setAvailable}
+                trackColor={{
+                  false: dashboardColors.cardLine,
+                  true: dashboardColors.teal,
+                }}
+                thumbColor={dashboardColors.cardBg}
+              />
+            </View>
+          </Card>
+        ) : null}
 
         <Text className="text-center text-[10px] leading-[1.6] text-dashboard-caption">
           {t('profile.tagline')}

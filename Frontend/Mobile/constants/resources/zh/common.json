@@ -781,6 +781,11 @@
       "keepAliveSubtitle": "使用期间应用每 15 分钟向服务器发送一次心跳。",
       "autoReloginSubtitle": "离开后重新打开应用 — 如果存储的凭据仍然有效，会自动请求新会话。"
     },
+    "availability": {
+      "kicker": "接单状态",
+      "label": "可接单",
+      "hint": "仅保存在本机。暂不支持与调度同步。"
+    },
     "tagline": "您的报修。合适的人。一点安心。",
     "manualRefreshFailed": "会话无法刷新，请尝试重新登录。"
   },
@@ -818,6 +823,10 @@
   "workspace": {
     "title": "您的技师工作台",
     "subtitle": "您的技能，您选择的站点。",
+    "availability": {
+      "available": "可接单",
+      "unavailable": "暂不可接单"
+    },
     "tradeProfile": "技能档案",
     "howAccountWorks": "您的账户如何运作",
     "info": {
