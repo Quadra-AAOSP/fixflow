@@ -229,6 +229,7 @@ CREATE TABLE IF NOT EXISTS reports (
                             )               NOT NULL DEFAULT 'open',
     assigned_technician_id  BIGINT UNSIGNED NULL COMMENT 'Must be users.role = technician (app-enforced)',
     editable                TINYINT(1)      NOT NULL DEFAULT 1,
+    visibility              VARCHAR(16)     NOT NULL DEFAULT 'public' COMMENT 'public = listed/joinable for site reporters; private = creator, participants, staff/admin, assigned tech only',
     reopen_count            INT UNSIGNED    NOT NULL DEFAULT 0,
     created_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -271,6 +272,40 @@ SET @archive_migration = IF(
 PREPARE archive_statement FROM @archive_migration;
 EXECUTE archive_statement;
 DEALLOCATE PREPARE archive_statement;
+
+-- Existing databases gain report visibility without losing data.
+SET @visibility_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'visibility') = 0,
+    'ALTER TABLE reports ADD COLUMN visibility VARCHAR(16) NOT NULL DEFAULT ''public''', 'SELECT 1');
+PREPARE visibility_statement FROM @visibility_migration;
+EXECUTE visibility_statement;
+DEALLOCATE PREPARE visibility_statement;
+
+SET @confirm_user_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'confirmed_by_user_id') = 0,
+    'ALTER TABLE reports ADD COLUMN confirmed_by_user_id BIGINT UNSIGNED NULL, ADD CONSTRAINT fk_reports_confirmed_by FOREIGN KEY (confirmed_by_user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE',
+    'SELECT 1');
+PREPARE confirm_user_statement FROM @confirm_user_migration;
+EXECUTE confirm_user_statement;
+DEALLOCATE PREPARE confirm_user_statement;
+
+SET @confirm_at_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'confirmed_at') = 0,
+    'ALTER TABLE reports ADD COLUMN confirmed_at TIMESTAMP(6) NULL', 'SELECT 1');
+PREPARE confirm_at_statement FROM @confirm_at_migration;
+EXECUTE confirm_at_statement;
+DEALLOCATE PREPARE confirm_at_statement;
+
+SET @reopen_reason_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'reopen_reason') = 0,
+    'ALTER TABLE reports ADD COLUMN reopen_reason TEXT NULL', 'SELECT 1');
+PREPARE reopen_reason_statement FROM @reopen_reason_migration;
+EXECUTE reopen_reason_statement;
+DEALLOCATE PREPARE reopen_reason_statement;
 
 CREATE TABLE IF NOT EXISTS report_photos (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -489,6 +524,19 @@ SET @fixflow_ai_column_sql = IF((SELECT COUNT(*) FROM information_schema.columns
 PREPARE fixflow_ai_column_statement FROM @fixflow_ai_column_sql;
 EXECUTE fixflow_ai_column_statement;
 DEALLOCATE PREPARE fixflow_ai_column_statement;
+
+CREATE TABLE IF NOT EXISTS technician_invitations (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    report_id BIGINT UNSIGNED NOT NULL,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    invited_by BIGINT UNSIGNED NOT NULL,
+    reason VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_invitation_report_technician (report_id, technician_id),
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (technician_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 SET @fixflow_ai_column_sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='reports' AND column_name='ai_specialty') = 0, 'ALTER TABLE reports ADD COLUMN ai_specialty VARCHAR(128) NULL', 'SELECT 1');
 PREPARE fixflow_ai_column_statement FROM @fixflow_ai_column_sql;
 EXECUTE fixflow_ai_column_statement;
@@ -506,7 +554,6 @@ PREPARE fixflow_ai_column_statement FROM @fixflow_ai_column_sql;
 EXECUTE fixflow_ai_column_statement;
 DEALLOCATE PREPARE fixflow_ai_column_statement;
 
-START TRANSACTION;
 -- Authoritative startup taxonomy. Existing rules are never overwritten.
 INSERT INTO site_rules(site_type,category,urgency_weight,sort_order)
 SELECT 'school','plumbing',40,1 WHERE NOT EXISTS (SELECT 1 FROM site_rules WHERE site_type='school' AND category='plumbing');
@@ -731,5 +778,3 @@ SELECT '00000000-0000-4000-8000-000000000001',(SELECT id FROM users WHERE email=
 WHERE NOT EXISTS (SELECT 1 FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001');
 INSERT INTO shop_order_items(order_id,product_id,name,unit_price_minor,quantity) SELECT (SELECT id FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001'),'safety-gloves','Cut-Resistant Work Gloves',1590,2 WHERE NOT EXISTS (SELECT 1 FROM shop_order_items WHERE order_id=(SELECT id FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001') AND product_id='safety-gloves');
 INSERT INTO shop_payments(order_id,provider,provider_ref,status,created_at,updated_at) SELECT (SELECT id FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001'),'dev','demo-historical-payment-1','succeeded',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT 1 FROM shop_payments WHERE order_id=(SELECT id FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001'));
-
-COMMIT;
