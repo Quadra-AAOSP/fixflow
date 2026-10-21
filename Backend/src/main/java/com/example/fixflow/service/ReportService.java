@@ -38,6 +38,7 @@ public class ReportService {
     private final com.example.fixflow.repository.SubsiteRepository subsiteRepository;
     private final ReportClassificationService classificationService;
     private final TechnicianTermsService terms;
+    private final ReportPhotoService reportPhotoService;
     private final boolean requireSiteSetup;
 
 	public ReportService(
@@ -50,6 +51,7 @@ public class ReportService {
             com.example.fixflow.repository.SubsiteRepository subsiteRepository,
             ReportClassificationService classificationService,
             TechnicianTermsService terms,
+            ReportPhotoService reportPhotoService,
             @org.springframework.beans.factory.annotation.Value("${fixflow.reporting.require-site-setup:true}") boolean requireSiteSetup
 	) {
 		this.reportRepository = reportRepository;
@@ -61,6 +63,7 @@ public class ReportService {
         this.subsiteRepository = subsiteRepository;
         this.classificationService = classificationService;
         this.terms = terms;
+        this.reportPhotoService = reportPhotoService;
         this.requireSiteSetup = requireSiteSetup;
 	}
 
@@ -320,9 +323,11 @@ public class ReportService {
         boolean ownQueue = actor.getRole() != UserRole.technician
                 || report.getAssignedTechnician() != null
                 && report.getAssignedTechnician().getId().equals(actor.getId());
+        boolean canSee = canSeeSensitive(actor, report);
         return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
-                report, canSeeSensitive(actor, report), participant, canAssign,
-                actor.getRole() == UserRole.reporter && !participant, ownQueue));
+                report, canSee, participant, canAssign,
+                actor.getRole() == UserRole.reporter && !participant, ownQueue),
+                canSee ? reportPhotoService.listWithPresignedUrls(report.getId()) : null);
     }
 
 	private User loadUser(Long id) {

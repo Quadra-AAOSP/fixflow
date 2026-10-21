@@ -247,7 +247,7 @@ class ApiSecurityMatrixIntegrationTest {
         var excessive = multipart("/api/reports");
         for (int i = 0; i < 6; i++) excessive.file(new MockMultipartFile("file", "photo.jpg", "image/jpeg", new byte[]{1}));
         mvc.perform(excessive.with(user(new AppUserDetails(reporter)))).andExpect(status().isUnsupportedMediaType());
-        mvc.perform(multipart("/api/reports/" + foreignReport.getId() + "/photos").file(new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[]{1})).with(user(new AppUserDetails(reporter)))).andExpect(status().isNotFound());
+        mvc.perform(multipart("/api/reports/" + foreignReport.getId() + "/photos").file(new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[]{1})).with(user(new AppUserDetails(reporter)))).andExpect(status().isForbidden());
         assertThat(reports.count()).isEqualTo(before);
     }
 }

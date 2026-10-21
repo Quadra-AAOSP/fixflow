@@ -312,7 +312,18 @@
       "retry": "Retry",
       "couldNotLoadSite": "Could not load site",
       "retryLoadingBuildings": "Retry loading buildings",
-      "retryLoadingCategories": "Retry loading categories"
+      "retryLoadingCategories": "Retry loading categories",
+      "photos": {
+        "label": "Photos",
+        "gallery": "Choose from gallery",
+        "camera": "Take photo",
+        "count": "{count} of {max} photos",
+        "limitReached": "Maximum {max} photos",
+        "tooLarge": "Photo must be {size} MB or smaller.",
+        "permissionDenied": "Photo access is required. Enable it in Settings.",
+        "uploadFailed": "Could not upload one or more photos.",
+        "remove": "Remove photo"
+      }
     },
     "detail": {
       "allReports": "All reports",
@@ -403,6 +414,15 @@
         "success": "Report reopened.",
         "wrongStatus": "This report cannot be reopened from its current status.",
         "failed": "Could not reopen this report."
+      },
+      "photos": {
+        "title": "Photos",
+        "noPhotos": "No photos attached."
+      },
+      "analysis": {
+        "title": "AI Analysis",
+        "available": "AI-assisted analysis",
+        "notAvailable": "Analysis not yet available"
       }
     }
   },

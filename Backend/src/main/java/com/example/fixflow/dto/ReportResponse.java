@@ -1,6 +1,7 @@
 package com.example.fixflow.dto;
 
 import java.time.Instant;
+import java.util.List;
 
 import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportStatus;
@@ -30,11 +31,13 @@ public record ReportResponse(
 		String confirmedByName,
 		Instant confirmedAt,
 		ReportVisibility visibility,
+        List<ReportPhotoResponse> photos,
 		Instant createdAt,
 		Instant updatedAt,
         ReportPolicy policy
 ) {
-	public static ReportResponse from(Report report, ReportPolicy policy) {
+	public static ReportResponse from(Report report, ReportPolicy policy,
+			List<ReportPhotoResponse> photos) {
         boolean includeSensitive = policy.canSeeSensitive();
 		Long createdById = null;
 		String createdByName = null;
@@ -73,9 +76,10 @@ public record ReportResponse(
 				confirmedByName,
 				includeSensitive ? report.getConfirmedAt() : null,
 				report.getVisibility(),
+                photos,
 				report.getCreatedAt(),
 				report.getUpdatedAt(),
                 policy
-		);
+			);
 	}
 }

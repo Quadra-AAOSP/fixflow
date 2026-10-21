@@ -62,8 +62,6 @@ export function reopenReport(id: number, reason: string): Promise<Report> {
 /*
  * Endpoints NOT exposed here yet — backend audit dependencies #1, #2, #4, #6:
  *
- *   POST   /api/reports/{id}/photos
- *   DELETE /api/reports/{id}/photos/{photoId}
  *   PATCH  /api/reports/{id}/status
  *   PATCH  /api/reports/{id}/urgency
  *   POST   /api/reports/{id}/reassign

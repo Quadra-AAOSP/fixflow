@@ -149,6 +149,11 @@
 			<artifactId>stripe-java</artifactId>
 			<version>28.4.0</version>
 		</dependency>
+		<dependency>
+			<groupId>io.minio</groupId>
+			<artifactId>minio</artifactId>
+			<version>8.5.13</version>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>

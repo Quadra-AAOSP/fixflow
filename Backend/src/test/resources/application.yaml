@@ -56,3 +56,8 @@ fixflow:
     checkout-cancel-url: http://localhost:5173/shop
     stripe-secret-key:
     stripe-webhook-secret:
+  minio:
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin
+    bucket: fixflow-photos

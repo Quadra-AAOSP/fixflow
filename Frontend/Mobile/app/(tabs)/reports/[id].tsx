@@ -1,6 +1,8 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
+  Image,
+  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -12,7 +14,9 @@ import {
   ClipboardList,
   Lock,
   RefreshCw,
+  Sparkles,
   UserPlus,
+  X,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -65,6 +69,7 @@ export default function ReportDetailScreen() {
   const [reopenModalVisible, setReopenModalVisible] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
   const [reopenError, setReopenError] = useState<string | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!Number.isInteger(reportId) || reportId <= 0) {
@@ -346,6 +351,59 @@ export default function ReportDetailScreen() {
         <Text className="mb-4 text-[14px] leading-[1.8] text-ink">
           {report.description}
         </Text>
+
+        {/* Photos gallery — fullscreen preview via Modal */}
+        <Card className="mb-4">
+          <Text
+            className="mb-2 text-[15px] font-semibold text-ink"
+            style={{ letterSpacing: -0.3 }}
+          >
+            {t('reports.detail.photos.title')}
+          </Text>
+          {report.photos && report.photos.length > 0 ? (
+            <View className="flex-row flex-wrap gap-2">
+              {report.photos.map((photo) => (
+                <Pressable
+                  key={photo.id}
+                  accessibilityRole="image"
+                  accessibilityLabel={`Photo ${photo.id}`}
+                  onPress={() => setPreviewPhoto(photo.url)}
+                  className="active:opacity-80"
+                >
+                  <Image
+                    source={{ uri: photo.url }}
+                    className="h-24 w-24 rounded-md"
+                  />
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Text className="text-[12px] text-dashboard-subtitle">
+              {t('reports.detail.photos.noPhotos')}
+            </Text>
+          )}
+        </Card>
+
+        {/* Analysis badge — Phase 5 placeholder, no backend endpoint yet */}
+        <Card className="mb-4">
+          <View className="flex-row items-center gap-2">
+            <View
+              className="rounded-full p-1.5"
+              style={{ backgroundColor: dashboardColors.statMintSoft }}
+            >
+              <Sparkles color={dashboardColors.statMintDeep} size={13} />
+            </View>
+            <Text
+              className="text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.analysis.title')}
+            </Text>
+          </View>
+          <Text className="mt-2 text-[12px] text-dashboard-subtitle">
+            {t('reports.detail.analysis.notAvailable')}
+          </Text>
+        </Card>
 
         {/* Definition list — mirrors the web's `.report-detail-grid` (3-col
             on desktop, stacked on mobile). Field labels and the
@@ -694,6 +752,34 @@ export default function ReportDetailScreen() {
           textAlignVertical="top"
         />
       </ModalSheet>
+
+      <Modal
+        visible={previewPhoto !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewPhoto(null)}
+      >
+        <Pressable
+          onPress={() => setPreviewPhoto(null)}
+          className="flex-1 items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.9)' }}
+        >
+          <Pressable
+            onPress={() => setPreviewPhoto(null)}
+            className="absolute right-4 top-4 z-10 h-9 w-9 items-center justify-center rounded-full"
+            style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+          >
+            <X color="#fff" size={18} />
+          </Pressable>
+          {previewPhoto ? (
+            <Image
+              source={{ uri: previewPhoto }}
+              className="w-full"
+              style={{ resizeMode: 'contain', aspectRatio: 1 }}
+            />
+          ) : null}
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
