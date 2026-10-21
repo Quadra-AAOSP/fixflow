@@ -55,16 +55,16 @@ class ClassificationApiIntegrationTest {
         when(provider.classifyText(any())).thenReturn(ClassificationResponse.builder()
                 .category("electrical").specialty("wiring").urgency("high").build());
         mvc.perform(post(endpoint()).with(user(new AppUserDetails(actor))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.category").value("electrical"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.aiReport.category").value("electrical"))
                 .andExpect(jsonPath("$.aiUrgency").value("high"));
         Report stored = reports.findById(report.getId()).orElseThrow();
-        assertThat(stored.getCategory()).isEqualTo("electrical"); assertThat(stored.getSpecialty()).isEqualTo("wiring");
+        assertThat(stored.getAiCategory()).isEqualTo("electrical"); assertThat(stored.getAiSpecialty()).isEqualTo("wiring");
         assertThat(stored.getAiUrgency()).isEqualTo(Urgency.high);
         assertThat(stored.getReporterUrgency()).isEqualTo(Urgency.critical);
         assertThat(stored.getReporterReason()).isEqualTo("Do not replace");
         assertThat(stored.getFinalUrgency()).isEqualTo(Urgency.medium);
         mvc.perform(get("/api/reports/" + stored.getId()).with(user(new AppUserDetails(actor))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.category").value("electrical"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.aiReport.category").value("electrical"));
     }
     @ParameterizedTest @EnumSource(value = UserRole.class, names = {"reporter", "technician", "staff"})
     void wrongRolesCannotInvokeProvider(UserRole role) throws Exception {
@@ -84,10 +84,10 @@ class ClassificationApiIntegrationTest {
     @Test void invalidProviderResponsePersistsReviewableFallback() throws Exception {
         when(provider.classifyText(any())).thenReturn(null);
         mvc.perform(post(endpoint()).with(user(new AppUserDetails(admin))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.category").value("general"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.aiReport.category").value("general"))
                 .andExpect(jsonPath("$.aiUrgency").isEmpty());
         Report stored = reports.findById(report.getId()).orElseThrow();
-        assertThat(stored.getCategory()).isEqualTo("general"); assertThat(stored.getAiUrgency()).isNull();
+        assertThat(stored.getAiCategory()).isEqualTo("general"); assertThat(stored.getAiUrgency()).isNull();
         assertThat(stored.getReporterUrgency()).isEqualTo(Urgency.critical);
     }
     @Test void submissionNeverContactsAiAndProviderFailuresPersistFallback() throws Exception {
@@ -98,7 +98,8 @@ class ClassificationApiIntegrationTest {
         verifyNoInteractions(provider);
         when(provider.classifyText(any())).thenThrow(new AIProviderException("timeout", AIProviderException.AIErrorType.TIMEOUT));
         mvc.perform(post(endpoint()).with(user(new AppUserDetails(admin))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.category").value("general"));
-        assertThat(reports.findById(report.getId()).orElseThrow().getCategory()).isEqualTo("general");
+                .andExpect(status().isOk()).andExpect(jsonPath("$.aiReport.category").value("general"));
+        assertThat(reports.findById(report.getId()).orElseThrow().getAiCategory()).isEqualTo("general");
+        assertThat(reports.findById(report.getId()).orElseThrow().getCategory()).isEqualTo("plumbing");
     }
 }

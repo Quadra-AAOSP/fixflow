@@ -10,6 +10,8 @@ import com.example.fixflow.domain.ShopProduct;
 import com.example.fixflow.repository.ShopProductRepository;
 
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        prefix = "fixflow.seed", name = "demo-enabled", havingValue = "false", matchIfMissing = true)
 @Order(2)
 public class ShopCatalogSeeder implements ApplicationRunner {
 

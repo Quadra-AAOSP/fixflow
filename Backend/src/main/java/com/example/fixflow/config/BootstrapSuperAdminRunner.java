@@ -13,6 +13,8 @@ import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.UserRepository;
 
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        prefix = "fixflow.seed", name = "demo-enabled", havingValue = "false", matchIfMissing = true)
 public class BootstrapSuperAdminRunner implements ApplicationRunner {
 
 	private static final Logger log = LoggerFactory.getLogger(BootstrapSuperAdminRunner.class);

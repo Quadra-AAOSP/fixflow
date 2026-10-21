@@ -36,6 +36,7 @@ public class AuthService {
 	private final AuthenticationManager authenticationManager;
 	private final com.example.fixflow.repository.SubsiteRepository subsites;
 	private final SiteAdminApplicationService adminApplications;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
 	public AuthService(
 			UserRepository userRepository,
@@ -43,7 +44,8 @@ public class AuthService {
 			PasswordEncoder passwordEncoder,
 			AuthenticationManager authenticationManager,
 			com.example.fixflow.repository.SubsiteRepository subsites,
-			SiteAdminApplicationService adminApplications
+			SiteAdminApplicationService adminApplications,
+            org.springframework.context.ApplicationEventPublisher events
 	) {
 		this.userRepository = userRepository;
 		this.siteRepository = siteRepository;
@@ -51,6 +53,7 @@ public class AuthService {
 		this.authenticationManager = authenticationManager;
 		this.subsites = subsites;
 		this.adminApplications = adminApplications;
+        this.events = events;
 	}
 
 	@Transactional
@@ -117,7 +120,9 @@ public class AuthService {
 		context.setAuthentication(authentication);
 		SecurityContextHolder.setContext(context);
 		HttpSession session = httpRequest.getSession(true);
+        String previousSessionId = session.getId();
 		httpRequest.changeSessionId();
+        events.publishEvent(new com.example.fixflow.security.SessionEnded(previousSessionId));
 		session.setAttribute(com.example.fixflow.security.SessionExpiryFilter.AUTHENTICATED_AT, java.time.Instant.now());
 		session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
 
@@ -131,7 +136,9 @@ public class AuthService {
 		SecurityContextHolder.clearContext();
 		HttpSession session = request.getSession(false);
 		if (session != null) {
+            String sessionId = session.getId();
 			session.invalidate();
+            events.publishEvent(new com.example.fixflow.security.SessionEnded(sessionId));
 		}
 	}
 

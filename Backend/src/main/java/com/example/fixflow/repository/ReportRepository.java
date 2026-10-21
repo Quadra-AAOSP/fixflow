@@ -10,6 +10,12 @@ import org.springframework.data.repository.query.Param;
 import com.example.fixflow.domain.Report;
 
 public interface ReportRepository extends JpaRepository<Report, Long> {
+    long countByAssignedTechnician_IdAndSite_IdAndStatusIn(Long technicianId, Long siteId,
+            java.util.Collection<com.example.fixflow.domain.ReportStatus> statuses);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Report r where r.id=:id")
+    Optional<Report> findForVisionUpdate(@Param("id") Long id);
 
 	@Query("""
 			select r from Report r

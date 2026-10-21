@@ -45,6 +45,7 @@ public class SecurityConfig {
 						.requestMatchers("/api/admin/shop/**").hasAnyRole("SUPER_ADMIN", "SHOP_MANAGER")
 						.requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 						.requestMatchers("/api/**").authenticated()
+                        .requestMatchers("/ws/reports").authenticated()
 						.anyRequest().permitAll()
 				)
 				.httpBasic(httpBasic -> httpBasic.disable())

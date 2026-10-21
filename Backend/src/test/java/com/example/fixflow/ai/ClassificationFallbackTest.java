@@ -49,8 +49,10 @@ class ClassificationFallbackTest {
         report.setCategory("plumbing"); report.setSpecialty("old specialty"); report.setAiUrgency(Urgency.high);
         report.setReporterUrgency(Urgency.critical); report.setReporterReason("Reporter explanation");
         new ReportClassificationService(providers, rules).classify(report);
-        assertThat(report.getCategory()).isEqualTo(general ? "general" : "plumbing");
-        assertThat(report.getSpecialty()).isNull(); assertThat(report.getAiUrgency()).isNull();
+        assertThat(report.getCategory()).isEqualTo("plumbing");
+        assertThat(report.getAiCategory()).isEqualTo(general ? "general" : null);
+        assertThat(report.getSpecialty()).isEqualTo("old specialty");
+        assertThat(report.getAiSpecialty()).isNull(); assertThat(report.getAiUrgency()).isNull();
         assertThat(report.getReporterUrgency()).isEqualTo(Urgency.critical);
         assertThat(report.getReporterReason()).isEqualTo("Reporter explanation");
     }
