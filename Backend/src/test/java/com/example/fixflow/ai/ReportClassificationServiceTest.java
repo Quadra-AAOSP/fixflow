@@ -60,8 +60,8 @@ class ReportClassificationServiceTest {
 
         service.classify(report);
 
-        assertEquals("plumbing", report.getCategory());
-        assertEquals("water supply", report.getSpecialty());
+        assertEquals("plumbing", report.getAiCategory());
+        assertEquals("water supply", report.getAiSpecialty());
         assertEquals(Urgency.high, report.getAiUrgency());
         assertEquals(Urgency.medium, report.getReporterUrgency());
         ArgumentCaptor<ClassificationRequest> request = ArgumentCaptor.forClass(ClassificationRequest.class);
@@ -85,8 +85,8 @@ class ReportClassificationServiceTest {
 
         service.classify(report);
 
-        assertEquals("general", report.getCategory());
-        assertNull(report.getSpecialty());
+        assertEquals("general", report.getAiCategory());
+        assertNull(report.getAiSpecialty());
         assertNull(report.getAiUrgency());
         assertEquals(Urgency.medium, report.getReporterUrgency());
     }

@@ -205,6 +205,10 @@ CREATE TABLE IF NOT EXISTS reports (
     category                VARCHAR(128)    NOT NULL COMMENT 'Must match site_rules.category for this site type',
     specialty               VARCHAR(128)    NULL COMMENT 'Optional sub-type, e.g. waste_plumbing; not in site_rules',
     ai_urgency              ENUM('low', 'medium', 'high', 'critical') NULL,
+    ai_category             VARCHAR(128) NULL,
+    ai_specialty            VARCHAR(128) NULL,
+    ai_description          TEXT NULL,
+    ai_urgency_reason        TEXT NULL,
     reporter_urgency        ENUM('low', 'medium', 'high', 'critical') NOT NULL,
     reporter_reason         TEXT            NULL,
     final_urgency           ENUM('low', 'medium', 'high', 'critical') NULL COMMENT 'Staff/admin override; null until overridden',
@@ -488,3 +492,59 @@ CREATE TABLE IF NOT EXISTS shop_payments (
         FOREIGN KEY (order_id) REFERENCES shop_orders (id)
         ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Background vision requests. Images are cleared on completion; jobs survive restarts.
+CREATE TABLE IF NOT EXISTS report_vision_jobs (
+    id VARCHAR(36) NOT NULL PRIMARY KEY,
+    report_id BIGINT UNSIGNED NOT NULL,
+    image_data LONGBLOB NULL,
+    ai_snapshot VARCHAR(64) NULL,
+    description TEXT NOT NULL,
+    category VARCHAR(128) NOT NULL,
+    specialty VARCHAR(128) NULL,
+    ai_urgency VARCHAR(32) NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'queued',
+    model VARCHAR(255) NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    KEY idx_vision_queue(status,created_at),
+    KEY idx_vision_report(report_id),
+    CONSTRAINT fk_vision_job_report FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- Add nullable AI fields without changing any existing human report data.
+SET @fixflow_ai_column_sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='reports' AND column_name='ai_category') = 0, 'ALTER TABLE reports ADD COLUMN ai_category VARCHAR(128) NULL', 'SELECT 1');
+PREPARE fixflow_ai_column_statement FROM @fixflow_ai_column_sql;
+EXECUTE fixflow_ai_column_statement;
+DEALLOCATE PREPARE fixflow_ai_column_statement;
+
+CREATE TABLE IF NOT EXISTS technician_invitations (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    report_id BIGINT UNSIGNED NOT NULL,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    invited_by BIGINT UNSIGNED NOT NULL,
+    reason VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_invitation_report_technician (report_id, technician_id),
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (technician_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+SET @fixflow_ai_column_sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='reports' AND column_name='ai_specialty') = 0, 'ALTER TABLE reports ADD COLUMN ai_specialty VARCHAR(128) NULL', 'SELECT 1');
+PREPARE fixflow_ai_column_statement FROM @fixflow_ai_column_sql;
+EXECUTE fixflow_ai_column_statement;
+DEALLOCATE PREPARE fixflow_ai_column_statement;
+SET @fixflow_ai_column_sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='reports' AND column_name='ai_description') = 0, 'ALTER TABLE reports ADD COLUMN ai_description TEXT NULL', 'SELECT 1');
+PREPARE fixflow_ai_column_statement FROM @fixflow_ai_column_sql;
+EXECUTE fixflow_ai_column_statement;
+DEALLOCATE PREPARE fixflow_ai_column_statement;
+SET @fixflow_ai_column_sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='reports' AND column_name='ai_urgency_reason') = 0, 'ALTER TABLE reports ADD COLUMN ai_urgency_reason TEXT NULL', 'SELECT 1');
+PREPARE fixflow_ai_column_statement FROM @fixflow_ai_column_sql;
+EXECUTE fixflow_ai_column_statement;
+DEALLOCATE PREPARE fixflow_ai_column_statement;
+SET @fixflow_ai_column_sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='report_vision_jobs' AND column_name='ai_snapshot') = 0, 'ALTER TABLE report_vision_jobs ADD COLUMN ai_snapshot VARCHAR(64) NULL', 'SELECT 1');
+PREPARE fixflow_ai_column_statement FROM @fixflow_ai_column_sql;
+EXECUTE fixflow_ai_column_statement;
+DEALLOCATE PREPARE fixflow_ai_column_statement;

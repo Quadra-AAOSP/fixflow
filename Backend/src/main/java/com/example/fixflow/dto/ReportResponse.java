@@ -34,13 +34,23 @@ public record ReportResponse(
 		List<ReportPhotoResponse> photos,
 		Instant createdAt,
 		Instant updatedAt,
-		ReportPolicy policy
+        ReportPolicy policy,
+        AiReport aiReport
 ) {
+    public record AiReport(Urgency urgency, String category, String specialty, String description, String urgencyReason) { }
 	public static ReportResponse from(Report report, ReportPolicy policy) {
-		return from(report, policy, List.of());
+        return from(report, policy, List.of(), false);
+    }
+    public static ReportResponse from(Report report, ReportPolicy policy, boolean includeAiDetails) {
+        return from(report, policy, List.of(), includeAiDetails);
 	}
 
 	public static ReportResponse from(Report report, ReportPolicy policy, List<ReportPhotoResponse> photos) {
+        return from(report, policy, photos, false);
+    }
+
+    public static ReportResponse from(Report report, ReportPolicy policy, List<ReportPhotoResponse> photos,
+            boolean includeAiDetails) {
 		boolean includeSensitive = policy.canSeeSensitive();
 		Long createdById = null;
 		String createdByName = null;
@@ -82,7 +92,11 @@ public record ReportResponse(
 				photos == null ? List.of() : photos,
 				report.getCreatedAt(),
 				report.getUpdatedAt(),
-				policy
+                policy,
+                new AiReport(report.getAiUrgency(), includeAiDetails ? report.getAiCategory() : null,
+                        includeAiDetails ? report.getAiSpecialty() : null,
+                        includeAiDetails ? report.getAiDescription() : null,
+                        includeAiDetails ? report.getAiUrgencyReason() : null)
 		);
 	}
 }

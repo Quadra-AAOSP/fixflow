@@ -23,4 +23,5 @@ public class VisionClassificationResponse {
     @Builder.Default
     private boolean confidence = true;
     private String analysisDescription;
+    private String urgencyReason;
 }

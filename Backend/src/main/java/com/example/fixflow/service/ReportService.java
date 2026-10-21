@@ -54,6 +54,8 @@ public class ReportService {
 	private final SubsiteRepository subsiteRepository;
 	private final CategoryTaxonomyService categoryTaxonomyService;
 	private final RoleIntegrityService roleIntegrityService;
+    private final org.springframework.context.ApplicationEventPublisher events;
+    private final com.example.fixflow.repository.TechnicianContractRepository contracts;
 	private final ReportClassificationService classificationService;
 	private final TechnicianTermsService terms;
 	private final ObjectStorageService objectStorageService;
@@ -71,6 +73,8 @@ public class ReportService {
 			SubsiteRepository subsiteRepository,
 			CategoryTaxonomyService categoryTaxonomyService,
 			RoleIntegrityService roleIntegrityService,
+            org.springframework.context.ApplicationEventPublisher events,
+            com.example.fixflow.repository.TechnicianContractRepository contracts,
 			ReportClassificationService classificationService,
 			TechnicianTermsService terms,
 			ObjectStorageService objectStorageService,
@@ -87,6 +91,8 @@ public class ReportService {
 		this.subsiteRepository = subsiteRepository;
 		this.categoryTaxonomyService = categoryTaxonomyService;
 		this.roleIntegrityService = roleIntegrityService;
+        this.events = events;
+        this.contracts = contracts;
 		this.classificationService = classificationService;
 		this.terms = terms;
 		this.objectStorageService = objectStorageService;
@@ -100,7 +106,7 @@ public class ReportService {
 		if (actor.getRole() != UserRole.admin && actor.getRole() != UserRole.super_admin) {
 			throw new ApiException(403, "Only site admins or super admins can classify reports");
 		}
-		Report report = reportRepository.findDetailedById(id)
+		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
 		classificationService.classify(report);
@@ -168,7 +174,6 @@ public class ReportService {
 		reportReporterRepository.save(attachment);
 
 		appendStatusHistory(report, null, ReportStatus.open, filer, "Report created");
-		classificationService.classify(report);
 		report = reportRepository.saveAndFlush(report);
 
 		storePhotos(report, photos, 0);
@@ -208,8 +213,16 @@ public class ReportService {
 	public ReportResponse get(Long id, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		if (actor.getRole() == UserRole.technician) {
+            if (report.getAssignedTechnician() == null
+                    || !report.getAssignedTechnician().getId().equals(actor.getId())) {
+                throw new ApiException(403, "Only the currently assigned technician may view this report");
+            }
+        } else {
+            assertCanViewSite(actor, report.getSite().getId());
+			assertCanSeeVisibility(actor, report);
+
+        }
 		return response(report, actor);
 	}
 
@@ -255,19 +268,34 @@ public class ReportService {
 				&& actor.getRole() != UserRole.super_admin) {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Only staff or admin can assign technicians");
 		}
-		Report report = reportRepository.findDetailedById(id)
+		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
 		User technician = userRepository.findById(request.technicianId())
 				.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Technician not found"));
 		roleIntegrityService.requireTechnician(technician);
-		terms.requireAcceptance(technician.getId());
-		ReportStatus from = report.getStatus();
+        if (!contracts.existsByTechnician_IdAndSite_Id(technician.getId(), report.getSite().getId())) {
+            throw new ApiException(409, "Technician must have a contract with the report's site before assignment");
+        }
+        terms.requireAcceptance(technician.getId());
+        ReportStatus previousStatus = report.getStatus();
+        Long previousAssignee = report.getAssignedTechnician() == null ? null : report.getAssignedTechnician().getId();
 		report.setAssignedTechnician(technician);
 		report.setStatus(ReportStatus.assigned);
-		report = reportRepository.save(report);
-		appendStatusHistory(report, from, ReportStatus.assigned, loadUser(actor.getId()), "Technician assigned");
-		return response(report, actor);
+        reportRepository.save(report);
+        appendStatusHistory(report, previousStatus, ReportStatus.assigned, loadUser(actor.getId()), "Technician assigned");
+        if (!java.util.Objects.equals(previousAssignee, technician.getId())) {
+            events.publishEvent(com.example.fixflow.realtime.ReportDomainEvent.of(
+                    previousAssignee == null ? com.example.fixflow.realtime.ReportDomainEvent.ASSIGNMENT
+                            : com.example.fixflow.realtime.ReportDomainEvent.REASSIGNMENT,
+                    report.getSite().getId(), id, previousStatus, report.getStatus(), previousAssignee, technician.getId()));
+        }
+        if (previousStatus != report.getStatus()) {
+            events.publishEvent(com.example.fixflow.realtime.ReportDomainEvent.of(
+                    com.example.fixflow.realtime.ReportDomainEvent.STATUS_CHANGE, report.getSite().getId(), id,
+                    previousStatus, report.getStatus(), previousAssignee, technician.getId()));
+        }
+        return response(report, actor);
 	}
 
 	@Transactional
@@ -538,7 +566,8 @@ public class ReportService {
 				: List.of();
 		return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
 				report, canSee, participant, canAssign,
-				actor.getRole() == UserRole.reporter && !participant, ownQueue), photos);
+				actor.getRole() == UserRole.reporter && !participant, ownQueue), photos,
+                actor.getRole() == UserRole.admin || actor.getRole() == UserRole.super_admin || actor.getRole() == UserRole.staff);
 	}
 
 	private User loadUser(Long id) {

@@ -133,7 +133,8 @@ public class OpenRouterProvider implements AIProvider {
             "Classify the maintenance issue into a category, optional specialty, and urgency level. " +
             "You must ONLY use categories from this list: %s. " +
             "Response format: JSON with keys: category (required), specialty (optional, can be null), " +
-            "urgency (one of: low, medium, high, critical). " +
+            "urgency (one of: low, medium, high, critical), description (your independent assessment), " +
+            "urgency_reason (explain your chosen urgency). " +
             "If the category cannot be determined from the allowed list, set category to 'general'.",
             request.getSiteType(),
             String.join(", ", request.getAllowedCategories())
@@ -168,6 +169,8 @@ public class OpenRouterProvider implements AIProvider {
                     .urgency(urgency)
                     .provider("OpenRouter")
                     .model(model)
+                    .analysisDescription(jsonNode.path("description").isTextual() ? jsonNode.path("description").asText() : null)
+                    .urgencyReason(jsonNode.path("urgency_reason").isTextual() ? jsonNode.path("urgency_reason").asText() : null)
                     .build();
             
         } catch (Exception e) {
