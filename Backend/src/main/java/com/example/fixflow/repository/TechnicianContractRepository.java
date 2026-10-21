@@ -1,6 +1,8 @@
 package com.example.fixflow.repository;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -29,5 +31,8 @@ public interface TechnicianContractRepository extends JpaRepository<TechnicianCo
 			join fetch c.site
 			where c.id = :id
 			""")
-	java.util.Optional<TechnicianContract> findDetailedById(@Param("id") Long id);
+	Optional<TechnicianContract> findDetailedById(@Param("id") Long id);
+
+	@Query("select c from TechnicianContract c join fetch c.site where c.technician.id in :technicianIds order by c.id")
+	List<TechnicianContract> findByTechnicianIdsWithSite(@Param("technicianIds") Collection<Long> technicianIds);
 }

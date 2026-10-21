@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Check, Handshake, ShieldCheck } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/Card';
 import { Picker } from '@/components/ui/Picker';
@@ -41,6 +42,7 @@ import { formatDate } from '@/utils/format';
  */
 export default function ContractsScreen() {
   const { user } = useAuth();
+  const { t } = useTranslation('common');
   const isAdmin = user !== null && canDecideContracts(user);
   const isTechnician = user?.role === 'technician';
 
@@ -66,24 +68,26 @@ export default function ContractsScreen() {
               className="text-2xl font-bold text-ink"
               style={{ letterSpacing: -0.5 }}
             >
-              Site contracts
+              {t('more.contracts.title')}
             </Text>
             <Text className="mt-1 text-[12px] text-dashboard-subtitle">
-              Optional site relationships for technicians
+              {t('more.contracts.subtitle')}
             </Text>
           </View>
           <Handshake color={dashboardColors.statMintDeep} size={30} />
         </View>
 
-        {isTechnician ? <TechnicianView userId={user.id} /> : null}
-        {isAdmin ? <AdminView /> : null}
+        {isTechnician ? <TechnicianView userId={user.id} t={t} /> : null}
+        {isAdmin ? <AdminView t={t} /> : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );
 }
 
-function TechnicianView({ userId }: { userId: number }) {
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
+function TechnicianView({ userId, t }: { userId: number; t: TranslateFn }) {
   const router = useRouter();
   return (
     <>
@@ -95,11 +99,10 @@ function TechnicianView({ userId }: { userId: number }) {
           className="mb-2 text-[17px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          Stay independent
+          {t('more.contracts.stayIndependent')}
         </Text>
         <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-          No site contract is required to keep your account. You do not need to
-          apply for one during registration.
+          {t('more.contracts.independentBody')}
         </Text>
         <Pressable
           accessibilityRole="link"
@@ -110,7 +113,7 @@ function TechnicianView({ userId }: { userId: number }) {
             className="text-[11px] font-semibold"
             style={{ color: dashboardColors.teal }}
           >
-            Continue independently
+            {t('more.contracts.continueIndependently')}
           </Text>
           <ArrowRight color={dashboardColors.teal} size={13} />
         </Pressable>
@@ -125,16 +128,15 @@ function TechnicianView({ userId }: { userId: number }) {
           className="mb-2 text-[17px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          Request a site contract
+          {t('more.contracts.requestTitle')}
         </Text>
         <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-          Ask the site administrator to review your request. Share your
-          technician account ID:{' '}
-          <Text className="font-semibold text-ink">{userId}</Text>.
+          {t('more.contracts.requestBodyPrefix')}
+          <Text className="font-semibold text-ink">{userId}</Text>
+          {t('more.contracts.requestBodySuffix')}
         </Text>
         <Text className="mb-3 text-[11px] leading-[1.6] text-dashboard-caption">
-          Online requests and request tracking are not available yet. No
-          request has been submitted from this page.
+          {t('more.contracts.onlineUnavailableNote')}
         </Text>
         <Pressable
           disabled
@@ -150,20 +152,18 @@ function TechnicianView({ userId }: { userId: number }) {
             className="text-[14px] font-semibold"
             style={{ color: dashboardColors.ctaText }}
           >
-            Online requests unavailable
+            {t('more.contracts.onlineUnavailableButton')}
           </Text>
         </Pressable>
         <Text className="mt-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
-          Your site administrator can record an agreed contract. An account
-          without a site ID can still have contracts; your current contract
-          list is not available here.
+          {t('more.contracts.recordNote')}
         </Text>
       </View>
     </>
   );
 }
 
-function AdminView() {
+function AdminView({ t }: { t: TranslateFn }) {
   const palette = themeColors();
   const [sites, setSites] = useState<Site[] | null>(null);
   const [loadingSites, setLoadingSites] = useState(false);
@@ -191,7 +191,9 @@ function AdminView() {
       } catch (err) {
         if (!cancelled) {
           setSitesError(
-            err instanceof ApiError ? err.message : 'Could not load sites.',
+            err instanceof ApiError
+              ? err.message
+              : t('more.contracts.couldNotLoadSites'),
           );
         }
       } finally {
@@ -211,7 +213,7 @@ function AdminView() {
 
   async function onSubmit() {
     if (siteId === null) {
-      setError('Choose an accessible site, enter a valid technician ID, and confirm their agreement.');
+      setError(t('more.contracts.errors.chooseSiteTechnicianConsent'));
       return;
     }
     const parsedTechnicianId = Number(technicianIdText);
@@ -220,11 +222,11 @@ function AdminView() {
       !Number.isInteger(parsedTechnicianId) ||
       parsedTechnicianId <= 0
     ) {
-      setError('Choose an accessible site, enter a valid technician ID, and confirm their agreement.');
+      setError(t('more.contracts.errors.chooseSiteTechnicianConsent'));
       return;
     }
     if (!consent) {
-      setError('Choose an accessible site, enter a valid technician ID, and confirm their agreement.');
+      setError(t('more.contracts.errors.chooseSiteTechnicianConsent'));
       return;
     }
     setSubmitting(true);
@@ -240,9 +242,12 @@ function AdminView() {
         sites?.find((site) => site.id === created.siteId)?.name ??
         `Site #${created.siteId}`;
       setConfirmation(
-        `Contract #${created.id} created for technician ` +
-          `#${created.technicianId} at ${siteName} on ` +
-          `${formatDate(created.createdAt, true)}.`,
+        t('more.contracts.confirmation', {
+          id: created.id,
+          technicianId: created.technicianId,
+          site: siteName,
+          date: formatDate(created.createdAt, true),
+        }),
       );
       setConsent(false);
       setTechnicianIdText('');
@@ -250,7 +255,7 @@ function AdminView() {
       setError(
         err instanceof ApiError
           ? err.message
-          : 'Could not record the contract.',
+          : t('more.contracts.errors.couldNotRecord'),
       );
     } finally {
       setSubmitting(false);
@@ -269,7 +274,7 @@ function AdminView() {
     return (
       <StateView
         variant="error"
-        title="Could not load sites"
+        title={t('more.contracts.couldNotLoadSitesTitle')}
         description={sitesError}
       />
     );
@@ -278,9 +283,7 @@ function AdminView() {
   return (
     <Card className="mb-4">
       <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-        Record a site contract only after the technician has agreed. This
-        creates a contract directly; it does not process an online request or
-        record an approval history.
+        {t('more.contracts.recordIntro')}
       </Text>
 
       {confirmation ? (
@@ -299,17 +302,17 @@ function AdminView() {
       ) : null}
 
       <Picker
-        label="Site"
+        label={t('more.contracts.siteLabel')}
         value={siteId !== null ? String(siteId) : null}
         onChange={(value) => setSiteId(Number(value))}
         options={siteOptions}
       />
 
       <TextField
-        label="Technician account ID"
+        label={t('more.contracts.technicianIdLabel')}
         value={technicianIdText}
         onChangeText={setTechnicianIdText}
-        placeholder="e.g. 42"
+        placeholder={t('more.contracts.technicianIdPlaceholder')}
         keyboardType="number-pad"
         autoCapitalize="none"
         autoCorrect={false}
@@ -331,7 +334,7 @@ function AdminView() {
           ) : null}
         </View>
         <Text className="flex-1 text-[12px] leading-[1.7] text-ink">
-          The technician has agreed to this site contract.
+          {t('more.contracts.consentLabel')}
         </Text>
       </Pressable>
 
@@ -363,13 +366,14 @@ function AdminView() {
           className="text-[14px] font-semibold"
           style={{ color: dashboardColors.ctaText }}
         >
-          {submitting ? 'Saving…' : 'Record agreed contract'}
+          {submitting
+            ? t('more.contracts.saving')
+            : t('more.contracts.recordContract')}
         </Text>
       </Pressable>
 
       <Text className="mt-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
-        Existing contracts and pending requests cannot be listed in this
-        version.
+        {t('more.contracts.listUnavailableNote')}
       </Text>
     </Card>
   );

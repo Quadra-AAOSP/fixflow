@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { colors } from '@/constants/theme';
 
@@ -43,6 +44,7 @@ export function ModalSheet({
   footer,
   busy,
 }: ModalSheetProps) {
+  const { t } = useTranslation('common');
   const insets = useSafeAreaInsets();
 
   return (
@@ -71,14 +73,14 @@ export function ModalSheet({
               onPress={onClose}
               disabled={busy}
               accessibilityRole="button"
-              accessibilityLabel="Close"
+              accessibilityLabel={t('components.modalSheet.close')}
               className={`px-2 py-1 ${busy ? 'opacity-40' : ''}`}
             >
               <Text
                 className="text-[13px] font-semibold"
                 style={{ color: colors.mintInk }}
               >
-                Close
+                {t('components.modalSheet.close')}
               </Text>
             </Pressable>
           </View>

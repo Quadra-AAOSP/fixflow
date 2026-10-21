@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { themeColors } from '@/constants/theme';
@@ -17,6 +18,7 @@ import { themeColors } from '@/constants/theme';
  */
 export default function MoreStackLayout() {
   const palette = themeColors();
+  const { t } = useTranslation('common');
 
   return (
     <Stack
@@ -34,10 +36,35 @@ export default function MoreStackLayout() {
       {/* The menu screen renders its own heading, so suppress the stack
           header here to avoid a double title. */}
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
-      <Stack.Screen name="sites" options={{ title: 'Sites' }} />
-      <Stack.Screen name="team-access" options={{ title: 'Team access' }} />
-      <Stack.Screen name="contracts" options={{ title: 'Site contracts' }} />
+      <Stack.Screen
+        name="notifications"
+        options={{ title: t('more.menu.notificationsTitle') }}
+      />
+      <Stack.Screen name="sites" options={{ title: t('more.menu.sitesTitle') }} />
+      <Stack.Screen
+        name="site-setup"
+        options={{ title: t('more.menu.siteSetupTitle') }}
+      />
+      <Stack.Screen
+        name="team-access"
+        options={{ title: t('more.menu.teamAccessTitle') }}
+      />
+      <Stack.Screen
+        name="technicians"
+        options={{ title: t('more.menu.techniciansTitle') }}
+      />
+      <Stack.Screen
+        name="admin-applications"
+        options={{ title: t('more.menu.adminApplicationsTitle') }}
+      />
+      <Stack.Screen
+        name="admin-application"
+        options={{ title: t('adminApplication.title') }}
+      />
+      <Stack.Screen
+        name="contracts"
+        options={{ title: t('more.menu.siteContractsTitle') }}
+      />
       <Stack.Screen name="shop" options={{ headerShown: false }} />
     </Stack>
   );

@@ -1,188 +1,265 @@
 import { useRouter } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCallback } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import {
-  BellRing,
+  ArrowRight,
+  Building2,
   ClipboardList,
-  House,
-  LayoutGrid,
-  Plug,
-  ScanSearch,
+  FileText,
+  Moon,
+  NotepadText,
+  ShieldCheck,
+  ShoppingCart,
+  ShoppingBag,
+  Store,
+  UserCheck,
   Users,
-  type LucideIcon,
+  Wrench,
 } from 'lucide-react-native';
-
-import { Card } from '@/components/ui/Card';
-import { Screen } from '@/components/ui/Screen';
-import { ListRow } from '@/components/ui/ListRow';
-import { dashboardColors } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
-import {
-  canCreateSite,
-  canEditSite,
-  canProvision,
-  canDecideContracts,
-  roleLabels,
-} from '@/constants/access';
 
-/**
- * "More" tab — the index route of the nested More stack. Surfaces every
- * secondary destination that doesn't justify a permanent bottom-bar slot.
- *
- * There is no direct web counterpart (the web app has a sidebar with all
- * sections visible at once). The mobile app collapses the sidebar's overflow
- * area into this menu so the bottom bar stays at four items.
- *
- * Items are role-aware so the screen stays useful without becoming cluttered
- * for any given account.
- */
+import { Screen } from '@/components/ui/Screen';
+import { roleLabels, canProvision } from '@/constants/access';
+import { dashboardColors } from '@/constants/theme';
+
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
+type MenuSection = {
+  key: string;
+  labelKey: string;
+  items: MenuItem[];
+};
+
+type MenuItem = {
+  icon: typeof ArrowRight;
+  titleKey: string;
+  subtitleKey: string | null;
+  onPress: () => void;
+};
 export default function MoreScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
   const { user } = useAuth();
-  // This route is the only screen in the app with no navigation header at all
-  // (the Tabs bar *and* the More stack both hide theirs), so nothing pads for
-  // the status bar / notch — the view has to do it itself.
-  const insets = useSafeAreaInsets();
 
-  if (!user) return null;
+  const role = user?.role ?? 'reporter';
+  const canManageSite =
+    user?.role === 'admin' || user?.role === 'super_admin';
+  const canProvisionUser = canProvision(user);
+  const canViewAdminApplications = user?.role === 'super_admin';
+  const canViewTechnicians =
+    role === 'staff' || role === 'admin' || role === 'super_admin';
 
-  const showSites = canCreateSite(user) || canEditSite(user);
-  const showTeam = canProvision(user);
-  const showContracts =
-    canDecideContracts(user) || user.role === 'technician';
+  // A reporter who applied to be a site admin sees this entry until the
+  // super-admin decision lands — even if no site exists yet.
+  const hasAdminApplication = user?.adminApplication !== null;
+
+  const sections: MenuSection[] = [
+    {
+      key: 'workspace',
+      labelKey: 'more.sections.workspace',
+      items: [
+        {
+          icon: ClipboardList,
+          titleKey: 'more.menu.reportsTitle',
+          subtitleKey: 'more.menu.reportsSubtitle',
+          onPress: () => router.push('/reports'),
+        },
+        {
+          icon: Moon,
+          titleKey: 'more.menu.notificationsTitle',
+          subtitleKey: 'more.menu.notificationsSubtitle',
+          onPress: () => router.push('/notifications'),
+        },
+      ],
+    },
+  ];
+
+  if (canViewTechnicians || hasAdminApplication) {
+    const adminItems: (MenuItem | null)[] = [
+      hasAdminApplication
+        ? {
+            icon: ShieldCheck,
+            titleKey: 'more.menu.myAdminApplicationTitle',
+            subtitleKey: null,
+            onPress: () => router.push('/more/admin-application'),
+          }
+        : null,
+      canManageSite
+        ? {
+            icon: Building2,
+            titleKey: 'more.menu.siteSetupTitle',
+            subtitleKey: 'more.menu.siteSetupSubtitleRequired',
+            onPress: () => router.push('/more/site-setup'),
+          }
+        : null,
+      canManageSite
+        ? {
+            icon: Users,
+            titleKey: 'more.menu.sitesTitle',
+            subtitleKey: 'more.menu.sitesSubtitleEdit',
+            onPress: () => router.push('/more/sites'),
+          }
+        : null,
+      canProvisionUser
+        ? {
+            icon: UserCheck,
+            titleKey: 'more.menu.teamAccessTitle',
+            subtitleKey: 'more.menu.teamAccessSubtitle',
+            onPress: () => router.push('/more/team-access'),
+          }
+        : null,
+      canViewTechnicians
+        ? {
+            icon: Wrench,
+            titleKey: 'more.menu.techniciansTitle',
+            subtitleKey: 'more.menu.techniciansSubtitle',
+            onPress: () => router.push('/more/technicians'),
+          }
+        : null,
+      canViewAdminApplications
+        ? {
+            icon: ShieldCheck,
+            titleKey: 'more.menu.adminApplicationsTitle',
+            subtitleKey: 'more.menu.adminApplicationsSubtitle',
+            onPress: () => router.push('/more/admin-applications'),
+          }
+        : null,
+      role === 'technician' || canManageSite
+        ? {
+            icon: FileText,
+            titleKey: 'more.menu.siteContractsTitle',
+            subtitleKey:
+              role === 'technician'
+                ? 'more.menu.siteContractsSubtitleTechnician'
+                : 'more.menu.siteContractsSubtitleAdmin',
+            onPress: () => router.push('/more/site-contracts'),
+          }
+        : null,
+    ];
+    sections.push({
+      key: 'administration',
+      labelKey: 'more.sections.administration',
+      items: adminItems.filter((item): item is MenuItem => item !== null),
+    });
+  }
+
+  const shopItems: (MenuItem | null)[] = [
+    canManageSite
+      ? {
+          icon: NotepadText,
+          titleKey: 'more.menu.shopManagementTitle',
+          subtitleKey: 'more.menu.shopManagementSubtitle',
+          onPress: () => router.push('/more/shop-management'),
+        }
+      : null,
+    {
+      icon: ShoppingBag,
+      titleKey: 'more.menu.shopTitle',
+      subtitleKey: canManageSite ? 'more.menu.shopSubtitleManager' : 'more.menu.shopSubtitle',
+      onPress: () => router.push('/more/shop'),
+    },
+  ];
+  sections.push({
+    key: 'shop',
+    labelKey: 'more.sections.shop',
+    items: shopItems.filter((item): item is MenuItem => item !== null),
+  });
+
+  const siteCount = 0; // `me` payload currently omits this — use 0 until Phase 6 backfill.
+  const sitesLabel =
+    siteCount > 0
+      ? ` · ${siteCount}`
+      : '';
+
+  const applicationStatusLabel =
+    user?.adminApplication?.status === 'pending'
+      ? t('more.menu.myAdminApplicationPending')
+      : user?.adminApplication
+        ? t('more.menu.myAdminApplicationStatus', { status: user.adminApplication.status })
+        : null;
 
   return (
     <Screen>
       <ScrollView
-        contentContainerClassName="px-5"
-        contentContainerStyle={{
-          paddingTop: insets.top + 16,
-          paddingBottom: Math.max(insets.bottom, 48),
-        }}
+        contentContainerClassName="px-5 pb-8 pt-4"
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Header — mirrors the dashboard's welcome banner treatment, but
-            compressed. The web's sidebar already shows the user's name in
-            the topbar, so the mobile puts it here. */}
-        <View className="mb-5 flex-row items-center gap-3">
-          <View
-            className="rounded-xl p-3"
-            style={{ backgroundColor: dashboardColors.statMintSoft }}
+        <View className="mb-5">
+          <Text
+            className="text-2xl font-bold text-ink"
+            style={{ letterSpacing: -0.6 }}
           >
-            <LayoutGrid color={dashboardColors.statMintDeep} size={26} />
-          </View>
-          <View className="flex-1">
-            <Text
-              className="text-2xl font-bold text-ink"
-              style={{ letterSpacing: -0.5 }}
-            >
-              More
-            </Text>
-            <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-              Signed in as {roleLabels[user.role]}
-            </Text>
-          </View>
+            {t('more.title')}
+          </Text>
+          <Text className="mt-0.5 text-[11px] text-dashboard-caption">
+            {t('more.signedInAs', { role: t(roleLabels[role]) })}
+            {sitesLabel}
+            {applicationStatusLabel ? ` · ${applicationStatusLabel}` : ''}
+          </Text>
         </View>
 
-        <SectionLabel>Workspace</SectionLabel>
-        <Card padded={false} className="mb-6">
-          <ListRow
-            title="Reports"
-            subtitle="Every report at this site."
-            icon={ClipboardList}
-            className="px-4 py-3"
-            onPress={() => router.push('/reports')}
+        {sections.map((section) => (
+          <MenuSection
+            key={section.key}
+            t={t}
+            label={t(section.labelKey)}
+            items={section.items}
           />
-          <View className="mx-4 border-t border-dashboard-card-line" />
-          <ListRow
-            title="Notifications"
-            subtitle="No notifications yet — coming soon."
-            icon={BellRing}
-            className="px-4 py-3"
-            onPress={() => router.push('/more/notifications')}
-          />
-        </Card>
-
-        {showSites || showTeam || showContracts ? (
-          <SectionLabel>Administration</SectionLabel>
-        ) : null}
-        <Card padded={false} className="mb-6">
-          {showSites ? (
-            <ListRow
-              title="Sites"
-              subtitle={
-                canCreateSite(user)
-                  ? 'Create and edit sites.'
-                  : 'Edit sites assigned to you.'
-              }
-              icon={House}
-              className="px-4 py-3"
-              onPress={() => router.push('/more/sites')}
-            />
-          ) : null}
-          {showSites && showTeam ? (
-            <View className="mx-4 border-t border-dashboard-card-line" />
-          ) : null}
-          {showTeam ? (
-            <ListRow
-              title="Team access"
-              subtitle="Provision staff or admin accounts."
-              icon={Users}
-              className="px-4 py-3"
-              onPress={() => router.push('/more/team-access')}
-            />
-          ) : null}
-          {showContracts ? (
-            <>
-              {showSites || showTeam ? (
-                <View className="mx-4 border-t border-dashboard-card-line" />
-              ) : null}
-              <ListRow
-                title="Site contracts"
-                subtitle={
-                  user.role === 'technician'
-                    ? 'Apply or review contracts.'
-                    : 'Record site contracts.'
-                }
-                icon={Plug}
-                className="px-4 py-3"
-                onPress={() => router.push('/more/contracts')}
-              />
-            </>
-          ) : null}
-        </Card>
-
-        <SectionLabel>Shop</SectionLabel>
-        <Card padded={false} className="mb-6">
-          <ListRow
-            title="Shop"
-            subtitle="Browse and order maintenance supplies."
-            icon={ScanSearch}
-            className="px-4 py-3"
-            onPress={() => router.push('/more/shop')}
-          />
-        </Card>
+        ))}
       </ScrollView>
     </Screen>
   );
 }
 
-/**
- * Small teal-tinted section label used above each card on the More menu.
- * Mirrors the section-eyebrow treatment on the web dashboard.
- */
-function SectionLabel({ children }: { children: string }) {
+function MenuSection({
+  t, label, items,
+}: {
+  t: TranslateFn;
+  label: string;
+  items: MenuItem[];
+}) {
   return (
-    <View className="mb-2 mt-1 flex-row items-center gap-2 px-1">
-      <View
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: dashboardColors.statCitronDeep }}
-      />
-      <Text
-        className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-subtitle"
-        style={{ letterSpacing: 1.2 }}
-      >
-        {children}
+    <View className="mb-4">
+      <Text className="mb-1.5 text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+        {label}
       </Text>
+      <View className="overflow-hidden rounded-xl border border-dashboard-card-line bg-dashboard-card-bg">
+        {items.map((item, idx) => (
+          <Pressable
+            key={item.titleKey}
+            accessibilityRole="button"
+            accessibilityLabel={t(item.titleKey)}
+            onPress={item.onPress}
+            className={`flex-row items-center gap-3 px-3 py-3 active:opacity-70 ${
+              idx > 0 ? 'border-t border-dashboard-card-line' : ''
+            }`}
+          >
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-dashboard-pill-bg">
+              <item.icon
+                color={dashboardColors.teal}
+                size={18}
+                strokeWidth={1.8}
+              />
+            </View>
+            <View className="flex-1">
+              <Text className="text-[13px] font-semibold text-ink">
+                {t(item.titleKey)}
+              </Text>
+              {item.subtitleKey ? (
+                <Text className="mt-0.5 text-[10px] text-dashboard-subtitle">
+                  {t(item.subtitleKey)}
+                </Text>
+              ) : null}
+            </View>
+            <ArrowRight
+              color={dashboardColors.subtitle}
+              size={15}
+              strokeWidth={1.7}
+            />
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }

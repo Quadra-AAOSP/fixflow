@@ -20,7 +20,8 @@ public class ReportPhotoValidator {
 			"image/jpg",
 			"image/png",
 			"image/webp",
-			"image/gif"
+			"image/gif",
+			"image/heic"
 	);
 
 	public void validateBatch(List<MultipartFile> files, int existingCount) {
@@ -47,7 +48,7 @@ public class ReportPhotoValidator {
 		}
 		String contentType = normalizeContentType(file.getContentType());
 		if (!ALLOWED_TYPES.contains(contentType)) {
-			throw new ApiException(422, "Photo must be jpeg, png, webp, or gif");
+			throw new ApiException(422, "Photo must be jpeg, png, webp, gif, or heic");
 		}
 	}
 
@@ -66,6 +67,7 @@ public class ReportPhotoValidator {
 			case "image/png" -> "png";
 			case "image/webp" -> "webp";
 			case "image/gif" -> "gif";
+			case "image/heic" -> "heic";
 			default -> "bin";
 		};
 	}

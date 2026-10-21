@@ -1,15 +1,11 @@
 package com.example.fixflow.web;
 
-import java.io.InputStream;
 import java.util.List;
 
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,12 +16,12 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.fixflow.domain.ReportPhoto;
+import com.example.fixflow.domain.ReportVisibility;
 import com.example.fixflow.domain.Urgency;
 import com.example.fixflow.dto.AssignTechnicianRequest;
 import com.example.fixflow.dto.CreateReportRequest;
+import com.example.fixflow.dto.ReopenReportRequest;
 import com.example.fixflow.dto.ReportPageResponse;
-import com.example.fixflow.dto.ReportPhotoResponse;
 import com.example.fixflow.dto.ReportReporterResponse;
 import com.example.fixflow.dto.ReportResponse;
 import com.example.fixflow.security.AppUserDetails;
@@ -61,6 +57,7 @@ public class ReportController {
 			@RequestParam(required = false) String reporterReason,
 			@RequestParam(required = false) Long siteId,
 			@RequestParam(required = false) Long subsiteId,
+			@RequestParam(required = false) ReportVisibility visibility,
 			@RequestPart(value = "photos", required = false) List<MultipartFile> photos,
 			@RequestParam(value = "file", required = false) List<MultipartFile> files,
 			@AuthenticationPrincipal AppUserDetails principal
@@ -73,7 +70,8 @@ public class ReportController {
 				reporterUrgency,
 				reporterReason,
 				siteId,
-				subsiteId
+				subsiteId,
+				visibility
 		);
 		List<MultipartFile> uploads = photos != null && !photos.isEmpty() ? photos : files;
 		return ResponseEntity.status(HttpStatus.CREATED)
@@ -123,51 +121,17 @@ public class ReportController {
 		return reportService.assign(id, request, principal);
 	}
 
-	@PostMapping(value = "/{id}/photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<List<ReportPhotoResponse>> addPhotos(
-			@PathVariable Long id,
-			@RequestPart(value = "photos", required = false) List<MultipartFile> photos,
-			@RequestParam(value = "file", required = false) List<MultipartFile> files,
-			@AuthenticationPrincipal AppUserDetails principal
-	) {
-		List<MultipartFile> uploads = photos != null && !photos.isEmpty() ? photos : files;
-		return ResponseEntity.status(HttpStatus.CREATED).body(reportService.addPhotos(id, uploads, principal));
+	@PostMapping("/{id}/confirm")
+	public ReportResponse confirm(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
+		return reportService.confirm(id, principal);
 	}
 
-	@GetMapping("/{id}/photos/{photoId}")
-	public ResponseEntity<InputStreamResource> getPhoto(
+	@PostMapping("/{id}/reopen")
+	public ReportResponse reopen(
 			@PathVariable Long id,
-			@PathVariable Long photoId,
-			@AuthenticationPrincipal AppUserDetails principal
-	) throws Exception {
-		ReportPhoto photo = reportService.requirePhoto(id, photoId, principal);
-		InputStream stream = reportService.openPhotoStream(id, photoId, principal);
-		MediaType mediaType = photo.getContentType() == null
-				? MediaType.APPLICATION_OCTET_STREAM
-				: MediaType.parseMediaType(photo.getContentType());
-		return ResponseEntity.ok()
-				.header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
-				.contentType(mediaType)
-				.body(new InputStreamResource(stream));
-	}
-
-	@GetMapping("/{id}/photos/{photoId}/url")
-	public ResponseEntity<java.util.Map<String, String>> getPhotoUrl(
-			@PathVariable Long id,
-			@PathVariable Long photoId,
+			@Valid @RequestBody ReopenReportRequest request,
 			@AuthenticationPrincipal AppUserDetails principal
 	) {
-		String url = reportService.photoDownloadUrl(id, photoId, principal);
-		return ResponseEntity.ok(java.util.Map.of("url", url));
-	}
-
-	@DeleteMapping("/{id}/photos/{photoId}")
-	public ResponseEntity<Void> deletePhoto(
-			@PathVariable Long id,
-			@PathVariable Long photoId,
-			@AuthenticationPrincipal AppUserDetails principal
-	) {
-		reportService.deletePhoto(id, photoId, principal);
-		return ResponseEntity.noContent().build();
+		return reportService.reopen(id, request, principal);
 	}
 }

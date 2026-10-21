@@ -1,5 +1,6 @@
 package com.example.fixflow.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +17,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	boolean existsByEmailIgnoreCase(String email);
 
 	boolean existsByRole(UserRole role);
+
+	List<User> findByRoleOrderByLastNameAscFirstNameAsc(UserRole role);
 
 	@Query("select u from User u left join fetch u.site where u.id = :id")
 	Optional<User> findWithSiteById(@Param("id") Long id);

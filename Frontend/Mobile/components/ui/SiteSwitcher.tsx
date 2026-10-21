@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react-native';
 import { Pressable, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { themeColors } from '@/constants/theme';
 import { useCurrentSite } from '@/stores/site';
@@ -16,21 +17,32 @@ import { Picker } from './Picker';
  * one site in the database correctly sees no switcher.
  */
 export function SiteSwitcher() {
+  const { t } = useTranslation('common');
   const palette = themeColors();
   const { site, sites, setActiveSite, loading, error } = useCurrentSite();
 
   if (error) {
     return (
-      <Text className="text-sm text-tone-danger">Could not load site</Text>
+      <Text className="text-sm text-tone-danger">
+        {t('components.siteSwitcher.couldNotLoad')}
+      </Text>
     );
   }
 
   if (loading && !site) {
-    return <Text className="text-sm text-muted">Loading site…</Text>;
+    return (
+      <Text className="text-sm text-muted">
+        {t('components.siteSwitcher.loading')}
+      </Text>
+    );
   }
 
   if (!site) {
-    return <Text className="text-sm text-muted">No site linked</Text>;
+    return (
+      <Text className="text-sm text-muted">
+        {t('components.siteSwitcher.noSite')}
+      </Text>
+    );
   }
 
   const caption = `${site.name} · ${site.type}`;
@@ -41,7 +53,7 @@ export function SiteSwitcher() {
 
   return (
     <Picker
-      label="Switch site"
+      label={t('components.siteSwitcher.switchLabel')}
       value={String(site.id)}
       options={sites.map((candidate) => ({
         value: String(candidate.id),
@@ -54,7 +66,7 @@ export function SiteSwitcher() {
           onPress={open}
           className="flex-row items-center gap-1 active:opacity-70"
           accessibilityRole="button"
-          accessibilityHint="Opens the list of sites you can work on"
+          accessibilityHint={t('components.siteSwitcher.switchHint')}
         >
           <Text className="text-sm text-muted">{caption}</Text>
           <ChevronDown color={palette.muted} size={14} />

@@ -32,11 +32,13 @@ export function basketCount(lines: BasketLine[]): number {
  */
 export type ShopSortKey = 'featured' | 'price-asc' | 'price-desc' | 'name';
 
-export const SHOP_SORT_OPTIONS: { value: ShopSortKey; label: string }[] = [
-  { value: 'featured', label: 'Featured' },
-  { value: 'price-asc', label: 'Price ↑' },
-  { value: 'price-desc', label: 'Price ↓' },
-  { value: 'name', label: 'Name' },
+// `labelKey` is an i18n key, not display text — this module has no React
+// context, so the consuming screen resolves it with `t`.
+export const SHOP_SORT_OPTIONS: { value: ShopSortKey; labelKey: string }[] = [
+  { value: 'featured', labelKey: 'more.shop.sortOptions.featured' },
+  { value: 'price-asc', labelKey: 'more.shop.sortOptions.priceAsc' },
+  { value: 'price-desc', labelKey: 'more.shop.sortOptions.priceDesc' },
+  { value: 'name', labelKey: 'more.shop.sortOptions.name' },
 ];
 
 export function sortProducts(

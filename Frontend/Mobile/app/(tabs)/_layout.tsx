@@ -6,6 +6,7 @@ import {
   Wrench,
 } from 'lucide-react-native';
 import { Redirect, Tabs, usePathname } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { SiteProvider } from '@/stores/site';
 import { themeColors } from '@/constants/theme';
@@ -29,6 +30,7 @@ export default function TabLayout() {
   const palette = themeColors();
   const { user, isLoading } = useAuth();
   const pathname = usePathname();
+  const { t } = useTranslation('common');
 
   // While auth is hydrating we don't know the role — render a neutral shell so
   // the navigator mounts and the splash screen can hand off cleanly.
@@ -84,7 +86,7 @@ export default function TabLayout() {
             isTechnician
               ? { href: null }
               : {
-                  title: 'Home',
+                  title: t('tabs.home'),
                   tabBarIcon: ({ color, size }) => (
                     <House color={color} size={size} />
                   ),
@@ -102,7 +104,7 @@ export default function TabLayout() {
                   // `[id]` get back buttons. Leaving this on would double the
                   // headers.
                   headerShown: false,
-                  title: 'Reports',
+                  title: t('tabs.reports'),
                   tabBarIcon: ({ color, size }) => (
                     <ClipboardList color={color} size={size} />
                   ),
@@ -115,7 +117,7 @@ export default function TabLayout() {
           options={
             isTechnician
               ? {
-                  title: 'Workspace',
+                  title: t('tabs.workspace'),
                   tabBarIcon: ({ color, size }) => (
                     <Wrench color={color} size={size} />
                   ),
@@ -129,7 +131,7 @@ export default function TabLayout() {
           options={
             isTechnician
               ? {
-                  title: 'Assignments',
+                  title: t('tabs.assignments'),
                   tabBarIcon: ({ color, size }) => (
                     <ClipboardList color={color} size={size} />
                   ),
@@ -148,7 +150,7 @@ export default function TabLayout() {
             // second "More" bar above them and makes the back button resolve
             // to the wrong route — same reason `reports` disables it.
             headerShown: false,
-            title: 'More',
+            title: t('tabs.more'),
             tabBarIcon: ({ color, size }) => (
               <LayoutGrid color={color} size={size} />
             ),
@@ -163,7 +165,7 @@ export default function TabLayout() {
             // add a second bar above them — same reason `reports` and `more`
             // disable theirs.
             headerShown: false,
-            title: 'Profile',
+            title: t('tabs.profile'),
             tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
           }}
         />

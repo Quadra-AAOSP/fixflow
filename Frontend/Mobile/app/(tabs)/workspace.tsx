@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
   Handshake,
@@ -24,6 +25,7 @@ import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
+import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
 import type { Report } from '@/types';
 import { statusGroup } from '@/utils/maintenance';
@@ -42,7 +44,12 @@ export default function WorkspaceScreen() {
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useTranslation('common');
   const { site, sites } = useCurrentSite();
+  const {
+    available,
+    loading: availabilityLoading,
+  } = useTechnicianAvailability();
   const [reports, setReports] = useState<Report[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +61,7 @@ export default function WorkspaceScreen() {
       setReports(result);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : 'Could not load reports.',
+        err instanceof ApiError ? err.message : t('home.errors.couldNotLoad'),
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,12 +92,45 @@ export default function WorkspaceScreen() {
               className="text-[22px] font-semibold leading-tight text-ink"
               style={{ letterSpacing: -0.5 }}
             >
-              Your technician workspace
+              {t('workspace.title')}
               {user?.firstName ? `, ${user.firstName}` : ''}
             </Text>
             <Text className="mt-1 text-[14px] text-dashboard-banner-subtitle">
-              Your skills. Your choice of sites.
+              {t('workspace.subtitle')}
             </Text>
+            {!availabilityLoading ? (
+              <View
+                className="mt-2 flex-row items-center gap-1.5 self-start rounded-full px-2.5 py-1"
+                style={{
+                  backgroundColor: available
+                    ? dashboardColors.statMintSoft
+                    : dashboardColors.statCitronSoft,
+                }}
+              >
+                <View
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{
+                    backgroundColor: available
+                      ? dashboardColors.statMintDeep
+                      : dashboardColors.statCitronDeep,
+                  }}
+                />
+                <Text
+                  className="text-[10px] font-semibold"
+                  style={{
+                    color: available
+                      ? dashboardColors.statMintDeep
+                      : dashboardColors.statCitronDeep,
+                  }}
+                >
+                  {t(
+                    available
+                      ? 'workspace.availability.available'
+                      : 'workspace.availability.unavailable',
+                  )}
+                </Text>
+              </View>
+            ) : null}
             <SiteSwitcher />
           </View>
           <Wrench color={dashboardColors.statMintDeep} size={42} strokeWidth={1.6} />
@@ -101,7 +141,7 @@ export default function WorkspaceScreen() {
           className="mb-2 text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          Trade profile
+          {t('workspace.tradeProfile')}
         </Text>
         <TradeProfile />
 
@@ -110,23 +150,23 @@ export default function WorkspaceScreen() {
           className="mb-2 mt-4 text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          How your account works
+          {t('workspace.howAccountWorks')}
         </Text>
         <View className="flex-row gap-2">
           <InfoCard
             icon={UserRound}
             tone="mint"
-            title="Independent by default"
-            body="New technician accounts start without a site or any site contracts. A contract is optional; you can keep your account without signing one."
-            actionLabel="View your account"
+            title={t('workspace.info.independentTitle')}
+            body={t('workspace.info.independentBody')}
+            actionLabel={t('workspace.info.independentAction')}
             onPress={() => router.push('/profile')}
           />
           <InfoCard
             icon={Handshake}
             tone="citron"
-            title="Work with a site"
-            body="A site contract is a separate agreement approved by a site administrator. It is never created automatically during registration."
-            actionLabel="Site contract options"
+            title={t('workspace.info.siteTitle')}
+            body={t('workspace.info.siteBody')}
+            actionLabel={t('workspace.info.siteAction')}
             onPress={() => router.push('/more/contracts')}
           />
         </View>
@@ -136,7 +176,7 @@ export default function WorkspaceScreen() {
           className="mb-2 mt-4 text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          Assigned work
+          {t('workspace.assignedWork')}
         </Text>
         <Card className="mb-4">
           {reports === null ? (
@@ -146,9 +186,9 @@ export default function WorkspaceScreen() {
           ) : error ? (
             <StateView
               variant="error"
-              title="Could not load assignments"
+              title={t('workspace.couldNotLoadAssignments')}
               description={error}
-              actionLabel="Retry"
+              actionLabel={t('workspace.retry')}
               onAction={() => {
                 void load();
               }}
@@ -157,14 +197,15 @@ export default function WorkspaceScreen() {
           ) : (
             <>
               <Text className="text-[12px] leading-[1.7] text-dashboard-subtitle">
-                {myAssignments.length} report
-                {myAssignments.length === 1 ? '' : 's'} are assigned to you
-                {site ? ` at ${site.name}` : ''}.
+                {t('workspace.assignedSummary', {
+                  count: myAssignments.length,
+                  plural: myAssignments.length === 1 ? '' : 's',
+                  site: site ? t('workspace.atSite', { site: site.name }) : '',
+                })}
               </Text>
               {myAssignments.length === 0 ? (
                 <Text className="mt-2 text-[11px] leading-[1.7] text-dashboard-caption">
-                  Independent marketplace listings and contract-based job
-                  access are not available in this version.
+                  {t('workspace.marketplaceUnavailable')}
                 </Text>
               ) : (
                 <View className="mt-3">
@@ -205,7 +246,7 @@ export default function WorkspaceScreen() {
                   className="text-[11px] font-semibold"
                   style={{ color: dashboardColors.teal }}
                 >
-                  View assignments
+                  {t('workspace.viewAssignments')}
                 </Text>
                 <ArrowRight color={dashboardColors.teal} size={13} />
               </Pressable>
@@ -219,7 +260,7 @@ export default function WorkspaceScreen() {
           className="mb-2 text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          Quick links
+          {t('workspace.quickLinks')}
         </Text>
         <Card padded={false} className="mb-6">
           <Pressable
@@ -229,11 +270,13 @@ export default function WorkspaceScreen() {
           >
             <View className="flex-1 pr-3">
               <Text className="text-[13px] font-semibold text-ink">
-                My assignments
+                {t('workspace.myAssignments')}
               </Text>
               <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
-                {myAssignments.length} open report
-                {myAssignments.length === 1 ? '' : 's'}.
+                {t('workspace.openReports', {
+                  count: myAssignments.length,
+                  plural: myAssignments.length === 1 ? '' : 's',
+                })}
               </Text>
             </View>
             <ArrowRight color={dashboardColors.subtitle} size={16} />
@@ -246,10 +289,10 @@ export default function WorkspaceScreen() {
           >
             <View className="flex-1 pr-3">
               <Text className="text-[13px] font-semibold text-ink">
-                Site contracts
+                {t('workspace.siteContracts')}
               </Text>
               <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
-                Apply for a contract or review options.
+                {t('workspace.contractsHint')}
               </Text>
             </View>
             <ArrowRight color={dashboardColors.subtitle} size={16} />
@@ -266,10 +309,10 @@ export default function WorkspaceScreen() {
             >
               <View className="flex-1 pr-3">
                 <Text className="text-[13px] font-semibold text-ink">
-                  Switch site
+                  {t('workspace.switchSite')}
                 </Text>
                 <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
-                  {sites.length} sites are linked to your account.
+                  {t('workspace.sitesLinked', { count: sites.length })}
                 </Text>
               </View>
               <ArrowRight color={dashboardColors.subtitle} size={16} />

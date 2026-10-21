@@ -1,6 +1,11 @@
 import { api, ApiError } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
-import type { LoginPayload, RegisterPayload, User } from '@/types';
+import type {
+  LoginPayload,
+  RegisterPayload,
+  SiteAdminApplication,
+  User,
+} from '@/types';
 
 export { ApiError };
 
@@ -18,4 +23,9 @@ export function logout(): Promise<void> {
 
 export function getMe(): Promise<User> {
   return api.get<User>(endpoints.auth.me);
+}
+
+/** The caller's own site-admin application, or null when none was filed. */
+export function getMySiteAdminApplication(): Promise<SiteAdminApplication | null> {
+  return api.get<SiteAdminApplication | null>(endpoints.auth.siteAdminApplication);
 }

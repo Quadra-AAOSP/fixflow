@@ -3,6 +3,7 @@ package com.example.fixflow.domain;
 import java.time.Instant;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -79,6 +80,20 @@ public class Report {
 
 	@Column(nullable = false)
 	private boolean editable = true;
+
+	@Convert(converter = ReportVisibilityConverter.class)
+	@Column(nullable = false, length = 16)
+	private ReportVisibility visibility = ReportVisibility.PUBLIC;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "confirmed_by_user_id")
+	private User confirmedBy;
+
+	@Column(name = "confirmed_at")
+	private Instant confirmedAt;
+
+	@Column(name = "reopen_reason", columnDefinition = "TEXT")
+	private String reopenReason;
 
 	@Column(name = "reopen_count", nullable = false)
 	private int reopenCount = 0;

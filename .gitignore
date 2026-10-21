@@ -54,4 +54,6 @@ Backend/docs/API_CONTRACT.md
 SHOP_API.md
 *.log
 Backend/docs/
+Backend/.jdks/
+Backend/.m2-local/
 debug.log

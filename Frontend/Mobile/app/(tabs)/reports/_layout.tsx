@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { themeColors } from '@/constants/theme';
@@ -15,6 +16,7 @@ import { themeColors } from '@/constants/theme';
  */
 export default function ReportsStackLayout() {
   const palette = themeColors();
+  const { t } = useTranslation('common');
 
   return (
     <Stack
@@ -28,18 +30,18 @@ export default function ReportsStackLayout() {
         contentStyle: { backgroundColor: palette.surface },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Reports' }} />
+      <Stack.Screen name="index" options={{ title: t('reports.list.title') }} />
       <Stack.Screen
         name="new"
         options={{
-          title: 'New report',
+          title: t('reports.list.newReport'),
           headerLeft: () => <HeaderBackButton color={palette.ink} to="/reports" />,
         }}
       />
       <Stack.Screen
         name="[id]"
         options={{
-          title: 'Report',
+          title: t('reports.detail.screenTitle'),
           headerLeft: () => <HeaderBackButton color={palette.ink} to="/reports" />,
         }}
       />

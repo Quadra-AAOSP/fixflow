@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { ReportStatus } from '@/types';
 
@@ -33,22 +34,23 @@ const TONE: Record<ReportStatus, { bg: string; ink: string }> = {
 };
 
 const LABELS: Record<ReportStatus, string> = {
-  open: 'Open',
-  routed: 'Routed',
-  assigned: 'Assigned',
-  in_progress: 'In progress',
-  resolved_pending_confirmation: 'Awaiting confirmation',
-  confirmed: 'Confirmed',
-  reopened: 'Reopened',
-  escalated: 'Escalated',
+  open: 'labels.status.open',
+  routed: 'labels.status.routed',
+  assigned: 'labels.status.assigned',
+  in_progress: 'labels.status.in_progress',
+  resolved_pending_confirmation: 'labels.status.resolved_pending_confirmation',
+  confirmed: 'labels.status.confirmed',
+  reopened: 'labels.status.reopened',
+  escalated: 'labels.status.escalated',
 };
 
 export function StatusBadge({ status }: { status: ReportStatus }) {
+  const { t } = useTranslation('common');
   const tone = TONE[status];
   return (
     <View className={`rounded-md px-2.5 py-1 ${tone.bg}`}>
       <Text className={`text-[11px] font-semibold ${tone.ink}`}>
-        {LABELS[status]}
+        {t(LABELS[status])}
       </Text>
     </View>
   );

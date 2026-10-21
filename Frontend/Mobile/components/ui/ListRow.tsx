@@ -76,6 +76,7 @@ export function ListRow({
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={title}
       accessibilityState={{ disabled: !!disabled }}
       className={`active:opacity-70 ${disabled ? 'opacity-50' : ''} ${
         className ?? ''

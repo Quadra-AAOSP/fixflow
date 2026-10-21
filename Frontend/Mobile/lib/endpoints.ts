@@ -19,17 +19,29 @@ export const endpoints = {
     register: '/api/auth/register',
     logout: '/api/auth/logout',
     me: '/api/auth/me',
+    /** GET — the caller's own site-admin application, or null. */
+    siteAdminApplication: '/api/auth/site-admin-application',
   },
 
   admin: {
     /** POST — provision a staff/admin account (`admin` | `super_admin`). */
     users: '/api/admin/users',
+    /** GET — pending site-admin applications (super_admin only). */
+    siteAdminApplications: '/api/admin/site-admin-applications',
+    siteAdminApplicationDecision: (id: number | string, decision: 'approve' | 'reject') =>
+      `/api/admin/site-admin-applications/${id}/${decision}`,
   },
 
   sites: {
     list: '/api/sites',
     byId: (id: number | string) => `/api/sites/${id}`,
     subsites: (siteId: number | string) => `/api/sites/${siteId}/subsites`,
+    subsite: (siteId: number | string, id: number | string) =>
+      `/api/sites/${siteId}/subsites/${id}`,
+    archiveSubsite: (siteId: number | string, id: number | string) =>
+      `/api/sites/${siteId}/subsites/${id}/archive`,
+    reportingSetup: (siteId: number | string) =>
+      `/api/sites/${siteId}/reporting-setup`,
     subsiteRequests: (siteId: number | string) =>
       `/api/sites/${siteId}/subsite-requests`,
     resolveSubsiteRequest: (siteId: number | string, id: number | string) =>
@@ -49,6 +61,14 @@ export const endpoints = {
     join: (id: number | string) => `/api/reports/${id}/join`,
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
+    confirm: '/api/reports/{id}/confirm',
+    reopen: '/api/reports/{id}/reopen',
+    photos: {
+      list: '/api/reports/{id}/photos',
+      upload: '/api/reports/{id}/photos',
+      delete: '/api/reports/{id}/photos/{photoId}',
+      getUrl: '/api/reports/{id}/photos/{photoId}',
+    },
   },
 
   technicianSkills: {
@@ -57,6 +77,10 @@ export const endpoints = {
 
   technicianContracts: {
     create: '/api/technician-contracts',
+  },
+
+  technicians: {
+    list: '/api/technicians',
   },
 
   contractRequests: {
@@ -84,17 +108,12 @@ export const endpoints = {
 /*
  * Not implemented by the backend, therefore not exposed anywhere in the app:
  *
- *   POST   /api/reports/{id}/photos
- *   DELETE /api/reports/{id}/photos/{photoId}
  *   PATCH  /api/reports/{id}/status
- *   POST   /api/reports/{id}/confirm
- *   POST   /api/reports/{id}/reopen
  *   PATCH  /api/reports/{id}/urgency
  *   POST   /api/reports/{id}/reassign
  *   GET    /api/technicians/me/availability
  *   GET    /api/reports/assigned-to-me
  *   GET    /api/reports/claimable
- *   GET    /api/technicians
  *   GET    /api/technician-skills
  *   GET    /api/technician-contracts
  *

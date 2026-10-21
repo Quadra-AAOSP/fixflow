@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { themeColors } from '@/constants/theme';
 
@@ -15,6 +16,7 @@ import { themeColors } from '@/constants/theme';
  */
 export default function ShopStackLayout() {
   const palette = themeColors();
+  const { t } = useTranslation('common');
   return (
     <Stack
       screenOptions={{
@@ -30,14 +32,14 @@ export default function ShopStackLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Shop',
+          title: t('more.menu.shopTitle'),
           headerLeft: () => <HeaderBackButton color={palette.ink} to="/more" />,
         }}
       />
       <Stack.Screen
         name="[orderId]"
         options={{
-          title: 'Order details',
+          title: t('more.shop.orderScreenTitle'),
           headerLeft: () => (
             <HeaderBackButton color={palette.ink} to="/more/shop" />
           ),

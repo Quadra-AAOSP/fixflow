@@ -1,5 +1,8 @@
 import type { Urgency } from './common';
 
+/** Mirrors backend `ReportVisibility` (JSON values are lowercase). */
+export type ReportVisibility = 'public' | 'private';
+
 /**
  * Mirrors backend `ReportStatus` enum. Transitions beyond the initial
  * `open` → `assigned` are intentionally NOT supported by the current
@@ -24,9 +27,21 @@ export type ReportStatus =
  * technicians. The mobile must not attempt to reconstruct these client-side
  * or render placeholders that leak their existence.
  */
+/** Mirrors backend `ReportPhotoResponse`. */
+export type ReportPhoto = {
+  id: number;
+  objectKey: string;
+  url: string;
+  contentType: string | null;
+  fileSizeBytes: number;
+  sortOrder: number;
+  createdAt: string;
+};
+
 export type Report = {
   id: number;
   siteId: number | null;
+  subsiteId: number | null;
   createdByUserId: number | null;
   createdByName: string | null;
   description: string;
@@ -41,6 +56,12 @@ export type Report = {
   assignedTechnicianId: number | null;
   editable: boolean;
   reopenCount: number;
+  confirmedByUserId: number | null;
+  confirmedByName: string | null;
+  confirmedAt: string | null;
+  reopenReason: string | null;
+  visibility: ReportVisibility;
+  photos: ReportPhoto[];
   createdAt: string;
   updatedAt: string;
   policy: {
@@ -64,6 +85,10 @@ export type CreateReportPayload = {
   reporterReason?: string;
   /** Required only for super_admin; non-admins default to their own site. */
   siteId?: number;
+  /** Building/area within the site. Required whenever the site has subsites. */
+  subsiteId?: number;
+  /** Defaults to 'public' server-side when omitted. */
+  visibility?: ReportVisibility;
 };
 
 /** Mirrors backend `ReportReporterResponse`. */

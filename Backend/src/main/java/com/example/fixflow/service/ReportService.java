@@ -2,8 +2,8 @@ package com.example.fixflow.service;
 
 import java.io.InputStream;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,12 +20,14 @@ import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportPhoto;
 import com.example.fixflow.domain.ReportReporter;
 import com.example.fixflow.domain.ReportStatus;
+import com.example.fixflow.domain.ReportVisibility;
 import com.example.fixflow.domain.Site;
 import com.example.fixflow.domain.StatusHistory;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.dto.AssignTechnicianRequest;
 import com.example.fixflow.dto.CreateReportRequest;
+import com.example.fixflow.dto.ReopenReportRequest;
 import com.example.fixflow.dto.ReportPageResponse;
 import com.example.fixflow.dto.ReportPhotoResponse;
 import com.example.fixflow.dto.ReportReporterResponse;
@@ -56,6 +58,7 @@ public class ReportService {
 	private final TechnicianTermsService terms;
 	private final ObjectStorageService objectStorageService;
 	private final ReportPhotoValidator photoValidator;
+	private final ReportPhotoService reportPhotoService;
 	private final boolean requireSiteSetup;
 
 	public ReportService(
@@ -72,6 +75,7 @@ public class ReportService {
 			TechnicianTermsService terms,
 			ObjectStorageService objectStorageService,
 			ReportPhotoValidator photoValidator,
+			ReportPhotoService reportPhotoService,
 			@org.springframework.beans.factory.annotation.Value("${fixflow.reporting.require-site-setup:true}") boolean requireSiteSetup
 	) {
 		this.reportRepository = reportRepository;
@@ -87,6 +91,7 @@ public class ReportService {
 		this.terms = terms;
 		this.objectStorageService = objectStorageService;
 		this.photoValidator = photoValidator;
+		this.reportPhotoService = reportPhotoService;
 		this.requireSiteSetup = requireSiteSetup;
 	}
 
@@ -152,6 +157,8 @@ public class ReportService {
 		report.setSpecialty(blankToNull(request.specialty()));
 		report.setReporterUrgency(request.reporterUrgency());
 		report.setReporterReason(blankToNull(request.reporterReason()));
+		report.setVisibility(request.visibility() != null
+				? request.visibility() : ReportVisibility.PUBLIC);
 		report.setStatus(ReportStatus.open);
 		report = reportRepository.save(report);
 
@@ -190,6 +197,8 @@ public class ReportService {
 		}
 		List<ReportResponse> content = result.getContent().stream()
 				.map(report -> detailed.getOrDefault(report.getId(), report))
+				.filter(report -> report.getVisibility() != ReportVisibility.PRIVATE
+						|| canSeeSensitive(actor, report))
 				.map(report -> response(report, actor))
 				.toList();
 		return new ReportPageResponse(content, safePage, safeSize, result.getTotalElements(), result.getTotalPages());
@@ -200,6 +209,7 @@ public class ReportService {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
 		return response(report, actor);
 	}
 
@@ -211,6 +221,7 @@ public class ReportService {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
 		if (report.getStatus() == ReportStatus.confirmed) {
 			throw new ApiException(409, "Cannot join a confirmed report");
 		}
@@ -228,6 +239,7 @@ public class ReportService {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
 		if (!canSeeSensitive(actor, report)) {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to list reporters on this report");
 		}
@@ -267,7 +279,8 @@ public class ReportService {
 		photoValidator.validateBatch(photos, (int) existing);
 		List<ReportPhoto> stored = storePhotos(report, photos, (int) existing);
 		return stored.stream()
-				.map(photo -> ReportPhotoResponse.from(photo, reportId))
+				.map(photo -> ReportPhotoResponse.from(photo, reportId,
+						objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofHours(1))))
 				.toList();
 	}
 
@@ -276,6 +289,7 @@ public class ReportService {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
 		return objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofMinutes(15));
@@ -286,6 +300,7 @@ public class ReportService {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
 		return objectStorageService.getObject(photo.getObjectKey());
@@ -296,6 +311,7 @@ public class ReportService {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
 		return reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
 	}
@@ -310,6 +326,47 @@ public class ReportService {
 		String objectKey = photo.getObjectKey();
 		reportPhotoRepository.delete(photo);
 		objectStorageService.deleteObject(objectKey);
+	}
+
+	@Transactional
+	public ReportResponse confirm(Long id, AppUserDetails actor) {
+		Report report = reportRepository.findDetailedById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
+		assertCanConfirmOrReopen(report, actor);
+		if (report.getStatus() != ReportStatus.resolved_pending_confirmation) {
+			throw new ApiException(409, "Cannot confirm a report that is not awaiting confirmation");
+		}
+		User user = loadUser(actor.getId());
+		ReportStatus from = report.getStatus();
+		report.setStatus(ReportStatus.confirmed);
+		report.setConfirmedBy(user);
+		report.setConfirmedAt(Instant.now());
+		report = reportRepository.save(report);
+		appendStatusHistory(report, from, ReportStatus.confirmed, user, "Report confirmed");
+		return response(report, actor);
+	}
+
+	@Transactional
+	public ReportResponse reopen(Long id, ReopenReportRequest request, AppUserDetails actor) {
+		Report report = reportRepository.findDetailedById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
+		assertCanConfirmOrReopen(report, actor);
+		if (report.getStatus() != ReportStatus.confirmed
+				&& report.getStatus() != ReportStatus.resolved_pending_confirmation) {
+			throw new ApiException(409, "Report cannot be reopened from its current status");
+		}
+		User user = loadUser(actor.getId());
+		ReportStatus from = report.getStatus();
+		report.setStatus(ReportStatus.reopened);
+		report.setReopenCount(report.getReopenCount() + 1);
+		report.setReopenReason(request.reason().trim());
+		report = reportRepository.save(report);
+		appendStatusHistory(report, from, ReportStatus.reopened, user, "Report reopened");
+		return response(report, actor);
 	}
 
 	private List<ReportPhoto> storePhotos(Report report, List<MultipartFile> photos, int startingSortOrder) {
@@ -343,7 +400,7 @@ public class ReportService {
 				photo.setContentType(contentType);
 				photo.setFileSizeBytes((int) file.getSize());
 				photo.setSortOrder(sortOrder++);
-				photo.setUrl("/api/reports/" + report.getId() + "/photos");
+				photo.setUrl("/api/reports/" + report.getId() + "/photos/" + objectKey);
 				saved.add(reportPhotoRepository.save(photo));
 			}
 			return saved;
@@ -376,6 +433,7 @@ public class ReportService {
 
 	private void assertCanManagePhotos(AppUserDetails actor, Report report) {
 		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
 		boolean allowed = switch (actor.getRole()) {
 			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
 			case staff, admin, super_admin -> true;
@@ -384,6 +442,25 @@ public class ReportService {
 		if (!allowed) {
 			throw new ApiException(403, "Not allowed to manage photos on this report");
 		}
+	}
+
+	private void assertCanConfirmOrReopen(Report report, AppUserDetails actor) {
+		switch (actor.getRole()) {
+			case staff, admin, super_admin -> {
+				return;
+			}
+			case reporter -> {
+				boolean isCreator = report.getCreatedBy() != null
+						&& report.getCreatedBy().getId().equals(actor.getId());
+				boolean isParticipant = reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+				if (isCreator || isParticipant) {
+					return;
+				}
+			}
+			default -> {
+			}
+		}
+		throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to confirm or reopen this report");
 	}
 
 	private Site resolveSiteForCreate(User filer, Long requestedSiteId) {
@@ -439,19 +516,28 @@ public class ReportService {
 		};
 	}
 
+	/**
+	 * 404 (not 403) for private reports outside the sensitive audience, so
+	 * existence itself is not leaked to same-site reporters.
+	 */
+	private void assertCanSeeVisibility(AppUserDetails actor, Report report) {
+		if (report.getVisibility() == ReportVisibility.PRIVATE && !canSeeSensitive(actor, report)) {
+			throw new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found");
+		}
+	}
+
 	private ReportResponse response(Report report, AppUserDetails actor) {
 		boolean participant = reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
 		boolean canAssign = com.example.fixflow.dto.UserCapabilities.forRole(actor.getRole()).assignTechnician();
 		boolean ownQueue = actor.getRole() != UserRole.technician
 				|| report.getAssignedTechnician() != null
 				&& report.getAssignedTechnician().getId().equals(actor.getId());
-		List<ReportPhotoResponse> photos = reportPhotoRepository
-				.findByReport_IdOrderBySortOrderAscIdAsc(report.getId()).stream()
-				.sorted(Comparator.comparingInt(ReportPhoto::getSortOrder).thenComparing(ReportPhoto::getId))
-				.map(photo -> ReportPhotoResponse.from(photo, report.getId()))
-				.toList();
+		boolean canSee = canSeeSensitive(actor, report);
+		List<ReportPhotoResponse> photos = canSee
+				? reportPhotoService.listWithPresignedUrls(report.getId())
+				: List.of();
 		return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
-				report, canSeeSensitive(actor, report), participant, canAssign,
+				report, canSee, participant, canAssign,
 				actor.getRole() == UserRole.reporter && !participant, ownQueue), photos);
 	}
 

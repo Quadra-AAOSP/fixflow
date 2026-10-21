@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Pressable, Text, View } from 'react-native';
 import { Check, Plus } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -21,22 +22,14 @@ import type { SiteRule } from '@/types';
 import type { TechnicianSkill } from '@/types/technician';
 import { useCurrentSite } from '@/stores/site';
 
-/** Proficiency option copy — mirrors the <select> in `TradeProfile.vue`. */
+/** Proficiency level i18n keys — mirrors the <select> in `TradeProfile.vue`. */
 const PROFICIENCY_LABELS: Record<number, string> = {
-  1: 'Beginner',
-  2: 'Basic practical experience',
-  3: 'Independent routine work',
-  4: 'Advanced work',
-  5: 'Expert',
+  1: 'beginner',
+  2: 'basicExperience',
+  3: 'independent',
+  4: 'advanced',
+  5: 'expert',
 };
-
-const PROFICIENCY_OPTIONS = Array.from(
-  { length: SKILL_PROFICIENCY_MAX - SKILL_PROFICIENCY_MIN + 1 },
-  (_, index) => {
-    const value = SKILL_PROFICIENCY_MIN + index;
-    return { value: String(value), label: `${value} — ${PROFICIENCY_LABELS[value]}` };
-  },
-);
 
 /**
  * Trade profile form. Lets a technician declare a category, a specialty, and a
@@ -45,9 +38,22 @@ const PROFICIENCY_OPTIONS = Array.from(
  * the inputs share the constants exported from `services/technician.ts`.
  */
 export function TradeProfile() {
+  const { t } = useTranslation('common');
   const palette = themeColors();
   const { user } = useAuth();
   const { site } = useCurrentSite();
+  const PROFICIENCY_OPTIONS = Array.from(
+    { length: SKILL_PROFICIENCY_MAX - SKILL_PROFICIENCY_MIN + 1 },
+    (_, index) => {
+      const value = SKILL_PROFICIENCY_MIN + index;
+      return {
+        value: String(value),
+        label: `${value} — ${t(
+          `components.tradeProfile.levels.${PROFICIENCY_LABELS[value]}`,
+        )}`,
+      };
+    },
+  );
   const [category, setCategory] = useState('');
   const [specialty, setSpecialty] = useState('');
   // Starts empty so an explicit choice is required — matches the web select's
@@ -86,26 +92,30 @@ export function TradeProfile() {
   async function onSubmit() {
     if (!user) return;
     if (category.trim().length === 0) {
-      setError('Category is required.');
+      setError(t('components.tradeProfile.errors.categoryRequired'));
       return;
     }
     if (specialty.trim().length === 0) {
-      setError('Specialty is required.');
+      setError(t('components.tradeProfile.errors.specialtyRequired'));
       return;
     }
     if (proficiency === '') {
-      setError('Choose a proficiency level.');
+      setError(t('components.tradeProfile.errors.chooseProficiency'));
       return;
     }
     if (category.length > SKILL_CATEGORY_MAX_LENGTH) {
       setError(
-        `Category must be ${SKILL_CATEGORY_MAX_LENGTH} characters or fewer.`,
+        t('components.tradeProfile.errors.categoryTooLong', {
+          max: SKILL_CATEGORY_MAX_LENGTH,
+        }),
       );
       return;
     }
     if (specialty.length > SKILL_SPECIALTY_MAX_LENGTH) {
       setError(
-        `Specialty must be ${SKILL_SPECIALTY_MAX_LENGTH} characters or fewer.`,
+        t('components.tradeProfile.errors.specialtyTooLong', {
+          max: SKILL_SPECIALTY_MAX_LENGTH,
+        }),
       );
       return;
     }
@@ -115,7 +125,7 @@ export function TradeProfile() {
       proficiencyValue < SKILL_PROFICIENCY_MIN ||
       proficiencyValue > SKILL_PROFICIENCY_MAX
     ) {
-      setError('Proficiency must be between 1 and 5.');
+      setError(t('components.tradeProfile.errors.proficiencyRange'));
       return;
     }
 
@@ -135,9 +145,8 @@ export function TradeProfile() {
       setError(
         (err instanceof ApiError
           ? err.message
-          : 'Could not save the trade right now.'
-        ) +
-          ' If the connection was interrupted, confirm with an administrator before submitting again to avoid a duplicate skill.',
+          : t('components.tradeProfile.errors.saveFailed')) +
+          t('components.tradeProfile.errors.duplicateSuffix'),
       );
     } finally {
       setSubmitting(false);
@@ -160,12 +169,11 @@ export function TradeProfile() {
           <Plus color={palette.accentForeground} size={18} />
         </View>
         <Text className="text-base font-semibold text-ink">
-          Your trade profile
+          {t('components.tradeProfile.heading')}
         </Text>
       </View>
       <Text className="mb-4 text-xs leading-5 text-muted">
-        Add your trade after creating your account. These details are
-        self-reported, not verified qualifications.
+        {t('components.tradeProfile.intro')}
       </Text>
 
       {saved ? (
@@ -173,8 +181,11 @@ export function TradeProfile() {
           <View className="flex-row items-center gap-1.5">
             <Check color={palette.tone.success} size={14} />
             <Text className="text-xs text-tone-success">
-              Saved: {saved.category} · {saved.specialty} · proficiency{' '}
-              {saved.proficiency}/5.
+              {t('components.tradeProfile.saved', {
+                category: saved.category,
+                specialty: saved.specialty,
+                proficiency: saved.proficiency,
+              })}
             </Text>
           </View>
           <Pressable
@@ -183,7 +194,7 @@ export function TradeProfile() {
             className="mt-2 self-start active:opacity-70"
           >
             <Text className="text-xs font-medium text-dashboard-teal underline">
-              Add another trade →
+              {t('components.tradeProfile.addAnother')}
             </Text>
           </Pressable>
         </View>
@@ -192,22 +203,22 @@ export function TradeProfile() {
         {categoryOptions.length > 0 ? (
           <View className="mb-3">
             <Picker
-              label="Primary trade"
+              label={t('components.tradeProfile.primaryTrade')}
               value={category}
               onChange={setCategory}
               options={categoryOptions.map((value) => ({
                 value,
                 label: value,
               }))}
-              placeholder="Choose a category…"
+              placeholder={t('components.tradeProfile.chooseCategory')}
             />
           </View>
         ) : (
           <TextField
-            label="Primary trade"
+            label={t('components.tradeProfile.primaryTrade')}
             value={category}
             onChangeText={setCategory}
-            placeholder="e.g. electrical"
+            placeholder={t('components.tradeProfile.categoryPlaceholder')}
             maxLength={SKILL_CATEGORY_MAX_LENGTH}
             autoCapitalize="none"
             className="mb-3"
@@ -215,21 +226,21 @@ export function TradeProfile() {
         )}
 
         <TextField
-          label="Specialty and work you are qualified to undertake"
+          label={t('components.tradeProfile.specialtyLabel')}
           value={specialty}
           onChangeText={setSpecialty}
-          placeholder="e.g. low-voltage wiring"
+          placeholder={t('components.tradeProfile.specialtyPlaceholder')}
           maxLength={SKILL_SPECIALTY_MAX_LENGTH}
           autoCapitalize="none"
           className="mb-3"
         />
 
         <Picker
-          label="Self-assessed proficiency"
+          label={t('components.tradeProfile.proficiencyLabel')}
           value={proficiency}
           onChange={setProficiency}
           options={PROFICIENCY_OPTIONS}
-          placeholder="Choose a level"
+          placeholder={t('components.tradeProfile.chooseLevel')}
         />
 
         {error ? (
@@ -239,7 +250,11 @@ export function TradeProfile() {
         ) : null}
 
         <Button
-          label={submitting ? 'Saving…' : 'Save trade details'}
+          label={
+            submitting
+              ? t('components.tradeProfile.saving')
+              : t('components.tradeProfile.save')
+          }
           loading={submitting}
           onPress={onSubmit}
           className="mt-4"
@@ -248,22 +263,16 @@ export function TradeProfile() {
       )}
 
       <Text className="mt-4 text-xs leading-5 text-muted">
-        Previously saved skills cannot be displayed yet. Only add a trade you
-        have not already submitted.
+        {t('components.tradeProfile.previousSkillsNote')}
       </Text>
       <Text className="mt-3 text-[13px] font-semibold text-ink">
-        Before you start work at a site
+        {t('components.tradeProfile.beforeYouStart')}
       </Text>
       <Text className="mt-1 text-xs leading-5 text-muted">
-        Arrange a review with the site administrator covering your identity,
-        relevant work history and references, qualifications, applicable trade
-        licences and expiry dates, and insurance appropriate to the work.
-        Requirements depend on the trade and location.
+        {t('components.tradeProfile.reviewBody')}
       </Text>
       <Text className="mt-2 text-xs leading-5 text-muted">
-        Secure evidence uploads and approval tracking are not available yet. Do
-        not enter identity numbers or document links here. A saved trade or
-        site contract is not proof of vetting.
+        {t('components.tradeProfile.evidenceNote')}
       </Text>
     </Card>
   );

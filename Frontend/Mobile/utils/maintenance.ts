@@ -1,3 +1,4 @@
+import i18n from '@/constants/i18n';
 import type { Report, ReportStatus, Urgency } from '@/types';
 
 import { weekdayLabel } from './format';
@@ -5,24 +6,25 @@ import { weekdayLabel } from './format';
 /**
  * Labels and state groupings mirror the backend `ReportStatus` / `Urgency`
  * contract. Screens must not invent their own wording — this is the single
- * source of user-facing status text.
+ * source of user-facing status text. The values are i18n keys resolved with
+ * `t` at render time (or `i18n.t` in this non-component module).
  */
 export const statusLabels: Record<ReportStatus, string> = {
-  open: 'Open',
-  routed: 'Routed',
-  assigned: 'Assigned',
-  in_progress: 'In progress',
-  resolved_pending_confirmation: 'Awaiting confirmation',
-  confirmed: 'Confirmed',
-  reopened: 'Reopened',
-  escalated: 'Escalated',
+  open: 'labels.status.open',
+  routed: 'labels.status.routed',
+  assigned: 'labels.status.assigned',
+  in_progress: 'labels.status.in_progress',
+  resolved_pending_confirmation: 'labels.status.resolved_pending_confirmation',
+  confirmed: 'labels.status.confirmed',
+  reopened: 'labels.status.reopened',
+  escalated: 'labels.status.escalated',
 };
 
 export const urgencyLabels: Record<Urgency, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  critical: 'Critical',
+  low: 'labels.urgency.low',
+  medium: 'labels.urgency.medium',
+  high: 'labels.urgency.high',
+  critical: 'labels.urgency.critical',
 };
 
 /**
@@ -32,20 +34,21 @@ export const urgencyLabels: Record<Urgency, string> = {
  */
 export type StatusGroup = 'open' | 'progress' | 'resolved';
 
-export type ReportFilter = 'all' | StatusGroup | 'urgent';
+export type ReportFilter = 'all' | StatusGroup | 'urgent' | 'confirmation';
 
-export const REPORT_FILTERS: { value: ReportFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'open', label: 'Open' },
-  { value: 'progress', label: 'In progress' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'urgent', label: 'Urgent' },
+export const REPORT_FILTERS: { value: ReportFilter; labelKey: string }[] = [
+  { value: 'all', labelKey: 'labels.filter.all' },
+  { value: 'open', labelKey: 'labels.filter.open' },
+  { value: 'progress', labelKey: 'labels.filter.progress' },
+  { value: 'resolved', labelKey: 'labels.filter.resolved' },
+  { value: 'urgent', labelKey: 'labels.filter.urgent' },
+  { value: 'confirmation', labelKey: 'labels.filter.confirmation' },
 ];
 
 export const groupLabels: Record<StatusGroup, string> = {
-  open: 'Open',
-  progress: 'In progress',
-  resolved: 'Resolved',
+  open: 'labels.group.open',
+  progress: 'labels.group.progress',
+  resolved: 'labels.group.resolved',
 };
 
 export function statusGroup(status: ReportStatus): StatusGroup {
@@ -78,6 +81,7 @@ export const isUrgent = (report: Report): boolean => report.policy.urgent;
 export function matchesFilter(report: Report, filter: ReportFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'urgent') return isUrgent(report);
+  if (filter === 'confirmation') return report.status === 'resolved_pending_confirmation';
   return report.policy.statusGroup === filter;
 }
 
@@ -104,7 +108,7 @@ export function searchReports(
       report.createdByName,
       siteName(report.siteId),
       report.assignedTechnicianId,
-      statusLabels[report.status],
+      i18n.t(statusLabels[report.status]),
     ]
       .filter((value) => value !== null && value !== undefined)
       .join(' ')

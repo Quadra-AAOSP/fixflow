@@ -47,14 +47,23 @@ export function assignTechnician(
   return api.post<Report>(endpoints.reports.assign(id), payload);
 }
 
+export function confirmReport(id: number): Promise<Report> {
+  return api.post<Report>(
+    endpoints.reports.confirm.replace('{id}', String(id)),
+  );
+}
+
+export function reopenReport(id: number, reason: string): Promise<Report> {
+  return api.post<Report>(
+    endpoints.reports.reopen.replace('{id}', String(id)),
+    { reason },
+  );
+}
+
 /*
  * Endpoints NOT exposed here yet — backend audit dependencies #1, #2, #4, #6:
  *
- *   POST   /api/reports/{id}/photos
- *   DELETE /api/reports/{id}/photos/{photoId}
  *   PATCH  /api/reports/{id}/status
- *   POST   /api/reports/{id}/confirm
- *   POST   /api/reports/{id}/reopen
  *   PATCH  /api/reports/{id}/urgency
  *   POST   /api/reports/{id}/reassign
  *   GET    /api/technicians/me/availability
