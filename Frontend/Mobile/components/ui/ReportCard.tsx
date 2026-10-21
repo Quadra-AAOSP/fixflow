@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { Report, Urgency } from '@/types';
 import { formatDate } from '@/utils/format';
@@ -26,6 +27,7 @@ type ReportCardProps = {
  *   - hover: 80% opacity (instead of the web's border-color teal hover)
  */
 export function ReportCard({ report, siteName, onPress }: ReportCardProps) {
+  const { t } = useTranslation('common');
   const visibleUrgency: Urgency =
     report.finalUrgency ?? report.aiUrgency ?? report.reporterUrgency;
 
@@ -67,7 +69,9 @@ export function ReportCard({ report, siteName, onPress }: ReportCardProps) {
 
       {report.assignedTechnicianId !== null ? (
         <Text className="mt-2 text-[11px] text-subtitle">
-          Technician #{report.assignedTechnicianId}
+          {t('reports.list.assigneeTechnicianId', {
+            id: report.assignedTechnicianId,
+          })}
         </Text>
       ) : null}
     </Pressable>

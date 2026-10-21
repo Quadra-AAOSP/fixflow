@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { MapPin, Plus } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { ModalSheet } from '@/components/ui/ModalSheet';
@@ -29,15 +30,18 @@ import type { ContractStatus, Site, SiteType } from '@/types';
 import type { SitePayload } from '@/services/sites';
 import { humanize } from '@/utils/format';
 
-const SITE_TYPES: { value: SiteType; label: string }[] = [
-  { value: 'school', label: 'School' },
-  { value: 'hostel', label: 'Hostel' },
-  { value: 'hotel', label: 'Hotel' },
+// Label values are i18n keys, resolved against `t` inside the component body —
+// reading translations at module scope would capture whichever locale was
+// active at import time.
+const SITE_TYPES: { value: SiteType; labelKey: string }[] = [
+  { value: 'school', labelKey: 'more.sites.types.school' },
+  { value: 'hostel', labelKey: 'more.sites.types.hostel' },
+  { value: 'hotel', labelKey: 'more.sites.types.hotel' },
 ];
 
-const CONTRACT_STATUSES: { value: ContractStatus; label: string }[] = [
-  { value: 'contracted', label: 'Contracted' },
-  { value: 'uncontracted', label: 'Uncontracted' },
+const CONTRACT_STATUSES: { value: ContractStatus; labelKey: string }[] = [
+  { value: 'contracted', labelKey: 'more.sites.contractStatuses.contracted' },
+  { value: 'uncontracted', labelKey: 'more.sites.contractStatuses.uncontracted' },
 ];
 
 /**
@@ -50,6 +54,7 @@ export default function SitesScreen() {
   const router = useRouter();
   const palette = themeColors();
   const { user } = useAuth();
+  const { t } = useTranslation('common');
   const { setActiveSite } = useCurrentSite();
   const canCreate = user ? canCreateSite(user) : false;
   const canEdit = user ? canEditSite(user) : false;
@@ -70,7 +75,7 @@ export default function SitesScreen() {
       setSites(result);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : 'Could not load sites.',
+        err instanceof ApiError ? err.message : t('more.sites.couldNotLoad'),
       );
     } finally {
       setLoading(false);
@@ -106,9 +111,9 @@ export default function SitesScreen() {
       <Screen>
         <StateView
           variant="error"
-          title="Could not load sites"
+          title={t('more.sites.couldNotLoadTitle')}
           description={error}
-          actionLabel="Retry"
+          actionLabel={t('more.sites.retry')}
           onAction={() => {
             void load();
           }}
@@ -129,12 +134,15 @@ export default function SitesScreen() {
               className="text-2xl font-bold text-ink"
               style={{ letterSpacing: -0.5 }}
             >
-              Your sites
+              {t('more.sites.title')}
             </Text>
             <Text className="mt-0.5 text-xs text-dashboard-subtitle">
               {sites
-                ? `${sites.length} ${sites.length === 1 ? 'site' : 'sites'} available to your account`
-                : 'Sites available to your account'}
+                ? t('more.sites.count', {
+                    count: sites.length,
+                    plural: sites.length === 1 ? '' : 's',
+                  })
+                : t('more.sites.available')}
             </Text>
           </View>
           {canCreate ? (
@@ -152,7 +160,7 @@ export default function SitesScreen() {
                 className="text-[13px] font-semibold"
                 style={{ color: dashboardColors.ctaText }}
               >
-                Add site
+                {t('more.sites.addSite')}
               </Text>
             </Pressable>
           ) : null}
@@ -166,11 +174,11 @@ export default function SitesScreen() {
           <StateView
             variant="empty"
             icon={MapPin}
-            title="No sites yet"
+            title={t('more.sites.emptyTitle')}
             description={
               canCreate
-                ? 'Add your first site to start collecting maintenance reports.'
-                : 'No sites have been created yet.'
+                ? t('more.sites.emptyDescCreate')
+                : t('more.sites.emptyDesc')
             }
           />
         ) : (
@@ -191,6 +199,7 @@ export default function SitesScreen() {
                     url={site.imageUrl}
                     name={site.name}
                     onPress={() => viewReports(site.id)}
+                    t={t}
                   />
                 ) : null}
                 <SiteCard
@@ -207,6 +216,7 @@ export default function SitesScreen() {
       <SiteEditor
         visible={creating || editing !== null}
         initial={editing}
+        t={t}
         onClose={() => {
           setCreating(false);
           setEditing(null);
@@ -217,27 +227,33 @@ export default function SitesScreen() {
           void load();
         }}
         onError={(message) =>
-          Alert.alert('Could not save site', message, [{ text: 'OK' }])
+          Alert.alert(t('more.sites.couldNotSaveSite'), message, [
+            { text: t('more.sites.ok') },
+          ])
         }
       />
     </Screen>
   );
 }
 
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
 function SiteHero({
   url,
   name,
   onPress,
+  t,
 }: {
   url: string;
   name: string;
   onPress: () => void;
+  t: TranslateFn;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="image"
-      accessibilityLabel={`${name} cover image`}
+      accessibilityLabel={t('more.sites.coverImageA11y', { name })}
       className="mb-2 h-32 overflow-hidden rounded-xl"
     >
       <Image
@@ -252,12 +268,13 @@ function SiteHero({
 type SiteEditorProps = {
   visible: boolean;
   initial: Site | null;
+  t: TranslateFn;
   onClose: () => void;
   onSaved: () => void;
   onError: (message: string) => void;
 };
 
-function SiteEditor({ visible, initial, onClose, onSaved, onError }: SiteEditorProps) {
+function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEditorProps) {
   const [name, setName] = useState(initial?.name ?? '');
   const [type, setType] = useState<SiteType>(initial?.type ?? 'school');
   const [contractStatus, setContractStatus] = useState<ContractStatus>(
@@ -292,12 +309,12 @@ function SiteEditor({ visible, initial, onClose, onSaved, onError }: SiteEditorP
 
   async function onSubmit() {
     if (name.trim().length === 0) {
-      setError('Name is required.');
+      setError(t('more.sites.errors.nameRequired'));
       return;
     }
     const trimmedImage = imageUrl.trim();
     if (trimmedImage.length > 0 && !/^https?:\/\//.test(trimmedImage)) {
-      setError('Image URL must start with http:// or https://');
+      setError(t('more.sites.errors.imageUrl'));
       return;
     }
     const payload: SitePayload = {
@@ -320,7 +337,9 @@ function SiteEditor({ visible, initial, onClose, onSaved, onError }: SiteEditorP
       onSaved();
     } catch (err) {
       const message =
-        err instanceof ApiError ? err.message : 'Could not save the site.';
+        err instanceof ApiError
+          ? err.message
+          : t('more.sites.errors.couldNotSave');
       setError(message);
       onError(message);
     } finally {
@@ -331,53 +350,65 @@ function SiteEditor({ visible, initial, onClose, onSaved, onError }: SiteEditorP
   return (
     <ModalSheet
       visible={visible}
-      title={initial ? 'Edit site' : 'Add site'}
+      title={initial ? t('more.sites.editSite') : t('more.sites.addSite')}
       onClose={onClose}
       busy={submitting}
       footer={
         <Button
-          label={submitting ? 'Saving…' : initial ? 'Save changes' : 'Create site'}
+          label={
+            submitting
+              ? t('more.sites.saving')
+              : initial
+                ? t('more.sites.saveChanges')
+                : t('more.sites.createSite')
+          }
           loading={submitting}
           onPress={onSubmit}
         />
       }
     >
       <TextField
-        label="Name"
+        label={t('more.sites.nameLabel')}
         value={name}
         onChangeText={setName}
-        placeholder="e.g. Main Campus"
+        placeholder={t('more.sites.namePlaceholder')}
         autoCapitalize="words"
       />
       <Picker
-        label="Type"
+        label={t('more.sites.typeLabel')}
         value={type}
         onChange={(value) => setType(value as SiteType)}
-        options={SITE_TYPES}
+        options={SITE_TYPES.map((option) => ({
+          value: option.value,
+          label: t(option.labelKey),
+        }))}
       />
       <Picker
-        label="Contract status"
+        label={t('more.sites.contractStatusLabel')}
         value={contractStatus}
         onChange={(value) => setContractStatus(value as ContractStatus)}
-        options={CONTRACT_STATUSES}
+        options={CONTRACT_STATUSES.map((option) => ({
+          value: option.value,
+          label: t(option.labelKey),
+        }))}
       />
       <TextField
-        label="Address"
+        label={t('more.sites.addressLabel')}
         value={address}
         onChangeText={setAddress}
-        placeholder="Optional"
+        placeholder={t('more.sites.optionalPlaceholder')}
         autoCapitalize="words"
       />
       <TextField
-        label="Description"
+        label={t('more.sites.descriptionLabel')}
         value={description}
         onChangeText={setDescription}
-        placeholder="Optional"
+        placeholder={t('more.sites.optionalPlaceholder')}
         multiline
         numberOfLines={3}
       />
       <TextField
-        label="Image URL"
+        label={t('more.sites.imageUrlLabel')}
         value={imageUrl}
         onChangeText={setImageUrl}
         placeholder="https://"

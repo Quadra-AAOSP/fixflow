@@ -45,6 +45,7 @@ export function SegmentedControl<T extends string>({
             }`}
             onPress={() => onChange(option.value)}
             accessibilityRole="button"
+            accessibilityLabel={option.label}
             accessibilityState={{ selected }}
           >
             <Text

@@ -224,6 +224,7 @@ CREATE TABLE IF NOT EXISTS reports (
                             )               NOT NULL DEFAULT 'open',
     assigned_technician_id  BIGINT UNSIGNED NULL COMMENT 'Must be users.role = technician (app-enforced)',
     editable                TINYINT(1)      NOT NULL DEFAULT 1,
+    visibility              VARCHAR(16)     NOT NULL DEFAULT 'public' COMMENT 'public = listed/joinable for site reporters; private = creator, participants, staff/admin, assigned tech only',
     reopen_count            INT UNSIGNED    NOT NULL DEFAULT 0,
     created_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -266,6 +267,15 @@ SET @archive_migration = IF(
 PREPARE archive_statement FROM @archive_migration;
 EXECUTE archive_statement;
 DEALLOCATE PREPARE archive_statement;
+
+-- Existing databases gain report visibility without losing data.
+SET @visibility_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'visibility') = 0,
+    'ALTER TABLE reports ADD COLUMN visibility VARCHAR(16) NOT NULL DEFAULT ''public''', 'SELECT 1');
+PREPARE visibility_statement FROM @visibility_migration;
+EXECUTE visibility_statement;
+DEALLOCATE PREPARE visibility_statement;
 
 CREATE TABLE IF NOT EXISTS report_photos (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

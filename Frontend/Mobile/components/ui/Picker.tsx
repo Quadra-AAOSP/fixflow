@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { colors } from '@/constants/theme';
 
@@ -52,14 +53,18 @@ export function Picker({
   value,
   options,
   onChange,
-  placeholder = 'Select…',
-  emptyMessage = 'No options available',
+  placeholder,
+  emptyMessage,
   disabled,
   renderTrigger,
 }: PickerProps) {
+  const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const selected = options.find((o) => o.value === value) ?? null;
+  const resolvedPlaceholder = placeholder ?? t('components.picker.placeholder');
+  const resolvedEmptyMessage =
+    emptyMessage ?? t('components.picker.emptyMessage');
 
   const openSheet = () => {
     if (!disabled) setOpen(true);
@@ -86,7 +91,7 @@ export function Picker({
                 selected ? 'text-[12px] text-ink' : 'text-[12px] text-muted'
               }`}
             >
-              {selected ? selected.label : placeholder}
+              {selected ? selected.label : resolvedPlaceholder}
             </Text>
             <Text className="ml-2 text-[10px] text-muted">▾</Text>
           </Pressable>
@@ -115,18 +120,15 @@ export function Picker({
               className="px-2 py-1"
               accessibilityRole="button"
             >
-              <Text
-                className="text-sm font-semibold"
-                style={{ color: colors.mintInk }}
-              >
-                Done
+              <Text className="text-sm font-semibold" style={{ color: colors.mintInk }}>
+                {t('components.picker.done')}
               </Text>
             </Pressable>
           </View>
           {options.length === 0 ? (
             <View className="flex-1 items-center justify-center px-6">
               <Text className="text-center text-sm text-muted">
-                {emptyMessage}
+                {resolvedEmptyMessage}
               </Text>
             </View>
           ) : (

@@ -1,5 +1,6 @@
 import { Pencil } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors } from '@/constants/theme';
 import type { Site } from '@/types';
@@ -24,6 +25,7 @@ type SiteCardProps = {
  *   - secondary text actions: outlined buttons in `text-action` teal
  */
 export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
+  const { t } = useTranslation('common');
   return (
     <View
       className={`mb-3 rounded-[11px] border bg-card p-4 ${
@@ -41,7 +43,7 @@ export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
             {site.name}
           </Text>
           <Text className="mt-0.5 text-[11px] text-subtitle">
-            {site.address || 'No address provided.'}
+            {site.address || t('components.siteCard.noAddress')}
           </Text>
         </View>
 
@@ -53,11 +55,14 @@ export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
       </View>
 
       <Text className="mt-3 text-[12px] leading-[1.7] text-subtitle" numberOfLines={3}>
-        {site.description || 'No description provided.'}
+        {site.description || t('components.siteCard.noDescription')}
       </Text>
 
       <Text className="mt-1.5 text-[11px] text-subtitle">
-        Contract: {humanize(site.contractStatus)} · Site ID: {site.id}
+        {t('components.siteCard.contract', {
+          contract: humanize(site.contractStatus),
+          id: site.id,
+        })}
       </Text>
 
       {onPress || onEdit ? (
@@ -69,7 +74,7 @@ export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
               className="rounded-md border border-border bg-card px-3 py-2 active:opacity-70"
             >
               <Text className="text-[11px] font-semibold" style={{ color: colors.mintInk }}>
-                View reports →
+                {t('components.siteCard.viewReports')}
               </Text>
             </Pressable>
           ) : null}
@@ -78,12 +83,14 @@ export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
             <Pressable
               onPress={onEdit}
               accessibilityRole="button"
-              accessibilityLabel={`Edit ${site.name}`}
+              accessibilityLabel={t('components.siteCard.editA11y', {
+                name: site.name,
+              })}
               className="flex-row items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 active:opacity-70"
             >
               <Pencil color={colors.muted} size={13} strokeWidth={1.6} />
               <Text className="text-[11px] font-semibold" style={{ color: colors.mintInk }}>
-                Edit site
+                {t('components.siteCard.editSite')}
               </Text>
             </Pressable>
           ) : null}

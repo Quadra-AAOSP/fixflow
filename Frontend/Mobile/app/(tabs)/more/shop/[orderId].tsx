@@ -1,5 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -35,6 +36,7 @@ export default function OrderDetailScreen() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams<{ orderId?: string | string[] }>();
   const publicId = Array.isArray(orderId) ? orderId[0] : orderId;
+  const { t } = useTranslation('common');
 
   const [order, setOrder] = useState<ShopOrder | null>(null);
   const [loading, setLoading] = useState(false);
@@ -50,7 +52,7 @@ export default function OrderDetailScreen() {
       setOrder(result);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : 'Could not load the order.',
+        err instanceof ApiError ? err.message : t('more.shop.couldNotLoadOrder'),
       );
     } finally {
       setLoading(false);
@@ -64,10 +66,10 @@ export default function OrderDetailScreen() {
 
   async function onCancel() {
     if (!order) return;
-    Alert.alert('Cancel order', 'This cannot be undone.', [
-      { text: 'Keep order', style: 'cancel' },
+    Alert.alert(t('more.shop.cancelOrderTitle'), t('more.shop.cancelOrderBody'), [
+      { text: t('more.shop.keepOrder'), style: 'cancel' },
       {
-        text: 'Cancel order',
+        text: t('more.shop.cancelOrder'),
         style: 'destructive',
         onPress: async () => {
           setActing(true);
@@ -78,7 +80,7 @@ export default function OrderDetailScreen() {
             setError(
               err instanceof ApiError
                 ? err.message
-                : 'Could not cancel the order.',
+                : t('more.shop.errors.cancelOrder'),
             );
           } finally {
             setActing(false);
@@ -98,7 +100,7 @@ export default function OrderDetailScreen() {
       setError(
         err instanceof ApiError
           ? err.message
-          : 'Could not complete the dev payment.',
+          : t('more.shop.errors.devPayment'),
       );
     } finally {
       setActing(false);
@@ -108,7 +110,7 @@ export default function OrderDetailScreen() {
   if (!publicId) {
     return (
       <Screen>
-        <StateView variant="empty" title="Order not found" />
+        <StateView variant="empty" title={t('more.shop.orderNotFound')} />
       </Screen>
     );
   }
@@ -128,9 +130,9 @@ export default function OrderDetailScreen() {
       <Screen>
         <StateView
           variant="error"
-          title="Could not load the order"
+          title={t('more.shop.couldNotLoadOrderTitle')}
           description={error}
-          actionLabel="Retry"
+          actionLabel={t('more.shop.retry')}
           onAction={() => {
             void load();
           }}
@@ -143,7 +145,9 @@ export default function OrderDetailScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: `Order #${order.orderId}` }} />
+      <Stack.Screen
+        options={{ title: t('more.shop.orderTitle', { id: order.orderId }) }}
+      />
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
         <Pressable
           accessibilityRole="link"
@@ -155,7 +159,7 @@ export default function OrderDetailScreen() {
             className="text-[11px] font-semibold"
             style={{ color: dashboardColors.teal }}
           >
-            Back to shop
+            {t('more.shop.backToShop')}
           </Text>
         </Pressable>
 
@@ -171,10 +175,10 @@ export default function OrderDetailScreen() {
               className="text-xl font-bold text-ink"
               style={{ letterSpacing: -0.4 }}
             >
-              Order #{order.orderId}
+              {t('more.shop.orderTitle', { id: order.orderId })}
             </Text>
             <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-              Placed {formatDate(order.createdAt, true)}
+              {t('more.shop.placed', { date: formatDate(order.createdAt, true) })}
             </Text>
           </View>
         </View>
@@ -183,7 +187,7 @@ export default function OrderDetailScreen() {
           <View className="flex-row items-center justify-between">
             <View>
               <Text className="text-[10px] uppercase tracking-wide text-dashboard-subtitle">
-                Status
+                {t('more.shop.status')}
               </Text>
               <Text className="mt-0.5 text-base font-semibold text-ink">
                 {order.status.replaceAll('_', ' ')}
@@ -202,10 +206,16 @@ export default function OrderDetailScreen() {
             </View>
           </View>
           <View className="mt-3">
-            <Row label="Placed" value={formatDate(order.createdAt, true)} />
-            <Row label="Updated" value={formatDate(order.updatedAt, true)} />
             <Row
-              label="Total"
+              label={t('more.shop.placedLabel')}
+              value={formatDate(order.createdAt, true)}
+            />
+            <Row
+              label={t('more.shop.updatedLabel')}
+              value={formatDate(order.updatedAt, true)}
+            />
+            <Row
+              label={t('more.shop.total')}
               value={formatMoney(
                 order.totalMinor,
                 order.minorUnitDigits,
@@ -220,7 +230,7 @@ export default function OrderDetailScreen() {
           className="mb-2 text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          Items
+          {t('more.shop.items')}
         </Text>
         <Card padded={false} className="mb-4">
           {order.items.map((item, index) => (
@@ -261,14 +271,14 @@ export default function OrderDetailScreen() {
           className="mb-2 text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          Shipping
+          {t('more.shop.shipping')}
         </Text>
         <Card className="mb-4">
-          <Row label="Name" value={order.shippingName} />
+          <Row label={t('more.shop.nameLabel')} value={order.shippingName} />
           {order.shippingPhone ? (
-            <Row label="Phone" value={order.shippingPhone} />
+            <Row label={t('more.shop.phoneLabel')} value={order.shippingPhone} />
           ) : null}
-          <Row label="Address" value={order.shippingAddress} />
+          <Row label={t('more.shop.addressLabel')} value={order.shippingAddress} />
         </Card>
 
         {order.status === 'pending_payment' ? (
@@ -277,7 +287,7 @@ export default function OrderDetailScreen() {
               className="mb-2 text-[15px] font-semibold text-ink"
               style={{ letterSpacing: -0.3 }}
             >
-              Payment
+              {t('more.shop.payment')}
             </Text>
             {order.checkoutUrl ? (
               <Pressable
@@ -286,9 +296,9 @@ export default function OrderDetailScreen() {
                   // a tap-to-copy alert keeps the workflow reachable without
                   // pulling in a heavyweight dependency.
                   Alert.alert(
-                    'Provider checkout',
+                    t('more.shop.providerCheckout'),
                     order.checkoutUrl ?? '',
-                    [{ text: 'OK' }],
+                    [{ text: t('more.shop.ok') }],
                   );
                 }}
                 accessibilityRole="button"
@@ -325,7 +335,9 @@ export default function OrderDetailScreen() {
                   className="text-[14px] font-semibold"
                   style={{ color: dashboardColors.ctaText }}
                 >
-                  {acting ? 'Completing…' : 'Complete dev payment'}
+                  {acting
+                    ? t('more.shop.completing')
+                    : t('more.shop.completeDevPayment')}
                 </Text>
               </Pressable>
               <Pressable
@@ -341,15 +353,14 @@ export default function OrderDetailScreen() {
                   className="text-sm font-semibold"
                   style={{ color: dashboardColors.statCoralDeep }}
                 >
-                  Cancel
+                  {t('more.shop.cancel')}
                 </Text>
               </Pressable>
             </View>
             <View className="mt-3 flex-row items-center gap-1.5">
               <CreditCard color={dashboardColors.subtitle} size={12} />
               <Text className="text-[11px] text-dashboard-caption">
-                The dev payment endpoint exists so checkout can be exercised
-                without a real payment provider.
+                {t('more.shop.devPaymentNote')}
               </Text>
             </View>
           </Card>
@@ -364,7 +375,7 @@ export default function OrderDetailScreen() {
             className="text-sm font-medium"
             style={{ color: dashboardColors.teal }}
           >
-            Back to shop
+            {t('more.shop.backToShop')}
           </Text>
         </Pressable>
       </ScrollView>

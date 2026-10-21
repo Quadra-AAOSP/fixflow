@@ -1,5 +1,6 @@
 import { Minus, Plus } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { themeColors } from '@/constants/theme';
 
@@ -19,6 +20,7 @@ export function QuantityStepper({
   max = 99,
   disabled,
 }: QuantityStepperProps) {
+  const { t } = useTranslation('common');
   const palette = themeColors();
   const canDecrease = !disabled && value > min;
   const canIncrease = !disabled && value < max;
@@ -29,7 +31,7 @@ export function QuantityStepper({
         onPress={() => canDecrease && onChange(value - 1)}
         disabled={!canDecrease}
         accessibilityRole="button"
-        accessibilityLabel="Decrease quantity"
+        accessibilityLabel={t('components.quantityStepper.decrease')}
         className={`px-3 py-2 ${canDecrease ? 'active:opacity-70' : 'opacity-40'}`}
       >
         <Minus color={palette.ink} size={16} />
@@ -43,7 +45,7 @@ export function QuantityStepper({
         onPress={() => canIncrease && onChange(value + 1)}
         disabled={!canIncrease}
         accessibilityRole="button"
-        accessibilityLabel="Increase quantity"
+        accessibilityLabel={t('components.quantityStepper.increase')}
         className={`px-3 py-2 ${canIncrease ? 'active:opacity-70' : 'opacity-40'}`}
       >
         <Plus color={palette.ink} size={16} />

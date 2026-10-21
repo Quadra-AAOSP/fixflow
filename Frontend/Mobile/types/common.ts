@@ -10,7 +10,8 @@ export type UserRole =
   | 'technician'
   | 'staff'
   | 'admin'
-  | 'super_admin';
+  | 'super_admin'
+  | 'shop_manager';
 
 export type ApiErrorBody = {
   timestamp?: string;

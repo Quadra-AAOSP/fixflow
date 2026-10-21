@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportReporter;
 import com.example.fixflow.domain.ReportStatus;
+import com.example.fixflow.domain.ReportVisibility;
 import com.example.fixflow.domain.Site;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
@@ -115,6 +116,8 @@ public class ReportService {
 		report.setSpecialty(blankToNull(request.specialty()));
 		report.setReporterUrgency(request.reporterUrgency());
 		report.setReporterReason(blankToNull(request.reporterReason()));
+		report.setVisibility(request.visibility() != null
+				? request.visibility() : ReportVisibility.PUBLIC);
 		report.setStatus(ReportStatus.open);
 		report = reportRepository.save(report);
 
@@ -130,6 +133,11 @@ public class ReportService {
 	public List<ReportResponse> list(Long siteId, AppUserDetails actor) {
 		Long scopedSiteId = resolveSiteForList(actor, siteId);
 		return reportRepository.findDetailedBySiteId(scopedSiteId).stream()
+				// Private reports never appear in the site listing for anyone
+				// outside the sensitive audience (creator/participants,
+				// staff/admin, assigned technician).
+				.filter(report -> report.getVisibility() != ReportVisibility.PRIVATE
+						|| canSeeSensitive(actor, report))
 				.map(report -> response(report, actor))
 				.toList();
 	}
@@ -145,6 +153,8 @@ public class ReportService {
             }
         } else {
             assertCanViewSite(actor, report.getSite().getId());
+			assertCanSeeVisibility(actor, report);
+
         }
 		return response(report, actor);
 	}
@@ -157,6 +167,9 @@ public class ReportService {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
+		// Joining attaches the caller as a participant — without this check a
+		// same-site reporter could join (and thereby read) a private report.
+		assertCanSeeVisibility(actor, report);
 		if (!reportReporterRepository.existsByReportIdAndUserId(id, actor.getId())) {
 			ReportReporter attachment = new ReportReporter();
 			attachment.setReportId(id);
@@ -266,6 +279,16 @@ public class ReportService {
 			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
 			case shop_manager -> false;
 		};
+	}
+
+	/**
+	 * 404 (not 403) for private reports outside the sensitive audience, so
+	 * existence itself is not leaked to same-site reporters.
+	 */
+	private void assertCanSeeVisibility(AppUserDetails actor, Report report) {
+		if (report.getVisibility() == ReportVisibility.PRIVATE && !canSeeSensitive(actor, report)) {
+			throw new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found");
+		}
 	}
 
     private ReportResponse response(Report report, AppUserDetails actor) {

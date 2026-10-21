@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { Urgency } from '@/types';
 
@@ -29,10 +30,10 @@ const textStyles: Record<Urgency, string> = {
 };
 
 const urgencyLabels: Record<Urgency, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  critical: 'Critical',
+  low: 'labels.urgency.low',
+  medium: 'labels.urgency.medium',
+  high: 'labels.urgency.high',
+  critical: 'labels.urgency.critical',
 };
 
 type UrgencyChipProps = {
@@ -40,10 +41,11 @@ type UrgencyChipProps = {
 };
 
 export function UrgencyChip({ level }: UrgencyChipProps) {
+  const { t } = useTranslation('common');
   return (
     <View className={`rounded-md px-2.5 py-1 ${containerStyles[level]}`}>
       <Text className={`text-[11px] font-semibold ${textStyles[level]}`}>
-        {urgencyLabels[level]}
+        {t(urgencyLabels[level])}
       </Text>
     </View>
   );

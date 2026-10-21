@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/Card';
 import { Picker } from '@/components/ui/Picker';
@@ -36,20 +37,10 @@ const FILTER_VALUES = REPORT_FILTERS.map((f) => f.value);
 
 /**
  * Reports list. Mirrors the web's Reports tab
- * (`ReportsView.vue` + `components/dashboard/ReportTable.vue`):
- *   - A single white `.dashboard-card` holding the whole page
- *   - `.card-heading`: "Reports" + the selected site, with the mint
- *     "New report" action (`.report-issue-button`) on the right
- *   - `.report-filters`: a "Status" select, the "N matching reports"
- *     count, and the "Search: … / Clear search" affordance
- *   - `.report-table` rows, translated for a phone: the status-tinted
- *     file glyph, the report description with its "#id · category"
- *     line, a status badge, the effective urgency, and the site /
- *     created / assignee meta
- *
- * The dashboard's stat cards deep-link here with a `?filter=` query.
+ * (`ReportsView.vue` + `components/dashboard/ReportTable.vue`)
  */
 export default function ReportsScreen() {
+  const { t } = useTranslation('common');
   const palette = themeColors();
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -89,7 +80,7 @@ export default function ReportsScreen() {
         return;
       }
       setError(
-        err instanceof ApiError ? err.message : 'Could not load reports.',
+        err instanceof ApiError ? err.message : t('reports.list.errors.couldNotLoad'),
       );
     } finally {
       setLoading(false);
@@ -134,9 +125,9 @@ export default function ReportsScreen() {
     () =>
       REPORT_FILTERS.map((option) => ({
         value: option.value,
-        label: option.value === 'all' ? 'All reports' : option.label,
+        label: option.value === 'all' ? t('reports.list.allReports') : t(option.labelKey),
       })),
-    [],
+    [t],
   );
 
   /*
@@ -174,7 +165,9 @@ export default function ReportsScreen() {
             }
             ListHeaderComponent={
               <ReportsHeader
+                t={t}
                 siteName={site?.name ?? ''}
+                contractStatus={site?.contractStatus ?? null}
                 canCreate={canCreate}
                 onCreate={() => router.push('/reports/new')}
                 query={query}
@@ -192,12 +185,12 @@ export default function ReportsScreen() {
             ListEmptyComponent={
               site == null ? (
                 siteLoading ? (
-                  <StateView variant="loading" title="Loading site…" />
+                  <StateView variant="loading" title={t('reports.list.loadingSite')} />
                 ) : siteError != null ? (
                   <StateView
                     variant="error"
                     description={siteError.message}
-                    actionLabel="Retry"
+                    actionLabel={t('reports.list.errors.retry')}
                     onAction={() => {
                       void refreshSite();
                     }}
@@ -206,40 +199,41 @@ export default function ReportsScreen() {
                   <StateView
                     variant="empty"
                     icon={House}
-                    title="No site linked"
-                    description="Your account is not assigned to a site yet, so there are no reports to show."
+                    title={t('reports.list.noSiteTitle')}
+                    description={t('reports.list.noSiteDesc')}
                   />
                 )
               ) : error !== null ? (
                 <StateView
                   variant="error"
                   description={error}
-                  actionLabel="Retry"
+                  actionLabel={t('reports.list.errors.retry')}
                   onAction={() => {
                     void load();
                   }}
                 />
               ) : loading ? (
-                <StateView variant="loading" title="Loading reports…" />
+                <StateView variant="loading" title={t('reports.list.loadingReports')} />
               ) : (
                 <StateView
                   variant="empty"
                   icon={reports && reports.length === 0 ? ClipboardList : Search}
                   title={
                     reports && reports.length === 0
-                      ? 'No reports yet'
-                      : 'No matches'
+                      ? t('reports.list.noReportsTitle')
+                      : t('reports.list.noMatchesTitle')
                   }
                   description={
                     reports && reports.length === 0
-                      ? 'Tap "New report" above to file one.'
-                      : 'Try a different filter or search term.'
+                      ? t('reports.list.noReportsDesc')
+                      : t('reports.list.noMatchesDesc')
                   }
                 />
               )
             }
             renderItem={({ item }) => (
               <ReportRow
+                t={t}
                 report={item}
                 siteName={siteName(item.siteId)}
                 onPress={() => router.push(`/reports/${item.id}`)}
@@ -252,14 +246,18 @@ export default function ReportsScreen() {
   );
 }
 
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
 type ReportsHeaderProps = {
+  t: TranslateFn;
   siteName: string;
+  contractStatus?: 'contracted' | 'uncontracted' | null;
   canCreate: boolean;
   onCreate: () => void;
   query: string;
-  onChangeQuery: (value: string) => void;
+  onChangeQuery: (q: string) => void;
   filter: FilterValue;
-  onChangeFilter: (value: FilterValue) => void;
+  onChangeFilter: (f: FilterValue) => void;
   filterOptions: { value: string; label: string }[];
   matchingCount: number;
   loaded: boolean;
@@ -271,7 +269,9 @@ type ReportsHeaderProps = {
  * select, the matching count, and the clear-search affordance).
  */
 function ReportsHeader({
+  t,
   siteName,
+  contractStatus,
   canCreate,
   onCreate,
   query,
@@ -290,15 +290,37 @@ function ReportsHeader({
             className="text-[22px] font-semibold text-ink"
             style={{ letterSpacing: -0.7 }}
           >
-            Reports
+            {t('reports.list.title')}
           </Text>
           <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
             {siteName}
+            {contractStatus === 'contracted' ? (
+              <>
+                {' · '}
+                <Text
+                  className="font-semibold"
+                  style={{ color: dashboardColors.statMintDeep }}
+                >
+                  {t('reports.list.contracted')}
+                </Text>
+              </>
+            ) : contractStatus === 'uncontracted' ? (
+              <>
+                {' · '}
+                <Text
+                  className="font-semibold"
+                  style={{ color: dashboardColors.statCitronDeep }}
+                >
+                  {t('reports.list.uncontracted')}
+                </Text>
+              </>
+            ) : null}
           </Text>
         </View>
         {canCreate ? (
           <Pressable
             accessibilityRole="link"
+            accessibilityLabel={t('reports.list.newReport')}
             onPress={onCreate}
             className="flex-row items-center gap-2 rounded-[11px] border px-3.5 py-2.5 active:opacity-90"
             style={{
@@ -311,7 +333,7 @@ function ReportsHeader({
               className="text-[13px] font-semibold"
               style={{ color: dashboardColors.ctaText }}
             >
-              New report
+              {t('reports.list.newReport')}
             </Text>
           </Pressable>
         ) : null}
@@ -321,28 +343,29 @@ function ReportsHeader({
         <SearchField
           value={query}
           onChangeText={onChangeQuery}
-          placeholder="Search reports…"
+          placeholder={t('reports.list.searchPlaceholder')}
         />
       </View>
 
       <View className="flex-row flex-wrap items-center gap-x-4 gap-y-2">
         <Picker
-          label="Status"
+          label={t('reports.list.status')}
           value={filter}
           options={filterOptions}
           onChange={(value) => onChangeFilter(value as FilterValue)}
           renderTrigger={({ selected, open, disabled }) => (
             <View className="flex-row items-center gap-2.5">
-              <Text className="text-[12px] text-dashboard-subtitle">Status</Text>
+              <Text className="text-[12px] text-dashboard-subtitle">{t('reports.list.status')}</Text>
               <Pressable
                 onPress={open}
                 disabled={disabled}
                 accessibilityRole="button"
+                accessibilityLabel={t('reports.list.status')}
                 accessibilityState={{ disabled }}
                 className="flex-row items-center gap-2 rounded-[7px] border border-dashboard-card-line bg-card px-2.5 py-1.5 active:opacity-80"
               >
                 <Text className="text-[12px] text-ink">
-                  {selected ? selected.label : 'All reports'}
+                  {selected ? selected.label : t('reports.list.allReports')}
                 </Text>
                 <Text className="text-[10px] text-dashboard-caption">▾</Text>
               </Pressable>
@@ -351,21 +374,25 @@ function ReportsHeader({
         />
         {loaded ? (
           <Text className="text-[12px] text-dashboard-subtitle">
-            {matchingCount} matching report{matchingCount === 1 ? '' : 's'}
+            {t('reports.list.matchingCount', {
+              count: matchingCount,
+              plural: matchingCount === 1 ? '' : 's',
+            })}
           </Text>
         ) : null}
         {query ? (
           <View className="flex-row items-center gap-1.5">
             <Text className="text-[12px] text-dashboard-subtitle">
-              Search: {query}
+              {t('reports.list.searching', { query })}
             </Text>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel={t('reports.list.clearSearch')}
               onPress={() => onChangeQuery('')}
               className="active:opacity-70"
             >
               <Text className="text-[12px] font-medium text-dashboard-teal underline">
-                Clear search
+                {t('reports.list.clearSearch')}
               </Text>
             </Pressable>
           </View>
@@ -378,14 +405,16 @@ function ReportsHeader({
 /**
  * One `.report-table` row. The web's columns (Report / Site / Created /
  * Assignee / Status / Urgency) are stacked onto a phone-width row: the
- * status-tinted glyph, the description with its "#id · category" line,
- * a status badge + effective urgency, then the meta line and the arrow.
+ * status-tinted glyph, the report description with its "#id · category"
+ * line, a status badge + effective urgency, then the meta line and the arrow.
  */
 function ReportRow({
+  t,
   report,
   siteName,
   onPress,
 }: {
+  t: TranslateFn;
   report: Report;
   siteName: string;
   onPress: () => void;
@@ -393,13 +422,16 @@ function ReportRow({
   const urgency = effectiveUrgency(report);
   const assignee =
     report.assignedTechnicianId == null
-      ? 'Unassigned'
-      : `Technician #${report.assignedTechnicianId}`;
+      ? t('reports.list.assigneeUnassigned')
+      : t('reports.list.assigneeTechnicianId', { id: report.assignedTechnicianId });
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={t('reports.list.openA11y', {
+        description: report.description,
+      })}
       className="flex-row items-start gap-2.5 py-3 active:opacity-80"
     >
       <ReportStatusIcon status={report.status} />
@@ -413,7 +445,7 @@ function ReportRow({
         <View className="mt-1.5 flex-row items-center gap-2">
           <StatusBadge status={report.status} />
           <Text className="text-[10px] text-dashboard-subtitle">
-            {urgencyLabels[urgency]} urgency
+            {t(urgencyLabels[urgency])} {t('reports.list.urgencySuffix')}
           </Text>
         </View>
         <Text

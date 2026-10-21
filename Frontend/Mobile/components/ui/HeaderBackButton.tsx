@@ -1,6 +1,7 @@
 import { useRouter, type Href } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { Pressable } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 type HeaderBackButtonProps = {
   /** Icon color — pass the active palette's ink. */
@@ -40,12 +41,13 @@ type HeaderBackButtonProps = {
  * single correct destination ahead of time and popping is what the user means.
  */
 export function HeaderBackButton({ color, to, popTo }: HeaderBackButtonProps) {
+  const { t } = useTranslation('common');
   const router = useRouter();
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Back"
+      accessibilityLabel={t('components.headerBack.a11yLabel')}
       hitSlop={12}
       className="pr-2"
       onPress={() => {

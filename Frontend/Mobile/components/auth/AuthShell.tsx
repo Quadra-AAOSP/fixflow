@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { authColors, fontFamilies } from '@/constants/theme';
 
@@ -79,13 +80,14 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
  * `currentColor` does.
  */
 function BrandHeader() {
+  const { t } = useTranslation('common');
   const router = useRouter();
 
   return (
     <View className="h-14 flex-row items-center justify-between px-5">
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel="fixflow home"
+        accessibilityLabel={t('components.authShell.homeA11y')}
         onPress={() => router.push('/(auth)/login')}
         className="flex-row items-center active:opacity-70"
       >
@@ -105,7 +107,7 @@ function BrandHeader() {
 
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel="Join your community"
+        accessibilityLabel={t('components.authShell.joinCommunity')}
         onPress={() => router.push('/(auth)/register')}
         className="flex-row items-center gap-1.5 active:opacity-70"
       >
@@ -113,7 +115,7 @@ function BrandHeader() {
           className="text-[13px] text-auth-ink"
           style={{ fontFamily: fontFamilies.bodySemiBold }}
         >
-          Join your community
+          {t('components.authShell.joinCommunity')}
         </Text>
         <ArrowUpRight color={authColors.ink} size={16} />
       </Pressable>
@@ -123,6 +125,7 @@ function BrandHeader() {
 
 /** `.story-panel` — the cream editorial card. */
 function StoryPanel() {
+  const { t } = useTranslation('common');
   return (
     <View className="rounded-[22px] bg-auth-panel px-5 pb-5 pt-6">
       <View className="flex-row items-center gap-2">
@@ -131,7 +134,7 @@ function StoryPanel() {
           className="text-[10px] text-auth-ink"
           style={{ fontFamily: fontFamilies.headBold, letterSpacing: 1.4 }}
         >
-          A LITTLE CARE GOES A LONG WAY
+          {t('components.authShell.storyKicker')}
         </Text>
       </View>
 
@@ -143,19 +146,21 @@ function StoryPanel() {
           lineHeight: 35,
         }}
       >
-        Good spaces.{'\n'}Happy people.{'\n'}
-        <Text className="text-auth-olive">Let’s keep it that way.</Text>
+        {t('components.authShell.storyPlaces')}{'\n'}
+        {t('components.authShell.storyPeople')}{'\n'}
+        <Text className="text-auth-olive">
+          {t('components.authShell.storyAccent')}
+        </Text>
       </Text>
 
       <Text className="mt-3.5 text-[13px] leading-[22px] text-auth-body">
-        From a leaky tap to a flickering light, help make the places you share
-        feel a little more like home.
+        {t('components.authShell.storyBody')}
       </Text>
 
       <View className="mt-5 flex-row items-center justify-between">
-        <StoryDot dotClassName="bg-coral" label="Report it." />
-        <StoryDot dotClassName="bg-accent" label="Track it." />
-        <StoryDot dotClassName="bg-lime" label="Feel at home." />
+        <StoryDot dotClassName="bg-coral" label={t('components.authShell.storyReport')} />
+        <StoryDot dotClassName="bg-accent" label={t('components.authShell.storyTrack')} />
+        <StoryDot dotClassName="bg-lime" label={t('components.authShell.storyHome')} />
       </View>
     </View>
   );
@@ -179,13 +184,14 @@ function StoryDot({
 
 /** `.auth-footer` — the two small sign-offs under the panel. */
 function AuthFooter() {
+  const { t } = useTranslation('common');
   return (
     <View className="mt-6 flex-row items-center justify-between">
       <Text className="text-[10px] text-auth-foot">
-        Made for the places we share.
+        {t('components.authShell.footerMadeFor')}
       </Text>
       <Text className="text-[10px] text-auth-foot">
-        Schools · Hostels · Hotels{' '}
+        {t('components.authShell.footerSectors')}{' '}
         <Text className="text-[16px] text-auth-sage-deep">✳</Text>
       </Text>
     </View>

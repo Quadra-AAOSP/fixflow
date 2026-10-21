@@ -3,6 +3,7 @@ import Svg, {
   Path,
   Rect,
 } from 'react-native-svg';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Decorative SVG used on the Home welcome banner. 1:1 port of
@@ -11,6 +12,7 @@ import Svg, {
  * potted-plant scenes can share one source of truth.
  */
 export function PlantArt({ size = 130 }: { size?: number }) {
+  const { t } = useTranslation('common');
   // The web SVG is 240×210 (slightly wider than tall). The banner reserves a
   // ~170px slot on desktop; on a phone we drop to ~130 to keep the banner
   // single-line.
@@ -21,7 +23,7 @@ export function PlantArt({ size = 130 }: { size?: number }) {
       height={size}
       viewBox="0 0 240 210"
       fill="none"
-      accessibilityLabel="Potted plants"
+      accessibilityLabel={t('components.plantArt.a11yLabel')}
       accessibilityRole="image"
     >
       {/* Shadow */}

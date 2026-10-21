@@ -9,9 +9,11 @@ import {
 import {
   ArrowLeft,
   ClipboardList,
+  Lock,
   RefreshCw,
   UserPlus,
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -35,21 +37,9 @@ import { urgencyLabels } from '@/utils/maintenance';
 
 /**
  * Report detail. Mirrors `ReportDetailView.vue`:
- *   - "All reports" back link + reload button in the card heading
- *   - "Report #N" title + status badge
- *   - Full description
- *   - Definition list of all 13 metadata fields
- *   - "People attached to this report" section (reporter list)
- *   - "This issue affects me too" button (reporter-only, when not joined)
- *   - "Assign a technician" section (staff/admin/super_admin only)
- *
- * Privacy model (mirrors `ReportService.canSeeSensitive`): the backend nulls
- * `createdByUserId`, `createdByName`, `address`, and `reporterReason` as a
- * block when the viewer lacks sensitive access. The backend supplies separate
- * sensitive-access, participation and action flags; none are guessed from
- * masked identity fields.
  */
 export default function ReportDetailScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -69,7 +59,7 @@ export default function ReportDetailScreen() {
 
   const load = useCallback(async () => {
     if (!Number.isInteger(reportId) || reportId <= 0) {
-      setLoadError('Invalid report ID.');
+      setLoadError(t('reports.detail.noAccess'));
       setLoading(false);
       return;
     }
@@ -92,18 +82,18 @@ export default function ReportDetailScreen() {
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
-        setLoadError('You do not have access to this report.');
+        setLoadError(t('reports.detail.noAccess'));
       } else if (err instanceof ApiError && err.status === 404) {
-        setLoadError('This report no longer exists.');
+        setLoadError(t('reports.detail.gone'));
       } else {
         setLoadError(
-          toErrorMessage(err, { fallback: 'Could not load this report.' }),
+          toErrorMessage(err, { fallback: t('reports.detail.couldNotLoad') }),
         );
       }
     } finally {
       setLoading(false);
     }
-  }, [reportId]);
+  }, [reportId, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -118,7 +108,7 @@ export default function ReportDetailScreen() {
     try {
       const updated = await joinReport(reportId);
       setReport(updated);
-      setActionMessage('You are now attached to this report.');
+      setActionMessage(t('reports.detail.joinedSuccess'));
       try {
         setReporters(await listReporters(reportId));
       } catch {
@@ -126,7 +116,7 @@ export default function ReportDetailScreen() {
       }
     } catch (err) {
       setActionError(
-        toErrorMessage(err, { fallback: 'Could not join this report.' }),
+        toErrorMessage(err, { fallback: t('reports.detail.couldNotJoin') }),
       );
     } finally {
       setJoining(false);
@@ -138,7 +128,7 @@ export default function ReportDetailScreen() {
     setActionMessage(null);
     const parsed = Number(technicianId.trim());
     if (!Number.isInteger(parsed) || parsed <= 0) {
-      setActionError('Enter a valid technician ID.');
+      setActionError(t('reports.detail.assignEnterValid'));
       return;
     }
 
@@ -149,10 +139,10 @@ export default function ReportDetailScreen() {
       });
       setReport(updated);
       setTechnicianId('');
-      setActionMessage('Technician assignment saved.');
+      setActionMessage(t('reports.detail.assignSaved'));
     } catch (err) {
       setActionError(
-        toErrorMessage(err, { fallback: 'Could not assign the technician.' }),
+        toErrorMessage(err, { fallback: t('reports.detail.couldNotAssign') }),
       );
     } finally {
       setAssigning(false);
@@ -162,7 +152,7 @@ export default function ReportDetailScreen() {
   if (loading && !report) {
     return (
       <Screen>
-        <StateView variant="loading" title="Loading report…" />
+        <StateView variant="loading" title={t('reports.detail.loading')} />
       </Screen>
     );
   }
@@ -172,9 +162,9 @@ export default function ReportDetailScreen() {
       <Screen>
         <StateView
           variant="error"
-          title="Could not load report"
+          title={t('reports.detail.couldNotLoadTitle')}
           description={loadError}
-          actionLabel="Retry"
+          actionLabel={t('reports.detail.retry')}
           onAction={() => {
             void load();
           }}
@@ -189,7 +179,7 @@ export default function ReportDetailScreen() {
         <StateView
           variant="empty"
           icon={ClipboardList}
-          title="Report unavailable"
+          title={t('reports.detail.notFoundTitle')}
         />
       </Screen>
     );
@@ -205,7 +195,7 @@ export default function ReportDetailScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: `Report #${report.id}` }} />
+      <Stack.Screen options={{ title: t('reports.detail.title', { id: report.id }) }} />
       <ScrollView contentContainerClassName="px-5 py-4">
         {/* Card heading — matches the web's `.card-heading` with a
             left-aligned "All reports" link and a right-aligned reload
@@ -213,6 +203,7 @@ export default function ReportDetailScreen() {
         <View className="mb-3 flex-row items-center justify-between">
           <Pressable
             accessibilityRole="link"
+            accessibilityLabel={t('reports.detail.allReports')}
             onPress={() => router.push('/reports')}
             className="flex-row items-center gap-1 active:opacity-70"
           >
@@ -221,12 +212,12 @@ export default function ReportDetailScreen() {
               className="text-[11px] font-semibold"
               style={{ color: dashboardColors.teal }}
             >
-              All reports
+              {t('reports.detail.allReports')}
             </Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Reload report"
+            accessibilityLabel={t('reports.detail.reloadReport')}
             disabled={loading}
             onPress={() => {
               void load();
@@ -242,9 +233,23 @@ export default function ReportDetailScreen() {
             className="text-2xl font-bold text-ink"
             style={{ letterSpacing: -0.5 }}
           >
-            Report #{report.id}
+            {t('reports.detail.title', { id: report.id })}
           </Text>
           <StatusBadge status={report.status} />
+          {report.visibility === 'private' ? (
+            <View
+              className="flex-row items-center gap-1 rounded-full px-2 py-1"
+              style={{ backgroundColor: dashboardColors.statCitronSoft }}
+            >
+              <Lock color={dashboardColors.statCitronDeep} size={11} />
+              <Text
+                className="text-[9px] font-semibold"
+                style={{ color: dashboardColors.statCitronDeep }}
+              >
+                {t('reports.detail.private')}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <Text className="mb-4 text-[14px] leading-[1.8] text-ink">
@@ -257,69 +262,77 @@ export default function ReportDetailScreen() {
             fallback copy match the web exactly. */}
         <Card className="mb-4">
           <DefinitionRow
-            label="Site"
+            label={t('reports.detail.definition.site')}
             value={
               report.siteId == null
-                ? 'Not shared'
+                ? t('reports.detail.definition.notShared')
                 : (sites.find((entry) => entry.id === report.siteId)?.name ??
                   `Site #${report.siteId}`)
             }
           />
           <DefinitionRow
-            label="Location"
-            value={report.address ?? 'Not shared or not provided'}
+            label={t('reports.detail.definition.location')}
+            value={report.address ?? t('reports.detail.definition.notSharedOrNotProvided')}
           />
-          <DefinitionRow label="Category" value={humanize(report.category)} />
+          <DefinitionRow label={t('reports.detail.definition.category')} value={humanize(report.category)} />
           <DefinitionRow
-            label="Specialty"
+            label={t('reports.detail.definition.visibility')}
             value={
-              report.specialty ? humanize(report.specialty) : 'Not specified'
+              report.visibility === 'private'
+                ? t('reports.detail.definition.visibilityPrivate')
+                : t('reports.detail.definition.visibilityPublic')
             }
           />
           <DefinitionRow
-            label="Reported by"
-            value={report.createdByName ?? 'Not shared'}
+            label={t('reports.detail.definition.specialty')}
+            value={
+              report.specialty ? humanize(report.specialty) : t('reports.detail.definition.notSpecified')
+            }
           />
           <DefinitionRow
-            label="Technician"
+            label={t('reports.detail.definition.reportedBy')}
+            value={report.createdByName ?? t('reports.detail.definition.notShared')}
+          />
+          <DefinitionRow
+            label={t('reports.detail.definition.technician')}
             value={
               report.assignedTechnicianId == null
-                ? 'Unassigned'
-                : `Technician #${report.assignedTechnicianId}`
+                ? t('reports.detail.definition.unassigned')
+                : t('reports.detail.definition.technicianId', { id: report.assignedTechnicianId })
             }
           />
           <DefinitionRow
-            label="Reporter urgency"
-            value={urgencyLabels[report.reporterUrgency]}
+            label={t('reports.detail.definition.reporterUrgency')}
+            value={t(urgencyLabels[report.reporterUrgency])}
           />
           <DefinitionRow
-            label="AI urgency"
+            label={t('reports.detail.definition.aiUrgency')}
             value={
-              report.aiUrgency ? urgencyLabels[report.aiUrgency] : 'Not classified'
+              report.aiUrgency ? t(urgencyLabels[report.aiUrgency]) : t('reports.detail.definition.notClassified')
             }
           />
           <DefinitionRow
-            label="Final urgency"
+            label={t('reports.detail.definition.finalUrgency')}
             value={
               report.finalUrgency
-                ? urgencyLabels[report.finalUrgency]
-                : 'Not determined'
+                ? t(urgencyLabels[report.finalUrgency])
+                : t('reports.detail.definition.notDetermined')
             }
           />
           <DefinitionRow
-            label="Urgency reason"
-            value={report.reporterReason ?? 'Not shared or not provided'}
+            label={t('reports.detail.definition.urgencyReason')}
+            value={report.reporterReason ?? t('reports.detail.definition.notSharedOrNotProvided')}
           />
           <DefinitionRow
-            label="Created"
+            label={t('reports.detail.definition.created')}
             value={formatDate(report.createdAt, true)}
           />
           <DefinitionRow
-            label="Updated"
+            label={t('reports.detail.definition.updated')}
             value={formatDate(report.updatedAt, true)}
           />
           <DefinitionRow
-            label="Times reopened"
+            label={t('reports.detail.definition.timesReopened')}
             value={String(report.reopenCount)}
           />
         </Card>
@@ -348,9 +361,7 @@ export default function ReportDetailScreen() {
         {!canSeeSensitive ? (
           <Card className="mb-4">
             <Text className="text-[12px] leading-[1.8] text-dashboard-subtitle">
-              Some details (location and submitter) are hidden for reports you
-              did not file. Join the report if you are affected by the same
-              issue.
+              {t('reports.detail.peopleBlocked')}
             </Text>
           </Card>
         ) : reporters && reporters.length > 0 ? (
@@ -360,7 +371,7 @@ export default function ReportDetailScreen() {
                 className="text-[15px] font-semibold text-ink"
                 style={{ letterSpacing: -0.3 }}
               >
-                People attached to this report
+                {t('reports.detail.peopleTitle')}
               </Text>
             </View>
             {reporters.map((row, index) => (
@@ -371,10 +382,10 @@ export default function ReportDetailScreen() {
                 }`}
               >
                 <Text className="text-sm font-medium text-ink">
-                  {row.userId === user?.id ? 'You' : `User #${row.userId}`}
+                  {row.userId === user?.id ? t('reports.detail.you') : t('reports.detail.userId', { id: row.userId })}
                 </Text>
                 <Text className="text-[10px] text-dashboard-caption">
-                  Joined {formatDate(row.joinedAt, true)}
+                  {t('reports.detail.joinedOn', { time: formatDate(row.joinedAt, true) })}
                 </Text>
               </View>
             ))}
@@ -382,8 +393,7 @@ export default function ReportDetailScreen() {
         ) : canSeeSensitive ? (
           <Card className="mb-4">
             <Text className="text-[12px] leading-[1.8] text-dashboard-subtitle">
-              Reporter identities are only available to people with access to
-              this report.
+              {t('reports.detail.peopleBlockedEmpty')}
             </Text>
           </Card>
         ) : null}
@@ -396,15 +406,16 @@ export default function ReportDetailScreen() {
                 className="text-[15px] font-semibold text-ink"
                 style={{ letterSpacing: -0.3 }}
               >
-                This issue affects me too
+                {t('reports.detail.joinTitle')}
               </Text>
             </View>
             <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-              Joining attaches your account to the report and gives you access
-              to its shared details.
+              {t('reports.detail.joinBody')}
             </Text>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel={t('reports.detail.joinButton')}
+              accessibilityState={{ disabled: joining, busy: joining }}
               disabled={joining}
               onPress={onJoin}
               className="flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
@@ -418,7 +429,7 @@ export default function ReportDetailScreen() {
                 className="text-[13px] font-semibold"
                 style={{ color: dashboardColors.ctaText }}
               >
-                {joining ? 'Saving…' : 'Join this report'}
+                {joining ? t('reports.detail.joining') : t('reports.detail.joinButton')}
               </Text>
             </Pressable>
           </Card>
@@ -431,33 +442,31 @@ export default function ReportDetailScreen() {
               style={{ letterSpacing: -0.3 }}
             >
               {report.assignedTechnicianId
-                ? 'Reassign technician'
-                : 'Assign a technician'}
+                ? t('reports.detail.assignTitleReassign')
+                : t('reports.detail.assignTitleAssign')}
             </Text>
             <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-              Enter the technician's account ID supplied by your administrator.
+              {t('reports.detail.assignBody')}
             </Text>
             <TextField
-              label="Technician ID"
+              label={t('reports.detail.assignLabel')}
               value={technicianId}
               onChangeText={setTechnicianId}
               keyboardType="number-pad"
               placeholder={
                 report.assignedTechnicianId !== null
-                  ? `Currently #${report.assignedTechnicianId}`
-                  : 'e.g. 12'
+                  ? t('reports.detail.assignPlaceholderCurrent', { id: report.assignedTechnicianId })
+                  : t('reports.detail.assignPlaceholderExample')
               }
             />
             <Text className="-mt-2 mb-3 text-[10px] leading-[1.7] text-dashboard-caption">
-              The technician directory is not exposed by the backend yet, so
-              this takes a numeric user ID. A picker replaces this field once
-              the endpoint lands.
+              {t('reports.detail.assignHelper')}
             </Text>
             <Button
               label={
                 report.assignedTechnicianId !== null
-                  ? 'Reassign'
-                  : 'Save assignment'
+                  ? t('reports.detail.assignReassign')
+                  : t('reports.detail.assignSave')
               }
               variant="secondary"
               onPress={onAssign}
@@ -473,7 +482,7 @@ export default function ReportDetailScreen() {
               style={{ backgroundColor: dashboardColors.statMintDeep }}
             />
             <Text className="text-[10px] text-dashboard-caption">
-              You are attached to this report
+              {t('reports.detail.attachedIndicator')}
             </Text>
           </View>
         ) : null}
@@ -484,7 +493,14 @@ export default function ReportDetailScreen() {
   );
 }
 
-function DefinitionRow({ label, value }: { label: string; value: string }) {
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
+function DefinitionRow({
+  label, value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
     <View className="mb-2 flex-row items-start justify-between gap-4 last:mb-0">
       <Text className="text-[11px] uppercase tracking-wide text-dashboard-subtitle">

@@ -2,6 +2,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { Wrench } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AuthButton } from '@/components/auth/AuthButton';
 import { AuthField } from '@/components/auth/AuthField';
@@ -17,6 +18,7 @@ import { ApiError } from '@/services/auth';
  * secondary link and reassurance strip.
  */
 export default function LoginScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
 
@@ -36,7 +38,7 @@ export default function LoginScreen() {
     setError(null);
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
-      setError('Email and password are required.');
+      setError(t('auth.login.errors.required'));
       return;
     }
 
@@ -45,9 +47,9 @@ export default function LoginScreen() {
       await login({ email: trimmedEmail, password });
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.status === 401 ? 'Invalid email or password.' : err.message);
+        setError(err.status === 401 ? t('auth.login.errors.invalidCredentials') : err.message);
       } else {
-        setError('Unable to reach the server. Check your connection and API URL.');
+        setError(t('auth.login.errors.noConnection'));
       }
     } finally {
       setSubmitting(false);
@@ -57,15 +59,15 @@ export default function LoginScreen() {
   return (
     <AuthShell>
       <AuthHeading
-        kicker="YOUR SPACE, TAKEN CARE OF"
+        kicker={t('auth.login.kicker')}
         icon={Wrench}
-        title="Welcome back"
+        title={t('auth.login.title')}
         titleAccent="."
-        description="A better place starts with you. Sign in to keep things flowing."
+        description={t('auth.login.description')}
       />
 
       <AuthField
-        label="Email"
+        label={t('auth.login.emailLabel')}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -73,19 +75,19 @@ export default function LoginScreen() {
         keyboardType="email-address"
         textContentType="emailAddress"
         autoComplete="email"
-        placeholder="you@example.com"
+        placeholder={t('auth.login.emailPlaceholder')}
         returnKeyType="next"
         submitBehavior="submit"
         onSubmitEditing={() => passwordRef.current?.focus()}
       />
       <AuthField
-        label="Password"
+        label={t('auth.login.passwordLabel')}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
         textContentType="password"
         autoComplete="current-password"
-        placeholder="••••••••"
+        placeholder={t('auth.login.passwordPlaceholder')}
         inputRef={passwordRef}
         returnKeyType="go"
         // Submits from the keyboard's "go" key, so signing in never needs a
@@ -97,24 +99,24 @@ export default function LoginScreen() {
         <Text className="mb-3 text-[13px] text-auth-danger">{error}</Text>
       ) : null}
 
-      <AuthButton label="Sign in →" loading={submitting} onPress={onSubmit} />
+      <AuthButton label={t('auth.login.submit')} loading={submitting} onPress={onSubmit} />
 
       {/* A full-width row rather than a bare text link: the inline text was an
           ~18px tap target, well under the 44pt minimum, and it sits right below
           the CTA where a thumb expects it. */}
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel="Create an account"
+        accessibilityLabel={t('auth.login.createAccount')}
         onPress={() => router.push('/(auth)/register')}
         className="mt-3 min-h-[44px] items-center justify-center active:opacity-70"
       >
         <Text className="text-center text-[13px] text-auth-body">
-          New around here?{' '}
+          {t('auth.login.newHere')}{' '}
           <Text
             className="text-coral-link"
             style={{ fontFamily: fontFamilies.bodySemiBold }}
           >
-            Create an account
+            {t('auth.login.createAccount')}
           </Text>
         </Text>
       </Pressable>
@@ -122,7 +124,7 @@ export default function LoginScreen() {
       <View className="mt-4 flex-row items-center gap-2.5 border-t border-auth-line pt-5">
         <Text className="text-[22px] text-auth-sage-deep">✳</Text>
         <Text className="flex-1 text-[10px] text-auth-note">
-          Your report. The right people. A little peace of mind.
+          {t('auth.login.tagline')}
         </Text>
       </View>
     </AuthShell>

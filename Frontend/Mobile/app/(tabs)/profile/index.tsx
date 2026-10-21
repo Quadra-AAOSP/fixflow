@@ -1,343 +1,228 @@
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowRight, Settings } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Settings } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
-import { AuthButton } from '@/components/auth/AuthButton';
-import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
+import { Screen } from '@/components/ui/Screen';
+import { Card } from '@/components/ui/Card';
 import { roleLabels } from '@/constants/access';
-import { authColors, fontFamilies } from '@/constants/theme';
+import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
+import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
-import type { User } from '@/types';
+import { ApiError } from '@/lib/apiClient';
+import { humanize } from '@/utils/format';
+import { logout } from '@/services/auth';
+
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
 /**
- * Account & session screen. Everything the backend exposes on `/api/auth/me`
- * is surfaced here; the backend has no profile-update endpoint
- * (`AdminUserController` is POST /api/admin/users only — admin provisioning),
- * so there is deliberately no edit affordance.
- *
- * Visual language: the profile deliberately adopts the warmer editorial
- * treatment of the auth pages (cream shell, sage-dot kickers, Manrope
- * headlines with tight tracking, coral accents, the serif `✳` sign-off and the
- * coral submit button) so it reads as the "nicer", branded sibling of the
- * sign-in screen rather than a plain dashboard card.
- *
- * Content still mirrors `ProfileView.vue` and the mobile dashboard: avatar +
- * name + email + role, the Account details / Working site panels, the
- * technician-only "contracts are optional" note, and the Session sign-out.
+ * Profile screen. Shows account details and sign-out action. Matches what
+ * the backend actually exposes on the User type.
  */
 export default function ProfileScreen() {
+  const { t } = useTranslation('common');
   const router = useRouter();
-  const { user, logout } = useAuth();
-  const { site, sites } = useCurrentSite();
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const { user, logout: clearSession } = useAuth();
+  const { site } = useCurrentSite();
+  const {
+    available,
+    setAvailable,
+    loading: availabilityLoading,
+  } = useTechnicianAvailability();
 
-  async function doLogout() {
-    setLoggingOut(true);
-    setLogoutError(null);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function doSignOut() {
+    setSigningOut(true);
     try {
       await logout();
-    } catch {
-      // Mirrors the web, which surfaces a failed sign-out instead of
-      // leaving the user stuck with no feedback.
-      setLogoutError('Sign out failed. Please try again.');
+      await clearSession();
+    } catch (err) {
+      Alert.alert(
+        t('profile.session.signOutAlertTitle'),
+        err instanceof ApiError ? err.message : t('profile.session.signOutFailed'),
+      );
     } finally {
-      setLoggingOut(false);
+      setSigningOut(false);
     }
   }
 
-  function onLogout() {
-    Alert.alert('Sign out', 'You will need to sign in again to continue.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: () => {
-          void doLogout();
-        },
-      },
-    ]);
+  function openSettings() {
+    router.push('/profile/settings');
   }
 
-  const accountRows: RowConfig[] = [];
-  if (user) {
-    accountRows.push(
-      { label: 'Role', value: roleLabels[user.role] ?? user.role },
-      { label: 'Account ID', value: `#${user.id}` },
-      {
-        label: 'Site ID',
-        value: user.siteId != null ? String(user.siteId) : '—',
-      },
-    );
-    if (user.phone) accountRows.push({ label: 'Phone', value: user.phone });
-    if (user.address) accountRows.push({ label: 'Address', value: user.address });
+  if (!user) {
+    return <Screen>{null}</Screen>;
   }
 
-  const siteRows: RowConfig[] = [];
-  if (site) {
-    siteRows.push(
-      { label: 'Type', value: capitalize(site.type) },
-      { label: 'Contract', value: capitalize(site.contractStatus) },
-    );
-    if (site.address) siteRows.push({ label: 'Address', value: site.address });
-  }
+  const roleLabel = t(roleLabels[user.role]);
+  const siteName =
+    user.siteId !== null && site ? site.name : t('profile.dash');
 
   return (
-    <View className="flex-1 bg-auth-bg">
-      <ScrollView contentContainerClassName="px-5 pb-12 pt-5">
-        {/* Hero — mirrors the auth heading stack (kicker → symbol tile →
-            headline → supporting line), personalised with the account's
-            initials and role. */}
-        <View className="rounded-[22px] bg-auth-panel px-5 pb-6 pt-6">
-          <View className="flex-row items-center justify-between">
-            <Kicker>Your account</Kicker>
-            {/* Settings entry point — pushes the Settings screen (theme
-                switch + app info) inside this Profile stack, so the back
-                arrow returns here rather than jumping to another tab. */}
+    <Screen>
+      <ScrollView contentContainerClassName="px-5 pb-10 pt-4">
+        <View className="mb-2 flex-row items-center justify-between">
+          <View>
+            <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+              {t('profile.heroKicker')}
+            </Text>
+            <Text
+              className="text-[24px] font-bold text-ink"
+              style={{ letterSpacing: -0.7 }}
+            >
+              {t('profile.profileTitle')}
+              <Text className="text-coral-decay">.</Text>
+            </Text>
+            <Text className="mt-0.5 text-[11px] text-dashboard-caption">
+              {t('profile.idLabel', { id: user.id })}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.openSettings')}
+            onPress={openSettings}
+            className="flex-row items-center gap-1 rounded-md border border-dashboard-card-line bg-dashboard-card-bg px-3 py-2 active:opacity-80"
+          >
+            <Settings color={dashboardColors.teal} size={14} />
+            <Text className="text-[11px] font-semibold text-dashboard-teal">
+              {t('profile.openSettings')}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Account details card */}
+        <Card padded={false} className="mb-4">
+          <View className="border-b border-dashboard-card-line px-4 py-3">
+            <Text className="text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+              {t('profile.accountDetails')}
+            </Text>
+          </View>
+          <Definition t={t} label={t('profile.labels.role')} value={roleLabel} />
+          <Definition t={t} label={t('profile.labels.accountId')} value={String(user.id)} />
+          <Definition
+            t={t}
+            label={t('profile.labels.siteId')}
+            value={user.siteId != null ? String(user.siteId) : t('profile.dash')}
+          />
+          <Definition
+            t={t}
+            label={t('profile.labels.phone')}
+            value={user.phone ?? t('profile.dash')}
+          />
+          <Definition
+            t={t}
+            label={t('profile.labels.address')}
+            value={user.address ?? t('profile.dash')}
+          />
+          <Definition t={t} label={t('profile.workingSite')} value={siteName} />
+        </Card>
+
+        {/* Session card — sign-out only (User has no session field on mobile) */}
+        <Card padded={false} className="mb-4">
+          <View className="border-b border-dashboard-card-line px-4 py-3">
+            <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+              {t('profile.session.kicker')}
+            </Text>
+          </View>
+          <View className="px-4 py-3">
+            <Text className="text-[11px] leading-[1.8] text-dashboard-subtitle">
+              {t('profile.session.signedInAs', {
+                role: roleLabel,
+                site: site && user.siteId != null ? ` · ${site.name}` : '',
+              })}
+            </Text>
+
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Open settings"
-              onPress={() => router.push('/profile/settings')}
-              className="h-9 w-9 items-center justify-center rounded-full bg-auth-lime-soft active:opacity-70"
+              accessibilityLabel={t('profile.session.signOut')}
+              disabled={signingOut}
+              onPress={() =>
+                Alert.alert(
+                  t('profile.session.signOutAlertTitle'),
+                  t('profile.session.signOutAlertBody'),
+                  [
+                    { text: t('profile.session.cancel'), style: 'cancel' },
+                    {
+                      text: t('profile.session.signOut'),
+                      style: 'destructive',
+                      onPress: doSignOut,
+                    },
+                  ],
+                )
+              }
+              className="mt-3 flex-row items-center justify-center rounded-[11px] border px-4 py-3 active:opacity-90"
+              style={{
+                backgroundColor: dashboardColors.statCoralSoft,
+                borderColor: dashboardColors.statCoralDeep,
+                opacity: signingOut ? 0.6 : 1,
+              }}
             >
-              <Settings color={authColors.ink} size={18} />
+              <Text
+                className="text-[13px] font-semibold"
+                style={{ color: dashboardColors.statCoralDeep }}
+              >
+                {signingOut ? t('profile.session.refreshing') : t('profile.session.signOut')}
+              </Text>
             </Pressable>
           </View>
+        </Card>
 
-          <View
-            className="mb-5 mt-5 h-16 w-16 items-center justify-center rounded-[20px] bg-auth-lime-soft"
-            style={{ transform: [{ rotate: '-6deg' }] }}
-          >
-            <Text
-              className="text-[24px] text-auth-ink"
-              style={{ fontFamily: fontFamilies.headExtraBold }}
-            >
-              {user ? initials(user) : '?'}
-            </Text>
-          </View>
-
-          <Text
-            className="text-[30px] text-auth-ink"
-            style={{ fontFamily: fontFamilies.headBold, letterSpacing: -1.3 }}
-          >
-            {user ? `${user.firstName} ${user.lastName}` : 'Profile'}
-            <Text className="text-coral">.</Text>
-          </Text>
-
-          {user ? (
-            <Text className="mt-2.5 text-[13px] leading-[22px] text-auth-body">
-              {user.email}
-            </Text>
-          ) : null}
-
-          {user ? (
-            <View className="mt-4 flex-row items-center gap-2">
-              <View className="rounded-full bg-coral px-3 py-1">
-                <Text
-                  className="text-[11px] text-auth-ink"
-                  style={{ fontFamily: fontFamilies.bodySemiBold }}
-                >
-                  {roleLabels[user.role] ?? user.role}
+        {/* Technician availability — device-local preference, not dispatched. */}
+        {user.role === 'technician' && !availabilityLoading ? (
+          <Card padded={false} className="mb-4">
+            <View className="border-b border-dashboard-card-line px-4 py-3">
+              <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+                {t('profile.availability.kicker')}
+              </Text>
+            </View>
+            <View className="flex-row items-center justify-between gap-4 px-4 py-3">
+              <View className="flex-1">
+                <Text className="text-[13px] font-semibold text-ink">
+                  {t('profile.availability.label')}
+                </Text>
+                <Text className="mt-0.5 text-[11px] leading-[1.6] text-dashboard-caption">
+                  {t('profile.availability.hint')}
                 </Text>
               </View>
-              <View className="rounded-full border border-auth-line px-3 py-1">
-                <Text
-                  className="text-[11px] text-auth-note"
-                  style={{ fontFamily: fontFamilies.bodySemiBold }}
-                >
-                  ID #{user.id}
-                </Text>
-              </View>
+              <Switch
+                accessibilityRole="switch"
+                accessibilityLabel={t('profile.availability.label')}
+                value={available}
+                onValueChange={setAvailable}
+                trackColor={{
+                  false: dashboardColors.cardLine,
+                  true: dashboardColors.teal,
+                }}
+                thumbColor={dashboardColors.cardBg}
+              />
             </View>
-          ) : null}
-        </View>
-
-        {user ? (
-          <>
-            <Kicker className="mt-6">Account details</Kicker>
-            <Panel>
-              <DetailList rows={accountRows} />
-            </Panel>
-          </>
+          </Card>
         ) : null}
 
-        {/* Mobile-only: the web surfaces the active site through the sidebar's
-            selector, but the bottom-bar layout has no dedicated slot, so the
-            site context lives here. */}
-        <Kicker className="mt-6">Working site</Kicker>
-        <Panel>
-          <SiteSwitcher />
-          {site ? (
-            <View className="mt-2 border-t border-auth-divider">
-              <DetailList rows={siteRows} />
-            </View>
-          ) : null}
-          {sites.length > 1 ? (
-            <Text className="mt-3 text-[11px] leading-[19px] text-auth-note">
-              Reports, categories, and the report list all follow the site
-              selected here.
-            </Text>
-          ) : null}
-        </Panel>
-
-        {/* Technician-only: mirrors the web's "Site contracts are optional"
-            panel. Independent technicians don't have a site-scoped list of
-            contracts, so the panel explains that and points to the contracts
-            screen for the application flow. */}
-        {user?.role === 'technician' ? (
-          <>
-            <Kicker className="mt-6">Contracts</Kicker>
-            <Panel>
-              <Text
-                className="text-[15px] text-auth-ink"
-                style={{ fontFamily: fontFamilies.headBold, letterSpacing: -0.3 }}
-              >
-                Site contracts are optional
-              </Text>
-              <Text className="mt-2 text-[12px] leading-[20px] text-auth-body">
-                Your account ID is {user.id}. Share it with a site administrator
-                when arranging a contract. A site ID does not represent your
-                contract list.
-              </Text>
-              <Pressable
-                accessibilityRole="link"
-                onPress={() => router.push('/more/contracts')}
-                className="mt-3 flex-row items-center gap-1.5 self-start active:opacity-70"
-              >
-                <Text
-                  className="text-[12px] text-coral-link"
-                  style={{ fontFamily: fontFamilies.bodySemiBold }}
-                >
-                  View contract options
-                </Text>
-                <ArrowRight color={authColors.coralLink} size={14} />
-              </Pressable>
-            </Panel>
-          </>
-        ) : null}
-
-        <Kicker className="mt-6">Session</Kicker>
-        <Panel>
-          <Text className="text-[12px] leading-[20px] text-auth-body">
-            {user
-              ? `Signed in as ${roleLabels[user.role] ?? user.role}${
-                  site ? ` · ${site.name}` : ''
-                }.`
-              : 'End this session on this device.'}
-          </Text>
-
-          {logoutError ? (
-            <Text className="mt-3 text-[12px] text-urgency-critical">
-              {logoutError}
-            </Text>
-          ) : null}
-
-          <View className="mt-4">
-            <AuthButton
-              label="Sign out →"
-              loading={loggingOut}
-              onPress={onLogout}
-            />
-          </View>
-        </Panel>
-
-        {/* Sign-off strip — the same serif asterisk + reassurance line the
-            sign-in screen closes with. */}
-        <View className="mt-8 flex-row items-center gap-2.5 border-t border-auth-line pt-6">
-          <Text className="text-[22px] text-auth-sage-deep">✳</Text>
-          <Text className="flex-1 text-[10px] text-auth-note">
-            Your report. The right people. A little peace of mind.
-          </Text>
-        </View>
+        <Text className="text-center text-[10px] leading-[1.6] text-dashboard-caption">
+          {t('profile.tagline')}
+        </Text>
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Sub-components                                                            */
-/* -------------------------------------------------------------------------- */
-
-type RowConfig = { label: string; value: string };
-
-/** First letter of each name part, falling back to the email's first letter. */
-function initials(user: User): string {
-  const first = user.firstName?.trim()?.[0] ?? '';
-  const last = user.lastName?.trim()?.[0] ?? '';
-  const combined = `${first}${last}`.toUpperCase();
-  if (combined) return combined;
-  return (user.email?.trim()?.[0] ?? '?').toUpperCase();
-}
-
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-/**
- * Section eyebrow: a sage dot plus an uppercase, letterspaced micro-label.
- * Identical to the auth story panel's kicker so the two surfaces share one
- * system.
- */
-function Kicker({
-  children,
-  className,
+function Definition({
+  t, label, value,
 }: {
-  children: string;
-  className?: string;
+  t: TranslateFn;
+  label: string;
+  value: string;
 }) {
   return (
-    <View className={`flex-row items-center gap-2 ${className ?? ''}`}>
-      <View className="h-[7px] w-[7px] rounded-full bg-auth-sage" />
-      <Text
-        className="text-[10px] uppercase text-auth-note"
-        style={{ fontFamily: fontFamilies.headBold, letterSpacing: 1.4 }}
-      >
-        {children}
-      </Text>
-    </View>
-  );
-}
-
-/** Warm near-white panel used for every grouped block. */
-function Panel({ children }: { children: React.ReactNode }) {
-  return (
-    <View className="mt-2.5 rounded-[18px] border border-auth-card-line bg-auth-card-bg px-4 py-4">
-      {children}
-    </View>
-  );
-}
-
-/** Hairline-separated label/value rows. */
-function DetailList({ rows }: { rows: RowConfig[] }) {
-  return (
-    <View>
-      {rows.map((row, index) => (
-        <View key={row.label}>
-          {index > 0 ? <View className="border-t border-auth-divider" /> : null}
-          <DetailRow {...row} />
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function DetailRow({ label, value }: RowConfig) {
-  return (
-    <View className="flex-row items-center justify-between gap-4 py-3.5">
-      <Text
-        className="text-[10px] uppercase text-auth-note"
-        style={{ fontFamily: fontFamilies.headBold, letterSpacing: 0.8 }}
-      >
+    <View className="flex-row items-start justify-between gap-4 border-b border-dashboard-card-line px-4 py-2 last:border-b-0">
+      <Text className="text-[10px] uppercase tracking-[1.2px] text-dashboard-caption">
         {label}
       </Text>
-      <Text
-        className="flex-1 text-right text-[13px] leading-[20px] text-auth-ink"
-        style={{ fontFamily: fontFamilies.bodySemiBold }}
-      >
-        {value}
-      </Text>
+      <Text className="flex-1 text-right text-[12px] text-ink">{value}</Text>
     </View>
   );
 }

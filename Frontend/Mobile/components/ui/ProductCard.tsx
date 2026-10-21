@@ -1,5 +1,6 @@
 import { Image, Pressable, Text, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { shopColors } from '@/constants/theme';
 import type { ShopProduct } from '@/types';
@@ -23,6 +24,7 @@ export function ProductCard({
   minorUnitDigits,
   onPress,
 }: ProductCardProps) {
+  const { t } = useTranslation('common');
   const imageUri = safeImageUrl(product.imageUrl);
   const outOfStock = product.stock <= 0;
 
@@ -45,7 +47,7 @@ export function ProductCard({
           />
         ) : (
           <Text className="text-[10px] text-shop-product-body">
-            No image
+            {t('more.shop.noImageShort')}
           </Text>
         )}
       </View>
@@ -85,7 +87,9 @@ export function ProductCard({
                 outOfStock ? 'text-tone-danger' : 'text-shop-product-foot'
               }`}
             >
-              {outOfStock ? 'Out of stock' : 'In stock'}
+              {outOfStock
+                ? t('more.shop.outOfStock')
+                : t('more.shop.inStock')}
             </Text>
           </View>
           <View
