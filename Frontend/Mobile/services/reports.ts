@@ -16,10 +16,11 @@ export function createReport(payload: CreateReportPayload): Promise<Report> {
  * (or be super_admin); the backend returns 403 otherwise
  * (`ReportService.resolveSiteForList`).
  */
-export function listReports(opts: { siteId: number }): Promise<Report[]> {
-  return api.get<Report[]>(
+export async function listReports(opts: { siteId: number }): Promise<Report[]> {
+  const page = await api.get<{ content: Report[] }>(
     `${endpoints.reports.list}?siteId=${encodeURIComponent(opts.siteId)}`,
   );
+  return page.content ?? [];
 }
 
 export function getReport(id: number): Promise<Report> {

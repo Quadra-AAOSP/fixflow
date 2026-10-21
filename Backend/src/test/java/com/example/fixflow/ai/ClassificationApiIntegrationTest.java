@@ -90,12 +90,17 @@ class ClassificationApiIntegrationTest {
         assertThat(stored.getCategory()).isEqualTo("general"); assertThat(stored.getAiUrgency()).isNull();
         assertThat(stored.getReporterUrgency()).isEqualTo(Urgency.critical);
     }
-    @Test void submissionNeverContactsAiAndProviderFailuresPersistFallback() throws Exception {
+    @Test void submissionAutoClassifiesAndProviderFailuresPersistFallback() throws Exception {
+        when(provider.classifyText(any())).thenReturn(ClassificationResponse.builder()
+                .category("electrical").specialty("wiring").urgency("medium").build());
         mvc.perform(post("/api/reports").with(user(new AppUserDetails(admin)))
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .content("{\"description\":\"New leak\",\"category\":\"plumbing\",\"reporterUrgency\":\"high\"}"))
-                .andExpect(status().isCreated());
-        verifyNoInteractions(provider);
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.category").value("electrical"))
+                .andExpect(jsonPath("$.aiUrgency").value("medium"));
+        verify(provider, atLeastOnce()).classifyText(any());
+
         when(provider.classifyText(any())).thenThrow(new AIProviderException("timeout", AIProviderException.AIErrorType.TIMEOUT));
         mvc.perform(post(endpoint()).with(user(new AppUserDetails(admin))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.category").value("general"));

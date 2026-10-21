@@ -40,6 +40,10 @@ spring:
     compose:
       enabled: false
       lifecycle-management: start-only
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 30MB
   autoconfigure:
     exclude:
       - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
@@ -69,6 +73,7 @@ fixflow:
     super-admin-email: ${FIXFLOW_SUPER_ADMIN_EMAIL:admin@fixflow.local}
     super-admin-password: ${FIXFLOW_SUPER_ADMIN_PASSWORD:changeme}
   minio:
+    enabled: ${MINIO_ENABLED:true}
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
@@ -106,6 +111,23 @@ server:
         # the client over http, which logged mobile users out on every request.
         # Production/HTTPS should set SESSION_COOKIE_SECURE=true.
         secure: ${SESSION_COOKIE_SECURE:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
 
 logging:
   level:

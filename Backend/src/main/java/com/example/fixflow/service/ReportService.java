@@ -1,24 +1,41 @@
 package com.example.fixflow.service;
 
+import java.io.InputStream;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.fixflow.domain.Report;
+import com.example.fixflow.domain.ReportPhoto;
 import com.example.fixflow.domain.ReportReporter;
 import com.example.fixflow.domain.ReportStatus;
 import com.example.fixflow.domain.Site;
+import com.example.fixflow.domain.StatusHistory;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.dto.AssignTechnicianRequest;
 import com.example.fixflow.dto.CreateReportRequest;
+import com.example.fixflow.dto.ReportPageResponse;
+import com.example.fixflow.dto.ReportPhotoResponse;
 import com.example.fixflow.dto.ReportReporterResponse;
 import com.example.fixflow.dto.ReportResponse;
+import com.example.fixflow.repository.ReportPhotoRepository;
 import com.example.fixflow.repository.ReportReporterRepository;
 import com.example.fixflow.repository.ReportRepository;
 import com.example.fixflow.repository.SiteRepository;
+import com.example.fixflow.repository.StatusHistoryRepository;
+import com.example.fixflow.repository.SubsiteRepository;
 import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.web.ApiException;
@@ -28,53 +45,79 @@ public class ReportService {
 
 	private final ReportRepository reportRepository;
 	private final ReportReporterRepository reportReporterRepository;
+	private final ReportPhotoRepository reportPhotoRepository;
+	private final StatusHistoryRepository statusHistoryRepository;
 	private final UserRepository userRepository;
 	private final SiteRepository siteRepository;
+	private final SubsiteRepository subsiteRepository;
 	private final CategoryTaxonomyService categoryTaxonomyService;
 	private final RoleIntegrityService roleIntegrityService;
-    private final com.example.fixflow.repository.SubsiteRepository subsiteRepository;
-    private final ReportClassificationService classificationService;
-    private final TechnicianTermsService terms;
-    private final boolean requireSiteSetup;
+	private final ReportClassificationService classificationService;
+	private final TechnicianTermsService terms;
+	private final ObjectStorageService objectStorageService;
+	private final ReportPhotoValidator photoValidator;
+	private final boolean requireSiteSetup;
 
 	public ReportService(
 			ReportRepository reportRepository,
 			ReportReporterRepository reportReporterRepository,
+			ReportPhotoRepository reportPhotoRepository,
+			StatusHistoryRepository statusHistoryRepository,
 			UserRepository userRepository,
 			SiteRepository siteRepository,
+			SubsiteRepository subsiteRepository,
 			CategoryTaxonomyService categoryTaxonomyService,
 			RoleIntegrityService roleIntegrityService,
-            com.example.fixflow.repository.SubsiteRepository subsiteRepository,
-            ReportClassificationService classificationService,
-            TechnicianTermsService terms,
-            @org.springframework.beans.factory.annotation.Value("${fixflow.reporting.require-site-setup:true}") boolean requireSiteSetup
+			ReportClassificationService classificationService,
+			TechnicianTermsService terms,
+			ObjectStorageService objectStorageService,
+			ReportPhotoValidator photoValidator,
+			@org.springframework.beans.factory.annotation.Value("${fixflow.reporting.require-site-setup:true}") boolean requireSiteSetup
 	) {
 		this.reportRepository = reportRepository;
 		this.reportReporterRepository = reportReporterRepository;
+		this.reportPhotoRepository = reportPhotoRepository;
+		this.statusHistoryRepository = statusHistoryRepository;
 		this.userRepository = userRepository;
 		this.siteRepository = siteRepository;
+		this.subsiteRepository = subsiteRepository;
 		this.categoryTaxonomyService = categoryTaxonomyService;
 		this.roleIntegrityService = roleIntegrityService;
-        this.subsiteRepository = subsiteRepository;
-        this.classificationService = classificationService;
-        this.terms = terms;
-        this.requireSiteSetup = requireSiteSetup;
+		this.classificationService = classificationService;
+		this.terms = terms;
+		this.objectStorageService = objectStorageService;
+		this.photoValidator = photoValidator;
+		this.requireSiteSetup = requireSiteSetup;
 	}
 
-    @Transactional
-    public ReportResponse classify(Long id, AppUserDetails actor) {
-        if (actor.getRole() != UserRole.admin && actor.getRole() != UserRole.super_admin) {
-            throw new ApiException(403, "Only site admins or super admins can classify reports");
-        }
-        Report report = reportRepository.findDetailedById(id)
-                .orElseThrow(() -> new ApiException(404, "Report not found"));
-        assertCanViewSite(actor, report.getSite().getId());
-        classificationService.classify(report);
-        return response(reportRepository.saveAndFlush(report), actor);
-    }
+	@Transactional
+	public ReportResponse classify(Long id, AppUserDetails actor) {
+		if (actor.getRole() != UserRole.admin && actor.getRole() != UserRole.super_admin) {
+			throw new ApiException(403, "Only site admins or super admins can classify reports");
+		}
+		Report report = reportRepository.findDetailedById(id)
+				.orElseThrow(() -> new ApiException(404, "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		classificationService.classify(report);
+		return response(reportRepository.saveAndFlush(report), actor);
+	}
 
 	@Transactional
 	public ReportResponse create(CreateReportRequest request, AppUserDetails actor) {
+		return createInternal(request, actor, List.of());
+	}
+
+	@Transactional
+	public ReportResponse createMultipart(CreateReportRequest request, List<MultipartFile> photos, AppUserDetails actor) {
+		photoValidator.validateBatch(photos, 0);
+		return createInternal(request, actor, photos == null ? List.of() : photos);
+	}
+
+	private ReportResponse createInternal(
+			CreateReportRequest request,
+			AppUserDetails actor,
+			List<MultipartFile> photos
+	) {
 		User filer = loadUser(actor.getId());
 		if (filer.getRole() != UserRole.reporter
 				&& filer.getRole() != UserRole.staff
@@ -88,20 +131,20 @@ public class ReportService {
 
 		Report report = new Report();
 		report.setSite(site);
-        if (request.subsiteId() != null) {
-            com.example.fixflow.domain.Subsite subsite = subsiteRepository.findById(request.subsiteId())
-                    .orElseThrow(() -> new ApiException(400, "Subsite not found"));
-            if (!subsite.getSite().getId().equals(site.getId())) {
-                throw new ApiException(400, "Subsite must belong to the report's site");
-            }
-            report.setSubsite(subsite);
-            if (subsite.getArchivedAt() != null) {
-                throw new ApiException(400, "Archived subsites cannot be selected for new reports");
-            }
-        }
-        if (requireSiteSetup && !subsiteRepository.existsBySite_IdAndArchivedAtIsNull(site.getId())) {
-            throw new ApiException(409, "Site setup required: ask the site admin to add an active subsite before reporting");
-        }
+		if (request.subsiteId() != null) {
+			com.example.fixflow.domain.Subsite subsite = subsiteRepository.findById(request.subsiteId())
+					.orElseThrow(() -> new ApiException(400, "Subsite not found"));
+			if (!subsite.getSite().getId().equals(site.getId())) {
+				throw new ApiException(400, "Subsite must belong to the report's site");
+			}
+			report.setSubsite(subsite);
+			if (subsite.getArchivedAt() != null) {
+				throw new ApiException(400, "Archived subsites cannot be selected for new reports");
+			}
+		}
+		if (requireSiteSetup && !subsiteRepository.existsBySite_IdAndArchivedAtIsNull(site.getId())) {
+			throw new ApiException(409, "Site setup required: ask the site admin to add an active subsite before reporting");
+		}
 		report.setCreatedBy(filer);
 		report.setDescription(request.description().trim());
 		report.setAddress(blankToNull(request.address()));
@@ -117,15 +160,39 @@ public class ReportService {
 		attachment.setUserId(filer.getId());
 		reportReporterRepository.save(attachment);
 
-		return response(report, actor);
+		appendStatusHistory(report, null, ReportStatus.open, filer, "Report created");
+		classificationService.classify(report);
+		report = reportRepository.saveAndFlush(report);
+
+		storePhotos(report, photos, 0);
+
+		return response(reportRepository.findDetailedById(report.getId()).orElse(report), actor);
 	}
 
 	@Transactional(readOnly = true)
-	public List<ReportResponse> list(Long siteId, AppUserDetails actor) {
+	public ReportPageResponse list(Long siteId, String category, int page, int size, AppUserDetails actor) {
 		Long scopedSiteId = resolveSiteForList(actor, siteId);
-		return reportRepository.findDetailedBySiteId(scopedSiteId).stream()
+		int safePage = Math.max(page, 0);
+		int safeSize = Math.min(Math.max(size, 1), 100);
+		String categoryFilter = blankToNull(category);
+		Page<Report> result = reportRepository.findOpenBySite(
+				scopedSiteId,
+				categoryFilter,
+				ReportStatus.confirmed,
+				PageRequest.of(safePage, safeSize)
+		);
+		List<Long> ids = result.getContent().stream().map(Report::getId).toList();
+		Map<Long, Report> detailed = new HashMap<>();
+		if (!ids.isEmpty()) {
+			for (Report report : reportRepository.findDetailedByIdIn(ids)) {
+				detailed.put(report.getId(), report);
+			}
+		}
+		List<ReportResponse> content = result.getContent().stream()
+				.map(report -> detailed.getOrDefault(report.getId(), report))
 				.map(report -> response(report, actor))
 				.toList();
+		return new ReportPageResponse(content, safePage, safeSize, result.getTotalElements(), result.getTotalPages());
 	}
 
 	@Transactional(readOnly = true)
@@ -138,12 +205,15 @@ public class ReportService {
 
 	@Transactional
 	public ReportResponse join(Long id, AppUserDetails actor) {
-        if (actor.getRole() != UserRole.reporter) {
-            throw new ApiException(403, "Only reporters can join reports");
-        }
+		if (actor.getRole() != UserRole.reporter) {
+			throw new ApiException(403, "Only reporters can join reports");
+		}
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
+		if (report.getStatus() == ReportStatus.confirmed) {
+			throw new ApiException(409, "Cannot join a confirmed report");
+		}
 		if (!reportReporterRepository.existsByReportIdAndUserId(id, actor.getId())) {
 			ReportReporter attachment = new ReportReporter();
 			attachment.setReportId(id);
@@ -179,10 +249,141 @@ public class ReportService {
 		User technician = userRepository.findById(request.technicianId())
 				.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Technician not found"));
 		roleIntegrityService.requireTechnician(technician);
-        terms.requireAcceptance(technician.getId());
+		terms.requireAcceptance(technician.getId());
+		ReportStatus from = report.getStatus();
 		report.setAssignedTechnician(technician);
 		report.setStatus(ReportStatus.assigned);
-		return response(reportRepository.save(report), actor);
+		report = reportRepository.save(report);
+		appendStatusHistory(report, from, ReportStatus.assigned, loadUser(actor.getId()), "Technician assigned");
+		return response(report, actor);
+	}
+
+	@Transactional
+	public List<ReportPhotoResponse> addPhotos(Long reportId, List<MultipartFile> photos, AppUserDetails actor) {
+		Report report = reportRepository.findDetailedById(reportId)
+				.orElseThrow(() -> new ApiException(404, "Report not found"));
+		assertCanManagePhotos(actor, report);
+		long existing = reportPhotoRepository.countByReport_Id(reportId);
+		photoValidator.validateBatch(photos, (int) existing);
+		List<ReportPhoto> stored = storePhotos(report, photos, (int) existing);
+		return stored.stream()
+				.map(photo -> ReportPhotoResponse.from(photo, reportId))
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public String photoDownloadUrl(Long reportId, Long photoId, AppUserDetails actor) {
+		Report report = reportRepository.findDetailedById(reportId)
+				.orElseThrow(() -> new ApiException(404, "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
+				.orElseThrow(() -> new ApiException(404, "Photo not found"));
+		return objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofMinutes(15));
+	}
+
+	@Transactional(readOnly = true)
+	public InputStream openPhotoStream(Long reportId, Long photoId, AppUserDetails actor) {
+		Report report = reportRepository.findDetailedById(reportId)
+				.orElseThrow(() -> new ApiException(404, "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
+				.orElseThrow(() -> new ApiException(404, "Photo not found"));
+		return objectStorageService.getObject(photo.getObjectKey());
+	}
+
+	@Transactional(readOnly = true)
+	public ReportPhoto requirePhoto(Long reportId, Long photoId, AppUserDetails actor) {
+		Report report = reportRepository.findDetailedById(reportId)
+				.orElseThrow(() -> new ApiException(404, "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		return reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
+				.orElseThrow(() -> new ApiException(404, "Photo not found"));
+	}
+
+	@Transactional
+	public void deletePhoto(Long reportId, Long photoId, AppUserDetails actor) {
+		Report report = reportRepository.findDetailedById(reportId)
+				.orElseThrow(() -> new ApiException(404, "Report not found"));
+		assertCanManagePhotos(actor, report);
+		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
+				.orElseThrow(() -> new ApiException(404, "Photo not found"));
+		String objectKey = photo.getObjectKey();
+		reportPhotoRepository.delete(photo);
+		objectStorageService.deleteObject(objectKey);
+	}
+
+	private List<ReportPhoto> storePhotos(Report report, List<MultipartFile> photos, int startingSortOrder) {
+		if (photos == null || photos.isEmpty()) {
+			return List.of();
+		}
+		List<MultipartFile> present = photos.stream()
+				.filter(file -> file != null && !file.isEmpty())
+				.toList();
+		if (present.isEmpty()) {
+			return List.of();
+		}
+
+		List<String> uploadedKeys = new ArrayList<>();
+		List<ReportPhoto> saved = new ArrayList<>();
+		try {
+			int sortOrder = startingSortOrder;
+			for (MultipartFile file : present) {
+				photoValidator.validateOne(file);
+				String contentType = photoValidator.normalizeContentType(file.getContentType());
+				String objectKey = "reports/" + report.getId() + "/" + UUID.randomUUID() + "."
+						+ photoValidator.extensionFor(contentType);
+				try (InputStream stream = file.getInputStream()) {
+					objectStorageService.putObject(objectKey, stream, file.getSize(), contentType);
+				}
+				uploadedKeys.add(objectKey);
+
+				ReportPhoto photo = new ReportPhoto();
+				photo.setReport(report);
+				photo.setObjectKey(objectKey);
+				photo.setContentType(contentType);
+				photo.setFileSizeBytes((int) file.getSize());
+				photo.setSortOrder(sortOrder++);
+				photo.setUrl("/api/reports/" + report.getId() + "/photos");
+				saved.add(reportPhotoRepository.save(photo));
+			}
+			return saved;
+		} catch (RuntimeException | java.io.IOException ex) {
+			for (String key : uploadedKeys) {
+				objectStorageService.deleteObject(key);
+			}
+			if (ex instanceof ApiException apiException) {
+				throw apiException;
+			}
+			throw new ApiException(502, "Failed to store report photos");
+		}
+	}
+
+	private void appendStatusHistory(
+			Report report,
+			ReportStatus from,
+			ReportStatus to,
+			User changedBy,
+			String note
+	) {
+		StatusHistory history = new StatusHistory();
+		history.setReport(report);
+		history.setFromStatus(from == null ? null : from.name());
+		history.setToStatus(to.name());
+		history.setChangedBy(changedBy);
+		history.setNote(note);
+		statusHistoryRepository.save(history);
+	}
+
+	private void assertCanManagePhotos(AppUserDetails actor, Report report) {
+		assertCanViewSite(actor, report.getSite().getId());
+		boolean allowed = switch (actor.getRole()) {
+			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+			case staff, admin, super_admin -> true;
+			default -> false;
+		};
+		if (!allowed) {
+			throw new ApiException(403, "Not allowed to manage photos on this report");
+		}
 	}
 
 	private Site resolveSiteForCreate(User filer, Long requestedSiteId) {
@@ -238,16 +439,21 @@ public class ReportService {
 		};
 	}
 
-    private ReportResponse response(Report report, AppUserDetails actor) {
-        boolean participant = reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
-        boolean canAssign = com.example.fixflow.dto.UserCapabilities.forRole(actor.getRole()).assignTechnician();
-        boolean ownQueue = actor.getRole() != UserRole.technician
-                || report.getAssignedTechnician() != null
-                && report.getAssignedTechnician().getId().equals(actor.getId());
-        return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
-                report, canSeeSensitive(actor, report), participant, canAssign,
-                actor.getRole() == UserRole.reporter && !participant, ownQueue));
-    }
+	private ReportResponse response(Report report, AppUserDetails actor) {
+		boolean participant = reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+		boolean canAssign = com.example.fixflow.dto.UserCapabilities.forRole(actor.getRole()).assignTechnician();
+		boolean ownQueue = actor.getRole() != UserRole.technician
+				|| report.getAssignedTechnician() != null
+				&& report.getAssignedTechnician().getId().equals(actor.getId());
+		List<ReportPhotoResponse> photos = reportPhotoRepository
+				.findByReport_IdOrderBySortOrderAscIdAsc(report.getId()).stream()
+				.sorted(Comparator.comparingInt(ReportPhoto::getSortOrder).thenComparing(ReportPhoto::getId))
+				.map(photo -> ReportPhotoResponse.from(photo, report.getId()))
+				.toList();
+		return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
+				report, canSeeSensitive(actor, report), participant, canAssign,
+				actor.getRole() == UserRole.reporter && !participant, ownQueue), photos);
+	}
 
 	private User loadUser(Long id) {
 		return userRepository.findWithSiteById(id)

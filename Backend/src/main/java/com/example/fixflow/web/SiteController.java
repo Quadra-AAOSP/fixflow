@@ -16,8 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.fixflow.dto.SiteRequest;
 import com.example.fixflow.dto.SiteResponse;
+import com.example.fixflow.dto.SiteRuleResponse;
+import com.example.fixflow.dto.TechnicianPoolMemberResponse;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.service.SiteService;
+import com.example.fixflow.service.TechnicianPoolService;
 
 import jakarta.validation.Valid;
 
@@ -26,9 +29,11 @@ import jakarta.validation.Valid;
 public class SiteController {
 
 	private final SiteService siteService;
+	private final TechnicianPoolService technicianPoolService;
 
-	public SiteController(SiteService siteService) {
+	public SiteController(SiteService siteService, TechnicianPoolService technicianPoolService) {
 		this.siteService = siteService;
+		this.technicianPoolService = technicianPoolService;
 	}
 
 	@GetMapping
@@ -39,6 +44,22 @@ public class SiteController {
 	@GetMapping("/{id}")
 	public SiteResponse get(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
 		return siteService.get(id, principal);
+	}
+
+	@GetMapping("/{id}/taxonomy")
+	public List<SiteRuleResponse> taxonomy(
+			@PathVariable Long id,
+			@AuthenticationPrincipal AppUserDetails principal
+	) {
+		return siteService.taxonomy(id, principal);
+	}
+
+	@GetMapping("/{id}/technician-pool")
+	public List<TechnicianPoolMemberResponse> technicianPool(
+			@PathVariable Long id,
+			@AuthenticationPrincipal AppUserDetails principal
+	) {
+		return technicianPoolService.eligiblePool(id, principal);
 	}
 
 	@PostMapping
