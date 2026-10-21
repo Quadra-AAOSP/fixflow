@@ -312,7 +312,18 @@
       "retry": "Retry",
       "couldNotLoadSite": "Could not load site",
       "retryLoadingBuildings": "Retry loading buildings",
-      "retryLoadingCategories": "Retry loading categories"
+      "retryLoadingCategories": "Retry loading categories",
+      "photos": {
+        "label": "Photos",
+        "gallery": "Choose from gallery",
+        "camera": "Take photo",
+        "count": "{count} of {max} photos",
+        "limitReached": "Maximum {max} photos",
+        "tooLarge": "Photo must be {size} MB or smaller.",
+        "permissionDenied": "Photo access is required. Enable it in Settings.",
+        "uploadFailed": "Could not upload one or more photos.",
+        "remove": "Remove photo"
+      }
     },
     "detail": {
       "allReports": "All reports",
@@ -377,7 +388,42 @@
       "assignReassign": "Reassign",
       "assignEnterValid": "Enter a valid technician ID.",
       "assignSaved": "Technician assignment saved.",
-      "reloadReport": "Reload report"
+      "reloadReport": "Reload report",
+      "confirmedSection": "Confirmation",
+      "confirmedBy": "Confirmed by",
+      "confirmedAt": "Confirmed at",
+      "reopenSection": "Reopen reason",
+      "confirm": {
+        "title": "Mark as resolved",
+        "body": "Confirm that this issue is resolved.",
+        "button": "Confirm resolved",
+        "success": "Report marked as resolved.",
+        "wrongStatus": "This report cannot be confirmed right now.",
+        "failed": "Could not confirm this report."
+      },
+      "reopen": {
+        "buttonLabel": "Reopen",
+        "buttonBody": "Reopen this report and explain what still needs attention.",
+        "modalTitle": "Reopen report",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Describe what still needs attention.",
+        "reasonRequired": "Please enter a reason.",
+        "reasonTooLong": "Keep the reason under 500 characters.",
+        "submit": "Reopen report",
+        "cancel": "Cancel",
+        "success": "Report reopened.",
+        "wrongStatus": "This report cannot be reopened from its current status.",
+        "failed": "Could not reopen this report."
+      },
+      "photos": {
+        "title": "Photos",
+        "noPhotos": "No photos attached."
+      },
+      "analysis": {
+        "title": "AI Analysis",
+        "available": "AI-assisted analysis",
+        "notAvailable": "Analysis not yet available"
+      }
     }
   },
   "assignments": {
@@ -1027,7 +1073,8 @@
       "open": "Open",
       "progress": "In progress",
       "resolved": "Resolved",
-      "urgent": "Urgent"
+      "urgent": "Urgent",
+      "confirmation": "Needs confirmation"
     },
     "role": {
       "reporter": "Reporter",

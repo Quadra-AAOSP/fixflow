@@ -132,7 +132,7 @@ class ApiSecurityMatrixIntegrationTest {
     @Test void contractWorkflowApprovesAtomicallyAndRejectsDuplicateDecision() throws Exception {
         mvc.perform(post("/api/technician-contract-requests").with(user(new AppUserDetails(technician))).contentType(MediaType.APPLICATION_JSON).content("{\"siteId\":" + own.getId() + ",\"note\":\"Available\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("pending"));
-        var a = applications.findByTechnician_IdOrderByCreatedAtDesc(technician.getId()).getFirst();
+        var a = applications.findByTechnician_IdOrderByCreatedAtDesc(technician.getId()).get(0);
         assertThat(contracts.existsByTechnician_IdAndSite_Id(technician.getId(), own.getId())).isFalse();
         mvc.perform(post("/api/technician-contract-requests").with(user(new AppUserDetails(technician))).contentType(MediaType.APPLICATION_JSON).content("{\"siteId\":" + own.getId() + "}")).andExpect(status().isConflict());
         mvc.perform(post("/api/technician-contract-requests/" + a.getId() + "/decision").with(user(new AppUserDetails(otherAdmin))).contentType(MediaType.APPLICATION_JSON).content("{\"decision\":\"approve\"}")).andExpect(status().isForbidden());
@@ -207,7 +207,7 @@ class ApiSecurityMatrixIntegrationTest {
         mvc.perform(post("/api/sites/" + empty.getId() + "/subsite-requests").with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"Add buildings\"}")).andExpect(status().isForbidden());
         mvc.perform(post("/api/sites/" + empty.getId() + "/subsite-requests").with(user(new AppUserDetails(emptyReporter))).contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"Add buildings\"}")).andExpect(status().isCreated());
         mvc.perform(post("/api/sites/" + empty.getId() + "/subsite-requests").with(user(new AppUserDetails(emptyReporter))).contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isConflict());
-        var alert = alerts.findBySite_IdAndStatusOrderByCreatedAtAsc(empty.getId(), com.example.fixflow.domain.SubsiteRequest.Status.pending).getFirst();
+        var alert = alerts.findBySite_IdAndStatusOrderByCreatedAtAsc(empty.getId(), com.example.fixflow.domain.SubsiteRequest.Status.pending).get(0);
         String resolve = "/api/sites/" + empty.getId() + "/subsite-requests/" + alert.getId() + "/resolve";
         mvc.perform(post(resolve).with(user(new AppUserDetails(emptyReporter)))).andExpect(status().isForbidden());
         mvc.perform(post(resolve).with(user(new AppUserDetails(admin)))).andExpect(status().isForbidden());
@@ -239,15 +239,32 @@ class ApiSecurityMatrixIntegrationTest {
 
     @Test void uploadAbuseIsRejectedWithoutCreatingReports() throws Exception {
         long before = reports.count();
-        for (MockMultipartFile file : new MockMultipartFile[]{
-                new MockMultipartFile("file", "../../payload.html", "text/html", "<script>alert(1)</script>".getBytes()),
-                new MockMultipartFile("file", "oversize.jpg", "image/jpeg", new byte[5 * 1024 * 1024 + 1])}) {
-            mvc.perform(multipart("/api/reports").file(file).with(user(new AppUserDetails(reporter)))).andExpect(status().isUnsupportedMediaType());
+        mvc.perform(multipart("/api/reports")
+                        .param("description", "Leak")
+                        .param("category", "plumbing")
+                        .param("reporterUrgency", "low")
+                        .file(new MockMultipartFile("file", "../../payload.html", "text/html", "<script>alert(1)</script>".getBytes()))
+                        .with(user(new AppUserDetails(reporter))))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(multipart("/api/reports")
+                        .param("description", "Leak")
+                        .param("category", "plumbing")
+                        .param("reporterUrgency", "low")
+                        .file(new MockMultipartFile("file", "oversize.jpg", "image/jpeg", new byte[5 * 1024 * 1024 + 1]))
+                        .with(user(new AppUserDetails(reporter))))
+                .andExpect(status().isUnprocessableEntity());
+        var excessive = multipart("/api/reports")
+                .param("description", "Leak")
+                .param("category", "plumbing")
+                .param("reporterUrgency", "low");
+        for (int i = 0; i < 6; i++) {
+            excessive.file(new MockMultipartFile("file", "photo" + i + ".jpg", "image/jpeg", new byte[]{1}));
         }
-        var excessive = multipart("/api/reports");
-        for (int i = 0; i < 6; i++) excessive.file(new MockMultipartFile("file", "photo.jpg", "image/jpeg", new byte[]{1}));
-        mvc.perform(excessive.with(user(new AppUserDetails(reporter)))).andExpect(status().isUnsupportedMediaType());
-        mvc.perform(multipart("/api/reports/" + foreignReport.getId() + "/photos").file(new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[]{1})).with(user(new AppUserDetails(reporter)))).andExpect(status().isNotFound());
+        mvc.perform(excessive.with(user(new AppUserDetails(reporter)))).andExpect(status().isUnprocessableEntity());
+        mvc.perform(multipart("/api/reports/" + foreignReport.getId() + "/photos")
+                        .file(new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[]{1}))
+                        .with(user(new AppUserDetails(reporter))))
+                .andExpect(status().isForbidden());
         assertThat(reports.count()).isEqualTo(before);
     }
 }

@@ -16,10 +16,11 @@ export function createReport(payload: CreateReportPayload): Promise<Report> {
  * (or be super_admin); the backend returns 403 otherwise
  * (`ReportService.resolveSiteForList`).
  */
-export function listReports(opts: { siteId: number }): Promise<Report[]> {
-  return api.get<Report[]>(
+export async function listReports(opts: { siteId: number }): Promise<Report[]> {
+  const page = await api.get<{ content: Report[] }>(
     `${endpoints.reports.list}?siteId=${encodeURIComponent(opts.siteId)}`,
   );
+  return page.content ?? [];
 }
 
 export function getReport(id: number): Promise<Report> {
@@ -46,14 +47,23 @@ export function assignTechnician(
   return api.post<Report>(endpoints.reports.assign(id), payload);
 }
 
+export function confirmReport(id: number): Promise<Report> {
+  return api.post<Report>(
+    endpoints.reports.confirm.replace('{id}', String(id)),
+  );
+}
+
+export function reopenReport(id: number, reason: string): Promise<Report> {
+  return api.post<Report>(
+    endpoints.reports.reopen.replace('{id}', String(id)),
+    { reason },
+  );
+}
+
 /*
  * Endpoints NOT exposed here yet — backend audit dependencies #1, #2, #4, #6:
  *
- *   POST   /api/reports/{id}/photos
- *   DELETE /api/reports/{id}/photos/{photoId}
  *   PATCH  /api/reports/{id}/status
- *   POST   /api/reports/{id}/confirm
- *   POST   /api/reports/{id}/reopen
  *   PATCH  /api/reports/{id}/urgency
  *   POST   /api/reports/{id}/reassign
  *   GET    /api/technicians/me/availability

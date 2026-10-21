@@ -10,6 +10,7 @@ import com.example.fixflow.domain.Site;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.dto.SiteRequest;
 import com.example.fixflow.dto.SiteResponse;
+import com.example.fixflow.dto.SiteRuleResponse;
 import com.example.fixflow.repository.SiteRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.web.ApiException;
@@ -18,9 +19,11 @@ import com.example.fixflow.web.ApiException;
 public class SiteService {
 
 	private final SiteRepository siteRepository;
+	private final SiteRuleService siteRuleService;
 
-	public SiteService(SiteRepository siteRepository) {
+	public SiteService(SiteRepository siteRepository, SiteRuleService siteRuleService) {
 		this.siteRepository = siteRepository;
+		this.siteRuleService = siteRuleService;
 	}
 
 	@Transactional(readOnly = true)
@@ -42,6 +45,14 @@ public class SiteService {
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Site not found"));
 		assertCanView(actor, site);
 		return SiteResponse.from(site);
+	}
+
+	@Transactional(readOnly = true)
+	public List<SiteRuleResponse> taxonomy(Long siteId, AppUserDetails actor) {
+		Site site = siteRepository.findById(siteId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Site not found"));
+		assertCanView(actor, site);
+		return siteRuleService.listByType(site.getType());
 	}
 
 	@Transactional

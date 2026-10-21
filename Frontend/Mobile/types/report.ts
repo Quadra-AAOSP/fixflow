@@ -27,6 +27,17 @@ export type ReportStatus =
  * technicians. The mobile must not attempt to reconstruct these client-side
  * or render placeholders that leak their existence.
  */
+/** Mirrors backend `ReportPhotoResponse`. */
+export type ReportPhoto = {
+  id: number;
+  objectKey: string;
+  url: string;
+  contentType: string | null;
+  fileSizeBytes: number;
+  sortOrder: number;
+  createdAt: string;
+};
+
 export type Report = {
   id: number;
   siteId: number | null;
@@ -45,7 +56,12 @@ export type Report = {
   assignedTechnicianId: number | null;
   editable: boolean;
   reopenCount: number;
+  confirmedByUserId: number | null;
+  confirmedByName: string | null;
+  confirmedAt: string | null;
+  reopenReason: string | null;
   visibility: ReportVisibility;
+  photos: ReportPhoto[];
   createdAt: string;
   updatedAt: string;
   policy: {

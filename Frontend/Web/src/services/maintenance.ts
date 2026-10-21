@@ -3,7 +3,10 @@ import type { CreateReportPayload, Report, ReportReporter, Site, SiteRule, SiteT
 
 export const listSites = () => request<Site[]>('/api/sites');
 export const listRules = (type: SiteType) => request<SiteRule[]>(`/api/site-rules?siteType=${encodeURIComponent(type)}`);
-export const listReports = (siteId: number) => request<Report[]>(`/api/reports?siteId=${siteId}`);
+export const listReports = async (siteId: number) => {
+  const page = await request<{ content: Report[] }>(`/api/reports?siteId=${siteId}`);
+  return page.content ?? [];
+};
 export const getReport = (id: number) => request<Report>(`/api/reports/${id}`);
 export const createReport = (payload: CreateReportPayload) => request<Report>('/api/reports', { method: 'POST', body: JSON.stringify(payload) });
 export const joinReport = (id: number) => request<Report>(`/api/reports/${id}/join`, { method: 'POST' });

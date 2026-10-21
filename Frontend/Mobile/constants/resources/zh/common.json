@@ -312,7 +312,18 @@
       "retry": "重试",
       "couldNotLoadSite": "无法加载站点",
       "retryLoadingBuildings": "重新加载建筑",
-      "retryLoadingCategories": "重新加载类别"
+      "retryLoadingCategories": "重新加载类别",
+      "photos": {
+        "label": "照片",
+        "gallery": "从相册选择",
+        "camera": "拍照",
+        "count": "已添加 {count} / {max} 张照片",
+        "limitReached": "最多 {max} 张照片",
+        "tooLarge": "照片必须不超过 {size} MB。",
+        "permissionDenied": "需要照片访问权限，请在设置中启用。",
+        "uploadFailed": "部分照片上传失败。",
+        "remove": "移除照片"
+      }
     },
     "detail": {
       "allReports": "全部报修",
@@ -377,7 +388,42 @@
       "assignReassign": "重新分配",
       "assignEnterValid": "请输入有效的技师 ID。",
       "assignSaved": "技师分配已保存。",
-      "reloadReport": "重新加载报修"
+      "reloadReport": "重新加载报修",
+      "confirmedSection": "确认信息",
+      "confirmedBy": "确认人",
+      "confirmedAt": "确认时间",
+      "reopenSection": "重开原因",
+      "confirm": {
+        "title": "标记为已解决",
+        "body": "确认此问题已解决。",
+        "button": "确认已解决",
+        "success": "报修已标记为已解决。",
+        "wrongStatus": "此报修目前无法确认。",
+        "failed": "无法确认此报修。"
+      },
+      "reopen": {
+        "buttonLabel": "重开",
+        "buttonBody": "重开此报修并说明仍需处理的问题。",
+        "modalTitle": "重开报修",
+        "reasonLabel": "原因",
+        "reasonPlaceholder": "描述仍需关注的问题。",
+        "reasonRequired": "请填写重开原因。",
+        "reasonTooLong": "原因请控制在 500 字以内。",
+        "submit": "提交重开",
+        "cancel": "取消",
+        "success": "报修已重开。",
+        "wrongStatus": "此报修当前状态无法重开。",
+        "failed": "无法重开此报修。"
+      },
+      "photos": {
+        "title": "照片",
+        "noPhotos": "暂无照片。"
+      },
+      "analysis": {
+        "title": "AI 分析",
+        "available": "AI 辅助分析",
+        "notAvailable": "分析功能暂不可用"
+      }
     }
   },
   "assignments": {
@@ -1027,7 +1073,8 @@
       "open": "待处理",
       "progress": "进行中",
       "resolved": "已解决",
-      "urgent": "紧急"
+      "urgent": "紧急",
+      "confirmation": "待确认"
     },
     "role": {
       "reporter": "报修人",

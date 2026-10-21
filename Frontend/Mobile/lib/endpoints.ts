@@ -61,6 +61,14 @@ export const endpoints = {
     join: (id: number | string) => `/api/reports/${id}/join`,
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
+    confirm: '/api/reports/{id}/confirm',
+    reopen: '/api/reports/{id}/reopen',
+    photos: {
+      list: '/api/reports/{id}/photos',
+      upload: '/api/reports/{id}/photos',
+      delete: '/api/reports/{id}/photos/{photoId}',
+      getUrl: '/api/reports/{id}/photos/{photoId}',
+    },
   },
 
   technicianSkills: {
@@ -100,11 +108,7 @@ export const endpoints = {
 /*
  * Not implemented by the backend, therefore not exposed anywhere in the app:
  *
- *   POST   /api/reports/{id}/photos
- *   DELETE /api/reports/{id}/photos/{photoId}
  *   PATCH  /api/reports/{id}/status
- *   POST   /api/reports/{id}/confirm
- *   POST   /api/reports/{id}/reopen
  *   PATCH  /api/reports/{id}/urgency
  *   POST   /api/reports/{id}/reassign
  *   GET    /api/technicians/me/availability

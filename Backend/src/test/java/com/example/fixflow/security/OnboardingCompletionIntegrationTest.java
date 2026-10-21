@@ -103,7 +103,7 @@ class OnboardingCompletionIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content("{\"version\":\"v1\"}")).andExpect(status().isConflict());
         acceptTerms(); acceptTerms();
         assertThat(acceptances.findByTechnician_IdOrderByAcceptedAtDesc(technician.getId())).hasSize(1);
-        assertThat(acceptances.findByTechnician_IdOrderByAcceptedAtDesc(technician.getId()).getFirst().getAcceptedAt()).isNotNull();
+        assertThat(acceptances.findByTechnician_IdOrderByAcceptedAtDesc(technician.getId()).get(0).getAcceptedAt()).isNotNull();
         mvc.perform(post("/api/technician-contract-requests").with(user(new AppUserDetails(technician)))
                 .contentType(MediaType.APPLICATION_JSON).content(request)).andExpect(status().isCreated());
         mvc.perform(get("/api/technician-terms/" + technician.getId()).with(user(new AppUserDetails(admin))))

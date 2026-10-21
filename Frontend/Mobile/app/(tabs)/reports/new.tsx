@@ -1,6 +1,8 @@
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -8,7 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ArrowLeft, ArrowRight, Building2, House, Plus } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Building2, Camera, House, ImagePlus, Plus, X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
@@ -25,13 +27,22 @@ import { canManageSubsites } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
+import { MAX_PHOTO_COUNT, MAX_PHOTO_SIZE_BYTES, uploadPhoto } from '@/services/photos';
 import { createReport } from '@/services/reports';
 import { listSiteRules } from '@/services/siteRules';
 import { listSubsites } from '@/services/sites';
-import type { ReportVisibility, SiteRule, SiteType, Subsite, Urgency } from '@/types';
+import type { ReportPhoto, ReportVisibility, SiteRule, SiteType, Subsite, Urgency } from '@/types';
 import { useCurrentSite } from '@/stores/site';
 import { humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
+
+/** Shape of a locally-picked image before it becomes a ReportPhoto. */
+type PickedImage = {
+  uri: string;
+  name: string;
+  mimeType: string;
+  fileSizeBytes: number | null;
+};
 
 /**
  * "Report an issue" form. Mirrors `ReportFormView.vue`:
@@ -74,6 +85,12 @@ export default function NewReportScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Photos — picked locally before report creation, uploaded in a batch
+  // immediately after the report is created. We upload post-create because
+  // the photos endpoint lives under /api/reports/{id}/photos and needs the id.
+  const [pickedPhotos, setPickedPhotos] = useState<PickedImage[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Mirrors the web's `canCreate` (reporter/staff/admin/super_admin only):
   // technicians resolve reports rather than file them.
@@ -152,6 +169,86 @@ export default function NewReportScreen() {
     return next;
   }
 
+  async function requestGalleryPermission(): Promise<boolean> {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      return false;
+    }
+    return true;
+  }
+
+  async function requestCameraPermission(): Promise<boolean> {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      return false;
+    }
+    return true;
+  }
+
+  function handlePickedAsset(asset: ImagePicker.ImagePickerAsset) {
+    if (pickedPhotos.length >= MAX_PHOTO_COUNT) return;
+    const fileSize = asset.fileSize ?? null;
+    if (fileSize !== null && fileSize > MAX_PHOTO_SIZE_BYTES) {
+      setUploadError(t('reports.new.photos.tooLarge', { size: '5' }));
+      return;
+    }
+    setUploadError(null);
+    const filename = asset.uri.split('/').pop() || 'photo.jpg';
+    const mimeType = asset.mimeType || 'image/jpeg';
+    setPickedPhotos((prev) => [
+      ...prev,
+      { uri: asset.uri, name: filename, mimeType, fileSizeBytes: fileSize },
+    ]);
+  }
+
+  async function pickFromGallery() {
+    if (pickedPhotos.length >= MAX_PHOTO_COUNT) return;
+    const allowed = await requestGalleryPermission();
+    if (!allowed) {
+      setUploadError(t('reports.new.photos.permissionDenied'));
+      return;
+    }
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        allowsMultipleSelection: false,
+        quality: 0.8,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (asset) handlePickedAsset(asset);
+    } catch {
+      // User denied or picker threw — silently ignore.
+    }
+  }
+
+  async function takePhoto() {
+    if (pickedPhotos.length >= MAX_PHOTO_COUNT) return;
+    const allowed = await requestCameraPermission();
+    if (!allowed) {
+      setUploadError(t('reports.new.photos.permissionDenied'));
+      return;
+    }
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (asset) handlePickedAsset(asset);
+    } catch {
+      // User denied or picker threw — silently ignore.
+    }
+  }
+
+  function removePickedPhoto(index: number) {
+    setPickedPhotos((prev) => prev.filter((_, i) => i !== index));
+    setUploadError(null);
+  }
+
   async function onSubmit() {
     const all = validateForm();
     setErrors(all);
@@ -164,6 +261,7 @@ export default function NewReportScreen() {
     }
 
     setSubmitting(true);
+    setUploadError(null);
     try {
       const report = await createReport({
         description: description.trim(),
@@ -175,9 +273,26 @@ export default function NewReportScreen() {
         subsiteId: subsiteId ?? undefined,
         visibility,
       });
+
+      // Batch-upload photos after creation — the endpoint needs the report id.
+      if (pickedPhotos.length > 0) {
+        const uploadResults = await Promise.allSettled(
+          pickedPhotos.map((p) =>
+            uploadPhoto(report.id, p.uri, p.name, p.mimeType),
+          ),
+        );
+        const failed = uploadResults.some((r) => r.status === 'rejected');
+        if (failed) {
+          setUploadError(t('reports.new.photos.uploadFailed'));
+        }
+      }
+
       router.replace(`/reports/${report.id}`);
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (err instanceof ApiError && err.status === 401) {
+        // auth logout pattern — let the auth hook handle it
+        setServerError(t('errors.unauthorized'));
+      } else if (err instanceof ApiError) {
         setServerError(err.message);
       } else {
         setServerError(t('reports.new.noConnection'));
@@ -451,6 +566,79 @@ export default function NewReportScreen() {
                 ? t('reports.new.visibilityPrivateHint')
                 : t('reports.new.visibilityPublicHint')}
             </Text>
+
+            <Text className="mb-2 text-sm font-medium text-ink">{t('reports.new.photos.label')}</Text>
+            <View className="mb-2 flex-row gap-2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('reports.new.photos.gallery')}
+                disabled={submitting || pickedPhotos.length >= MAX_PHOTO_COUNT}
+                onPress={pickFromGallery}
+                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-md border px-3 py-2 active:opacity-80"
+                style={{
+                  borderColor: dashboardColors.cardLine,
+                  opacity: pickedPhotos.length >= MAX_PHOTO_COUNT ? 0.5 : 1,
+                }}
+              >
+                <ImagePlus color={dashboardColors.teal} size={14} />
+                <Text className="text-[12px] font-medium text-ink">
+                  {t('reports.new.photos.gallery')}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('reports.new.photos.camera')}
+                disabled={submitting || pickedPhotos.length >= MAX_PHOTO_COUNT}
+                onPress={takePhoto}
+                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-md border px-3 py-2 active:opacity-80"
+                style={{
+                  borderColor: dashboardColors.cardLine,
+                  opacity: pickedPhotos.length >= MAX_PHOTO_COUNT ? 0.5 : 1,
+                }}
+              >
+                <Camera color={dashboardColors.teal} size={14} />
+                <Text className="text-[12px] font-medium text-ink">
+                  {t('reports.new.photos.camera')}
+                </Text>
+              </Pressable>
+            </View>
+            <Text className="mb-2 text-[10px] text-dashboard-caption">
+              {pickedPhotos.length >= MAX_PHOTO_COUNT
+                ? t('reports.new.photos.limitReached', { max: MAX_PHOTO_COUNT })
+                : t('reports.new.photos.count', { count: pickedPhotos.length, max: MAX_PHOTO_COUNT })}
+            </Text>
+            {pickedPhotos.length > 0 ? (
+              <View className="mb-3 flex-row flex-wrap gap-2">
+                {pickedPhotos.map((photo, index) => (
+                  <View
+                    key={`${photo.uri}-${index}`}
+                    className="relative"
+                  >
+                    <Image
+                      source={{ uri: photo.uri }}
+                      className="h-20 w-20 rounded-md"
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('reports.new.photos.remove')}
+                      onPress={() => removePickedPhoto(index)}
+                      className="absolute -right-1.5 -top-1.5 h-5 w-5 items-center justify-center rounded-full"
+                      style={{ backgroundColor: dashboardColors.ctaBg }}
+                    >
+                      <X color={dashboardColors.ctaText} size={11} strokeWidth={2.5} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {uploadError ? (
+              <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
+                <Text className="text-[10px] leading-[1.7] text-dashboard-error-text">
+                  {uploadError}
+                </Text>
+              </View>
+            ) : null}
 
             {serverError ? (
               <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">

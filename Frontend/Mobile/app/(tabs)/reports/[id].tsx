@@ -1,9 +1,12 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
+  Image,
+  Modal,
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import {
@@ -11,12 +14,15 @@ import {
   ClipboardList,
   Lock,
   RefreshCw,
+  Sparkles,
   UserPlus,
+  X,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ModalSheet } from '@/components/ui/ModalSheet';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -26,9 +32,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError, toErrorMessage } from '@/lib/apiClient';
 import {
   assignTechnician,
+  confirmReport,
   getReport,
   joinReport,
   listReporters,
+  reopenReport,
 } from '@/services/reports';
 import { useCurrentSite } from '@/stores/site';
 import type { Report, ReportReporter, Urgency } from '@/types';
@@ -44,7 +52,7 @@ export default function ReportDetailScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const reportId = rawId ? Number(rawId) : Number.NaN;
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { sites } = useCurrentSite();
 
   const [report, setReport] = useState<Report | null>(null);
@@ -56,6 +64,12 @@ export default function ReportDetailScreen() {
   const [joining, setJoining] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [technicianId, setTechnicianId] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [reopening, setReopening] = useState(false);
+  const [reopenModalVisible, setReopenModalVisible] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [reopenError, setReopenError] = useState<string | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!Number.isInteger(reportId) || reportId <= 0) {
@@ -81,7 +95,10 @@ export default function ReportDetailScreen() {
         setReporters(null);
       }
     } catch (err) {
-      if (err instanceof ApiError && err.status === 403) {
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      } else if (err instanceof ApiError && err.status === 403) {
         setLoadError(t('reports.detail.noAccess'));
       } else if (err instanceof ApiError && err.status === 404) {
         setLoadError(t('reports.detail.gone'));
@@ -149,6 +166,77 @@ export default function ReportDetailScreen() {
     }
   }
 
+  async function onConfirm() {
+    setActionError(null);
+    setActionMessage(null);
+    setConfirming(true);
+    try {
+      const updated = await confirmReport(reportId);
+      setReport(updated);
+      setActionMessage(t('reports.detail.confirm.success'));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      }
+      if (err instanceof ApiError && err.status === 409) {
+        setActionError(t('reports.detail.confirm.wrongStatus'));
+      } else {
+        setActionError(
+          toErrorMessage(err, { fallback: t('reports.detail.confirm.failed') }),
+        );
+      }
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  function openReopenModal() {
+    setActionError(null);
+    setActionMessage(null);
+    setReopenReason('');
+    setReopenError(null);
+    setReopenModalVisible(true);
+  }
+
+  async function onSubmitReopen() {
+    const trimmed = reopenReason.trim();
+    if (trimmed.length === 0) {
+      setReopenError(t('reports.detail.reopen.reasonRequired'));
+      return;
+    }
+    if (trimmed.length > 500) {
+      setReopenError(t('reports.detail.reopen.reasonTooLong'));
+      return;
+    }
+
+    setReopenError(null);
+    setReopening(true);
+    try {
+      const updated = await reopenReport(reportId, trimmed);
+      setReport(updated);
+      setReopenModalVisible(false);
+      setReopenReason('');
+      setActionMessage(t('reports.detail.reopen.success'));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      }
+      if (err instanceof ApiError && err.status === 409) {
+        setReopenError(t('reports.detail.reopen.wrongStatus'));
+      } else if (err instanceof ApiError && err.status === 400) {
+        setReopenError(t('reports.detail.reopen.reasonRequired'));
+      } else {
+        setReopenError(
+          toErrorMessage(err, { fallback: t('reports.detail.reopen.failed') }),
+        );
+      }
+    } finally {
+      setReopening(false);
+    }
+  }
+
   if (loading && !report) {
     return (
       <Screen>
@@ -192,6 +280,14 @@ export default function ReportDetailScreen() {
   const canJoin = report.policy.canJoin;
   const joined =
     report.policy.participant;
+  // Report creator, joined participants, and staff/admin/super_admin may
+  // confirm or reopen. Technicians, shop managers, and non-participant
+  // reporters cannot — the server enforces this as 403.
+  const canConfirmReopen = report.policy.participant || report.policy.canAssign;
+
+  const awaitingConfirmation = report.status === 'resolved_pending_confirmation';
+  const reopenable =
+    report.status === 'confirmed' || report.status === 'resolved_pending_confirmation';
 
   return (
     <Screen>
@@ -255,6 +351,59 @@ export default function ReportDetailScreen() {
         <Text className="mb-4 text-[14px] leading-[1.8] text-ink">
           {report.description}
         </Text>
+
+        {/* Photos gallery — fullscreen preview via Modal */}
+        <Card className="mb-4">
+          <Text
+            className="mb-2 text-[15px] font-semibold text-ink"
+            style={{ letterSpacing: -0.3 }}
+          >
+            {t('reports.detail.photos.title')}
+          </Text>
+          {report.photos && report.photos.length > 0 ? (
+            <View className="flex-row flex-wrap gap-2">
+              {report.photos.map((photo) => (
+                <Pressable
+                  key={photo.id}
+                  accessibilityRole="image"
+                  accessibilityLabel={`Photo ${photo.id}`}
+                  onPress={() => setPreviewPhoto(photo.url)}
+                  className="active:opacity-80"
+                >
+                  <Image
+                    source={{ uri: photo.url }}
+                    className="h-24 w-24 rounded-md"
+                  />
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Text className="text-[12px] text-dashboard-subtitle">
+              {t('reports.detail.photos.noPhotos')}
+            </Text>
+          )}
+        </Card>
+
+        {/* Analysis badge — Phase 5 placeholder, no backend endpoint yet */}
+        <Card className="mb-4">
+          <View className="flex-row items-center gap-2">
+            <View
+              className="rounded-full p-1.5"
+              style={{ backgroundColor: dashboardColors.statMintSoft }}
+            >
+              <Sparkles color={dashboardColors.statMintDeep} size={13} />
+            </View>
+            <Text
+              className="text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.analysis.title')}
+            </Text>
+          </View>
+          <Text className="mt-2 text-[12px] text-dashboard-subtitle">
+            {t('reports.detail.analysis.notAvailable')}
+          </Text>
+        </Card>
 
         {/* Definition list — mirrors the web's `.report-detail-grid` (3-col
             on desktop, stacked on mobile). Field labels and the
@@ -475,6 +624,80 @@ export default function ReportDetailScreen() {
           </Card>
         ) : null}
 
+        {report.confirmedAt !== null ? (
+          <Card className="mb-4">
+            <Text
+              className="mb-2 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.confirmedSection')}
+            </Text>
+            <DefinitionRow
+              label={t('reports.detail.confirmedBy')}
+              value={
+                report.confirmedByName ?? t('reports.detail.definition.notShared')
+              }
+            />
+            <DefinitionRow
+              label={t('reports.detail.confirmedAt')}
+              value={formatDate(report.confirmedAt, true)}
+            />
+          </Card>
+        ) : null}
+
+        {report.reopenReason !== null ? (
+          <Card className="mb-4">
+            <Text
+              className="mb-2 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.reopenSection')}
+            </Text>
+            <Text className="text-[12px] leading-[1.8] text-ink">
+              {report.reopenReason}
+            </Text>
+          </Card>
+        ) : null}
+
+        {canConfirmReopen && awaitingConfirmation ? (
+          <Card className="mb-4">
+            <Text
+              className="mb-1 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.confirm.title')}
+            </Text>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              {t('reports.detail.confirm.body')}
+            </Text>
+            <Button
+              label={t('reports.detail.confirm.button')}
+              variant="cta"
+              onPress={onConfirm}
+              loading={confirming}
+            />
+          </Card>
+        ) : null}
+
+        {canConfirmReopen && reopenable ? (
+          <Card className="mb-4">
+            <Text
+              className="mb-1 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.reopen.buttonLabel')}
+            </Text>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              {t('reports.detail.reopen.buttonBody')}
+            </Text>
+            <Button
+              label={t('reports.detail.reopen.buttonLabel')}
+              variant="secondary"
+              onPress={openReopenModal}
+            />
+          </Card>
+        ) : null}
+
         {joined && user ? (
           <View className="mb-3 flex-row items-center gap-1.5">
             <View
@@ -489,6 +712,74 @@ export default function ReportDetailScreen() {
 
         <View className="h-12" />
       </ScrollView>
+
+      <ModalSheet
+        visible={reopenModalVisible}
+        title={t('reports.detail.reopen.modalTitle')}
+        onClose={() => {
+          if (!reopening) setReopenModalVisible(false);
+        }}
+        busy={reopening}
+        footer={
+          <View className="flex-row gap-2">
+            <Button
+              label={t('reports.detail.reopen.cancel')}
+              variant="secondary"
+              onPress={() => setReopenModalVisible(false)}
+              disabled={reopening}
+            />
+            <Button
+              label={t('reports.detail.reopen.submit')}
+              variant="cta"
+              onPress={onSubmitReopen}
+              loading={reopening}
+              className="flex-1"
+            />
+          </View>
+        }
+      >
+        <TextField
+          label={t('reports.detail.reopen.reasonLabel')}
+          value={reopenReason}
+          onChangeText={(text) => {
+            setReopenReason(text);
+            if (reopenError) setReopenError(null);
+          }}
+          placeholder={t('reports.detail.reopen.reasonPlaceholder')}
+          error={reopenError ?? undefined}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
+      </ModalSheet>
+
+      <Modal
+        visible={previewPhoto !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewPhoto(null)}
+      >
+        <Pressable
+          onPress={() => setPreviewPhoto(null)}
+          className="flex-1 items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.9)' }}
+        >
+          <Pressable
+            onPress={() => setPreviewPhoto(null)}
+            className="absolute right-4 top-4 z-10 h-9 w-9 items-center justify-center rounded-full"
+            style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+          >
+            <X color="#fff" size={18} />
+          </Pressable>
+          {previewPhoto ? (
+            <Image
+              source={{ uri: previewPhoto }}
+              className="w-full"
+              style={{ resizeMode: 'contain', aspectRatio: 1 }}
+            />
+          ) : null}
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }

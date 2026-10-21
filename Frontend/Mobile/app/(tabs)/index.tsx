@@ -347,7 +347,9 @@ export default function HomeScreen() {
       ? null
       : activeStatus === 'urgent'
         ? t('home.statLabels.urgent.label')
-        : t(groupLabels[activeStatus]);
+        : activeStatus === 'confirmation'
+          ? t('labels.filter.confirmation')
+          : t(groupLabels[activeStatus]);
 
   // First-login setup gate: a site administrator whose site has no active
   // building lands on this screen instead of the dashboard. Authentication is
