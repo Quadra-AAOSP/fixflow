@@ -45,6 +45,10 @@ export type Report = {
   assignedTechnicianId: number | null;
   editable: boolean;
   reopenCount: number;
+  confirmedByUserId: number | null;
+  confirmedByName: string | null;
+  confirmedAt: string | null;
+  reopenReason: string | null;
   visibility: ReportVisibility;
   createdAt: string;
   updatedAt: string;

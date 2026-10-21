@@ -377,7 +377,33 @@
       "assignReassign": "重新分配",
       "assignEnterValid": "请输入有效的技师 ID。",
       "assignSaved": "技师分配已保存。",
-      "reloadReport": "重新加载报修"
+      "reloadReport": "重新加载报修",
+      "confirmedSection": "确认信息",
+      "confirmedBy": "确认人",
+      "confirmedAt": "确认时间",
+      "reopenSection": "重开原因",
+      "confirm": {
+        "title": "标记为已解决",
+        "body": "确认此问题已解决。",
+        "button": "确认已解决",
+        "success": "报修已标记为已解决。",
+        "wrongStatus": "此报修目前无法确认。",
+        "failed": "无法确认此报修。"
+      },
+      "reopen": {
+        "buttonLabel": "重开",
+        "buttonBody": "重开此报修并说明仍需处理的问题。",
+        "modalTitle": "重开报修",
+        "reasonLabel": "原因",
+        "reasonPlaceholder": "描述仍需关注的问题。",
+        "reasonRequired": "请填写重开原因。",
+        "reasonTooLong": "原因请控制在 500 字以内。",
+        "submit": "提交重开",
+        "cancel": "取消",
+        "success": "报修已重开。",
+        "wrongStatus": "此报修当前状态无法重开。",
+        "failed": "无法重开此报修。"
+      }
     }
   },
   "assignments": {
@@ -1027,7 +1053,8 @@
       "open": "待处理",
       "progress": "进行中",
       "resolved": "已解决",
-      "urgent": "紧急"
+      "urgent": "紧急",
+      "confirmation": "待确认"
     },
     "role": {
       "reporter": "报修人",

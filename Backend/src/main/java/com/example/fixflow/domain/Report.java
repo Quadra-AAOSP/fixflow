@@ -85,6 +85,16 @@ public class Report {
 	@Column(nullable = false, length = 16)
 	private ReportVisibility visibility = ReportVisibility.PUBLIC;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "confirmed_by_user_id")
+	private User confirmedBy;
+
+	@Column(name = "confirmed_at")
+	private Instant confirmedAt;
+
+	@Column(name = "reopen_reason", columnDefinition = "TEXT")
+	private String reopenReason;
+
 	@Column(name = "reopen_count", nullable = false)
 	private int reopenCount = 0;
 

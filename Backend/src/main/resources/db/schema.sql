@@ -273,6 +273,31 @@ PREPARE visibility_statement FROM @visibility_migration;
 EXECUTE visibility_statement;
 DEALLOCATE PREPARE visibility_statement;
 
+SET @confirm_user_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'confirmed_by_user_id') = 0,
+    'ALTER TABLE reports ADD COLUMN confirmed_by_user_id BIGINT UNSIGNED NULL, ADD CONSTRAINT fk_reports_confirmed_by FOREIGN KEY (confirmed_by_user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE',
+    'SELECT 1');
+PREPARE confirm_user_statement FROM @confirm_user_migration;
+EXECUTE confirm_user_statement;
+DEALLOCATE PREPARE confirm_user_statement;
+
+SET @confirm_at_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'confirmed_at') = 0,
+    'ALTER TABLE reports ADD COLUMN confirmed_at TIMESTAMP(6) NULL', 'SELECT 1');
+PREPARE confirm_at_statement FROM @confirm_at_migration;
+EXECUTE confirm_at_statement;
+DEALLOCATE PREPARE confirm_at_statement;
+
+SET @reopen_reason_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'reopen_reason') = 0,
+    'ALTER TABLE reports ADD COLUMN reopen_reason TEXT NULL', 'SELECT 1');
+PREPARE reopen_reason_statement FROM @reopen_reason_migration;
+EXECUTE reopen_reason_statement;
+DEALLOCATE PREPARE reopen_reason_statement;
+
 CREATE TABLE IF NOT EXISTS report_photos (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     report_id        BIGINT UNSIGNED NOT NULL,

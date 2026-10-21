@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.fixflow.dto.AssignTechnicianRequest;
 import com.example.fixflow.dto.CreateReportRequest;
+import com.example.fixflow.dto.ReopenReportRequest;
 import com.example.fixflow.dto.ReportReporterResponse;
 import com.example.fixflow.dto.ReportResponse;
 import com.example.fixflow.security.AppUserDetails;
@@ -78,5 +79,19 @@ public class ReportController {
 			@AuthenticationPrincipal AppUserDetails principal
 	) {
 		return reportService.assign(id, request, principal);
+	}
+
+	@PostMapping("/{id}/confirm")
+	public ReportResponse confirm(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
+		return reportService.confirm(id, principal);
+	}
+
+	@PostMapping("/{id}/reopen")
+	public ReportResponse reopen(
+			@PathVariable Long id,
+			@Valid @RequestBody ReopenReportRequest request,
+			@AuthenticationPrincipal AppUserDetails principal
+	) {
+		return reportService.reopen(id, request, principal);
 	}
 }

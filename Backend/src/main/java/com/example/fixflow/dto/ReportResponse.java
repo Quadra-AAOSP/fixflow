@@ -25,6 +25,10 @@ public record ReportResponse(
 		Long assignedTechnicianId,
 		boolean editable,
 		int reopenCount,
+		String reopenReason,
+		Long confirmedByUserId,
+		String confirmedByName,
+		Instant confirmedAt,
 		ReportVisibility visibility,
 		Instant createdAt,
 		Instant updatedAt,
@@ -39,6 +43,12 @@ public record ReportResponse(
 			createdById = report.getCreatedBy().getId();
 			createdByName = report.getCreatedBy().getFirstName() + " " + report.getCreatedBy().getLastName();
 			address = report.getAddress();
+		}
+		Long confirmedById = null;
+		String confirmedByName = null;
+		if (includeSensitive && report.getConfirmedBy() != null) {
+			confirmedById = report.getConfirmedBy().getId();
+			confirmedByName = report.getConfirmedBy().getFirstName() + " " + report.getConfirmedBy().getLastName();
 		}
 		return new ReportResponse(
 				report.getId(),
@@ -58,6 +68,10 @@ public record ReportResponse(
 				report.getAssignedTechnician() != null ? report.getAssignedTechnician().getId() : null,
 				report.isEditable(),
 				report.getReopenCount(),
+				includeSensitive ? report.getReopenReason() : null,
+				confirmedById,
+				confirmedByName,
+				includeSensitive ? report.getConfirmedAt() : null,
 				report.getVisibility(),
 				report.getCreatedAt(),
 				report.getUpdatedAt(),

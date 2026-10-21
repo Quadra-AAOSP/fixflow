@@ -61,6 +61,8 @@ export const endpoints = {
     join: (id: number | string) => `/api/reports/${id}/join`,
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
+    confirm: '/api/reports/{id}/confirm',
+    reopen: '/api/reports/{id}/reopen',
   },
 
   technicianSkills: {
@@ -103,8 +105,6 @@ export const endpoints = {
  *   POST   /api/reports/{id}/photos
  *   DELETE /api/reports/{id}/photos/{photoId}
  *   PATCH  /api/reports/{id}/status
- *   POST   /api/reports/{id}/confirm
- *   POST   /api/reports/{id}/reopen
  *   PATCH  /api/reports/{id}/urgency
  *   POST   /api/reports/{id}/reassign
  *   GET    /api/technicians/me/availability

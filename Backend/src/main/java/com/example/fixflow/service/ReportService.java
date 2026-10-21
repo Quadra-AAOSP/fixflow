@@ -1,5 +1,6 @@
 package com.example.fixflow.service;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,7 @@ import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.dto.AssignTechnicianRequest;
 import com.example.fixflow.dto.CreateReportRequest;
+import com.example.fixflow.dto.ReopenReportRequest;
 import com.example.fixflow.dto.ReportReporterResponse;
 import com.example.fixflow.dto.ReportResponse;
 import com.example.fixflow.repository.ReportReporterRepository;
@@ -195,6 +197,58 @@ public class ReportService {
 		report.setAssignedTechnician(technician);
 		report.setStatus(ReportStatus.assigned);
 		return response(reportRepository.save(report), actor);
+	}
+
+	@Transactional
+	public ReportResponse confirm(Long id, AppUserDetails actor) {
+		Report report = reportRepository.findDetailedById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
+		assertCanConfirmOrReopen(report, actor);
+		if (report.getStatus() != ReportStatus.resolved_pending_confirmation) {
+			throw new ApiException(409, "Cannot confirm a report that is not awaiting confirmation");
+		}
+		User user = loadUser(actor.getId());
+		report.setStatus(ReportStatus.confirmed);
+		report.setConfirmedBy(user);
+		report.setConfirmedAt(Instant.now());
+		return response(reportRepository.save(report), actor);
+	}
+
+	@Transactional
+	public ReportResponse reopen(Long id, ReopenReportRequest request, AppUserDetails actor) {
+		Report report = reportRepository.findDetailedById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
+		assertCanConfirmOrReopen(report, actor);
+		if (report.getStatus() != ReportStatus.confirmed
+				&& report.getStatus() != ReportStatus.resolved_pending_confirmation) {
+			throw new ApiException(409, "Report cannot be reopened from its current status");
+		}
+		report.setStatus(ReportStatus.reopened);
+		report.setReopenCount(report.getReopenCount() + 1);
+		report.setReopenReason(request.reason().trim());
+		return response(reportRepository.save(report), actor);
+	}
+
+	private void assertCanConfirmOrReopen(Report report, AppUserDetails actor) {
+		switch (actor.getRole()) {
+			case staff, admin, super_admin -> {
+				return;
+			}
+			case reporter -> {
+				boolean isCreator = report.getCreatedBy() != null
+						&& report.getCreatedBy().getId().equals(actor.getId());
+				boolean isParticipant = reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+				if (isCreator || isParticipant) {
+					return;
+				}
+			}
+			default -> {}
+		}
+		throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to confirm or reopen this report");
 	}
 
 	private Site resolveSiteForCreate(User filer, Long requestedSiteId) {
