@@ -12,6 +12,7 @@ import { SiteProvider } from '@/stores/site';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
+import { isTabVisible, isTechnicianForbiddenRoute } from '@/lib/tabAccess';
 
 /**
  * Role-aware bottom tabs. Mirrors the web sidebar navigation:
@@ -42,14 +43,11 @@ export default function TabLayout() {
     );
   }
 
-  const isTechnician = user.role === 'technician';
-
   // Technician accounts have no Home/Reports tab slots. Only bounce them when
   // they are actually sitting on one of those routes (deep link, stale
   // navigation state) — an unconditional <Redirect> would fight the tab
   // navigator on every remount and block Assignments/More/Profile.
-  const technicianOnForbiddenRoute =
-    isTechnician && (pathname === '/' || pathname.startsWith('/reports'));
+  const technicianOnForbiddenRoute = isTechnicianForbiddenRoute(user.role, pathname);
 
   return (
     <SiteProvider>
@@ -83,7 +81,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={
-            isTechnician
+            !isTabVisible(user.role, 'index')
               ? { href: null }
               : {
                   title: t('tabs.home'),
@@ -97,7 +95,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="reports"
           options={
-            isTechnician
+            !isTabVisible(user.role, 'reports')
               ? { href: null }
               : {
                   // The nested Reports stack owns its own header so `new` and
@@ -115,7 +113,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="workspace"
           options={
-            isTechnician
+            isTabVisible(user.role, 'workspace')
               ? {
                   title: t('tabs.workspace'),
                   tabBarIcon: ({ color, size }) => (
@@ -129,7 +127,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="assignments"
           options={
-            isTechnician
+            isTabVisible(user.role, 'assignments')
               ? {
                   title: t('tabs.assignments'),
                   tabBarIcon: ({ color, size }) => (

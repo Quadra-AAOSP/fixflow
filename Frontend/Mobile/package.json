@@ -38,13 +38,17 @@
     "@types/react": "~19.2.2",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "tailwindcss": "^3.4.19",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
   },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "vitest run && node --test tests/apiClient.security.test.cjs",
+    "test:unit": "vitest run",
+    "test:security": "node --test tests/apiClient.security.test.cjs"
   },
   "private": true
 }
