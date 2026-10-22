@@ -4,6 +4,7 @@
   "compilerOptions": {
     "strict": true,
     "module": "esnext",
+    "types": ["node"],
     "forceConsistentCasingInFileNames": true,
     "paths": {
       "@/*": [
