@@ -44,7 +44,7 @@ public class ReportPhoto {
 	private int fileSizeBytes;
 
 	@Column(name = "sort_order", nullable = false)
-	private int sortOrder;
+	private int sortOrder = 0;
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;

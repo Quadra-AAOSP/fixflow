@@ -28,12 +28,15 @@ public class SecurityConfig {
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http,
-            org.springframework.core.env.Environment environment) throws Exception {
+            org.springframework.core.env.Environment environment,
+            com.example.fixflow.web.TraceIdFilter traceIdFilter) throws Exception {
+		SessionExpiryFilter sessionExpiryFilter = new SessionExpiryFilter(
+				org.springframework.boot.convert.DurationStyle.detectAndParse(
+						environment.getProperty("fixflow.session.absolute-timeout", "12h")));
 		http
-                .addFilterBefore(new SessionExpiryFilter(
-                        org.springframework.boot.convert.DurationStyle.detectAndParse(
-                                environment.getProperty("fixflow.session.absolute-timeout", "12h"))),
-                        org.springframework.security.web.context.SecurityContextHolderFilter.class)
+				.addFilterBefore(traceIdFilter,
+						org.springframework.security.web.context.SecurityContextHolderFilter.class)
+				.addFilterAfter(sessionExpiryFilter, com.example.fixflow.web.TraceIdFilter.class)
 				.csrf(csrf -> csrf.disable())
 				.cors(Customizer.withDefaults())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
@@ -42,9 +45,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/policy").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/shop/catalog").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()
+						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+						.requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
 						.requestMatchers("/api/admin/shop/**").hasAnyRole("SUPER_ADMIN", "SHOP_MANAGER")
 						.requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 						.requestMatchers("/api/**").authenticated()
+                        .requestMatchers("/ws/reports").authenticated()
 						.anyRequest().permitAll()
 				)
 				.httpBasic(httpBasic -> httpBasic.disable())
@@ -66,8 +72,7 @@ public class SecurityConfig {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(
-                java.util.Map.of("timestamp", java.time.Instant.now().toString(), "status", status,
-                        "error", error, "message", message, "path", path)));
+                com.example.fixflow.web.ApiError.of(status, error, message, path).asMap()));
     }
 
 	@Bean

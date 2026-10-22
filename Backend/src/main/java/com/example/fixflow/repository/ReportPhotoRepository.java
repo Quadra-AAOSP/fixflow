@@ -9,9 +9,15 @@ import com.example.fixflow.domain.ReportPhoto;
 
 public interface ReportPhotoRepository extends JpaRepository<ReportPhoto, Long> {
 
+	List<ReportPhoto> findByReport_IdOrderBySortOrderAscIdAsc(Long reportId);
+
 	List<ReportPhoto> findByReportIdOrderBySortOrderAscCreatedAtAsc(Long reportId);
 
-	Optional<ReportPhoto> findByIdAndReportId(Long photoId, Long reportId);
+	long countByReport_Id(Long reportId);
 
 	long countByReportId(Long reportId);
+
+	Optional<ReportPhoto> findByIdAndReport_Id(Long id, Long reportId);
+
+	Optional<ReportPhoto> findByIdAndReportId(Long photoId, Long reportId);
 }

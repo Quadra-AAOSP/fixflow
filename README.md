@@ -1,5 +1,9 @@
 # FixFlow
 
+Task ownership, current product decisions and completion tracking live in the
+[Central Task PRD](fixflow-task-prd.md). Older setup/provider/role descriptions
+below may lag current contracts; do not use this README as a second task plan.
+
 Multi-site maintenance reporting platform (school / hostel / hotel) with AI-assisted classification and technician routing.
 
 **Reporter, staff, and admin** can file issues (text + photos) at their site → AI classifies category / specialty / urgency → site-scoped routing assigns or opens a marketplace claim → technicians resolve → reporters confirm. Dual urgency (`ai_urgency` / `reporter_urgency` / `final_urgency`) and two-step resolution are core MVP requirements. Reassignments keep a full trail of previous technician ids.

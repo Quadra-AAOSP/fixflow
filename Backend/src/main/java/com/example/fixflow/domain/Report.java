@@ -21,6 +21,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @Table(name = "reports")
 @Getter
 @Setter
@@ -58,6 +59,15 @@ public class Report {
 	@Enumerated(EnumType.STRING)
 	@Column(name = "ai_urgency", length = 32)
 	private Urgency aiUrgency;
+
+    @Column(name = "ai_category", length = 128)
+    private String aiCategory;
+    @Column(name = "ai_specialty", length = 128)
+    private String aiSpecialty;
+    @Column(name = "ai_description", columnDefinition = "TEXT")
+    private String aiDescription;
+    @Column(name = "ai_urgency_reason", columnDefinition = "TEXT")
+    private String aiUrgencyReason;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "reporter_urgency", nullable = false, length = 32)

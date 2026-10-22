@@ -45,6 +45,12 @@ fixflow:
     # Legacy API fixtures deliberately exercise reports without configured buildings.
     # Dedicated onboarding tests explicitly enable the production setup policy.
     require-site-setup: false
+  minio:
+    enabled: false
+    endpoint: http://localhost:9000
+    access-key: test
+    secret-key: test
+    bucket: fixflow-photos-test
   bootstrap:
     super-admin-email: admin@fixflow.local
     super-admin-password: test-admin-pass
@@ -56,8 +62,3 @@ fixflow:
     checkout-cancel-url: http://localhost:5173/shop
     stripe-secret-key:
     stripe-webhook-secret:
-  minio:
-    endpoint: http://localhost:9000
-    access-key: minioadmin
-    secret-key: minioadmin
-    bucket: fixflow-photos

@@ -20,6 +20,8 @@ public class ClassificationResponse {
     private String urgency;
     private String provider;
     private String model;
+    private String analysisDescription;
+    private String urgencyReason;
     @Builder.Default
     private boolean confidence = true;
 }

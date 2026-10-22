@@ -32,8 +32,12 @@ build/
 ### VS Code ###
 .vscode/
 
+### Local tooling leftovers ###
+.jdks/
+.m2-local/
 
 Frontend/node_modules/
 Frontend/dist/
 Frontend/public/
 .env
+Backend/dev/README.txt

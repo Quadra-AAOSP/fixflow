@@ -22,10 +22,10 @@ import com.example.fixflow.repository.SiteRuleRepository;
  * Applies AI classifications to reports using the fixed site-rule taxonomy.
  *
  * <p>Fallback policy: if no AI provider is configured, an AI call fails, or its
- * response contains an unknown category or urgency, the report is classified as
- * the site's allowed {@code general} category with no AI urgency or specialty.
- * A null AI urgency marks the classification for staff review. Reporter-entered
- * urgency is never read or changed by this service.</p>
+ * response contains an unknown category or urgency, the AI category becomes
+ * the site's allowed {@code general}, or null if absent, with no AI urgency.
+ * A null AI urgency marks the classification for staff review. Human-entered
+ * description, category, specialty, urgency and reason are never overwritten.</p>
  */
 @Service
 public class ReportClassificationService {
@@ -67,6 +67,17 @@ public class ReportClassificationService {
         }
     }
 
+    public void applyVision(Report report, com.example.fixflow.ai.dto.VisionClassificationResponse result) {
+        try {
+            applyValidatedClassification(report, report.getSite().getType(),
+                    ClassificationResponse.builder().category(result.getCategory())
+                            .specialty(result.getSpecialty()).urgency(result.getUrgency())
+                            .analysisDescription(result.getAnalysisDescription()).urgencyReason(result.getUrgencyReason()).build());
+        } catch (RuntimeException invalid) {
+            applyFallback(report, report.getSite().getType(), "Invalid or unavailable vision classification");
+        }
+    }
+
     private void applyValidatedClassification(
             Report report,
             SiteType siteType,
@@ -81,17 +92,23 @@ public class ReportClassificationService {
 
         // Validate urgency before mutating the last valid category.
         Urgency aiUrgency = Urgency.valueOf(urgency);
-        report.setCategory(category);
-        report.setSpecialty(truncate(normalize(response.getSpecialty()), 128));
+        report.setAiCategory(category);
+        report.setAiSpecialty(truncate(normalize(response.getSpecialty()), 128));
         report.setAiUrgency(aiUrgency);
+        report.setAiDescription(truncate(response.getAnalysisDescription(), 2000));
+        report.setAiUrgencyReason(truncate(response.getUrgencyReason(), 2000));
     }
 
     private void applyFallback(Report report, SiteType siteType, String reason) {
         if (siteRuleRepository.existsBySiteTypeAndCategory(siteType, GENERAL_CATEGORY)) {
-            report.setCategory(GENERAL_CATEGORY);
+            report.setAiCategory(GENERAL_CATEGORY);
+        } else {
+            report.setAiCategory(null);
         }
-        report.setSpecialty(null);
+        report.setAiSpecialty(null);
         report.setAiUrgency(null);
+        report.setAiDescription(null);
+        report.setAiUrgencyReason(null);
         log.warn("Report {} requires staff AI-classification review: {}", report.getId(), reason);
     }
 

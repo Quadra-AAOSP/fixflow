@@ -1,4 +1,8 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   application:
     name: fixflow
   config:
@@ -40,6 +44,10 @@ spring:
     compose:
       enabled: false
       lifecycle-management: start-only
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 30MB
   autoconfigure:
     exclude:
       - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
@@ -55,6 +63,11 @@ spring:
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
 
 fixflow:
+  websocket:
+    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081}
+    session-check-ms: ${WEBSOCKET_SESSION_CHECK_MS:5000}
+  seed:
+    demo-enabled: ${SEED_DEMO_DATA:false}
   cors:
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*}
   reporting:
@@ -69,6 +82,7 @@ fixflow:
     super-admin-email: ${FIXFLOW_SUPER_ADMIN_EMAIL:admin@fixflow.local}
     super-admin-password: ${FIXFLOW_SUPER_ADMIN_PASSWORD:changeme}
   minio:
+    enabled: ${MINIO_ENABLED:true}
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
@@ -83,6 +97,10 @@ fixflow:
     stripe-webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 
 openrouter:
+  vision:
+    enabled: ${OPENROUTER_VISION_ENABLED:false}
+    model: ${OPENROUTER_VISION_MODEL:nvidia/nemotron-3.5-super-vl:free}
+    fallback-model: ${OPENROUTER_VISION_FALLBACK_MODEL:minimax/minimax-m3.1-flash:free}
   api-key: ${OPENROUTER_API_KEY:}
   model: ${OPENROUTER_MODEL:openrouter/free}
   base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1/chat/completions}
@@ -106,6 +124,23 @@ server:
         # the client over http, which logged mobile users out on every request.
         # Production/HTTPS should set SESSION_COOKIE_SECURE=true.
         secure: ${SESSION_COOKIE_SECURE:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
 
 logging:
   level:

@@ -15,6 +15,8 @@ import com.example.fixflow.domain.SiteType;
 import com.example.fixflow.repository.SiteRuleRepository;
 
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        prefix = "fixflow.seed", name = "demo-enabled", havingValue = "false", matchIfMissing = true)
 @Order(1)
 public class SiteRulesSeeder implements ApplicationRunner {
 

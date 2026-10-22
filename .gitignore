@@ -54,4 +54,9 @@ Backend/docs/API_CONTRACT.md
 SHOP_API.md
 *.log
 Backend/docs/
+Backend/.jdks/
+Backend/.m2-local/
 debug.log
+Backend/dev/
+
+Backend/dev/test-results/20261021-081713-424/INTERPRETATION.md
