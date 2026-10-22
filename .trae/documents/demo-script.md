@@ -36,4 +36,14 @@ Demo accounts to create up front: one per role — reporter, technician, staff, 
 4. Wait 15 min (or drop device clock) → heartbeat keeps session alive; force a 401 → silent re-login.
 
 ## Screenshots to capture (one per role)
-Reporter Home, Technician Assignments, Staff Reports-with-confirm, Admin Technicians, Super-admin Applications, Shop-manager products.
+
+| Role | Screen | Expected state |
+|---|---|---|
+| Reporter | Home tab | Stats cards populated, needs-attention card with at least one item, recent reports with relative timestamps |
+| Technician | Assignments tab | "Assigned to me" section with ≥1 card; "Available to claim" section visible below |
+| Staff | Reports list, "Needs confirmation" filter active | At least one `resolved_pending_confirmation` report in the list |
+| Admin | More → Technicians | Directory with availability chips, skills listed, contract sites grouped |
+| Super admin | More → Admin applications | At least one pending application row with approve/deny actions |
+| Shop manager | Shop products | Product grid visible; no site tabs in the bar |
+
+Capture in light mode, English locale, on a physical device or emulator at 1080p+. Dark mode + 中文 variants are optional extras — run them after the primary set.
