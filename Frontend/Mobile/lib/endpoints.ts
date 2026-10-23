@@ -61,6 +61,8 @@ export const endpoints = {
     join: (id: number | string) => `/api/reports/${id}/join`,
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
+    /** POST — stateless AI chat about one report; body carries the message history. */
+    assistant: (id: number | string) => `/api/reports/${id}/assistant`,
     confirm: '/api/reports/{id}/confirm',
     reopen: '/api/reports/{id}/reopen',
     photos: {
