@@ -422,7 +422,19 @@
       "analysis": {
         "title": "AI 分析",
         "available": "AI 辅助分析",
-        "notAvailable": "分析功能暂不可用"
+        "joinToAsk": "加入此报告后即可向助手提问。"
+      },
+      "chat": {
+        "title": "询问此报告",
+        "empty": "可以询问此报告的任何问题——状态、紧急程度或处理历史。",
+        "placeholder": "输入你的问题…",
+        "send": "发送",
+        "typing": "助手正在输入…",
+        "fallback": "助手暂时不可用，请稍后再试。",
+        "tooMany": "请求过于频繁，请稍等片刻。",
+        "error": "无法连接助手。",
+        "retry": "重试",
+        "disclaimer": "AI 回答可能有误，重要信息请自行核实。"
       }
     }
   },

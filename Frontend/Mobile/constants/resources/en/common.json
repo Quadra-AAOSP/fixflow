@@ -422,7 +422,19 @@
       "analysis": {
         "title": "AI Analysis",
         "available": "AI-assisted analysis",
-        "notAvailable": "Analysis not yet available"
+        "joinToAsk": "Join this report to ask the assistant about it."
+      },
+      "chat": {
+        "title": "Ask about this report",
+        "empty": "Ask anything about this report — its status, urgency, or history.",
+        "placeholder": "Type your question…",
+        "send": "Send",
+        "typing": "Assistant is typing…",
+        "fallback": "The assistant is temporarily unavailable. Try again in a moment.",
+        "tooMany": "Too many requests — please wait a moment.",
+        "error": "The assistant could not be reached.",
+        "retry": "Retry",
+        "disclaimer": "AI answers can be wrong. Double-check anything important."
       }
     }
   },
