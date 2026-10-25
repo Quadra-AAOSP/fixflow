@@ -63,6 +63,8 @@ export const endpoints = {
     assign: (id: number | string) => `/api/reports/${id}/assign`,
     /** POST — stateless AI chat about one report; body carries the message history. */
     assistant: (id: number | string) => `/api/reports/${id}/assistant`,
+    /** POST — natural-language query → structured filters (NL smart search). */
+    searchNl: '/api/reports/search/nl',
     confirm: '/api/reports/{id}/confirm',
     reopen: '/api/reports/{id}/reopen',
     photos: {
@@ -104,6 +106,13 @@ export const endpoints = {
       `/api/shop/orders/${encodeURIComponent(publicId)}/cancel`,
     devCompletePayment: (publicId: string) =>
       `/api/shop/payments/dev/complete/${encodeURIComponent(publicId)}`,
+  },
+
+  assistant: {
+    /** POST — pre-filing triage chat; returns reply + optional suggested fields. */
+    triage: '/api/assistant/triage',
+    /** POST — upload audio (multipart field `audio`) → transcribed text. */
+    transcribe: '/api/assistant/transcribe',
   },
 } as const;
 

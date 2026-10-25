@@ -10,3 +10,4 @@ export * from './subsite';
 export * from './report';
 export * from './technician';
 export * from './shop';
+export * from './assistant';
