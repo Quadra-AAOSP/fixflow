@@ -258,6 +258,20 @@
       "errors": {
         "couldNotLoad": "Could not load reports.",
         "retry": "Retry"
+      },
+      "nl": {
+        "open": "Ask",
+        "title": "Describe what you're looking for",
+        "intro": "Describe the reports you want in plain English — we'll turn it into filters.",
+        "placeholder": "e.g. open high-urgency plumbing reports from last week",
+        "search": "Search",
+        "thinking": "Thinking…",
+        "error": "Could not understand that query. Try again or use the filters.",
+        "interpreted": "Filtered as: {interpretation}",
+        "removeChip": "Remove this filter",
+        "clearAll": "Clear all",
+        "chipFrom": "From {date}",
+        "chipTo": "To {date}"
       }
     },
     "new": {
@@ -313,6 +327,34 @@
       "couldNotLoadSite": "Could not load site",
       "retryLoadingBuildings": "Retry loading buildings",
       "retryLoadingCategories": "Retry loading categories",
+      "triage": {
+        "open": "Describe with assistant",
+        "title": "Report assistant",
+        "intro": "Tell me what's wrong — I'll ask a few questions and suggest category, urgency, and a description draft.",
+        "empty": "Start by describing the issue in your own words.",
+        "placeholder": "Describe the issue…",
+        "typing": "Assistant is typing…",
+        "send": "Send",
+        "tooMany": "Too many requests — slow down and try again.",
+        "fallback": "The assistant is unavailable right now. You can still fill in the form manually.",
+        "disclaimer": "Suggestions are a starting point — review and adjust before submitting.",
+        "suggested": {
+          "title": "Suggested details",
+          "category": "Category",
+          "urgency": "Urgency",
+          "use": "Use these details"
+        },
+        "voice": {
+          "start": "Record",
+          "stop": "Stop",
+          "transcribing": "Transcribing…"
+        }
+      },
+      "voice": {
+        "start": "Dictate description",
+        "stop": "Stop recording",
+        "transcribing": "Transcribing…"
+      },
       "photos": {
         "label": "Photos",
         "gallery": "Choose from gallery",
@@ -1102,5 +1144,11 @@
     "unauthorized": "Your session has expired. Please sign in again.",
     "couldNotLoadTitle": "Could not load reports",
     "reLoginFailed": "Automatic sign-in failed. Sign in manually when the app re-opens."
+  },
+  "voice": {
+    "permissionDenied": "Microphone access is required to record. Enable it in Settings.",
+    "tooLarge": "Recording is too long — keep it under 10 MB.",
+    "unavailable": "Voice input is not available right now. Try typing instead.",
+    "failed": "Could not transcribe your recording. Please try again."
   }
 }

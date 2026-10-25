@@ -258,6 +258,20 @@
       "errors": {
         "couldNotLoad": "无法加载报修列表。",
         "retry": "重试"
+      },
+      "nl": {
+        "open": "询问",
+        "title": "用自然语言描述你要找的报修",
+        "intro": "用日常语言描述你想找的报修——我们会把它转成筛选条件。",
+        "placeholder": "例如：上周的高优先级水管类报修",
+        "search": "搜索",
+        "thinking": "正在分析…",
+        "error": "无法理解该查询，请重试或使用筛选条件。",
+        "interpreted": "已按条件筛选：{interpretation}",
+        "removeChip": "移除此筛选条件",
+        "clearAll": "清除全部",
+        "chipFrom": "从 {date} 起",
+        "chipTo": "至 {date}"
       }
     },
     "new": {
@@ -313,6 +327,34 @@
       "couldNotLoadSite": "无法加载站点",
       "retryLoadingBuildings": "重新加载建筑",
       "retryLoadingCategories": "重新加载类别",
+      "triage": {
+        "open": "用助手描述",
+        "title": "报修助手",
+        "intro": "告诉我哪里出了问题——我会问几个问题，并建议类别、优先级和描述草稿。",
+        "empty": "先用你自己的话描述一下问题。",
+        "placeholder": "描述问题…",
+        "typing": "助手正在输入…",
+        "send": "发送",
+        "tooMany": "请求过于频繁，请稍候再试。",
+        "fallback": "助手暂时不可用。你仍可手动填写表单。",
+        "disclaimer": "建议仅作参考——提交前请复核并调整。",
+        "suggested": {
+          "title": "建议信息",
+          "category": "类别",
+          "urgency": "优先级",
+          "use": "使用这些信息"
+        },
+        "voice": {
+          "start": "录音",
+          "stop": "停止",
+          "transcribing": "正在转录…"
+        }
+      },
+      "voice": {
+        "start": "语音录入描述",
+        "stop": "停止录音",
+        "transcribing": "正在转录…"
+      },
       "photos": {
         "label": "照片",
         "gallery": "从相册选择",
@@ -1102,5 +1144,11 @@
     "unauthorized": "您的会话已过期，请重新登录。",
     "couldNotLoadTitle": "无法加载报修",
     "reLoginFailed": "自动登录失败。请在应用重新打开后手动登录。"
+  },
+  "voice": {
+    "permissionDenied": "需要麦克风权限才能录音。请在设置中开启。",
+    "tooLarge": "录音过长，请控制在 10 MB 以内。",
+    "unavailable": "语音输入暂时不可用，请改用文字输入。",
+    "failed": "无法转录您的录音，请重试。"
   }
 }
