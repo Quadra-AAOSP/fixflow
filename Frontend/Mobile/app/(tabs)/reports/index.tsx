@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import {
   ArrowRight,
   ClipboardList,
@@ -8,6 +8,8 @@ import {
   House,
   Plus,
   Search,
+  Sparkles,
+  X,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -21,8 +23,9 @@ import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
+import { searchReportsNl } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
-import type { Report, ReportStatus } from '@/types';
+import type { NlSearchFilters, Report, ReportStatus } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import {
   REPORT_FILTERS,
@@ -64,6 +67,14 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState(params.q ?? '');
   const [filter, setFilter] = useState<FilterValue>(initialFilter);
+
+  // A3 smart search: structured filters parsed from a natural-language query.
+  const [nlFilters, setNlFilters] = useState<NlSearchFilters | null>(null);
+  const [interpretation, setInterpretation] = useState<string | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
+  const [askQuery, setAskQuery] = useState('');
+  const [askLoading, setAskLoading] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!site) return;
@@ -112,12 +123,64 @@ export default function ReportsScreen() {
   const filtered = useMemo(
     // Newest first — matches the web's sort in `ReportsView.vue`.
     () =>
-      searchReports(reports ?? [], query, siteName, filter).sort(
+      searchReports(reports ?? [], query, siteName, filter, nlFilters).sort(
         (a, b) =>
           Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''),
       ),
-    [reports, query, siteName, filter],
+    [reports, query, siteName, filter, nlFilters],
   );
+
+  async function onAskSubmit() {
+    if (!site || !askQuery.trim() || askLoading) return;
+    setAskLoading(true);
+    setAskError(null);
+    try {
+      const result = await searchReportsNl(site.id, askQuery.trim());
+      const hasAny =
+        result.filters.status ||
+        result.filters.category ||
+        result.filters.urgency ||
+        result.filters.from ||
+        result.filters.to ||
+        result.filters.text;
+      setNlFilters(hasAny ? result.filters : null);
+      setInterpretation(result.interpretation);
+      if (result.filters.text) {
+        // Let the NL `text` act as the free-text query too, so haystack
+        // matching still applies alongside the structured filters.
+        setQuery(result.filters.text);
+      }
+      setAskOpen(false);
+      setAskQuery('');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      }
+      setAskError(
+        err instanceof ApiError
+          ? err.message
+          : t('reports.list.nl.error'),
+      );
+    } finally {
+      setAskLoading(false);
+    }
+  }
+
+  function clearNlChip(key: keyof NlSearchFilters) {
+    setNlFilters((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, [key]: null };
+      const remaining =
+        next.status || next.category || next.urgency || next.from || next.to || next.text;
+      return remaining ? next : null;
+    });
+  }
+
+  function clearAllNl() {
+    setNlFilters(null);
+    setInterpretation(null);
+  }
 
   // The same five options the web renders in its "Status" select
   // (`ReportsView.vue`): All reports / Open / In progress / Resolved / Urgent.
@@ -177,6 +240,11 @@ export default function ReportsScreen() {
                 filterOptions={filterSelectOptions}
                 matchingCount={filtered.length}
                 loaded={site != null && error === null && reports !== null}
+                nlFilters={nlFilters}
+                interpretation={interpretation}
+                onOpenAsk={() => { setAskError(null); setAskOpen(true); }}
+                onClearNlChip={clearNlChip}
+                onClearAllNl={clearAllNl}
               />
             }
             ItemSeparatorComponent={() => (
@@ -242,7 +310,111 @@ export default function ReportsScreen() {
           />
         </Card>
       </View>
+      <AskModal
+        visible={askOpen}
+        query={askQuery}
+        onChangeQuery={setAskQuery}
+        loading={askLoading}
+        error={askError}
+        t={t}
+        onClose={() => setAskOpen(false)}
+        onSubmit={onAskSubmit}
+      />
     </Screen>
+  );
+}
+
+/** The natural-language search entry — a small modal above the reports list. */
+function AskModal({
+  visible,
+  query,
+  onChangeQuery,
+  loading,
+  error,
+  t,
+  onClose,
+  onSubmit,
+}: {
+  visible: boolean;
+  query: string;
+  onChangeQuery: (q: string) => void;
+  loading: boolean;
+  error: string | null;
+  t: TranslateFn;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  if (!visible) return null;
+  return (
+    <Modal
+      animationType="fade"
+      transparent
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('components.modalSheet.close')}
+        onPress={onClose}
+        className="flex-1 items-center justify-center bg-black/40 px-6"
+      >
+        <View className="w-full rounded-[14px] bg-card p-4">
+          <View className="mb-2 flex-row items-center gap-1.5">
+            <Sparkles color={dashboardColors.statMintDeep} size={14} />
+            <Text className="text-[15px] font-semibold text-ink">
+              {t('reports.list.nl.title')}
+            </Text>
+          </View>
+          <Text className="mb-2 text-[11px] leading-[1.6] text-dashboard-subtitle">
+            {t('reports.list.nl.intro')}
+          </Text>
+          <TextInput
+            value={query}
+            onChangeText={onChangeQuery}
+            placeholder={t('reports.list.nl.placeholder')}
+            placeholderTextColor={dashboardColors.subtitle}
+            multiline
+            numberOfLines={3}
+            autoFocus
+            editable={!loading}
+            className="min-h-[64px] rounded-[10px] border border-border px-3 py-2 text-[13px] text-ink"
+            onSubmitEditing={onSubmit}
+          />
+          {error ? (
+            <Text className="mt-1.5 text-[11px] leading-[1.6] text-tone-danger">
+              {error}
+            </Text>
+          ) : null}
+          <View className="mt-3 flex-row justify-end gap-2">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('components.modalSheet.close')}
+              onPress={onClose}
+              className="rounded-[9px] px-3 py-2 active:opacity-80"
+            >
+              <Text className="text-[12px] font-medium text-ink">
+                {t('components.modalSheet.close')}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('reports.list.nl.search')}
+              onPress={onSubmit}
+              disabled={loading || !query.trim()}
+              className="rounded-[9px] px-3 py-2 active:opacity-80"
+              style={{ backgroundColor: dashboardColors.ctaBg }}
+            >
+              <Text
+                className="text-[12px] font-semibold"
+                style={{ color: dashboardColors.ctaText }}
+              >
+                {loading ? t('reports.list.nl.thinking') : t('reports.list.nl.search')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -261,6 +433,11 @@ type ReportsHeaderProps = {
   filterOptions: { value: string; label: string }[];
   matchingCount: number;
   loaded: boolean;
+  nlFilters: NlSearchFilters | null;
+  interpretation: string | null;
+  onOpenAsk: () => void;
+  onClearNlChip: (key: keyof NlSearchFilters) => void;
+  onClearAllNl: () => void;
 };
 
 /**
@@ -281,7 +458,22 @@ function ReportsHeader({
   filterOptions,
   matchingCount,
   loaded,
+  nlFilters,
+  interpretation,
+  onOpenAsk,
+  onClearNlChip,
+  onClearAllNl,
 }: ReportsHeaderProps) {
+  const chips = useMemo(() => {
+    if (!nlFilters) return [];
+    const items: { key: keyof NlSearchFilters; label: string }[] = [];
+    if (nlFilters.status) items.push({ key: 'status', label: t(`labels.status.${nlFilters.status}`) });
+    if (nlFilters.category) items.push({ key: 'category', label: humanize(nlFilters.category) });
+    if (nlFilters.urgency) items.push({ key: 'urgency', label: t(urgencyLabels[nlFilters.urgency]) });
+    if (nlFilters.from) items.push({ key: 'from', label: t('reports.list.nl.chipFrom', { date: nlFilters.from }) });
+    if (nlFilters.to) items.push({ key: 'to', label: t('reports.list.nl.chipTo', { date: nlFilters.to }) });
+    return items;
+  }, [nlFilters, t]);
   return (
     <View className="mb-4">
       <View className="flex-row items-start justify-between gap-3">
@@ -339,13 +531,75 @@ function ReportsHeader({
         ) : null}
       </View>
 
-      <View className="mb-3 mt-3">
+      <View className="mb-3 mt-3 flex-row items-center gap-2">
         <SearchField
           value={query}
           onChangeText={onChangeQuery}
           placeholder={t('reports.list.searchPlaceholder')}
+          className="flex-1"
         />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('reports.list.nl.open')}
+          onPress={onOpenAsk}
+          className="flex-row items-center gap-1 rounded-[8px] border px-2.5 py-2 active:opacity-80"
+          style={{
+            borderColor: dashboardColors.statMintDeep,
+          }}
+        >
+          <Sparkles color={dashboardColors.statMintDeep} size={13} />
+          <Text
+            className="text-[11px] font-semibold"
+            style={{ color: dashboardColors.statMintDeep }}
+          >
+            {t('reports.list.nl.open')}
+          </Text>
+        </Pressable>
       </View>
+
+      {nlFilters ? (
+        <View className="mb-3">
+          {interpretation ? (
+            <Text className="mb-1.5 text-[10px] italic text-dashboard-subtitle">
+              {t('reports.list.nl.interpreted', { interpretation })}
+            </Text>
+          ) : null}
+          <View className="flex-row flex-wrap items-center gap-1.5">
+            {chips.map((chip) => (
+              <View
+                key={chip.key}
+                className="flex-row items-center gap-1 rounded-full px-2 py-1"
+                style={{ backgroundColor: dashboardColors.statMintSoft }}
+              >
+                <Text
+                  className="text-[10px] font-medium"
+                  style={{ color: dashboardColors.statMintDeep }}
+                >
+                  {chip.label}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('reports.list.nl.removeChip')}
+                  onPress={() => onClearNlChip(chip.key)}
+                  className="ml-0.5"
+                >
+                  <X color={dashboardColors.statMintDeep} size={11} strokeWidth={2.5} />
+                </Pressable>
+              </View>
+            ))}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('reports.list.nl.clearAll')}
+              onPress={onClearAllNl}
+              className="ml-1"
+            >
+              <Text className="text-[10px] font-medium text-dashboard-teal underline">
+                {t('reports.list.nl.clearAll')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       <View className="flex-row flex-wrap items-center gap-x-4 gap-y-2">
         <Picker
