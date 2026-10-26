@@ -9,6 +9,18 @@ USE fixflow_demo;
 -- idempotent: it creates an empty database schema but never removes existing data.
 
 SET NAMES utf8mb4;
+-- Ranking audit records contain local identifiers/order only, never provider prompts/responses.
+CREATE TABLE IF NOT EXISTS technician_ranking_audits (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    report_id BIGINT NOT NULL,
+    actor_id BIGINT NOT NULL,
+    requested_mode VARCHAR(16) NOT NULL,
+    method_used VARCHAR(16) NOT NULL,
+    fallback_reason VARCHAR(255) NULL,
+    technician_order LONGTEXT NOT NULL,
+    created_at TIMESTAMP(6) NOT NULL,
+    KEY idx_ranking_audit_report (report_id, created_at)
+);
 -- ---------------------------------------------------------------------------
 -- sites — physical locations (school / hostel / hotel)
 -- ---------------------------------------------------------------------------

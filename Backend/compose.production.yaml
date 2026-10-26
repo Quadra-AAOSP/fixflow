@@ -1,0 +1,26 @@
+# Override, not standalone: -f compose.yaml -f compose.production.yaml
+# Requires an approved supported storage image and a separately configured HTTPS proxy.
+services:
+  backend:
+    ports: !override
+      - '127.0.0.1:${BACKEND_PORT:-8080}:8080'
+    environment:
+      DB_NAME: ${DB_NAME:?Set DB_NAME}
+      DB_USER: ${DB_USER:?Set a non-root DB_USER}
+      SESSION_COOKIE_SECURE: 'true'
+      SEED_DEMO_DATA: 'false'
+      OPENROUTER_VISION_ENABLED: 'false'
+      OPENROUTER_RANKING_ENABLED: 'false'
+      CORS_ALLOWED_ORIGIN_PATTERNS: ${PRODUCTION_CORS_ORIGINS:?Set exact approved HTTPS origins}
+      WEBSOCKET_ALLOWED_ORIGINS: ${PRODUCTION_WEBSOCKET_ORIGINS:?Set exact approved HTTPS origins}
+      MINIO_PUBLIC_ENDPOINT: ${PRODUCTION_MINIO_PUBLIC_ENDPOINT:?Set approved public HTTPS storage endpoint}
+  mysql:
+    ports: !reset []
+  minio:
+    image: ${MINIO_IMAGE:?Set an approved supported MinIO image with immutable tag or digest}
+    build: !reset null
+    pull_policy: missing
+    ports: !reset []
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set separate storage administrator credentials}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set separate storage administrator credentials}

@@ -63,7 +63,7 @@ class ReportConfirmReopenIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
-				.apply(springSecurity())
+				.apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
 				.build();
 		site = siteRepository.findAll().stream().findFirst().orElseGet(() -> {
 			Site created = new Site();

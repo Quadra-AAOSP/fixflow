@@ -61,7 +61,7 @@ class Member1IntakeIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
-		mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
+		mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
 		site = new Site();
 		site.setName("Member1 Site " + System.nanoTime());
 		site.setType(SiteType.school);
@@ -70,6 +70,33 @@ class Member1IntakeIntegrationTest {
 		reporter = createUser("m1-reporter", UserRole.reporter, site);
 		admin = createUser("m1-admin", UserRole.admin, site);
 		technician = createUser("m1-tech", UserRole.technician, null);
+	}
+
+	@Test
+	void photoEndpointsRejectMissingSessionForeignSiteChangedIdsAndUploadAbuse() throws Exception {
+		MvcResult created = createOpenReport(reporter, "Photo security fixture");
+		Number id = JsonPath.read(created.getResponse().getContentAsString(), "$.id");
+		var image = new MockMultipartFile("file", "fixture.png", "image/png", new byte[]{1, 2, 3});
+		mockMvc.perform(multipart("/api/reports/{id}/photos", id).file(image))
+				.andExpect(status().isUnauthorized());
+		Site foreign = new Site(); foreign.setName("Foreign photo site " + System.nanoTime());
+		foreign.setType(SiteType.school); foreign.setContractStatus(ContractStatus.contracted);
+		foreign = siteRepository.save(foreign);
+		User foreignAdmin = createUser("foreign-photo-admin", UserRole.admin, foreign);
+		mockMvc.perform(multipart("/api/reports/{id}/photos", id).file(image)
+				.with(user(new AppUserDetails(foreignAdmin)))).andExpect(status().isForbidden());
+		mockMvc.perform(get("/api/reports/{id}/photos", id)
+				.with(user(new AppUserDetails(foreignAdmin)))).andExpect(status().isForbidden());
+		mockMvc.perform(multipart("/api/reports/{id}/photos", id).file(image)
+				.with(user(new AppUserDetails(technician)))).andExpect(status().isForbidden());
+		mockMvc.perform(get("/api/reports/{id}/photos/{photoId}", id, Long.MAX_VALUE)
+				.with(user(new AppUserDetails(reporter)))).andExpect(status().isNotFound());
+		mockMvc.perform(multipart("/api/reports/{id}/photos", id)
+				.file(new MockMultipartFile("file", "attack.html", "text/html", "<script>alert(1)</script>".getBytes()))
+				.with(user(new AppUserDetails(reporter)))).andExpect(status().isUnprocessableContent());
+		mockMvc.perform(multipart("/api/reports/{id}/photos", id)
+				.file(new MockMultipartFile("file", "large.png", "image/png", new byte[5 * 1024 * 1024 + 1]))
+				.with(user(new AppUserDetails(reporter)))).andExpect(status().isUnprocessableContent());
 	}
 
 	@Test

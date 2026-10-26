@@ -32,7 +32,7 @@ class TechnicianRankingIntegrationTest {
     User admin, technician, outsider, reporter;
     Report report;
     @BeforeEach void setup() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
         site = site(); other = site(); admin = userAccount(UserRole.admin, site);
         technician = userAccount(UserRole.technician, null); outsider = userAccount(UserRole.technician, null);
         reporter = userAccount(UserRole.reporter, site); report = report(site, reporter);

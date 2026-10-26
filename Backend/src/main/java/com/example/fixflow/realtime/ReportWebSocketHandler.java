@@ -133,8 +133,10 @@ public class ReportWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void revoke(Client client, String destination) throws IOException {
-        client.subscriptions().remove(destination);
-        control(client, "subscription-revoked", destination);
+        // Scheduler and committed-event delivery may both observe the same lost access.
+        if (client.subscriptions().remove(destination)) {
+            control(client, "subscription-revoked", destination);
+        }
     }
 
     private void close(Client client) {

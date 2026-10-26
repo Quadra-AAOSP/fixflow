@@ -2,7 +2,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: 6MB
+      max-request-size: 30MB
   application:
     name: fixflow
   config:
@@ -44,10 +44,6 @@ spring:
     compose:
       enabled: false
       lifecycle-management: start-only
-  servlet:
-    multipart:
-      max-file-size: 5MB
-      max-request-size: 30MB
   autoconfigure:
     exclude:
       - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
@@ -58,11 +54,17 @@ spring:
       - org.springframework.boot.autoconfigure.batch.BatchAutoConfiguration
       - org.springframework.boot.autoconfigure.webservices.WebServicesAutoConfiguration
       - org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration
-      - org.springframework.ai.model.ollama.autoconfigure.OllamaChatAutoConfiguration
-      - org.springframework.ai.model.ollama.autoconfigure.OllamaEmbeddingAutoConfiguration
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
 
 fixflow:
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    window: ${RATE_LIMIT_WINDOW:1m}
+    authentication: ${RATE_LIMIT_AUTHENTICATION:20}
+    writes: ${RATE_LIMIT_WRITES:120}
+    ai: ${RATE_LIMIT_AI:10}
+    token-bootstrap: ${RATE_LIMIT_TOKEN_BOOTSTRAP:240}
+    max-buckets: ${RATE_LIMIT_MAX_BUCKETS:10000}
   websocket:
     allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081}
     session-check-ms: ${WEBSOCKET_SESSION_CHECK_MS:5000}
@@ -84,6 +86,7 @@ fixflow:
   minio:
     enabled: ${MINIO_ENABLED:true}
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    public-endpoint: ${MINIO_PUBLIC_ENDPOINT:}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket: ${MINIO_BUCKET:fixflow-photos}
@@ -97,6 +100,10 @@ fixflow:
     stripe-webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 
 openrouter:
+  ranking:
+    enabled: ${OPENROUTER_RANKING_ENABLED:false}
+    model: ${OPENROUTER_RANKING_MODEL:${OPENROUTER_MODEL:openrouter/free}}
+    timeout-seconds: ${OPENROUTER_RANKING_TIMEOUT_SECONDS:15}
   chat:
     model: ${OPENROUTER_CHAT_MODEL:openrouter/free}
     temperature: ${OPENROUTER_CHAT_TEMPERATURE:0.4}

@@ -17,6 +17,16 @@ const FALLBACK_TIMEOUT_MS = 5_000;
  * request never changes servers; restart after changing development networks.
  */
 let selectedBase: Promise<string> | undefined;
+let csrfFlight: Promise<{ headerName: string; token: string }> | undefined;
+
+function csrfToken(signal: AbortSignal): Promise<{ headerName: string; token: string }> {
+  csrfFlight ??= request<{ headerName: string; token: string }>('/api/auth/csrf',
+    { method: 'GET', signal }).then(value => {
+      if (value.headerName !== 'X-CSRF-TOKEN' || !value.token) throw new ApiError(0, 'Invalid CSRF response');
+      return value;
+    }).finally(() => { csrfFlight = undefined; });
+  return csrfFlight;
+}
 
 // Discover only with a public, credential-free request. Never replay an actual
 // login, registration or write: a timeout may mean the first write committed.
@@ -139,11 +149,16 @@ async function request<T>(
   const base = await selectBase();
   const { signal, cancel } = withTimeout(init?.signal, DEFAULT_TIMEOUT_MS);
   try {
+    const headers = buildHeaders(init);
+    if (!['GET', 'HEAD', 'OPTIONS'].includes((init?.method ?? 'GET').toUpperCase())) {
+      const csrf = await csrfToken(signal);
+      headers[csrf.headerName] = csrf.token;
+    }
     const response = await fetch(`${base}${path}`, {
       ...init,
       redirect: 'error',
       credentials: 'include',
-      headers: buildHeaders(init),
+      headers,
       signal,
     });
     if (!response.ok) {

@@ -34,7 +34,7 @@ class ClassificationApiIntegrationTest {
     private User admin;
     private Report report;
     @BeforeEach void setup() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
         site = new Site(); site.setName("Classification campus"); site.setType(SiteType.school);
         site.setContractStatus(ContractStatus.uncontracted); site = sites.save(site);
         admin = account(UserRole.admin, site);
