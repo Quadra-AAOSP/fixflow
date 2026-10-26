@@ -209,7 +209,6 @@
       "teamAccess": { "title": "团队权限", "subtitle": "开通账户" },
       "applications": { "title": "申请审核", "subtitle": "站点管理员申请" },
       "browseReports": { "title": "浏览报修", "subtitle": "搜索与筛选" },
-      "assignments": { "title": "派单", "subtitle": "当前技师工作量" },
       "yourSites": { "title": "我的站点", "subtitle": "查看站点信息" }
     },
     "emptyHome": {

@@ -209,7 +209,6 @@
       "teamAccess": { "title": "Team access", "subtitle": "Provision accounts" },
       "applications": { "title": "Applications", "subtitle": "Site-admin requests" },
       "browseReports": { "title": "Browse reports", "subtitle": "Search and filter" },
-      "assignments": { "title": "Assignments", "subtitle": "Current technician workload" },
       "yourSites": { "title": "Your sites", "subtitle": "View site information" }
     },
     "emptyHome": {
