@@ -10,9 +10,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ArrowLeft, ArrowRight, Building2, Camera, House, ImagePlus, Plus, X } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Building2, Camera, House, ImagePlus, Mic, Plus, Sparkles, Square, X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
+import { TriageChat } from '@/components/chat/TriageChat';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Picker } from '@/components/ui/Picker';
@@ -25,13 +26,22 @@ import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
 import { canManageSubsites } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { MAX_PHOTO_COUNT, MAX_PHOTO_SIZE_BYTES, uploadPhoto } from '@/services/photos';
 import { createReport } from '@/services/reports';
 import { listSiteRules } from '@/services/siteRules';
 import { listSubsites } from '@/services/sites';
-import type { ReportPhoto, ReportVisibility, SiteRule, SiteType, Subsite, Urgency } from '@/types';
+import type {
+  ReportPhoto,
+  ReportVisibility,
+  SiteRule,
+  SiteType,
+  Subsite,
+  TriageSuggestedFields,
+  Urgency,
+} from '@/types';
 import { useCurrentSite } from '@/stores/site';
 import { humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
@@ -91,6 +101,10 @@ export default function NewReportScreen() {
   // the photos endpoint lives under /api/reports/{id}/photos and needs the id.
   const [pickedPhotos, setPickedPhotos] = useState<PickedImage[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // A2 triage assistant + A4 voice-to-text on the description field.
+  const [triageOpen, setTriageOpen] = useState(false);
+  const descRecorder = useAudioRecorder();
 
   // Mirrors the web's `canCreate` (reporter/staff/admin/super_admin only):
   // technicians resolve reports rather than file them.
@@ -247,6 +261,34 @@ export default function NewReportScreen() {
   function removePickedPhoto(index: number) {
     setPickedPhotos((prev) => prev.filter((_, i) => i !== index));
     setUploadError(null);
+  }
+
+  /**
+   * Apply the triage assistant's suggestions, but only to fields the reporter
+   * has not already filled in — never silently overwrite user-entered values.
+   */
+  function applySuggested(fields: TriageSuggestedFields) {
+    if (fields.descriptionDraft && !description.trim()) {
+      setDescription(fields.descriptionDraft);
+      setErrors((e) => { const c = { ...e }; delete c.description; return c; });
+    }
+    if (fields.category && !category) {
+      setCategory(fields.category);
+      setErrors((e) => { const c = { ...e }; delete c.category; return c; });
+    }
+    if (fields.urgency && !urgency) {
+      setUrgency(fields.urgency);
+      setErrors((e) => { const c = { ...e }; delete c.urgency; return c; });
+    }
+  }
+
+  async function onDescMic() {
+    if (descRecorder.isRecording) {
+      const text = await descRecorder.stop();
+      if (text) setDescription((prev) => (prev ? `${prev} ${text}` : text));
+    } else {
+      await descRecorder.start();
+    }
   }
 
   async function onSubmit() {
@@ -456,6 +498,59 @@ export default function NewReportScreen() {
               placeholder={t('reports.new.descPlaceholder')}
               error={errors.description}
             />
+            <View className="mb-3 flex-row flex-wrap items-center gap-2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('reports.new.triage.open')}
+                onPress={() => setTriageOpen(true)}
+                className="flex-row items-center gap-1.5 rounded-[9px] border px-3 py-1.5 active:opacity-80"
+                style={{ borderColor: dashboardColors.statMintDeep }}
+              >
+                <Sparkles color={dashboardColors.statMintDeep} size={13} />
+                <Text
+                  className="text-[11px] font-semibold"
+                  style={{ color: dashboardColors.statMintDeep }}
+                >
+                  {t('reports.new.triage.open')}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  descRecorder.isRecording
+                    ? t('reports.new.voice.stop')
+                    : t('reports.new.voice.start')
+                }
+                onPress={onDescMic}
+                className="flex-row items-center gap-1.5 rounded-[9px] border px-3 py-1.5 active:opacity-80"
+                style={{
+                  borderColor: descRecorder.isRecording
+                    ? dashboardColors.statCoralDeep
+                    : dashboardColors.cardLine,
+                }}
+              >
+                {descRecorder.isRecording ? (
+                  <Square color={dashboardColors.statCoralDeep} size={12} fill={dashboardColors.statCoralDeep} />
+                ) : (
+                  <Mic color={dashboardColors.teal} size={13} />
+                )}
+                <Text className="text-[11px] font-medium text-ink">
+                  {descRecorder.isRecording
+                    ? t('reports.new.voice.stop')
+                    : t('reports.new.voice.start')}
+                </Text>
+              </Pressable>
+              {descRecorder.transcribing ? (
+                <Text className="text-[11px] italic text-dashboard-subtitle">
+                  {t('reports.new.voice.transcribing')}
+                </Text>
+              ) : null}
+            </View>
+            {descRecorder.error ? (
+              <Text className="-mt-1 mb-2 text-[11px] leading-[1.6] text-tone-danger">
+                {descRecorder.error}
+              </Text>
+            ) : null}
             <TextField
               label={t('reports.new.addressLabel')}
               value={address}
@@ -674,6 +769,12 @@ export default function NewReportScreen() {
           <View className="h-12" />
         </ScrollView>
       </KeyboardAvoidingView>
+      <TriageChat
+        visible={triageOpen}
+        siteId={site?.id ?? 0}
+        onClose={() => setTriageOpen(false)}
+        onApply={applySuggested}
+      />
     </Screen>
   );
 }

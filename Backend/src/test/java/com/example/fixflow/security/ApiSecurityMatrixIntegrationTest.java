@@ -39,7 +39,7 @@ class ApiSecurityMatrixIntegrationTest {
     private Subsite building, foreignBuilding;
 
     @BeforeEach void setup() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
         own = site("Own"); other = site("Other");
         reporter = account(UserRole.reporter, own); admin = account(UserRole.admin, own);
         otherAdmin = account(UserRole.admin, other); technician = account(UserRole.technician, null);

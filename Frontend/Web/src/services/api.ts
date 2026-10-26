@@ -11,15 +11,30 @@ export class ApiError extends Error {
 let onUnauthorized: (() => void) | undefined;
 export function setUnauthorizedHandler(handler: () => void) { onUnauthorized = handler; }
 
+type CsrfToken = { headerName: string; token: string };
+let csrfFlight: Promise<CsrfToken> | undefined;
+function csrfToken(signal?: AbortSignal | null): Promise<CsrfToken> {
+  // Share concurrent bootstrap requests, but never cache across login/logout.
+  csrfFlight ??= request<CsrfToken>('/api/auth/csrf', { signal }).then(value => {
+    if (value.headerName !== 'X-CSRF-TOKEN' || !value.token) throw new Error('Invalid CSRF response');
+    return value;
+  }).finally(() => { csrfFlight = undefined; });
+  return csrfFlight;
+}
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
   try {
     const headers = new Headers(init.headers);
     headers.set('Accept', 'application/json');
-    if (init.body) headers.set('Content-Type', 'application/json');
+    if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+    if (!['GET', 'HEAD', 'OPTIONS'].includes((init.method ?? 'GET').toUpperCase())) {
+      const csrf = await csrfToken(init.signal ?? controller.signal);
+      headers.set(csrf.headerName, csrf.token);
+    }
     const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init, headers, credentials: 'include', signal: init.signal ?? controller.signal,
+      ...init, headers, credentials: 'include', redirect: 'error', signal: init.signal ?? controller.signal,
     });
     if (!response.ok) {
       let message = response.status === 401 ? 'Your session has expired. Please sign in again.' : response.statusText || 'Request failed';

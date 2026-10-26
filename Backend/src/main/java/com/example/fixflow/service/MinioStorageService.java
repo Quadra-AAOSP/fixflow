@@ -28,18 +28,19 @@ public class MinioStorageService implements ObjectStorageService {
 	private static final Logger log = LoggerFactory.getLogger(MinioStorageService.class);
 
 	private final MinioProperties properties;
-	private MinioClient client;
+	private final MinioClient client;
+	private final MinioClient downloadSigner;
 
-	public MinioStorageService(MinioProperties properties) {
+	public MinioStorageService(MinioProperties properties, MinioClient client) {
 		this.properties = properties;
+		this.client = client;
+		this.downloadSigner = properties.publicEndpoint().equals(properties.endpoint()) ? client
+				: MinioClient.builder().endpoint(properties.publicEndpoint())
+				.credentials(properties.accessKey(), properties.secretKey()).region("us-east-1").build();
 	}
 
 	@PostConstruct
 	void init() {
-		client = MinioClient.builder()
-				.endpoint(properties.endpoint())
-				.credentials(properties.accessKey(), properties.secretKey())
-				.build();
 		try {
 			boolean exists = client.bucketExists(BucketExistsArgs.builder().bucket(properties.bucket()).build());
 			if (!exists) {
@@ -61,7 +62,7 @@ public class MinioStorageService implements ObjectStorageService {
 					.contentType(contentType)
 					.build());
 		} catch (Exception ex) {
-			throw new ApiException(502, "Failed to store report photo: " + ex.getMessage());
+			throw new ApiException(502, "Failed to store report photo");
 		}
 	}
 
@@ -80,7 +81,7 @@ public class MinioStorageService implements ObjectStorageService {
 	@Override
 	public String presignedGetUrl(String objectKey, Duration expiry) {
 		try {
-			return client.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+			return downloadSigner.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
 					.method(Method.GET)
 					.bucket(properties.bucket())
 					.object(objectKey)

@@ -64,14 +64,10 @@
 			<version>8.5.17</version>
 		</dependency>
 
-		<!-- AI: Gemini primary, Ollama fallback -->
+		<!-- Legacy Google integration retained; OpenRouter is the application provider. -->
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
 			<artifactId>spring-ai-starter-model-google-genai</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.ai</groupId>
-			<artifactId>spring-ai-starter-model-ollama</artifactId>
 		</dependency>
 
 		<!-- Runtime -->
@@ -147,11 +143,6 @@
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>testcontainers-mysql</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.testcontainers</groupId>
-			<artifactId>testcontainers-ollama</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>

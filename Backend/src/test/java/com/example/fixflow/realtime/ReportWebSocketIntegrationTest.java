@@ -32,6 +32,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "spring.datasource.url=jdbc:h2:mem:socket-api;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
         "server.servlet.session.cookie.secure=false", "spring.session.timeout=60s",
+        // Socket scenarios intentionally create many users/sessions in one short window.
+        "fixflow.rate-limit.authentication=1000",
         "fixflow.websocket.allowed-origins=http://localhost:5173",
         "fixflow.websocket.session-check-ms=100", "openrouter.vision.enabled=false"
 })
@@ -88,10 +90,11 @@ class ReportWebSocketIntegrationTest {
     }
     private String url(String path) { return "http://localhost:" + port + path; }
     private String cookie(User user) throws Exception {
-        var response = http.send(HttpRequest.newBuilder(URI.create(url("/api/auth/login")))
+        var response = http.send(com.example.fixflow.security.CsrfHttp.authorize(http,
+                HttpRequest.newBuilder(URI.create(url("/api/auth/login")))
                 .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(
                         json.writeValueAsString(Map.of("email", user.getEmail(), "password", "socket-test-password"))))
-                .build(), HttpResponse.BodyHandlers.ofString());
+                , URI.create(url("/")), null).build(), HttpResponse.BodyHandlers.ofString());
         assertThat(response.statusCode()).isEqualTo(200);
         return response.headers().allValues("set-cookie").stream().filter(c -> c.startsWith("SESSION="))
                 .findFirst().orElseThrow().split(";", 2)[0];
@@ -149,6 +152,24 @@ class ReportWebSocketIntegrationTest {
         assertThat(unrelated.inbox.messages.poll(250, TimeUnit.MILLISECONDS)).isNull();
         service.assign(report.getId(), new AssignTechnicianRequest(technician.getId()), new AppUserDetails(admin));
         assertThat(summary.inbox.messages.poll(250, TimeUnit.MILLISECONDS)).isNull();
+    }
+
+    @Test void actualConfirmationAndReopenPublishOnlyCommittedTransitions() throws Exception {
+        report.setStatus(ReportStatus.resolved_pending_confirmation);
+        reports.save(report);
+        Connection client = connect(admin); subscribe(client, reportDestination(report));
+        new TransactionTemplate(transactions).executeWithoutResult(tx -> {
+            service.confirm(report.getId(), new AppUserDetails(admin));
+            tx.setRollbackOnly();
+        });
+        assertThat(client.inbox.messages.poll(400, TimeUnit.MILLISECONDS)).isNull();
+        service.confirm(report.getId(), new AppUserDetails(admin));
+        assertThat(next(client).path("event").path("eventType").asText()).isEqualTo(ReportDomainEvent.CONFIRMATION);
+        service.reopen(report.getId(), new com.example.fixflow.dto.ReopenReportRequest("Needs further work"),
+                new AppUserDetails(admin));
+        var reopened = next(client).path("event");
+        assertThat(reopened.path("eventType").asText()).isEqualTo(ReportDomainEvent.STATUS_CHANGE);
+        assertThat(reopened.path("status").asText()).isEqualTo("reopened");
     }
 
     @Test void rollbackSuppressesEventsAndRestoresOriginalAssignment() throws Exception {
@@ -219,8 +240,9 @@ class ReportWebSocketIntegrationTest {
 
     @Test void logoutPublishesSignalAndIdleAndAbsoluteExpiryDisconnectRealSockets() throws Exception {
         String cookie = cookie(admin); Connection client = connect(cookie);
-        var response = http.send(HttpRequest.newBuilder(URI.create(url("/api/auth/logout")))
-                .header("Cookie", cookie).POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+        var response = http.send(com.example.fixflow.security.CsrfHttp.authorize(http,
+                HttpRequest.newBuilder(URI.create(url("/api/auth/logout")))
+                .POST(HttpRequest.BodyPublishers.noBody()), URI.create(url("/")), cookie).build(), HttpResponse.BodyHandlers.ofString());
         assertThat(response.statusCode()).isEqualTo(204);
         verify(handler, timeout(3000)).sessionEnded(argThat(e -> e.sessionId().equals(sessionId(cookie))));
         assertThat(client.inbox.closed.get(5, TimeUnit.SECONDS)).isEqualTo(1008);

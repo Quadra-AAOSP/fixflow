@@ -8,8 +8,13 @@ public record MinioProperties(
 		String endpoint,
 		String accessKey,
 		String secretKey,
-		String bucket
+		String bucket,
+		String publicEndpoint
 ) {
+	public MinioProperties(boolean enabled, String endpoint, String accessKey, String secretKey, String bucket) {
+		this(enabled, endpoint, accessKey, secretKey, bucket, endpoint);
+	}
+	@org.springframework.boot.context.properties.bind.ConstructorBinding
 	public MinioProperties {
 		if (endpoint == null || endpoint.isBlank()) {
 			endpoint = "http://localhost:9000";
@@ -22,6 +27,9 @@ public record MinioProperties(
 		}
 		if (bucket == null || bucket.isBlank()) {
 			bucket = "fixflow-photos";
+		}
+		if (publicEndpoint == null || publicEndpoint.isBlank()) {
+			publicEndpoint = endpoint;
 		}
 	}
 }
