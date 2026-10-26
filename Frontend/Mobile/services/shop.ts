@@ -1,6 +1,9 @@
 import { api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
+  ShopAdminProduct,
+  ShopAdminProductPayload,
+  ShopAdminProductUpdatePayload,
   ShopCartItemPayload,
   ShopCatalog,
   ShopCreateOrderPayload,
@@ -51,4 +54,26 @@ export function cancelOrder(publicId: string): Promise<ShopOrder> {
  */
 export function completeDevPayment(publicId: string): Promise<ShopOrder> {
   return api.post<ShopOrder>(endpoints.shop.devCompletePayment(publicId));
+}
+
+/** Shop-manager product list (includes inactive products). */
+export function adminListProducts(): Promise<ShopAdminProduct[]> {
+  return api.get<ShopAdminProduct[]>(endpoints.shopAdmin.products);
+}
+
+export function adminCreateProduct(
+  payload: ShopAdminProductPayload,
+): Promise<ShopAdminProduct> {
+  return api.post<ShopAdminProduct>(endpoints.shopAdmin.products, payload);
+}
+
+export function adminUpdateProduct(
+  id: string,
+  payload: ShopAdminProductUpdatePayload,
+): Promise<ShopAdminProduct> {
+  return api.put<ShopAdminProduct>(endpoints.shopAdmin.product(id), payload);
+}
+
+export function adminDeleteProduct(id: string): Promise<void> {
+  return api.del<void>(endpoints.shopAdmin.product(id));
 }

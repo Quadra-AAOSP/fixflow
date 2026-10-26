@@ -58,6 +58,46 @@ export type ShopOrderStatus =
   | 'refunded'
   | 'fulfilled';
 
+/** Mirrors backend `ShopProductAdminResponse`. */
+export type ShopAdminProduct = {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  brand: string | null;
+  imageUrl: string | null;
+  priceMinor: number;
+  stock: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Mirrors backend `ShopProductRequest` (create). */
+export type ShopAdminProductPayload = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  brand?: string | null;
+  imageUrl?: string | null;
+  priceMinor: number;
+  stock: number;
+  active?: boolean;
+};
+
+/** Mirrors backend `ShopProductUpdateRequest`. */
+export type ShopAdminProductUpdatePayload = {
+  name: string;
+  description: string;
+  category: string;
+  brand?: string | null;
+  imageUrl?: string | null;
+  priceMinor: number;
+  stock: number;
+  active: boolean;
+};
+
 /** Mirrors backend `ShopPaymentStatus` enum. */
 export type ShopPaymentStatus =
   | 'requires_action'
