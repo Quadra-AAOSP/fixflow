@@ -1,5 +1,5 @@
 import i18n from '@/constants/i18n';
-import type { Report, ReportStatus, Urgency } from '@/types';
+import type { NlSearchFilters, Report, ReportStatus, Urgency } from '@/types';
 
 import { weekdayLabel } from './format';
 
@@ -86,6 +86,23 @@ export function matchesFilter(report: Report, filter: ReportFilter): boolean {
 }
 
 /**
+ * Matches a report against the structured filters produced by the NL search
+ * endpoint. Every field is optional; only present filters narrow the set.
+ */
+export function matchesNlFilters(report: Report, nl: NlSearchFilters | null): boolean {
+  if (!nl) return true;
+  if (nl.status && report.status !== nl.status) return false;
+  if (nl.category && report.category !== nl.category) return false;
+  if (nl.urgency && effectiveUrgency(report) !== nl.urgency) return false;
+  const created = report.createdAt ? Date.parse(report.createdAt) : NaN;
+  if (nl.from && !Number.isNaN(created) && created < Date.parse(nl.from)) return false;
+  if (nl.to && !Number.isNaN(created) && created > Date.parse(nl.to) + 86_400_000 - 1) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Free-text search across the fields a user can actually see. Server-masked
  * fields arrive as `null` and are filtered out rather than matched as the
  * string "null".
@@ -95,12 +112,13 @@ export function searchReports(
   query: string,
   siteName: (id: number | null) => string,
   filter: ReportFilter = 'all',
+  nlFilters: NlSearchFilters | null = null,
 ): Report[] {
   const needle = query.trim().toLocaleLowerCase();
-  if (!needle) return reports.filter((report) => matchesFilter(report, filter));
-
   return reports.filter((report) => {
     if (!matchesFilter(report, filter)) return false;
+    if (!matchesNlFilters(report, nlFilters)) return false;
+    if (!needle) return true;
     const haystack = [
       report.id,
       report.description,

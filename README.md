@@ -19,7 +19,7 @@ Multi-site maintenance reporting platform (school / hostel / hotel) with AI-assi
 | Database | MySQL 8 |
 | Object storage | MinIO (Docker, persistent volume) |
 | AI | Gemini (primary); Ollama fallback (stretch/spike) |
-| Tests | JUnit + Mockito (backend), Vitest (frontend — planned) |
+| Tests | JUnit + Mockito (backend), Vitest (mobile) |
 | Infra | Docker Compose (`Backend/compose.yaml`) |
 
 ---

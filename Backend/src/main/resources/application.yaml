@@ -104,6 +104,10 @@ openrouter:
     enabled: ${OPENROUTER_RANKING_ENABLED:false}
     model: ${OPENROUTER_RANKING_MODEL:${OPENROUTER_MODEL:openrouter/free}}
     timeout-seconds: ${OPENROUTER_RANKING_TIMEOUT_SECONDS:15}
+  chat:
+    model: ${OPENROUTER_CHAT_MODEL:openrouter/free}
+    temperature: ${OPENROUTER_CHAT_TEMPERATURE:0.4}
+    max-tokens: ${OPENROUTER_CHAT_MAX_TOKENS:700}
   vision:
     enabled: ${OPENROUTER_VISION_ENABLED:false}
     model: ${OPENROUTER_VISION_MODEL:nvidia/nemotron-3.5-super-vl:free}

@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ReportAssistantChat } from '@/components/chat/ReportAssistantChat';
 import { ModalSheet } from '@/components/ui/ModalSheet';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
@@ -384,26 +385,33 @@ export default function ReportDetailScreen() {
           )}
         </Card>
 
-        {/* Analysis badge — Phase 5 placeholder, no backend endpoint yet */}
-        <Card className="mb-4">
-          <View className="flex-row items-center gap-2">
-            <View
-              className="rounded-full p-1.5"
-              style={{ backgroundColor: dashboardColors.statMintSoft }}
-            >
-              <Sparkles color={dashboardColors.statMintDeep} size={13} />
+        {/* Assistant chat — replaces the Phase 5 analysis placeholder.
+            The backend allows the same audience as `canSeeSensitive`
+            (participants, assigned technicians, staff/admin); everyone
+            else gets a static pointer to join first. */}
+        {canSeeSensitive ? (
+          <ReportAssistantChat reportId={report.id} />
+        ) : (
+          <Card className="mb-4">
+            <View className="flex-row items-center gap-2">
+              <View
+                className="rounded-full p-1.5"
+                style={{ backgroundColor: dashboardColors.statMintSoft }}
+              >
+                <Sparkles color={dashboardColors.statMintDeep} size={13} />
+              </View>
+              <Text
+                className="text-[15px] font-semibold text-ink"
+                style={{ letterSpacing: -0.3 }}
+              >
+                {t('reports.detail.analysis.title')}
+              </Text>
             </View>
-            <Text
-              className="text-[15px] font-semibold text-ink"
-              style={{ letterSpacing: -0.3 }}
-            >
-              {t('reports.detail.analysis.title')}
+            <Text className="mt-2 text-[12px] text-dashboard-subtitle">
+              {t('reports.detail.analysis.joinToAsk')}
             </Text>
-          </View>
-          <Text className="mt-2 text-[12px] text-dashboard-subtitle">
-            {t('reports.detail.analysis.notAvailable')}
-          </Text>
-        </Card>
+          </Card>
+        )}
 
         {/* Definition list — mirrors the web's `.report-detail-grid` (3-col
             on desktop, stacked on mobile). Field labels and the

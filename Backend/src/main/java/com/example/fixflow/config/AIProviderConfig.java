@@ -1,6 +1,8 @@
 package com.example.fixflow.config;
 
 import com.example.fixflow.ai.AIProvider;
+import com.example.fixflow.ai.ChatProvider;
+import com.example.fixflow.ai.OpenRouterChatProvider;
 import com.example.fixflow.ai.OpenRouterProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -29,6 +31,23 @@ public class AIProviderConfig {
         return new OpenRouterProvider(
                 objectMapper, apiKey, model, baseUrl, timeoutSeconds, maxRetries,
                 retryBackoffSeconds, temperature, maxTokens);
+    }
+
+    @Bean
+    @ConditionalOnExpression("'${openrouter.api-key:}' != ''")
+    public ChatProvider openRouterChatProvider(
+            ObjectMapper objectMapper,
+            @org.springframework.beans.factory.annotation.Value("${openrouter.api-key:}") String apiKey,
+            @org.springframework.beans.factory.annotation.Value("${openrouter.chat.model}") String chatModel,
+            @org.springframework.beans.factory.annotation.Value("${openrouter.base-url}") String baseUrl,
+            @org.springframework.beans.factory.annotation.Value("${openrouter.timeout-seconds}") long timeoutSeconds,
+            @org.springframework.beans.factory.annotation.Value("${openrouter.max-retries}") long maxRetries,
+            @org.springframework.beans.factory.annotation.Value("${openrouter.retry-backoff-seconds}") long retryBackoffSeconds,
+            @org.springframework.beans.factory.annotation.Value("${openrouter.chat.temperature}") double chatTemperature,
+            @org.springframework.beans.factory.annotation.Value("${openrouter.chat.max-tokens}") int chatMaxTokens) {
+        return new OpenRouterChatProvider(
+                objectMapper, apiKey, chatModel, baseUrl, timeoutSeconds, maxRetries,
+                retryBackoffSeconds, chatTemperature, chatMaxTokens);
     }
 
     /**

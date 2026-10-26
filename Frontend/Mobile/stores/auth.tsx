@@ -14,10 +14,9 @@ import * as SecureStore from 'expo-secure-store';
 import * as authApi from '@/services/auth';
 import { ApiError } from '@/services/auth';
 import i18n from '@/constants/i18n';
+import { HEARTBEAT_INTERVAL_MS } from '@/constants/session';
 import type { LoginPayload, RegisterPayload, User } from '@/types';
 
-/** Seconds before the backend's idle timeout fires — heartbeat fires this often. */
-const HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000; // 15 min (backend idle = 30 min)
 /** App state that counts as foregrounded and should keep the session alive. */
 const FOREGROUND_STATES: AppStateStatus[] = ['active'];
 
