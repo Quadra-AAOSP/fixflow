@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import { useCallback, useState } from 'react';
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder as useExpoAudioRecorder,
+} from 'expo-audio';
+import { File } from 'expo-file-system';
 import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '@/lib/apiClient';
@@ -23,57 +28,46 @@ type RecorderState = {
  */
 export function useAudioRecorder(): RecorderState {
   const { t } = useTranslation('common');
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const recorder = useExpoAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  recordingRef.current = recording;
-
-  useEffect(() => {
-    return () => {
-      recordingRef.current?.stopAndUnloadAsync().catch(() => {});
-    };
-  }, []);
 
   const start = useCallback(async (): Promise<boolean> => {
     setError(null);
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== 'granted') {
+    const { granted } = await requestRecordingPermissionsAsync();
+    if (!granted) {
       setError(t('voice.permissionDenied'));
       return false;
     }
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
-      const rec = new Audio.Recording();
-      await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      setRecording(rec);
+      await recorder.prepareToRecordAsync();
+      recorder.record();
       setIsRecording(true);
-      await rec.startAsync();
       return true;
     } catch {
       setError(t('voice.failed'));
       return false;
     }
-  }, [t]);
+  }, [recorder, t]);
 
   const stop = useCallback(async (): Promise<string | null> => {
-    const rec = recordingRef.current;
     setIsRecording(false);
-    if (!rec) return null;
     try {
-      await rec.stopAndUnloadAsync();
-      const uri = rec.getURI();
-      setRecording(null);
+      await recorder.stop();
+      const uri = recorder.uri;
       if (!uri) return null;
-      const info = await FileSystem.getInfoAsync(uri);
-      if (info.exists && info.size != null && info.size > MAX_AUDIO_BYTES) {
+
+      const file = new File(uri);
+      if (file.exists && file.size > MAX_AUDIO_BYTES) {
         setError(t('voice.tooLarge'));
         return null;
       }
+
       const ext = (uri.split('.').pop() ?? 'm4a').toLowerCase();
       const mime =
         ext === 'mp3'
@@ -98,7 +92,7 @@ export function useAudioRecorder(): RecorderState {
     } finally {
       setTranscribing(false);
     }
-  }, [t]);
+  }, [recorder, t]);
 
   return { isRecording, transcribing, error, start, stop };
 }

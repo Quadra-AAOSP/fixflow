@@ -35,7 +35,13 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow FixFlow to record audio for report transcription."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false
