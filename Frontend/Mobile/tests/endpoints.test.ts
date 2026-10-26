@@ -80,7 +80,6 @@ describe('endpoint registry', () => {
       '/api/reports/{id}/status',
       '/api/reports/{id}/urgency',
       '/api/reports/{id}/reassign',
-      '/api/technicians/me/availability',
       '/api/reports/assigned-to-me',
       '/api/reports/claimable',
     ];

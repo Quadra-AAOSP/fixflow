@@ -4,6 +4,7 @@ import type {
   ContractApplication,
   ContractApplicationPayload,
   ContractDecisionPayload,
+  TechnicianAvailabilityResponse,
   TechnicianContract,
   TechnicianContractPayload,
   TechnicianSkill,
@@ -69,5 +70,22 @@ export function decideContractApplication(
   return api.post<ContractApplication>(
     endpoints.contractRequests.decide(id),
     payload,
+  );
+}
+
+/** Server-side availability of the signed-in technician (`GET`). */
+export function getMyAvailability(): Promise<TechnicianAvailabilityResponse> {
+  return api.get<TechnicianAvailabilityResponse>(
+    endpoints.technicians.myAvailability,
+  );
+}
+
+/** Toggles whether the signed-in technician can receive assignments (`PUT`). */
+export function updateMyAvailability(
+  available: boolean,
+): Promise<TechnicianAvailabilityResponse> {
+  return api.put<TechnicianAvailabilityResponse>(
+    endpoints.technicians.myAvailability,
+    { status: available ? 'available' : 'unavailable' },
   );
 }

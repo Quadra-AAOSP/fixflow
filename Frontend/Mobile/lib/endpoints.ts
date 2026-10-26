@@ -85,6 +85,8 @@ export const endpoints = {
 
   technicians: {
     list: '/api/technicians',
+    /** GET/PUT — the signed-in technician's availability status. */
+    myAvailability: '/api/technicians/me/availability',
   },
 
   contractRequests: {
@@ -108,6 +110,12 @@ export const endpoints = {
       `/api/shop/payments/dev/complete/${encodeURIComponent(publicId)}`,
   },
 
+  /** Shop-manager product CRUD (`manageShop` capability). */
+  shopAdmin: {
+    products: '/api/admin/shop/products',
+    product: (id: string) => `/api/admin/shop/products/${encodeURIComponent(id)}`,
+  },
+
   assistant: {
     /** POST — pre-filing triage chat; returns reply + optional suggested fields. */
     triage: '/api/assistant/triage',
@@ -122,7 +130,6 @@ export const endpoints = {
  *   PATCH  /api/reports/{id}/status
  *   PATCH  /api/reports/{id}/urgency
  *   POST   /api/reports/{id}/reassign
- *   GET    /api/technicians/me/availability
  *   GET    /api/reports/assigned-to-me
  *   GET    /api/reports/claimable
  *   GET    /api/technician-skills

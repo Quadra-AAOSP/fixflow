@@ -73,6 +73,13 @@ export type ContractDecisionPayload = {
 /** Mirrors backend technician `AvailabilityStatus` (JSON values are lowercase). */
 export type TechnicianAvailability = 'available' | 'unavailable';
 
+/** Mirrors backend `AvailabilityResponse` (GET/PUT /api/technicians/me/availability). */
+export type TechnicianAvailabilityResponse = {
+  technicianId: number;
+  status: TechnicianAvailability;
+  updatedAt: string | null;
+};
+
 /**
  * The skill row embedded in a `GET /api/technicians` summary. Trimmed compared
  * with the write DTO above: no `technicianId`, and `specialty` is nullable.
