@@ -130,17 +130,21 @@
       "evening": "Good evening"
     },
     "bannerTagline": "Let's keep every space working beautifully.",
+    "bannerTaglineOps": "Here's what needs your attention today.",
     "valuePills": {
       "safeSpaces": "Safe spaces",
       "happyPeople": "Happy people",
       "strongerCommunities": "Stronger communities"
     },
     "reportIssue": "Report an issue",
+    "reviewQueue": "Review the queue",
     "statLabels": {
       "open": { "label": "Open reports", "note": "Open, routed, reopened, escalated" },
       "progress": { "label": "In progress", "note": "Assigned and in progress" },
       "resolved": { "label": "Resolved", "note": "Awaiting confirmation or confirmed" },
-      "urgent": { "label": "Urgent", "note": "Active high or critical urgency" }
+      "urgent": { "label": "Urgent", "note": "Active high or critical urgency" },
+      "unassigned": { "label": "Unassigned", "note": "Active, no technician yet" },
+      "confirmation": { "label": "To confirm", "note": "Resolved, awaiting confirmation" }
     },
     "sync": {
       "refreshing": "Refreshing…",
@@ -1167,7 +1171,8 @@
       "progress": "In progress",
       "resolved": "Resolved",
       "urgent": "Urgent",
-      "confirmation": "Needs confirmation"
+      "confirmation": "Needs confirmation",
+      "unassigned": "Unassigned"
     },
     "role": {
       "reporter": "Reporter",

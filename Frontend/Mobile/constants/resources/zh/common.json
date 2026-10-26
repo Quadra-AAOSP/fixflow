@@ -130,17 +130,21 @@
       "evening": "晚上好"
     },
     "bannerTagline": "让我们让每一个空间都运转得更美好。",
+    "bannerTaglineOps": "以下是今天需要您关注的事项。",
     "valuePills": {
       "safeSpaces": "安全空间",
       "happyPeople": "愉悦的人们",
       "strongerCommunities": "更紧密的社区"
     },
     "reportIssue": "报修",
+    "reviewQueue": "查看待办队列",
     "statLabels": {
       "open": { "label": "待处理", "note": "待处理、已路由、已重开、已升级" },
       "progress": { "label": "进行中", "note": "已分配、处理中" },
       "resolved": { "label": "已解决", "note": "待确认或已确认" },
-      "urgent": { "label": "紧急", "note": "高或紧急优先级，处理中" }
+      "urgent": { "label": "紧急", "note": "高或紧急优先级，处理中" },
+      "unassigned": { "label": "未分配", "note": "进行中，尚无技师接单" },
+      "confirmation": { "label": "待确认", "note": "已解决，等待确认" }
     },
     "sync": {
       "refreshing": "正在刷新…",
@@ -1167,7 +1171,8 @@
       "progress": "进行中",
       "resolved": "已解决",
       "urgent": "紧急",
-      "confirmation": "待确认"
+      "confirmation": "待确认",
+      "unassigned": "未分配"
     },
     "role": {
       "reporter": "报修人",
