@@ -34,7 +34,7 @@ export const urgencyLabels: Record<Urgency, string> = {
  */
 export type StatusGroup = 'open' | 'progress' | 'resolved';
 
-export type ReportFilter = 'all' | StatusGroup | 'urgent' | 'confirmation';
+export type ReportFilter = 'all' | StatusGroup | 'urgent' | 'confirmation' | 'unassigned';
 
 export const REPORT_FILTERS: { value: ReportFilter; labelKey: string }[] = [
   { value: 'all', labelKey: 'labels.filter.all' },
@@ -43,6 +43,7 @@ export const REPORT_FILTERS: { value: ReportFilter; labelKey: string }[] = [
   { value: 'resolved', labelKey: 'labels.filter.resolved' },
   { value: 'urgent', labelKey: 'labels.filter.urgent' },
   { value: 'confirmation', labelKey: 'labels.filter.confirmation' },
+  { value: 'unassigned', labelKey: 'labels.filter.unassigned' },
 ];
 
 export const groupLabels: Record<StatusGroup, string> = {
@@ -82,6 +83,9 @@ export function matchesFilter(report: Report, filter: ReportFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'urgent') return isUrgent(report);
   if (filter === 'confirmation') return report.status === 'resolved_pending_confirmation';
+  if (filter === 'unassigned') {
+    return report.policy.statusGroup !== 'resolved' && report.assignedTechnicianId === null;
+  }
   return report.policy.statusGroup === filter;
 }
 

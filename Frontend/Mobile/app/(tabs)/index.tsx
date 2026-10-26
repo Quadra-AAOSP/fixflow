@@ -81,6 +81,17 @@ const STATS: StatConfig[] = [
 ];
 
 /**
+ * Operations roles (staff/admin/super_admin) get a triage-oriented set: the
+ * queues that need an admin decision today, not the reporter's lifecycle view.
+ */
+const OPS_STATS: StatConfig[] = [
+  { filter: 'unassigned', tone: 'coral', icon: ClipboardList },
+  { filter: 'urgent', tone: 'coral-danger', icon: TriangleAlert },
+  { filter: 'confirmation', tone: 'citron', icon: CircleCheck },
+  { filter: 'progress', tone: 'mint', icon: Settings },
+];
+
+/**
  * One "needs attention" bucket. A report can appear in several buckets (an
  * urgent report nobody has picked up is both), which is why the card's header
  * counts distinct reports rather than summing the buckets.
@@ -285,6 +296,29 @@ export default function HomeScreen() {
   const canFile =
     site !== null && user !== null && user.role !== 'technician';
 
+  /**
+   * Staff, site admins and super_admins run the site; reporters and
+   * technicians consume it. Ops roles get a triage dashboard (unassigned /
+   * urgent / awaiting-confirmation queues, "Review the queue" CTA) instead of
+   * the reporter's filing-oriented home.
+   */
+  const isOps =
+    user?.role === 'admin' ||
+    user?.role === 'super_admin' ||
+    user?.role === 'staff';
+  const statSet = isOps ? OPS_STATS : STATS;
+  const statValue = (filter: ReportFilter): number => {
+    if (filter === 'unassigned') {
+      return allReports.filter(isUnassigned).length;
+    }
+    if (filter === 'confirmation') {
+      return allReports.filter(
+        (report) => report.status === 'resolved_pending_confirmation',
+      ).length;
+    }
+    return summaryFor(summary, filter);
+  };
+
   // Role-differentiated home: admins whose site has no building get the
   // first-login setup gate below; applicants see their admin-application
   // status; the quick actions expose each role's actual capabilities.
@@ -349,7 +383,9 @@ export default function HomeScreen() {
         ? t('home.statLabels.urgent.label')
         : activeStatus === 'confirmation'
           ? t('labels.filter.confirmation')
-          : t(groupLabels[activeStatus]);
+          : activeStatus === 'unassigned'
+            ? t('home.statLabels.unassigned.label')
+            : t(groupLabels[activeStatus]);
 
   // First-login setup gate: a site administrator whose site has no active
   // building lands on this screen instead of the dashboard. Authentication is
@@ -410,8 +446,10 @@ export default function HomeScreen() {
           t={t}
           greeting={greeting}
           firstName={user?.firstName}
-          ctaDisabled={!canFile}
-          onPressCta={gotoNewReport}
+          ctaDisabled={isOps ? !site : !canFile}
+          ctaLabelKey={isOps ? 'home.reviewQueue' : 'home.reportIssue'}
+          taglineKey={isOps ? 'home.bannerTaglineOps' : 'home.bannerTagline'}
+          onPressCta={isOps ? () => gotoReports('open') : gotoNewReport}
         />
 
         <SiteRow
@@ -491,12 +529,12 @@ export default function HomeScreen() {
               />
 
               <View className="mb-3 flex-row gap-2">
-                {STATS.slice(0, 2).map((stat) => (
+                {statSet.slice(0, 2).map((stat) => (
                   <StatCard
                     key={stat.filter}
                     label={t(`home.statLabels.${stat.filter}.label`)}
                     note={t(`home.statLabels.${stat.filter}.note`)}
-                    value={reportsLoadedValue(loading, summaryFor(summary, stat.filter))}
+                    value={reportsLoadedValue(loading, statValue(stat.filter))}
                     tone={stat.tone}
                     icon={stat.icon}
                     selected={activeStatus === stat.filter}
@@ -505,12 +543,12 @@ export default function HomeScreen() {
                 ))}
               </View>
               <View className="mb-5 flex-row gap-2">
-                {STATS.slice(2, 4).map((stat) => (
+                {statSet.slice(2, 4).map((stat) => (
                   <StatCard
                     key={stat.filter}
                     label={t(`home.statLabels.${stat.filter}.label`)}
                     note={t(`home.statLabels.${stat.filter}.note`)}
-                    value={reportsLoadedValue(loading, summaryFor(summary, stat.filter))}
+                    value={reportsLoadedValue(loading, statValue(stat.filter))}
                     tone={stat.tone}
                     icon={stat.icon}
                     selected={activeStatus === stat.filter}
@@ -569,9 +607,9 @@ export default function HomeScreen() {
         ) : null}
       </ScrollView>
 
-      {/* Floating create — bottom-right mint disc, matching `.floating-create`
-          in the web dashboard stylesheet. */}
-      {canFile ? (
+      {/* Floating create — reporters only; ops roles file through the quick
+          actions and spend their time in the triage queues. */}
+      {canFile && !isOps ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('home.reportIssue')}
@@ -609,14 +647,19 @@ function WelcomeBanner({
   greeting,
   firstName,
   ctaDisabled,
+  ctaLabelKey,
+  taglineKey,
   onPressCta,
 }: {
   t: TranslateFn;
   greeting: string;
   firstName: string | undefined;
   ctaDisabled: boolean;
+  ctaLabelKey: string;
+  taglineKey: string;
   onPressCta: () => void;
 }) {
+  const ctaLabel = t(ctaLabelKey);
   return (
     <View
       className="mb-3 flex-row items-center gap-3 rounded-2xl border bg-dashboard-banner-bg px-4 py-4"
@@ -631,7 +674,7 @@ function WelcomeBanner({
           {firstName ? `, ${firstName}` : ''}
         </Text>
         <Text className="mt-1 text-[14px] text-dashboard-banner-subtitle">
-          {t('home.bannerTagline')}
+          {t(taglineKey)}
         </Text>
         <View className="mt-3 flex-row flex-wrap gap-x-4 gap-y-1">
           <ValuePill icon={Leaf} color={dashboardColors.statCoralDeep}>
@@ -646,7 +689,7 @@ function WelcomeBanner({
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('home.reportIssue')}
+          accessibilityLabel={ctaLabel}
           onPress={onPressCta}
           disabled={ctaDisabled}
           className={`mt-3 flex-row items-center gap-2 self-start rounded-[11px] border px-4 py-2.5 active:opacity-90 ${
@@ -667,7 +710,7 @@ function WelcomeBanner({
             className="text-[14px] font-semibold"
             style={{ color: dashboardColors.ctaText }}
           >
-            {t('home.reportIssue')}
+            {ctaLabel}
           </Text>
         </Pressable>
       </View>
