@@ -329,7 +329,9 @@ export default function HomeScreen() {
     canSetupSite: canManageSubsites(user),
     canProvisionUsers: canProvision(user),
     reviewApplications: user?.role === 'super_admin',
-    hasSite: site !== null || user?.siteId != null,
+    canManageSites:
+      (user?.role === 'admin' || user?.role === 'super_admin') &&
+      (site !== null || user?.siteId != null),
   };
 
   const fileDisabledReason = !site
@@ -512,7 +514,6 @@ export default function HomeScreen() {
                 flags={quickActionFlags}
                 onPressCreate={gotoNewReport}
                 onPressBrowse={() => gotoReports('all')}
-                onPressAssignments={() => router.push('/assignments')}
                 onPressSites={() => router.push('/more/sites')}
                 onPressSiteSetup={() => router.push('/more/site-setup')}
                 onPressTeamAccess={() => router.push('/more/team-access')}
@@ -596,7 +597,6 @@ export default function HomeScreen() {
                 flags={quickActionFlags}
                 onPressCreate={gotoNewReport}
                 onPressBrowse={() => gotoReports('all')}
-                onPressAssignments={() => router.push('/assignments')}
                 onPressSites={() => router.push('/more/sites')}
                 onPressSiteSetup={() => router.push('/more/site-setup')}
                 onPressTeamAccess={() => router.push('/more/team-access')}
@@ -1373,7 +1373,8 @@ type QuickActionFlags = {
   canSetupSite: boolean;
   canProvisionUsers: boolean;
   reviewApplications: boolean;
-  hasSite: boolean;
+  /** Site management is admin-only — the More menu gates it the same way. */
+  canManageSites: boolean;
 };
 
 function QuickActionsCard({
@@ -1381,7 +1382,6 @@ function QuickActionsCard({
   flags,
   onPressCreate,
   onPressBrowse,
-  onPressAssignments,
   onPressSites,
   onPressSiteSetup,
   onPressTeamAccess,
@@ -1391,7 +1391,6 @@ function QuickActionsCard({
   flags: QuickActionFlags;
   onPressCreate: () => void;
   onPressBrowse: () => void;
-  onPressAssignments: () => void;
   onPressSites: () => void;
   onPressSiteSetup: () => void;
   onPressTeamAccess: () => void;
@@ -1453,15 +1452,7 @@ function QuickActionsCard({
           tone="neutral"
           onPress={onPressBrowse}
         />
-        <ActionTile
-          t={t}
-          icon={Users}
-          titleKey="home.quickActions.assignments.title"
-          subtitleKey="home.quickActions.assignments.subtitle"
-          tone="neutral"
-          onPress={onPressAssignments}
-        />
-        {flags.hasSite ? (
+        {flags.canManageSites ? (
           <ActionTile
             t={t}
             icon={Leaf}

@@ -59,12 +59,18 @@ export default function MoreScreen() {
       key: 'workspace',
       labelKey: 'more.sections.workspace',
       items: [
-        {
-          icon: ClipboardList,
-          titleKey: 'more.menu.reportsTitle',
-          subtitleKey: 'more.menu.reportsSubtitle',
-          onPress: () => router.push('/reports'),
-        },
+        // Technicians have no Reports route (the tab layout bounces them to
+        // Workspace) — their queue lives on the Assignments tab.
+        ...(role === 'technician'
+          ? []
+          : [
+              {
+                icon: ClipboardList,
+                titleKey: 'more.menu.reportsTitle',
+                subtitleKey: 'more.menu.reportsSubtitle',
+                onPress: () => router.push('/reports'),
+              },
+            ]),
         {
           icon: Moon,
           titleKey: 'more.menu.notificationsTitle',
