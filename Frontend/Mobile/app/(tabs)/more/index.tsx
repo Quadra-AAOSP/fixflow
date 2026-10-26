@@ -20,7 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 
 import { Screen } from '@/components/ui/Screen';
-import { roleLabels, canProvision } from '@/constants/access';
+import { roleLabels, canManageShop, canProvision } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
@@ -69,7 +69,7 @@ export default function MoreScreen() {
           icon: Moon,
           titleKey: 'more.menu.notificationsTitle',
           subtitleKey: 'more.menu.notificationsSubtitle',
-          onPress: () => router.push('/notifications'),
+          onPress: () => router.push('/more/notifications'),
         },
       ],
     },
@@ -133,7 +133,7 @@ export default function MoreScreen() {
               role === 'technician'
                 ? 'more.menu.siteContractsSubtitleTechnician'
                 : 'more.menu.siteContractsSubtitleAdmin',
-            onPress: () => router.push('/more/site-contracts'),
+            onPress: () => router.push('/more/contracts'),
           }
         : null,
     ];
@@ -145,7 +145,7 @@ export default function MoreScreen() {
   }
 
   const shopItems: (MenuItem | null)[] = [
-    canManageSite
+    canManageShop(user)
       ? {
           icon: NotepadText,
           titleKey: 'more.menu.shopManagementTitle',
@@ -160,11 +160,16 @@ export default function MoreScreen() {
       onPress: () => router.push('/more/shop'),
     },
   ];
-  sections.push({
-    key: 'shop',
-    labelKey: 'more.sections.shop',
-    items: shopItems.filter((item): item is MenuItem => item !== null),
-  });
+  const visibleShopItems = shopItems.filter(
+    (item): item is MenuItem => item !== null,
+  );
+  if (visibleShopItems.length > 0) {
+    sections.push({
+      key: 'shop',
+      labelKey: 'more.sections.shop',
+      items: visibleShopItems,
+    });
+  }
 
   const siteCount = 0; // `me` payload currently omits this — use 0 until Phase 6 backfill.
   const sitesLabel =
