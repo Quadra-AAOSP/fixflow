@@ -39,15 +39,15 @@ class DevelopmentLoginIntegrationTest {
         String registration = "{\"email\":\"" + email + "\",\"password\":\"FixflowDemo!2026\","
                 + "\"firstName\":\"Test\",\"lastName\":\"Reporter\",\"role\":\"reporter\",\"siteId\":"
                 + site.getId() + "}";
-        var created = client.send(HttpRequest.newBuilder(uri("/api/auth/register"))
+        var created = client.send(CsrfHttp.authorize(client, HttpRequest.newBuilder(uri("/api/auth/register"))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(registration)).build(),
+                .POST(HttpRequest.BodyPublishers.ofString(registration)), uri("/"), null).build(),
                 HttpResponse.BodyHandlers.ofString());
         assertThat(created.statusCode()).isEqualTo(201);
-        var loggedIn = client.send(HttpRequest.newBuilder(uri("/api/auth/login"))
+        var loggedIn = client.send(CsrfHttp.authorize(client, HttpRequest.newBuilder(uri("/api/auth/login"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString("{\"email\":\"" + email
-                        + "\",\"password\":\"FixflowDemo!2026\"}")).build(),
+                        + "\",\"password\":\"FixflowDemo!2026\"}")), uri("/"), null).build(),
                 HttpResponse.BodyHandlers.ofString());
         assertThat(loggedIn.statusCode()).isEqualTo(200);
         var me = client.send(HttpRequest.newBuilder(uri("/api/auth/me")).GET().build(),
@@ -65,18 +65,18 @@ class DevelopmentLoginIntegrationTest {
         user.setRole(UserRole.super_admin); users.save(user);
         var jar = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
         var client = HttpClient.newBuilder().cookieHandler(jar).build();
-        var login = client.send(HttpRequest.newBuilder(uri("/api/auth/login"))
+        var login = client.send(CsrfHttp.authorize(client, HttpRequest.newBuilder(uri("/api/auth/login"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString("{\"email\":\"" + email
                         + "\",\"password\":\"FixflowDemo!2026\"}"))
-                .build(), HttpResponse.BodyHandlers.ofString());
+                , uri("/"), null).build(), HttpResponse.BodyHandlers.ofString());
         assertThat(login.statusCode()).isEqualTo(200);
         String cookie = login.headers().firstValue("set-cookie").orElseThrow();
         assertThat(cookie).contains("HttpOnly", "SameSite=Lax").doesNotContain("Secure");
         assertThat(client.send(HttpRequest.newBuilder(uri("/api/auth/me")).GET().build(),
                 HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(200);
-        assertThat(client.send(HttpRequest.newBuilder(uri("/api/auth/logout"))
-                .POST(HttpRequest.BodyPublishers.noBody()).build(),
+        assertThat(client.send(CsrfHttp.authorize(client, HttpRequest.newBuilder(uri("/api/auth/logout"))
+                .POST(HttpRequest.BodyPublishers.noBody()), uri("/"), null).build(),
                 HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(204);
         assertThat(client.send(HttpRequest.newBuilder(uri("/api/auth/me")).GET().build(),
                 HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(401);

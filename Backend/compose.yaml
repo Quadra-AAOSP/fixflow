@@ -1,46 +1,92 @@
+# Local stack. Use --env-file for secrets and -p for isolated volumes.
 services:
-  mysql:
-    image: 'mysql:8.4'
-    environment:
-      - 'MYSQL_DATABASE=${DB_NAME:-fixflow}'
-      - 'MYSQL_PASSWORD=${DB_PASSWORD:-fixflow}'
-      - 'MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-verysecret}'
-      - 'MYSQL_USER=${DB_USER:-fixflow}'
+  backend:
+    image: ${BACKEND_IMAGE:-fixflow-backend:local}
+    build: .
+    restart: unless-stopped
     ports:
-      - '3306:3306'
+      - '${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8080}:8080'
+    environment:
+      DB_HOST: mysql
+      DB_PORT: '3306'
+      DB_NAME: ${DB_NAME:-fixflow}
+      DB_USER: ${DB_USER:-fixflow}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD for the isolated Docker database}
+      MINIO_ENABLED: 'true'
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-fixflow-photos}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      FIXFLOW_SUPER_ADMIN_EMAIL: ${FIXFLOW_SUPER_ADMIN_EMAIL:?Set FIXFLOW_SUPER_ADMIN_EMAIL}
+      FIXFLOW_SUPER_ADMIN_PASSWORD: ${FIXFLOW_SUPER_ADMIN_PASSWORD:?Set FIXFLOW_SUPER_ADMIN_PASSWORD}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SESSION_IDLE_TIMEOUT: ${SESSION_IDLE_TIMEOUT:-30m}
+      SESSION_ABSOLUTE_TIMEOUT: ${SESSION_ABSOLUTE_TIMEOUT:-12h}
+      CORS_ALLOWED_ORIGIN_PATTERNS: ${CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:5173,http://localhost:8081}
+      WEBSOCKET_ALLOWED_ORIGINS: ${WEBSOCKET_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8081}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/free}
+      OPENROUTER_VISION_ENABLED: ${OPENROUTER_VISION_ENABLED:-false}
+      OPENROUTER_VISION_MODEL: ${OPENROUTER_VISION_MODEL:-nvidia/nemotron-3.5-super-vl:free}
+      OPENROUTER_VISION_FALLBACK_MODEL: ${OPENROUTER_VISION_FALLBACK_MODEL:-minimax/minimax-m3.1-flash:free}
+      OPENROUTER_RANKING_ENABLED: ${OPENROUTER_RANKING_ENABLED:-false}
+      OPENROUTER_RANKING_MODEL: ${OPENROUTER_RANKING_MODEL:-openrouter/free}
+      OPENROUTER_RANKING_TIMEOUT_SECONDS: ${OPENROUTER_RANKING_TIMEOUT_SECONDS:-15}
+      MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: readinessState,db
+    depends_on:
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    logging: &bounded-logs
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  mysql:
+    image: mysql:8.4.11
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-fixflow}
+      MYSQL_USER: ${DB_USER:-fixflow}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set a separate MYSQL_ROOT_PASSWORD}
+    ports:
+      - '127.0.0.1:${MYSQL_HOST_PORT:-3307}:3306'
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-pverysecret']
+      test: ['CMD-SHELL', 'MYSQL_PWD="$${MYSQL_PASSWORD}" mysql --protocol=TCP -h 127.0.0.1 -u "$${MYSQL_USER}" "$${MYSQL_DATABASE}" --silent --skip-column-names -e "SELECT 1" > /dev/null']
       interval: 5s
       timeout: 5s
-      retries: 20
+      start_period: 40s
+      retries: 30
+    logging: *bounded-logs
 
   minio:
-    image: 'minio/minio:latest'
-    command: server /data --console-address ":9001"
+    image: fixflow-minio:7aac2a2
+    build: docker/minio
+    pull_policy: build
+    command: ['server', '/data', '--console-address', ':9001']
+    restart: unless-stopped
     environment:
-      - 'MINIO_ROOT_USER=minioadmin'
-      - 'MINIO_ROOT_PASSWORD=minioadmin'
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY}}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY}}
+      MINIO_BROWSER: 'off'
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - '${MINIO_BIND_ADDRESS:-127.0.0.1}:${MINIO_HOST_PORT:-9000}:9000'
     volumes:
       - minio_data:/data
-
-  ollama:
-    image: 'ollama/ollama:latest'
-    ports:
-      - '11434:11434'
-
-  rabbitmq:
-    image: 'rabbitmq:latest'
-    environment:
-      - 'RABBITMQ_DEFAULT_PASS=secret'
-      - 'RABBITMQ_DEFAULT_USER=myuser'
-    ports:
-      - '5672:5672'
+    healthcheck:
+      test: ['CMD', 'curl', '--fail', '--silent', 'http://127.0.0.1:9000/minio/health/ready']
+      interval: 5s
+      timeout: 5s
+      start_period: 20s
+      retries: 30
+    logging: *bounded-logs
 
 volumes:
   mysql_data:

@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.example.fixflow.ai.dto.ClassificationRequest;
 import com.example.fixflow.ai.dto.ClassificationResponse;
@@ -23,18 +24,26 @@ class OpenRouterProviderTest {
     private final AtomicReference<String> requestBody = new AtomicReference<>();
     private HttpServer server;
     private String overrideResponse;
+    private int responseStatus = 200;
+    private long responseDelay;
+    private final AtomicInteger attempts = new AtomicInteger();
 
     @BeforeEach
     void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/chat/completions", exchange -> {
+            attempts.incrementAndGet();
             requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            if (responseDelay > 0) {
+                try { Thread.sleep(responseDelay); }
+                catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+            }
             byte[] response = """
                     {"choices":[{"message":{"content":"{\\"category\\":\\"plumbing\\",\\"specialty\\":\\"leak\\",\\"urgency\\":\\"high\\"}"}}]}
                     """.getBytes(StandardCharsets.UTF_8);
             if (overrideResponse != null) response = overrideResponse.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, response.length);
+            exchange.sendResponseHeaders(responseStatus, response.length);
             exchange.getResponseBody().write(response);
             exchange.close();
         });
@@ -66,6 +75,7 @@ class OpenRouterProviderTest {
         assertTrue(requestBody.get().contains("\"model\":\"test-model\""));
         assertTrue(requestBody.get().contains("\"max_tokens\":321"));
         assertTrue(requestBody.get().contains("\"temperature\":0.25"));
+        assertTrue(!requestBody.get().contains("Room 12"));
     }
 
     @Test
@@ -102,5 +112,48 @@ class OpenRouterProviderTest {
         assertThrows(AIProviderException.class, () -> provider("test-key").classifyText(
                 ClassificationRequest.builder().description("Leak").siteType("school")
                         .allowedCategories(List.of("plumbing", "general")).build()));
+    }
+
+    @Test void authenticationErrorsAreNotRetried() {
+        responseStatus = 401;
+        assertFailure(provider("test-key"), AIProviderException.AIErrorType.AUTHENTICATION_ERROR);
+        assertEquals(1, attempts.get());
+    }
+
+    @Test void exhaustedRateLimitsRetainTheirErrorType() {
+        responseStatus = 429;
+        assertFailure(provider("test-key"), AIProviderException.AIErrorType.RATE_LIMIT);
+        assertEquals(2, attempts.get());
+    }
+
+    @Test void exhaustedServerErrorsRetainTheirErrorType() {
+        responseStatus = 503;
+        assertFailure(provider("test-key"), AIProviderException.AIErrorType.API_ERROR);
+        assertEquals(2, attempts.get());
+    }
+
+    @Test void timeoutHasAnExplicitErrorType() {
+        responseDelay = 1500;
+        var provider = new OpenRouterProvider(new ObjectMapper(), "test-key", "test-model",
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/chat/completions",
+                1, 0, 0, 0, 100);
+        assertFailure(provider, AIProviderException.AIErrorType.TIMEOUT);
+    }
+
+    @Test void networkFailureHasAnExplicitErrorType() {
+        server.stop(0);
+        assertFailure(provider("test-key"), AIProviderException.AIErrorType.NETWORK_ERROR);
+    }
+
+    @Test void missingClassificationFieldsAreRejectedInsteadOfInvented() {
+        overrideResponse = "{\"choices\":[{\"message\":{\"content\":\"{}\"}}]}";
+        assertFailure(provider("test-key"), AIProviderException.AIErrorType.INVALID_RESPONSE);
+    }
+
+    private void assertFailure(OpenRouterProvider provider, AIProviderException.AIErrorType expected) {
+        var error = assertThrows(AIProviderException.class, () -> provider.classifyText(
+                ClassificationRequest.builder().description("Leaking pipe").siteType("school")
+                        .allowedCategories(List.of("plumbing", "general")).build()));
+        assertEquals(expected, error.getErrorType());
     }
 }

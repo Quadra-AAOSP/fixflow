@@ -36,7 +36,7 @@ class OnboardingCompletionIntegrationTest {
     private User admin, reporter, technician, foreignAdmin;
     private Subsite building;
     @BeforeEach void setup() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
         site = site("Campus"); foreign = site("Other");
         admin = account(UserRole.admin, site); reporter = account(UserRole.reporter, site);
         technician = account(UserRole.technician, null); foreignAdmin = account(UserRole.admin, foreign);

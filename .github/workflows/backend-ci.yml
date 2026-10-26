@@ -19,16 +19,24 @@ jobs:
           filters: |
             backend:
               - 'Backend/**'
+              - '.github/workflows/backend-ci.yml'
 
   build:
     needs: changes
-    runs-on: ubuntu-latest
+    if: needs.changes.outputs.backend == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: Backend
     steps:
       - uses: actions/checkout@v4
-        if: needs.changes.outputs.backend == 'true'
+
+      - name: Make Maven wrapper executable
+        run: chmod +x mvnw
 
       - name: Set up JDK 21
         if: needs.changes.outputs.backend == 'true'
@@ -50,10 +58,19 @@ jobs:
         if: needs.changes.outputs.backend == 'true'
         run: ./mvnw -B package -DskipTests
 
-      - name: Docker build (compose)
-        if: needs.changes.outputs.backend == 'true'
-        run: docker compose -f compose.yaml build
+      - name: Validate local and production Compose contracts
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: ./docker/Test-Docker.ps1 -ConfigurationOnly
 
-      - name: No backend changes
-        if: needs.changes.outputs.backend != 'true'
-        run: echo "No changes under Backend/ — skipping."
+      - name: Docker backend image build
+        if: runner.os == 'Linux'
+        run: docker build -t fixflow-backend:ci .
+
+      - name: Retain backend test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results-${{ matrix.os }}
+          path: Backend/target/surefire-reports/
+          if-no-files-found: ignore

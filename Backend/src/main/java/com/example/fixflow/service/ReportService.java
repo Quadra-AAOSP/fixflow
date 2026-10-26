@@ -373,6 +373,7 @@ public class ReportService {
 		report.setConfirmedAt(Instant.now());
 		report = reportRepository.save(report);
 		appendStatusHistory(report, from, ReportStatus.confirmed, user, "Report confirmed");
+		publishStatusTransition(report, from, com.example.fixflow.realtime.ReportDomainEvent.CONFIRMATION);
 		return response(report, actor);
 	}
 
@@ -394,7 +395,14 @@ public class ReportService {
 		report.setReopenReason(request.reason().trim());
 		report = reportRepository.save(report);
 		appendStatusHistory(report, from, ReportStatus.reopened, user, "Report reopened");
+		publishStatusTransition(report, from, com.example.fixflow.realtime.ReportDomainEvent.STATUS_CHANGE);
 		return response(report, actor);
+	}
+
+	private void publishStatusTransition(Report report, ReportStatus from, String eventType) {
+		Long assignee = report.getAssignedTechnician() == null ? null : report.getAssignedTechnician().getId();
+		events.publishEvent(com.example.fixflow.realtime.ReportDomainEvent.of(eventType,
+				report.getSite().getId(), report.getId(), from, report.getStatus(), assignee, assignee));
 	}
 
 	private List<ReportPhoto> storePhotos(Report report, List<MultipartFile> photos, int startingSortOrder) {

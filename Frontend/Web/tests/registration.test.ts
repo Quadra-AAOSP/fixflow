@@ -1,3 +1,4 @@
+import { stubApiFetch } from './csrfFetch';
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { buildRegistrationPayload, buildProvisionPayload, type RegistrationInput } from '../src/utils/registration';
 import { canProvisionRole } from '../src/constants/access';
@@ -42,7 +43,7 @@ describe('role-based public registration', () => {
     expect(() => buildRegistrationPayload({ ...form, password: 'x'.repeat(73) })).toThrow('72-byte');
   });
   it('submits null siteId without issuing a contract request', async () => {
-    const fetch = vi.fn().mockResolvedValue(new Response('{}')); vi.stubGlobal('fetch', fetch);
+    const fetch = vi.fn().mockResolvedValue(new Response('{}')); stubApiFetch(fetch);
     await register(buildRegistrationPayload(form));
     expect(fetch).toHaveBeenCalledOnce();
     expect(fetch.mock.calls[0]?.[0]).toBe('/api/auth/register');
@@ -68,7 +69,7 @@ describe('managed-role provisioning', () => {
     }
   });
   it('uses the managed-account endpoint and actual IDs for agreed contracts', async () => {
-    const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); vi.stubGlobal('fetch', fetch);
+    const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);
     await provisionUser(buildProvisionPayload({ ...form, role: 'admin' }, 'super_admin', [71]));
     await createTechnicianContract(54, 71);
     expect(fetch.mock.calls.map(call => call[0])).toEqual(['/api/admin/users','/api/technician-contracts']);

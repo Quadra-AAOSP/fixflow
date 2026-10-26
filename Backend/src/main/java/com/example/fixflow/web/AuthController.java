@@ -24,10 +24,20 @@ import jakarta.validation.Valid;
 public class AuthController {
 
 	private final AuthService authService;
+    private final org.springframework.security.web.csrf.CsrfTokenRepository csrfTokens;
 
-	public AuthController(AuthService authService) {
+	public AuthController(AuthService authService,
+            org.springframework.security.web.csrf.CsrfTokenRepository csrfTokens) {
 		this.authService = authService;
+        this.csrfTokens = csrfTokens;
 	}
+
+    @GetMapping("/csrf")
+    public java.util.Map<String, String> csrf(org.springframework.security.web.csrf.CsrfToken token,
+            HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store");
+        return java.util.Map.of("headerName", token.getHeaderName(), "token", token.getToken());
+    }
 
 	@PostMapping("/register")
 	public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -47,8 +57,12 @@ public class AuthController {
     }
 
 	@PostMapping("/login")
-	public UserResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-		return authService.login(request, httpRequest);
+	public UserResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        UserResponse user = authService.login(request, httpRequest);
+        // This controller authenticates manually, so rotate the token explicitly too.
+        csrfTokens.saveToken(null, httpRequest, httpResponse);
+        return user;
 	}
 
 	@PostMapping("/logout")

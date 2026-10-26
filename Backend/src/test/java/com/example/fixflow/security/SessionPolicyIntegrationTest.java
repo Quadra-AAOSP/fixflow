@@ -47,8 +47,8 @@ class SessionPolicyIntegrationTest {
         var builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/auth/login"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString("{\"email\":\"" + email + "\",\"password\":\"password123\"}"));
-        if (cookie != null) builder.header("Cookie", cookie);
-        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+        return client.send(CsrfHttp.authorize(client, builder,
+                URI.create("http://localhost:" + port + "/"), cookie).build(), HttpResponse.BodyHandlers.ofString());
     }
 
     private String cookie(HttpResponse<String> response) {
@@ -105,8 +105,10 @@ class SessionPolicyIntegrationTest {
         assertThat(rotated).isNotEqualTo(old);
         assertThat(me(old).statusCode()).isEqualTo(401);
         assertThat(me(rotated).statusCode()).isEqualTo(200);
-        var logout = client.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/auth/logout"))
-                .header("Cookie", rotated).POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+        var logout = client.send(CsrfHttp.authorize(client,
+                HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/auth/logout"))
+                .POST(HttpRequest.BodyPublishers.noBody()), URI.create("http://localhost:" + port + "/"), rotated)
+                .build(), HttpResponse.BodyHandlers.ofString());
         assertThat(logout.statusCode()).isEqualTo(204);
         assertThat(me(rotated).statusCode()).isEqualTo(401);
     }

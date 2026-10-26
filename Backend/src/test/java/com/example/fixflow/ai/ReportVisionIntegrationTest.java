@@ -44,7 +44,7 @@ class ReportVisionIntegrationTest {
     private Report report;
 
     @BeforeEach void setup() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
         Site site = new Site(); site.setName("Vision campus"); site.setType(SiteType.school);
         site.setContractStatus(ContractStatus.contracted); site = sites.save(site);
         actor = new User(); actor.setEmail("vision-" + System.nanoTime() + "@example.test");
