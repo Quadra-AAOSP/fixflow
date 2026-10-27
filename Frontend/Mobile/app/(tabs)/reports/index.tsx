@@ -184,13 +184,24 @@ export default function ReportsScreen() {
 
   // The same five options the web renders in its "Status" select
   // (`ReportsView.vue`): All reports / Open / In progress / Resolved / Urgent.
+  // Ops roles additionally get the triage-focused "Unassigned" and "To confirm"
+  // filters — reporters and technicians have no business filtering by those.
+  const isOps =
+    user?.role === 'admin' ||
+    user?.role === 'super_admin' ||
+    user?.role === 'staff';
   const filterSelectOptions = useMemo(
     () =>
-      REPORT_FILTERS.map((option) => ({
-        value: option.value,
-        label: option.value === 'all' ? t('reports.list.allReports') : t(option.labelKey),
-      })),
-    [t],
+      REPORT_FILTERS
+        .filter(
+          (option) =>
+            isOps || (option.value !== 'unassigned' && option.value !== 'confirmation'),
+        )
+        .map((option) => ({
+          value: option.value,
+          label: option.value === 'all' ? t('reports.list.allReports') : t(option.labelKey),
+        })),
+    [isOps, t],
   );
 
   /*
