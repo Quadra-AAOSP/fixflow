@@ -145,19 +145,31 @@ export default function TabLayout() {
 
         <Tabs.Screen
           name="more"
+          options={(
+            { tabBarIcon: ({ color, size }) => (
+              <LayoutGrid color={color} size={size} />
+            ) }
+          ) => {
+            const isTechnician = user?.role === 'technician';
+            const isSuperAdmin = user?.role === 'super_admin';
+            return {
+              headerShown: false,
+              title: isTechnician || isSuperAdmin ? t('tabs.shop') : t('tabs.more'),
+              href: isTechnician || isSuperAdmin ? '/more/shop' : undefined,
+            };
+          }}
+        />
+
+        <Tabs.Screen
+          name="shop"
           options={{
-            // The nested More stack owns its own header: `more/index` renders
-            // its own heading (its stack header is suppressed), and every
-            // pushed screen (settings, sites, contracts, …) gets a title +
-            // back arrow from the stack. Leaving the Tabs header on stacks a
-            // second "More" bar above them and makes the back button resolve
-            // to the wrong route — same reason `reports` disables it.
             headerShown: false,
-            title: t('tabs.more'),
+            title: t('tabs.shop'),
             tabBarIcon: ({ color, size }) => (
               <LayoutGrid color={color} size={size} />
             ),
           }}
+          href={null}
         />
 
         <Tabs.Screen
@@ -169,13 +181,28 @@ export default function TabLayout() {
             ),
             tabBarAccessibilityLabel: t('tabs.profile'),
           }}
-            // The nested Profile stack owns its own headers (Profile itself
-            // plus the Settings screen it now contains), so the tab must not
-            // add a second bar above them — same reason `reports` and `more`
-            // disable theirs.
-            headerShown: false,
-            title: t('tabs.profile'),
-            tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
+          // The nested Profile stack owns its own headers (Profile itself
+          // plus the Settings screen it now contains), so the tab must not
+          // add a second bar above them — same reason `reports` and `more`
+          // disable theirs.
+          headerShown: false,
+          title: t('tabs.profile'),
+          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
+        />
+
+        <Tabs.Screen
+          name="staff-dashboard"
+          options={(
+            { tabBarIcon: ({ color, size }) => (
+              <ClipboardList color={color} size={size} />
+            ) }
+          ) => {
+            const isStaff = user?.role === 'staff';
+            return {
+              headerShown: false,
+              title: isStaff ? t('tabs.staffDashboard') : undefined,
+              href: isStaff ? undefined : null,
+            };
           }}
         />
       </Tabs>
