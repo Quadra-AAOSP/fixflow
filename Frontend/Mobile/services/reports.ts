@@ -6,6 +6,7 @@ import type {
   Report,
   ReportPage,
   ReportReporter,
+  VisionJob,
 } from '@/types';
 
 export function createReport(payload: CreateReportPayload): Promise<Report> {
@@ -75,6 +76,27 @@ export function reopenReport(id: number, reason: string): Promise<Report> {
     endpoints.reports.reopen.replace('{id}', String(id)),
     { reason },
   );
+}
+
+/**
+ * Triggers AI classification for a report.
+ */
+export function classifyReport(id: number): Promise<Report> {
+  return api.post<Report>(endpoints.reports.classify.replace('{id}', String(id)));
+}
+
+/**
+ * Triggers AI vision processing for a report.
+ */
+export function triggerVisionProcessing(reportId: number): Promise<VisionJob> {
+  return api.post<VisionJob>(endpoints.reports.vision(reportId));
+}
+
+/**
+ * Gets the status of a vision processing job.
+ */
+export function getVisionJobStatus(reportId: number, jobId: string): Promise<VisionJob> {
+  return api.get<VisionJob>(endpoints.reports.visionJob(reportId, jobId));
 }
 
 /*

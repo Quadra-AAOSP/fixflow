@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -292,14 +293,16 @@ export default function OrderDetailScreen() {
             {order.checkoutUrl ? (
               <Pressable
                 onPress={() => {
-                  // Native WebView isn't bundled yet — surfacing the URL via
-                  // a tap-to-copy alert keeps the workflow reachable without
-                  // pulling in a heavyweight dependency.
-                  Alert.alert(
-                    t('more.shop.providerCheckout'),
-                    order.checkoutUrl ?? '',
-                    [{ text: t('more.shop.ok') }],
-                  );
+                  if (order.checkoutUrl) {
+                    Linking.openURL(order.checkoutUrl).catch((err) => {
+                      console.error('Failed to open URL:', err);
+                      Alert.alert(
+                        t('more.shop.checkoutError'),
+                        t('more.shop.checkoutFailed'),
+                        [{ text: t('more.shop.ok') }]
+                      );
+                    });
+                  }
                 }}
                 accessibilityRole="button"
                 className="mb-3 flex-row items-center gap-2 rounded-lg border border-dashboard-card-line bg-dashboard-card-bg p-3 active:opacity-80"

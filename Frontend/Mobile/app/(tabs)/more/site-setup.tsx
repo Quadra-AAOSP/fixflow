@@ -20,7 +20,9 @@ import {
   updateSubsite,
   archiveSubsite,
   getReportingSetup,
-  suggestMissingBuilding,
+  createSubsiteAlert,
+  listSubsiteAlerts,
+  resolveSubsiteAlert,
 } from '@/services/sites';
 import type { Subsite, ReportingSetup } from '@/types';
 
@@ -34,7 +36,8 @@ export default function SiteSetupScreen() {
 
   const canManage = canManageSubsites(user);
 
-  const [subsites, setSubsites] = useState<Subsite[] | null>(null);
+  const [subsites, setSubsites] = useState<Subsite[]>([]);
+  const [subsiteAlerts, setSubsiteAlerts] = useState<SubsiteAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +59,10 @@ export default function SiteSetupScreen() {
     setError(null);
     setLoading(true);
     try {
-      setSubsites(await listSubsites(site.id));
+      const subsites = await listSubsites(site.id);
+      setSubsites(subsites);
+      const alerts = await listSubsiteAlerts(site.id);
+      setSubsiteAlerts(alerts);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotLoad'),
@@ -69,7 +75,8 @@ export default function SiteSetupScreen() {
   useEffect(() => {
     if (!site) return;
     void load();
-  }, [site?.id, load]);
+    void loadReportingSetup();
+  }, [site?.id, load, loadReportingSetup]);
 
   function openEdit(row: Subsite) {
     setEditingId(row.id);
@@ -146,16 +153,35 @@ export default function SiteSetupScreen() {
     setBusy(true);
     setSuggestionError(null);
     try {
-      await suggestMissingBuilding(site.id, {
-        name: missingBuildingName.trim(),
-        description: missingBuildingDescription.trim(),
-      });
+      await createSubsiteAlert(site.id, missingBuildingName.trim());
       setSuggestionSuccess(true);
       setMissingBuildingName('');
       setMissingBuildingDescription('');
+      // Refresh alerts after suggestion
+      const alerts = await listSubsiteAlerts(site.id);
+      setSubsiteAlerts(alerts);
     } catch (err) {
       setSuggestionError(
         err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSuggest'),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resolveSubsiteAlert(alertId: number) {
+    if (!site) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await resolveSubsiteAlert(site.id, alertId);
+      // Refresh alerts after resolution
+      const alerts = await listSubsiteAlerts(site.id);
+      setSubsiteAlerts(alerts);
+      setSuggestionSuccess(true);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotResolve'),
       );
     } finally {
       setBusy(false);
@@ -352,6 +378,42 @@ export default function SiteSetupScreen() {
             </Text>
             {subsites !== null && (
               <Text className="mt-0.5 text-[10px] text-dashboard-subtitle">
+                {subsites.length} {t('siteSetup.buildingsCount', { count: subsites.length, plural: subsites.length === 1 ? '' : 's' })}
+              </Text>
+            )}
+
+            <Text className="mt-4 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+              {t('siteSetup.missingBuildings')}
+            </Text>
+            {subsiteAlerts.length > 0 ? (
+              <Card padded={false} className="mb-4">
+                {subsiteAlerts.map((alert) => (
+                  <View
+                    key={alert.id}
+                    className="px-4 py-3 border-t border-dashboard-card-line"
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-sm font-semibold text-ink" numberOfLines={2}>
+                        {alert.note}
+                      </Text>
+                      <Pressable
+                        onPress={() => resolveSubsiteAlert(alert.id)}
+                        accessibilityRole="button"
+                        className="flex-row items-center gap-1 active:opacity-70"
+                      >
+                        <Text className="text-[11px] font-medium text-tone-success underline">
+                          {t('siteSetup.resolve')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </Card>
+            ) : (
+              <Text className="mt-2 text-[10px] text-dashboard-subtitle">
+                {t('siteSetup.noMissingBuildings')}
+              </Text>
+            )}
                 {t('siteSetup.activeCount', { count: active.length })}
                 {archived.length > 0
                   ? ` · ${t('siteSetup.archivedCount', { count: archived.length })}`

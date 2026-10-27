@@ -48,9 +48,14 @@ import {
   matchesProductQuery,
   productCategories,
   safeImageUrl,
-  sortProducts,
-  toCartPayload,
 } from '@/utils/shop';
+import { useCartStore } from '@/stores/cart';
+
+// Basket state management
+const { addToBasket, updateBasketQuantity, removeFromBasket, clearBasket, getBasketLines } = useCartStore();
+
+
+};
 import { formatDate, formatMoney, fullName } from '@/utils/format';
 
 const ALL_CATEGORIES = 'all';
@@ -172,18 +177,10 @@ export default function ShopIndexScreen() {
     return sortProducts(base, sort);
   }, [products, inStockOnly, category, query, sort]);
 
-  const basketLines: BasketLine[] = useMemo(() => {
-    if (!catalog) return [];
-    return Object.entries(basket)
-      .map(([productId, quantity]) => {
-        const product = catalog.products.find((p) => p.id === productId);
-        if (!product || quantity <= 0) return null;
-        return { product, quantity } satisfies BasketLine;
-      })
-      .filter((line): line is BasketLine => line !== null);
+  const basketLines = getBasketLines();
   }, [basket, catalog]);
 
-  const basketTotalCount = basketCount(basketLines);
+  const basketTotalCount = basketCount(getBasketLines());
   const basketSubtotalMinor = basketLines.reduce(
     (sum, line) => sum + line.product.priceMinor * line.quantity,
     0,
@@ -202,7 +199,8 @@ export default function ShopIndexScreen() {
   }
 
   async function openCheckout() {
-    if (!catalog || basketLines.length === 0) return;
+    const lines = getBasketLines();
+    if (!catalog || lines.length === 0) return;
     // Same gate the web applies: anonymous browsers can browse, but the
     // checkout path requires a session ("Sign in to checkout").
     if (!user) {
@@ -212,7 +210,7 @@ export default function ShopIndexScreen() {
     setCheckoutQuoting(true);
     setBasketError(null);
     try {
-      const quote = await quoteCheckout(toCartPayload(basketLines));
+      const quote = await quoteCheckout(toCartPayload(lines));
       setCheckoutQuote(quote);
       setBasketSheetOpen(false);
     } catch (err) {
@@ -251,7 +249,7 @@ export default function ShopIndexScreen() {
         shippingPhone: shippingPhone.trim(),
         shippingAddress: shippingAddress.trim(),
       });
-      setBasket({});
+      clearBasket();
       setShippingName('');
       setShippingPhone('');
       setShippingAddress('');
@@ -524,9 +522,9 @@ export default function ShopIndexScreen() {
       <BasketSheet
         visible={basketSheetOpen}
         onClose={() => setBasketSheetOpen(false)}
-        lines={basketLines}
+        lines={getBasketLines()}
         catalog={catalog}
-        onChangeQuantity={setBasketQuantity}
+        onChangeQuantity={updateBasketQuantity}
         quoting={checkoutQuoting}
         error={basketError}
         onCheckout={() => {

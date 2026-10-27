@@ -33,11 +33,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError, toErrorMessage } from '@/lib/apiClient';
 import {
   assignTechnician,
+  classifyReport,
   confirmReport,
   getReport,
+  getVisionJobStatus,
   joinReport,
   listReporters,
   reopenReport,
+  triggerVisionProcessing,
 } from '@/services/reports';
 
 // NOTE: The backend does not currently have a dedicated 'leaveReport' endpoint.
@@ -65,6 +68,9 @@ export default function ReportDetailScreen() {
 
   const [report, setReport] = useState<Report | null>(null);
   const [reporters, setReporters] = useState<ReportReporter[] | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiAssessment, setAiAssessment] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -119,6 +125,23 @@ export default function ReportDetailScreen() {
       setLoading(false);
     }
   }, [reportId, t]);
+
+  const triggerAiAssessment = useCallback(async () => {
+    if (!report || aiLoading) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const updatedReport = await classifyReport(reportId);
+      setAiAssessment(updatedReport);
+      setReport(updatedReport);
+    } catch (err) {
+      setAiError(
+        err instanceof ApiError ? err.message : t('reports.detail.aiAssessmentError'),
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  }, [report, reportId, aiLoading, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -359,6 +382,48 @@ export default function ReportDetailScreen() {
         <Text className="mb-4 text-[14px] leading-[1.8] text-ink">
           {report.description}
         </Text>
+
+        {/* AI Assessment Section */}
+        <Card className="mb-4">
+          <View className="flex-row items-center justify-between">
+            <Text
+              className="text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.aiAssessment.title')}
+            </Text>
+            {report.aiReport && (
+              <Pressable
+                onPress={triggerAiAssessment}
+                disabled={aiLoading}
+                accessibilityRole="button"
+                className="flex-row items-center gap-1 active:opacity-70"
+              >
+                <Sparkles color={dashboardColors.teal} size={16} />
+                <Text className="text-[11px] font-medium text-dashboard-teal">
+                  {aiLoading ? t('reports.detail.aiAssessment.loading') : t('reports.detail.aiAssessment.trigger')}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+          {aiError && (
+            <Text className="mt-2 text-[10px] text-tone-danger">
+              {aiError}
+            </Text>
+          )}
+          {aiAssessment && aiAssessment.aiReport && (
+            <View className="mt-2">
+              <Text className="text-[12px] text-dashboard-subtitle">
+                {t('reports.detail.aiAssessment.urgency')}: {urgencyLabels[aiAssessment.aiReport.urgency]}
+              </Text>
+              {aiAssessment.aiReport.description && (
+                <Text className="mt-1 text-[12px] text-ink">
+                  {aiAssessment.aiReport.description}
+                </Text>
+              )}
+            </View>
+          )}
+        </Card>
 
         {/* Photos gallery — fullscreen preview via Modal */}
         <Card className="mb-4">
