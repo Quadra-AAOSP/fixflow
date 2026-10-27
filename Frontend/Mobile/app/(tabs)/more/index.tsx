@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { useCallback } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import {
   ArrowRight,
@@ -9,12 +8,11 @@ import {
   Moon,
   NotepadText,
   ShieldCheck,
-  ShoppingCart,
   ShoppingBag,
-  Store,
   UserCheck,
   Users,
   Wrench,
+  type LucideIcon,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Screen } from '@/components/ui/Screen';
 import { roleLabels, canManageShop, canProvision } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
+import type { UserRole } from '@/types';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -32,156 +31,190 @@ type MenuSection = {
 };
 
 type MenuItem = {
-  icon: typeof ArrowRight;
+  icon: LucideIcon;
   titleKey: string;
   subtitleKey: string | null;
   onPress: () => void;
 };
+
+/**
+ * Every item that ever appears in the More menu, keyed by a stable slug.
+ * The per-role visibility tables below decide which keys to include — no
+ * scattered role-ifs in the render path, so future additions can't leak.
+ */
+type ItemKey =
+  | 'reports'
+  | 'notifications'
+  | 'myAdminApplication'
+  | 'siteSetup'
+  | 'sites'
+  | 'teamAccess'
+  | 'technicians'
+  | 'adminApplications'
+  | 'contractsTechnician'
+  | 'contractsAdmin'
+  | 'shopManagement'
+  | 'shopCustomer';
+
+/** Which roles may see which item keys. An item key is visible to a role iff
+ *  that role appears in the key's allowlist, AND any additional capability
+ *  check the item defines below passes. */
+const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
+  reports: ['reporter', 'staff', 'admin', 'super_admin', 'shop_manager'],
+  notifications: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
+  // A reporter who applied to be site admin may track the status — see the
+  // "additional guard" check below for hasAdminApplication.
+  myAdminApplication: ['reporter'],
+  siteSetup: ['admin', 'super_admin'],
+  sites: ['admin', 'super_admin'],
+  teamAccess: ['admin', 'super_admin'],
+  technicians: ['staff', 'admin', 'super_admin'],
+  adminApplications: ['super_admin'],
+  contractsTechnician: ['technician'],
+  contractsAdmin: ['admin', 'super_admin'],
+  shopManagement: ['admin', 'super_admin', 'shop_manager'],
+  shopCustomer: ['admin', 'super_admin', 'shop_manager'],
+};
+
+function itemVisible(key: ItemKey, role: UserRole, guards: ItemGuards): boolean {
+  if (!ROLE_VISIBILITY[key].includes(role)) return false;
+  const guard = guards[key];
+  if (guard === undefined) return true;
+  return guard();
+}
+
+/** Item-specific capability checks beyond role membership. */
+type ItemGuards = Partial<Record<ItemKey, () => boolean>>;
+
 export default function MoreScreen() {
   const { t } = useTranslation('common');
   const router = useRouter();
   const { user } = useAuth();
 
-  const role = user?.role ?? 'reporter';
-  const canManageSite =
-    user?.role === 'admin' || user?.role === 'super_admin';
+  const role: UserRole = user?.role ?? 'reporter';
+
+  const canManageSite = role === 'admin' || role === 'super_admin';
   const canProvisionUser = canProvision(user);
-  const canViewAdminApplications = user?.role === 'super_admin';
-  const canViewTechnicians =
-    role === 'staff' || role === 'admin' || role === 'super_admin';
+  const hasAdminApplication =
+    role === 'reporter' && user?.adminApplication !== null;
 
-  // A reporter who applied to be a site admin sees this entry until the
-  // super-admin decision lands — even if no site exists yet.
-  const hasAdminApplication = user?.adminApplication !== null;
+  // Role → item-guard map. Anything that needs a second check after the role
+  // allowlist (e.g. capability flags, application presence) lives here.
+  const guards: ItemGuards = {
+    myAdminApplication: () => hasAdminApplication,
+    teamAccess: () => canProvisionUser,
+    shopManagement: () => canManageShop(user),
+  };
 
-  const sections: MenuSection[] = [
-    {
-      key: 'workspace',
-      labelKey: 'more.sections.workspace',
-      items: [
-        // Technicians have no Reports route (the tab layout bounces them to
-        // Workspace) — their queue lives on the Assignments tab.
-        ...(role === 'technician'
-          ? []
-          : [
-              {
-                icon: ClipboardList,
-                titleKey: 'more.menu.reportsTitle',
-                subtitleKey: 'more.menu.reportsSubtitle',
-                onPress: () => router.push('/reports'),
-              },
-            ]),
-        {
-          icon: Moon,
-          titleKey: 'more.menu.notificationsTitle',
-          subtitleKey: 'more.menu.notificationsSubtitle',
-          onPress: () => router.push('/more/notifications'),
-        },
-      ],
+  const allItems: Record<ItemKey, MenuItem> = {
+    reports: {
+      icon: ClipboardList,
+      titleKey: 'more.menu.reportsTitle',
+      subtitleKey: 'more.menu.reportsSubtitle',
+      onPress: () => router.push('/reports'),
     },
-  ];
-
-  if (canViewTechnicians || hasAdminApplication) {
-    const adminItems: (MenuItem | null)[] = [
-      hasAdminApplication
-        ? {
-            icon: ShieldCheck,
-            titleKey: 'more.menu.myAdminApplicationTitle',
-            subtitleKey: null,
-            onPress: () => router.push('/more/admin-application'),
-          }
-        : null,
-      canManageSite
-        ? {
-            icon: Building2,
-            titleKey: 'more.menu.siteSetupTitle',
-            subtitleKey: 'more.menu.siteSetupSubtitleRequired',
-            onPress: () => router.push('/more/site-setup'),
-          }
-        : null,
-      canManageSite
-        ? {
-            icon: Users,
-            titleKey: 'more.menu.sitesTitle',
-            subtitleKey: 'more.menu.sitesSubtitleEdit',
-            onPress: () => router.push('/more/sites'),
-          }
-        : null,
-      canProvisionUser
-        ? {
-            icon: UserCheck,
-            titleKey: 'more.menu.teamAccessTitle',
-            subtitleKey: 'more.menu.teamAccessSubtitle',
-            onPress: () => router.push('/more/team-access'),
-          }
-        : null,
-      canViewTechnicians
-        ? {
-            icon: Wrench,
-            titleKey: 'more.menu.techniciansTitle',
-            subtitleKey: 'more.menu.techniciansSubtitle',
-            onPress: () => router.push('/more/technicians'),
-          }
-        : null,
-      canViewAdminApplications
-        ? {
-            icon: ShieldCheck,
-            titleKey: 'more.menu.adminApplicationsTitle',
-            subtitleKey: 'more.menu.adminApplicationsSubtitle',
-            onPress: () => router.push('/more/admin-applications'),
-          }
-        : null,
-      role === 'technician' || canManageSite
-        ? {
-            icon: FileText,
-            titleKey: 'more.menu.siteContractsTitle',
-            subtitleKey:
-              role === 'technician'
-                ? 'more.menu.siteContractsSubtitleTechnician'
-                : 'more.menu.siteContractsSubtitleAdmin',
-            onPress: () => router.push('/more/contracts'),
-          }
-        : null,
-    ];
-    sections.push({
-      key: 'administration',
-      labelKey: 'more.sections.administration',
-      items: adminItems.filter((item): item is MenuItem => item !== null),
-    });
-  }
-
-  const shopItems: (MenuItem | null)[] = [
-    canManageShop(user)
-      ? {
-          icon: NotepadText,
-          titleKey: 'more.menu.shopManagementTitle',
-          subtitleKey: 'more.menu.shopManagementSubtitle',
-          onPress: () => router.push('/more/shop-management'),
-        }
-      : null,
-    {
+    notifications: {
+      icon: Moon,
+      titleKey: 'more.menu.notificationsTitle',
+      subtitleKey: 'more.menu.notificationsSubtitle',
+      onPress: () => router.push('/more/notifications'),
+    },
+    myAdminApplication: {
+      icon: ShieldCheck,
+      titleKey: 'more.menu.myAdminApplicationTitle',
+      subtitleKey: null,
+      onPress: () => router.push('/more/admin-application'),
+    },
+    siteSetup: {
+      icon: Building2,
+      titleKey: 'more.menu.siteSetupTitle',
+      subtitleKey: 'more.menu.siteSetupSubtitleRequired',
+      onPress: () => router.push('/more/site-setup'),
+    },
+    sites: {
+      icon: Users,
+      titleKey: 'more.menu.sitesTitle',
+      subtitleKey: 'more.menu.sitesSubtitleEdit',
+      onPress: () => router.push('/more/sites'),
+    },
+    teamAccess: {
+      icon: UserCheck,
+      titleKey: 'more.menu.teamAccessTitle',
+      subtitleKey: 'more.menu.teamAccessSubtitle',
+      onPress: () => router.push('/more/team-access'),
+    },
+    technicians: {
+      icon: Wrench,
+      titleKey: 'more.menu.techniciansTitle',
+      subtitleKey: 'more.menu.techniciansSubtitle',
+      onPress: () => router.push('/more/technicians'),
+    },
+    adminApplications: {
+      icon: ShieldCheck,
+      titleKey: 'more.menu.adminApplicationsTitle',
+      subtitleKey: 'more.menu.adminApplicationsSubtitle',
+      onPress: () => router.push('/more/admin-applications'),
+    },
+    contractsTechnician: {
+      icon: FileText,
+      titleKey: 'more.menu.siteContractsTitle',
+      subtitleKey: 'more.menu.siteContractsSubtitleTechnician',
+      onPress: () => router.push('/more/contracts'),
+    },
+    contractsAdmin: {
+      icon: FileText,
+      titleKey: 'more.menu.siteContractsTitle',
+      subtitleKey: 'more.menu.siteContractsSubtitleAdmin',
+      onPress: () => router.push('/more/contracts'),
+    },
+    shopManagement: {
+      icon: NotepadText,
+      titleKey: 'more.menu.shopManagementTitle',
+      subtitleKey: 'more.menu.shopManagementSubtitle',
+      onPress: () => router.push('/more/shop-management'),
+    },
+    shopCustomer: {
       icon: ShoppingBag,
       titleKey: 'more.menu.shopTitle',
-      subtitleKey: canManageSite ? 'more.menu.shopSubtitleManager' : 'more.menu.shopSubtitle',
+      subtitleKey: 'more.menu.shopSubtitle',
       onPress: () => router.push('/more/shop'),
     },
-  ];
-  const visibleShopItems = shopItems.filter(
-    (item): item is MenuItem => item !== null,
-  );
-  if (visibleShopItems.length > 0) {
-    sections.push({
-      key: 'shop',
-      labelKey: 'more.sections.shop',
-      items: visibleShopItems,
-    });
-  }
+  };
 
-  const siteCount = 0; // `me` payload currently omits this — use 0 until Phase 6 backfill.
-  const sitesLabel =
-    siteCount > 0
-      ? ` · ${siteCount}`
-      : '';
+  // Group keys into their sections, then filter each by itemVisible.
+  // Each section drops out entirely when it has zero visible items.
+  const workspaceKeys: ItemKey[] = ['reports', 'notifications', 'contractsTechnician'];
+  const applicationKeys: ItemKey[] = ['myAdminApplication'];
+  const adminKeys: ItemKey[] = [
+    'siteSetup',
+    'sites',
+    'teamAccess',
+    'technicians',
+    'adminApplications',
+    'contractsAdmin',
+  ];
+  const shopKeys: ItemKey[] = ['shopManagement', 'shopCustomer'];
+
+  const buildSection = (
+    sectionKey: string,
+    labelKey: string,
+    keys: ItemKey[],
+  ): MenuSection | null => {
+    const items = keys
+      .filter((key) => itemVisible(key, role, guards))
+      .map((key) => allItems[key]);
+    if (items.length === 0) return null;
+    return { key: sectionKey, labelKey, items };
+  };
+
+  const sections: MenuSection[] = [
+    buildSection('workspace', 'more.sections.workspace', workspaceKeys),
+    // Reporters who applied for admin get a dedicated section — not buried
+    // under "Administration" which is otherwise an admin-only concept.
+    buildSection('application', 'more.sections.application', applicationKeys),
+    buildSection('administration', 'more.sections.administration', adminKeys),
+    buildSection('shop', 'more.sections.shop', shopKeys),
+  ].filter((s): s is MenuSection => s !== null);
 
   const applicationStatusLabel =
     user?.adminApplication?.status === 'pending'
@@ -205,7 +238,6 @@ export default function MoreScreen() {
           </Text>
           <Text className="mt-0.5 text-[11px] text-dashboard-caption">
             {t('more.signedInAs', { role: t(roleLabels[role]) })}
-            {sitesLabel}
             {applicationStatusLabel ? ` · ${applicationStatusLabel}` : ''}
           </Text>
         </View>
