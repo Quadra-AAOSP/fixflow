@@ -19,8 +19,10 @@ import {
   listSubsites,
   updateSubsite,
   archiveSubsite,
+  getReportingSetup,
+  suggestMissingBuilding,
 } from '@/services/sites';
-import type { Subsite } from '@/types';
+import type { Subsite, ReportingSetup } from '@/types';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -42,6 +44,12 @@ export default function SiteSetupScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
+    const [reportingSetup, setReportingSetup] = useState<ReportingSetup | null>(null);
+    const [suggestingBuilding, setSuggestingBuilding] = useState(false);
+    const [missingBuildingName, setMissingBuildingName] = useState('');
+    const [missingBuildingDescription, setMissingBuildingDescription] = useState('');
+    const [suggestionSuccess, setSuggestionSuccess] = useState(false);
+    const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!site) return;
@@ -91,6 +99,80 @@ export default function SiteSetupScreen() {
     if (!site) return;
     if (!label.trim() || !name.trim()) return;
     setBusy(true);
+
+    try {
+      if (creating) {
+        await createSubsite(site.id, {
+          label: label.trim(),
+          name: name.trim(),
+          description: description.trim(),
+        });
+      } else if (editingId !== null) {
+        await updateSubsite(site.id, editingId, {
+          label: label.trim(),
+          name: name.trim(),
+          description: description.trim(),
+        });
+      }
+      await load();
+      cancelForm();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSave'),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadReportingSetup() {
+    if (!site) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const setup = await getReportingSetup(site.id);
+      setReportingSetup(setup);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotLoadSetup'),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function suggestMissingBuilding() {
+    if (!site || !missingBuildingName.trim()) return;
+    setBusy(true);
+    setSuggestionError(null);
+    try {
+      await suggestMissingBuilding(site.id, {
+        name: missingBuildingName.trim(),
+        description: missingBuildingDescription.trim(),
+      });
+      setSuggestionSuccess(true);
+      setMissingBuildingName('');
+      setMissingBuildingDescription('');
+    } catch (err) {
+      setSuggestionError(
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSuggest'),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openSuggestBuilding() {
+    setSuggestingBuilding(true);
+    setSuggestionSuccess(false);
+    setSuggestionError(null);
+  }
+
+  function closeSuggestBuilding() {
+    setSuggestingBuilding(false);
+    setMissingBuildingName('');
+    setMissingBuildingDescription('');
+  }
     try {
       if (creating) {
         await createSubsite(site.id, {

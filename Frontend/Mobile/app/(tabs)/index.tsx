@@ -48,6 +48,8 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
+
+// Reporter-specific dashboard components and logic
 import { useCurrentSite } from '@/stores/site';
 import type { Report, ReportStatus } from '@/types';
 import { humanize, relativeTime } from '@/utils/format';

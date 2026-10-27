@@ -49,6 +49,11 @@ export default function TabLayout() {
   // navigator on every remount and block Assignments/More/Profile.
   const technicianOnForbiddenRoute = isTechnicianForbiddenRoute(user.role, pathname);
 
+    // Redirect technicians from forbidden routes to their workspace
+    if (technicianOnForbiddenRoute) {
+      return <Redirect href="/(tabs)/workspace" />;
+    }
+
   return (
     <SiteProvider>
       <Tabs
@@ -158,6 +163,12 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
+            title: t('tabs.profile'),
+            tabBarIcon: ({ color, size }) => (
+              <User color={color} size={size} />
+            ),
+            tabBarAccessibilityLabel: t('tabs.profile'),
+          }}
             // The nested Profile stack owns its own headers (Profile itself
             // plus the Settings screen it now contains), so the tab must not
             // add a second bar above them — same reason `reports` and `more`

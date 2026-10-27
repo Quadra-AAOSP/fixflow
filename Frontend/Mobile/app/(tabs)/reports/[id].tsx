@@ -39,6 +39,13 @@ import {
   listReporters,
   reopenReport,
 } from '@/services/reports';
+
+// NOTE: The backend does not currently have a dedicated 'leaveReport' endpoint.
+// Required backend operation:
+// DELETE /api/reports/{id}/reporters/{reporterId}
+// Authorization: Only the reporter themselves or a site admin/super admin
+// Expected behavior: Removes the reporter from the report's reporter list
+// If implemented, add a leaveReport function to the reports service and implement the UI for it.
 import { useCurrentSite } from '@/stores/site';
 import type { Report, ReportReporter, Urgency } from '@/types';
 import { formatDate, humanize } from '@/utils/format';

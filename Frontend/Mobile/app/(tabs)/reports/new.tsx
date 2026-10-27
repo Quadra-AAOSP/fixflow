@@ -31,6 +31,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { MAX_PHOTO_COUNT, MAX_PHOTO_SIZE_BYTES, uploadPhoto } from '@/services/photos';
 import { createReport } from '@/services/reports';
+import { useToast } from '@/components/ui/Toast';
+import { useNavigation } from '@react-navigation/native';
 import { listSiteRules } from '@/services/siteRules';
 import { listSubsites, createSubsiteAlert } from '@/services/sites';
 import type {
@@ -95,6 +97,50 @@ export default function NewReportScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+    const toast = useToast();
+    const navigation = useNavigation();
+
+    const handleSubmit = async () => {
+      if (!site?.id || !user?.id || !subsiteId || !description || !urgency) {
+        toast.show(t('reports.new.missingFields'), { type: 'error' });
+        return;
+      }
+
+      setSubmitting(true);
+      setServerError(null);
+
+      try {
+        const report = await createReport({
+          siteId: site.id,
+          subsiteId,
+          description,
+          urgency,
+          visibility,
+          address,
+          category,
+          reason,
+        });
+
+        // Upload photos if any
+        if (pickedPhotos.length > 0) {
+          for (const photo of pickedPhotos) {
+            await uploadPhoto(report.id, photo);
+          }
+        }
+
+        toast.show(t('reports.new.success'), { type: 'success' });
+        navigation.goBack();
+      } catch (err) {
+        setServerError(
+          err instanceof ApiError
+            ? err.message
+            : t('reports.new.submitFail'),
+        );
+        toast.show(t('reports.new.submitFail'), { type: 'error' });
+      } finally {
+        setSubmitting(false);
+      }
+    };
 
   // Photos — picked locally before report creation, uploaded in a batch
   // immediately after the report is created. We upload post-create because
