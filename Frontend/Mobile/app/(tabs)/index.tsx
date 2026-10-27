@@ -448,6 +448,11 @@ export default function HomeScreen() {
       >
         <WelcomeBanner
           t={t}
+          palette={palette}
+          user={user}
+          site={site}
+          canFile={canFile}
+          fileDisabledReason={fileDisabledReason}
           greeting={greeting}
           firstName={user?.firstName}
           ctaDisabled={isOps ? !site : !canFile}
@@ -456,16 +461,18 @@ export default function HomeScreen() {
           onPressCta={isOps ? () => gotoReports('open') : gotoNewReport}
         />
 
-        <SiteRow
-          t={t}
-          loading={loading || refreshing}
-          error={reports === null ? error : null}
-          lastSynced={lastSynced}
-          onRefresh={() => {
-            void load();
-          }}
-          onNotifications={() => router.push('/more/notifications')}
-        />
+        <View className="flex-row justify-end mb-3 px-1">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('home.notifications.accessibilityLabel')}
+            onPress={() => router.push('/more/notifications')}
+            className="active:opacity-70"
+          >
+            <Bell color={dashboardColors.subtitle} size={16} strokeWidth={1.9} />
+          </Pressable>
+        </View>
+
+
 
         {applicationStatus === 'pending' || applicationStatus === 'approved' ? (
           <ApplicationStatusBanner

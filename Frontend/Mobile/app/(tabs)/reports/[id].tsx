@@ -48,6 +48,12 @@ import {
 // DELETE /api/reports/{id}/reporters/{reporterId}
 // Authorization: Only the reporter themselves or a site admin/super admin
 // Expected behavior: Removes the reporter from the report's reporter list
+
+// NOTE: The backend does not currently have a dedicated 'leaveReport' endpoint.
+// Required backend operation:
+// DELETE /api/reports/{id}/reporters/{reporterId}
+// Authorization: Only the reporter themselves or a site admin/super admin
+// Expected behavior: Removes the reporter from the report's reporter list
 // If implemented, add a leaveReport function to the reports service and implement the UI for it.
 import { useCurrentSite } from '@/stores/site';
 import type { Report, ReportReporter, Urgency } from '@/types';
@@ -331,7 +337,7 @@ export default function ReportDetailScreen() {
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t('reports.detail.allReports')}
-            onPress={() => router.push('/reports')}
+            onPress={() => router.back()}
             className="flex-row items-center gap-1 active:opacity-70"
           >
             <ArrowLeft color={dashboardColors.teal} size={15} />

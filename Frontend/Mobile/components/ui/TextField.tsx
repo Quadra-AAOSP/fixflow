@@ -47,9 +47,10 @@ export function TextField({
 
   return (
     <View className={`mb-4 ${className ?? ''}`}>
-      <Text className="mb-1.5 text-[12px] font-medium text-ink">{label}</Text>
+      <Text className="mb-1.5 text-[12px] font-medium text-ink" numberOfLines={1}>{label}</Text>
       <TextInput
         placeholderTextColor={colors.subtitle}
+        selectionColor={colors.primary}
         onFocus={(event) => {
           setFocused(true);
           onFocus?.(event);
@@ -64,7 +65,12 @@ export function TextField({
             : showRing
               ? 'border-[1.5px] border-dashboard-cta-bg bg-dashboard-cta-icon-bg'
               : 'border-[1.5px] border-border'
-        }`}
+        }`
+        }
+        disabledTextColor={colors.subtitle}
+        placeholderClassName="text-[11px] text-subtitle"
+        textAlignVertical="center"
+        editable={!props.editable || props.editable === undefined ? true : props.editable}}
         {...props}
       />
       {error ? (
