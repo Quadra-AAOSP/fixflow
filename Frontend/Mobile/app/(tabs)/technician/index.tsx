@@ -1,7 +1,8 @@
 import { Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { ArrowRight } from 'lucide-react-native';
 
 // Translations for Technician Dashboard
 // Add these to your i18n common.json file
@@ -172,11 +173,17 @@ export default function TechnicianDashboardScreen() {
             </Text>
             {terms ? (
               <Card padded={false} className="mb-4">
-                <View className="border-b border-dashboard-card-line px-4 py-3">
-                  <Text className="text-[12px] text-ink">
-                    {terms.version} - {terms.status}
-                  </Text>
-                </View>
+                <Pressable
+                  onPress={() => router.push('/technician/terms')}
+                  className="border-b border-dashboard-card-line px-4 py-3"
+                >
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-[12px] text-ink">
+                      {terms.version} - {terms.status}
+                    </Text>
+                    <ArrowRight color={dashboardColors.subtitle} size={16} />
+                  </View>
+                </Pressable>
               </Card>
             ) : (
               <Card className="mb-4">
@@ -185,6 +192,36 @@ export default function TechnicianDashboardScreen() {
                 </Text>
               </Card>
             )}
+
+            <Text className="mb-2 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+              {t('technician.dashboard.contractRequests')}
+            </Text>
+            <Pressable
+              onPress={() => router.push('/technician/contract-requests')}
+              className="mb-4 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg px-4 py-3"
+            >
+              <View className="flex-row items-center justify-between">
+                <Text className="text-[12px] text-ink">
+                  {t('technician.dashboard.manageContractRequests')}
+                </Text>
+                <ArrowRight color={dashboardColors.subtitle} size={16} />
+              </View>
+            </Pressable>
+
+            <Text className="mb-2 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+              {t('technician.dashboard.invitations')}
+            </Text>
+            <Pressable
+              onPress={() => router.push('/technician/invitations')}
+              className="mb-4 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg px-4 py-3"
+            >
+              <View className="flex-row items-center justify-between">
+                <Text className="text-[12px] text-ink">
+                  {t('technician.dashboard.viewInvitations')}
+                </Text>
+                <ArrowRight color={dashboardColors.subtitle} size={16} />
+              </View>
+            </Pressable>
           </>
         )}
       </ScrollView>

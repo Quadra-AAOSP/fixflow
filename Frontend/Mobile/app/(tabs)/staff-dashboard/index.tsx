@@ -1,7 +1,8 @@
 import { Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { ArrowRight } from 'lucide-react-native';
 
 // Translations for Staff Dashboard
 // Add these to your i18n common.json file
@@ -30,8 +31,11 @@ import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import {
+  assignTechnicianToReport,
+  confirmReport,
   listReports,
   listTechnicians,
+  reopenReport,
 } from '@/services/staff';
 import type { Report, Technician } from '@/types';
 
@@ -157,6 +161,21 @@ export default function StaffDashboardScreen() {
                 </Text>
               </Card>
             )}
+
+            <Text className="mb-2 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+              {t('staff.dashboard.actions')}
+            </Text>
+            <Pressable
+              onPress={() => router.push('/staff-dashboard/reports')}
+              className="mb-4 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg px-4 py-3"
+            >
+              <View className="flex-row items-center justify-between">
+                <Text className="text-[12px] text-ink">
+                  {t('staff.dashboard.manageReports')}
+                </Text>
+                <ArrowRight color={dashboardColors.subtitle} size={16} />
+              </View>
+            </Pressable>
           </>
         )}
       </ScrollView>
