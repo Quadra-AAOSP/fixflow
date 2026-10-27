@@ -520,6 +520,7 @@
     "signedInAs": "Signed in as {role}",
     "sections": {
       "workspace": "Workspace",
+      "application": "Role application",
       "administration": "Administration",
       "shop": "Shop"
     },

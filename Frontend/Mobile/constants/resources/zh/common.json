@@ -520,6 +520,7 @@
     "signedInAs": "当前登录身份：{role}",
     "sections": {
       "workspace": "工作台",
+      "application": "申请状态",
       "administration": "管理",
       "shop": "物资"
     },
