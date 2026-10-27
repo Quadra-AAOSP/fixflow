@@ -522,12 +522,14 @@ export default function HomeScreen() {
             </>
           ) : (
             <>
-              <AttentionCard
-                t={t}
-                items={attention}
-                reportCount={attentionReportCount}
-                onPressItem={gotoReports}
-              />
+              {isOps ? (
+                <AttentionCard
+                  t={t}
+                  items={attention}
+                  reportCount={attentionReportCount}
+                  onPressItem={gotoReports}
+                />
+              ) : null}
 
               <View className="mb-3 flex-row gap-2">
                 {statSet.slice(0, 2).map((stat) => (
@@ -558,22 +560,26 @@ export default function HomeScreen() {
                 ))}
               </View>
 
-              <MaintenanceOverviewCard
-                t={t}
-                period={period}
-                onChangePeriod={setPeriod}
-                buckets={weekBuckets}
-                isEmpty={isChartEmpty}
-                loading={loading}
-                subtitle={overviewSubtitle}
-              />
+              {isOps ? (
+                <>
+                  <MaintenanceOverviewCard
+                    t={t}
+                    period={period}
+                    onChangePeriod={setPeriod}
+                    buckets={weekBuckets}
+                    isEmpty={isChartEmpty}
+                    loading={loading}
+                    subtitle={overviewSubtitle}
+                  />
 
-              <CategoryCard
-                t={t}
-                slices={categorySlices}
-                onPressCategory={gotoCategory}
-                onPressAll={() => gotoReports('all')}
-              />
+                  <CategoryCard
+                    t={t}
+                    slices={categorySlices}
+                    onPressCategory={gotoCategory}
+                    onPressAll={() => gotoReports('all')}
+                  />
+                </>
+              ) : null}
 
               <RecentReportsCard
                 t={t}
@@ -585,12 +591,14 @@ export default function HomeScreen() {
                 onPressRow={gotoReport}
               />
 
-              <RecentUpdatesCard
-                t={t}
-                reports={updates}
-                onPressAll={() => gotoReports('all')}
-                onPressRow={gotoReport}
-              />
+              {isOps ? (
+                <RecentUpdatesCard
+                  t={t}
+                  reports={updates}
+                  onPressAll={() => gotoReports('all')}
+                  onPressRow={gotoReport}
+                />
+              ) : null}
 
               <QuickActionsCard
                 t={t}
