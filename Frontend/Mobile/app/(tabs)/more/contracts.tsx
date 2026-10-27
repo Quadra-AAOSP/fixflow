@@ -21,9 +21,9 @@ import { canDecideContracts } from '@/constants/access';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { createTechnicianContract } from '@/services/technician';
+import { createTechnicianContract, listTechnicianContractRequests, listTechnicianContracts, decideTechnicianContractRequest } from '@/services/technician';
 import { listSites } from '@/services/sites';
-import type { Site } from '@/types';
+import type { Site, TechnicianContractRequest, TechnicianContract } from '@/types';
 import { formatDate } from '@/utils/format';
 
 /**
@@ -45,6 +45,71 @@ export default function ContractsScreen() {
   const { t } = useTranslation('common');
   const isAdmin = user !== null && canDecideContracts(user);
   const isTechnician = user?.role === 'technician';
+
+  const [sites, setSites] = useState<Site[]>([]);
+  const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
+  const [requests, setRequests] = useState<TechnicianContractRequest[]>([]);
+  const [contracts, setContracts] = useState<TechnicianContract[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [sites, requests, contracts] = await Promise.all([
+        listSites(),
+        isTechnician ? listTechnicianContractRequests() : [],
+        isTechnician ? listTechnicianContracts() : [],
+      ]);
+      setSites(sites);
+      setRequests(requests);
+      setContracts(contracts);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('contracts.loadFail'),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [isTechnician, t]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const handleSubmitRequest = useCallback(async () => {
+    if (!selectedSiteId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await createTechnicianContract(selectedSiteId);
+      await loadData();
+      setSelectedSiteId(null);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('contracts.requestFail'),
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [selectedSiteId, loadData, t]);
+
+  const handleDecideRequest = useCallback(async (requestId: number, decision: 'approve' | 'reject') => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await decideTechnicianContractRequest(requestId, decision);
+      await loadData();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('contracts.decisionFail'),
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [loadData, t]);
 
   if (!user) return null;
 

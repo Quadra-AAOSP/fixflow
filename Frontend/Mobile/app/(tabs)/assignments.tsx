@@ -22,9 +22,9 @@ import { UrgencyChip } from '@/components/ui/UrgencyChip';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listReports } from '@/services/reports';
+import { listReports, listTechnicianInvitations, listTechnicianPool, rankTechnicianForReport } from '@/services/reports';
 import { useCurrentSite } from '@/stores/site';
-import type { Report, Urgency } from '@/types';
+import type { Report, Urgency, TechnicianInvitation, TechnicianPoolMember } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import {
   REPORT_FILTERS,
@@ -53,6 +53,64 @@ export default function AssignmentsScreen() {
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
+  const { site, sites } = useCurrentSite();
+
+  const [invitations, setInvitations] = useState<TechnicianInvitation[]>([]);
+  const [technicianPool, setTechnicianPool] = useState<TechnicianPoolMember[]>([]);
+  const [loadingInvitations, setLoadingInvitations] = useState(true);
+  const [loadingPool, setLoadingPool] = useState(true);
+  const [invitationError, setInvitationError] = useState<string | null>(null);
+  const [poolError, setPoolError] = useState<string | null>(null);
+
+  const loadInvitations = useCallback(async () => {
+    if (!user?.id) return;
+    setLoadingInvitations(true);
+    setInvitationError(null);
+    try {
+      const invitations = await listTechnicianInvitations();
+      setInvitations(invitations);
+    } catch (err) {
+      setInvitationError(
+        err instanceof ApiError ? err.message : t('assignments.invitationLoadFail'),
+      );
+    } finally {
+      setLoadingInvitations(false);
+    }
+  }, [user?.id, t]);
+
+  const loadTechnicianPool = useCallback(async () => {
+    if (!site?.id) return;
+    setLoadingPool(true);
+    setPoolError(null);
+    try {
+      const pool = await listTechnicianPool(site.id);
+      setTechnicianPool(pool);
+    } catch (err) {
+      setPoolError(
+        err instanceof ApiError ? err.message : t('assignments.poolLoadFail'),
+      );
+    } finally {
+      setLoadingPool(false);
+    }
+  }, [site?.id, t]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadInvitations();
+      void loadTechnicianPool();
+    }, [loadInvitations, loadTechnicianPool]),
+  );
+
+  const handleRankTechnician = useCallback(async (reportId: number, technicianId: number) => {
+    try {
+      await rankTechnicianForReport(reportId, technicianId);
+      // Refresh data after ranking
+      await loadInvitations();
+      await loadTechnicianPool();
+    } catch (err) {
+      // Handle error appropriately
+    }
+  }, [loadInvitations, loadTechnicianPool]);
   const { site, sites, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
 
   const [reports, setReports] = useState<Report[] | null>(null);
