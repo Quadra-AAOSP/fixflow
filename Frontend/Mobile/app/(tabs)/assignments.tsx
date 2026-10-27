@@ -132,7 +132,7 @@ export default function AssignmentsScreen() {
   }, [reports, isTechnician, user?.id]);
 
   const siteName = useCallback(
-    (id: number | null) => (id !== null && site && id === site.id ? site.name : `Site #${id ?? ''}`),
+    (id: number | null) => (id !== null && site && id === site.id ? site.name : ''),
     [site],
   );
 
@@ -418,7 +418,7 @@ function ReportCard({
   const assignee =
     report.assignedTechnicianId == null
       ? t('assignments.unassigned')
-      : t('assignments.technicianId', { id: report.assignedTechnicianId });
+      : t('assignments.assigned');
   return (
     <Pressable
       onPress={onPress}

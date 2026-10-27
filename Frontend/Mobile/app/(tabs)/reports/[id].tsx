@@ -424,7 +424,7 @@ export default function ReportDetailScreen() {
               report.siteId == null
                 ? t('reports.detail.definition.notShared')
                 : (sites.find((entry) => entry.id === report.siteId)?.name ??
-                  `Site #${report.siteId}`)
+                  t('reports.detail.definition.notShared'))
             }
           />
           <DefinitionRow
@@ -455,7 +455,7 @@ export default function ReportDetailScreen() {
             value={
               report.assignedTechnicianId == null
                 ? t('reports.detail.definition.unassigned')
-                : t('reports.detail.definition.technicianId', { id: report.assignedTechnicianId })
+                : t('reports.detail.definition.assigned')
             }
           />
           <DefinitionRow

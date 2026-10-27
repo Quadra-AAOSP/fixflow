@@ -32,7 +32,7 @@ import { ApiError } from '@/lib/apiClient';
 import { MAX_PHOTO_COUNT, MAX_PHOTO_SIZE_BYTES, uploadPhoto } from '@/services/photos';
 import { createReport } from '@/services/reports';
 import { listSiteRules } from '@/services/siteRules';
-import { listSubsites } from '@/services/sites';
+import { listSubsites, createSubsiteAlert } from '@/services/sites';
 import type {
   ReportPhoto,
   ReportVisibility,
@@ -105,6 +105,13 @@ export default function NewReportScreen() {
   // A2 triage assistant + A4 voice-to-text on the description field.
   const [triageOpen, setTriageOpen] = useState(false);
   const descRecorder = useAudioRecorder();
+
+  // Missing-building suggestion — reporters can flag that a building is
+  // missing when the site has no active subsites.
+  const [suggestionNote, setSuggestionNote] = useState('');
+  const [suggestionSubmitting, setSuggestionSubmitting] = useState(false);
+  const [suggestionSuccess, setSuggestionSuccess] = useState(false);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
   // Mirrors the web's `canCreate` (reporter/staff/admin/super_admin only):
   // technicians resolve reports rather than file them.
@@ -400,22 +407,96 @@ export default function NewReportScreen() {
   const activeSubsites = (subsites ?? []).filter((s) => s.archivedAt === null);
   if (subsites !== null && !subsitesLoading && activeSubsites.length === 0) {
     const manage = canManageSubsites(user);
+
+    async function onSubmitSuggestion() {
+      if (!site || !suggestionNote.trim() || suggestionSubmitting) return;
+      setSuggestionSubmitting(true);
+      setSuggestionError(null);
+      try {
+        await createSubsiteAlert(site.id, suggestionNote.trim());
+        setSuggestionSuccess(true);
+        setSuggestionNote('');
+      } catch (err) {
+        setSuggestionError(
+          err instanceof ApiError ? err.message : t('reports.new.suggestionFailed'),
+        );
+      } finally {
+        setSuggestionSubmitting(false);
+      }
+    }
+
     return (
       <Screen>
-        <StateView
-          variant="empty"
-          icon={Building2}
-          title={t('reports.new.noBuildingsTitle')}
-          description={
-            manage
-              ? t('reports.new.noBuildingsDescAdmin')
-              : t('reports.new.noBuildingsDescReporter')
-          }
-          actionLabel={manage ? t('reports.new.openSiteSetup') : undefined}
-          onAction={
-            manage ? () => router.push('/more/site-setup') : undefined
-          }
-        />
+        <ScrollView contentContainerClassName="px-5 pb-6 pt-4">
+          <StateView
+            variant="empty"
+            icon={Building2}
+            title={t('reports.new.noBuildingsTitle')}
+            description={
+              manage
+                ? t('reports.new.noBuildingsDescAdmin')
+                : t('reports.new.noBuildingsDescReporter')
+            }
+            actionLabel={manage ? t('reports.new.openSiteSetup') : undefined}
+            onAction={
+              manage ? () => router.push('/more/site-setup') : undefined
+            }
+          />
+          {!manage ? (
+            <Card className="mt-4">
+              <Text
+                className="mb-2 text-[15px] font-semibold text-ink"
+                style={{ letterSpacing: -0.3 }}
+              >
+                {t('reports.new.suggestionTitle')}
+              </Text>
+              <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+                {t('reports.new.suggestionBody')}
+              </Text>
+              {suggestionSuccess ? (
+                <View className="rounded-md px-3 py-2" style={{ backgroundColor: dashboardColors.statMintSoft }}>
+                  <Text className="text-[11px] font-medium" style={{ color: dashboardColors.statMintDeep }}>
+                    {t('reports.new.suggestionSuccess')}
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <TextField
+                    label={t('reports.new.suggestionLabel')}
+                    value={suggestionNote}
+                    onChangeText={(v) => {
+                      setSuggestionNote(v);
+                      if (suggestionError) setSuggestionError(null);
+                    }}
+                    multiline
+                    numberOfLines={3}
+                    placeholder={t('reports.new.suggestionPlaceholder')}
+                    error={suggestionError ?? undefined}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('reports.new.suggestionSubmit')}
+                    disabled={suggestionSubmitting || !suggestionNote.trim()}
+                    onPress={onSubmitSuggestion}
+                    className="flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
+                    style={{
+                      backgroundColor: dashboardColors.ctaBg,
+                      borderColor: dashboardColors.ctaBorder,
+                      opacity: suggestionSubmitting || !suggestionNote.trim() ? 0.55 : 1,
+                    }}
+                  >
+                    <Text
+                      className="text-[13px] font-semibold"
+                      style={{ color: dashboardColors.ctaText }}
+                    >
+                      {suggestionSubmitting ? t('reports.new.suggestionSubmitting') : t('reports.new.suggestionSubmit')}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+            </Card>
+          ) : null}
+        </ScrollView>
       </Screen>
     );
   }
@@ -448,7 +529,7 @@ export default function NewReportScreen() {
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t('reports.new.allReports')}
-            onPress={() => router.back()}
+            onPress={() => router.replace('/reports')}
             className="mb-2 flex-row items-center gap-1 self-start active:opacity-70"
           >
             <ArrowLeft color={dashboardColors.teal} size={15} />

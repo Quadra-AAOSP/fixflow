@@ -153,6 +153,9 @@
       "notSynced": "尚未同步",
       "accessibilityLabel": "刷新面板"
     },
+    "notifications": {
+      "accessibilityLabel": "打开通知"
+    },
     "applicationBanner": {
       "approvedTitle": "管理员申请已通过",
       "approvedBody": "退出并重新登录即可激活您的管理员权限。",
@@ -254,6 +257,8 @@
       "noMatchesTitle": "没有匹配项",
       "noMatchesDesc": "请尝试其他筛选条件或搜索词。",
       "loadingReports": "正在加载报修…",
+      "loadingMore": "正在加载更多…",
+      "scrollForMore": "滑动查看更多报修",
       "assigneeUnassigned": "未分配",
       "assigneeTechnicianId": "技师 #{id}",
       "urgencySuffix": "优先级",
@@ -368,7 +373,15 @@
         "permissionDenied": "需要照片访问权限，请在设置中启用。",
         "uploadFailed": "部分照片上传失败。",
         "remove": "移除照片"
-      }
+      },
+      "suggestionTitle": "建议缺少的建筑",
+      "suggestionBody": "如果缺少某栋建筑或区域，请告知管理员以便添加。",
+      "suggestionLabel": "缺少什么？",
+      "suggestionPlaceholder": "例如：C 栋，或东侧楼梯间",
+      "suggestionSubmit": "发送建议",
+      "suggestionSubmitting": "正在发送…",
+      "suggestionSuccess": "建议已发送 — 管理员将进行审核。",
+      "suggestionFailed": "无法发送建议。"
     },
     "detail": {
       "allReports": "全部报修",
@@ -398,7 +411,7 @@
         "reportedBy": "提交人",
         "technician": "技师",
         "unassigned": "未分配",
-        "technicianId": "技师 #{id}",
+        "assigned": "已指派",
         "reporterUrgency": "报修人评估优先级",
         "aiUrgency": "AI 评估优先级",
         "notClassified": "未分类",
@@ -504,7 +517,7 @@
     "assignedToMe": "分配给我（{count}）",
     "availableToClaim": "可认领（{count}）",
     "unassigned": "未分配",
-    "technicianId": "技师 #{id}",
+    "assigned": "已指派",
     "errors": {
       "couldNotLoad": "无法加载报修列表。",
       "retry": "重试"
@@ -624,6 +637,7 @@
       "dismissNote": "您也可以关闭确认提示，在同一会话中继续创建下一个账户。初始密码建议在首次登录后更改。",
       "confirmation": "已为 {name}（{email}）在 {site} 创建 {role} 账户。该账户现在可以登录。",
       "noSitePlatform": "无站点（平台级账户）",
+      "unknownSite": "未知站点",
       "errors": {
         "chooseRole": "请为新账户选择角色。",
         "chooseSite": "请为新账户选择站点。",
@@ -716,8 +730,9 @@
       "couldNotLoadSites": "无法加载站点。",
       "couldNotLoadSitesTitle": "无法加载站点",
       "recordIntro": "仅在技师同意后登记站点合同。此操作直接创建合同，不会处理在线申请，也不记录审批历史。",
-      "confirmation": "已为技师 #{technicianId} 在 {site} 创建合同 #{id}，日期 {date}。",
+      "confirmation": "已在 {site} 为技师创建合同，日期 {date}。",
       "siteLabel": "站点",
+      "unknownSite": "未知站点",
       "technicianIdLabel": "技师账户编号",
       "technicianIdPlaceholder": "例如 42",
       "consentLabel": "技师已同意此站点合同。",

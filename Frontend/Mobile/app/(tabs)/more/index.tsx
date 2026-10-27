@@ -3,7 +3,6 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import {
   ArrowRight,
   Building2,
-  ClipboardList,
   FileText,
   Moon,
   NotepadText,
@@ -43,7 +42,6 @@ type MenuItem = {
  * scattered role-ifs in the render path, so future additions can't leak.
  */
 type ItemKey =
-  | 'reports'
   | 'notifications'
   | 'myAdminApplication'
   | 'siteSetup'
@@ -60,7 +58,6 @@ type ItemKey =
  *  that role appears in the key's allowlist, AND any additional capability
  *  check the item defines below passes. */
 const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
-  reports: ['reporter', 'staff', 'admin', 'super_admin', 'shop_manager'],
   notifications: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
   // A reporter who applied to be site admin may track the status — see the
   // "additional guard" check below for hasAdminApplication.
@@ -73,7 +70,7 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   contractsTechnician: ['technician'],
   contractsAdmin: ['admin', 'super_admin'],
   shopManagement: ['admin', 'super_admin', 'shop_manager'],
-  shopCustomer: ['admin', 'super_admin', 'shop_manager'],
+  shopCustomer: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
 };
 
 function itemVisible(key: ItemKey, role: UserRole, guards: ItemGuards): boolean {
@@ -107,12 +104,6 @@ export default function MoreScreen() {
   };
 
   const allItems: Record<ItemKey, MenuItem> = {
-    reports: {
-      icon: ClipboardList,
-      titleKey: 'more.menu.reportsTitle',
-      subtitleKey: 'more.menu.reportsSubtitle',
-      onPress: () => router.push('/reports'),
-    },
     notifications: {
       icon: Moon,
       titleKey: 'more.menu.notificationsTitle',
@@ -183,7 +174,7 @@ export default function MoreScreen() {
 
   // Group keys into their sections, then filter each by itemVisible.
   // Each section drops out entirely when it has zero visible items.
-  const workspaceKeys: ItemKey[] = ['reports', 'notifications', 'contractsTechnician'];
+  const workspaceKeys: ItemKey[] = ['notifications', 'contractsTechnician'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
     'siteSetup',

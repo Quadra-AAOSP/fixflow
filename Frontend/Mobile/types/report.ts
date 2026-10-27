@@ -91,6 +91,15 @@ export type CreateReportPayload = {
   visibility?: ReportVisibility;
 };
 
+/** Mirrors backend `ReportPageResponse`. */
+export type ReportPage = {
+  content: Report[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+};
+
 /** Mirrors backend `ReportReporterResponse`. */
 export type ReportReporter = {
   reportId: number;

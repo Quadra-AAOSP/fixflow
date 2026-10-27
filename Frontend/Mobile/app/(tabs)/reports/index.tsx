@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import {
   ArrowRight,
@@ -22,7 +22,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listReports } from '@/services/reports';
+import { listReportsPage } from '@/services/reports';
 import { searchReportsNl } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
 import type { NlSearchFilters, Report, ReportStatus } from '@/types';
@@ -37,6 +37,7 @@ import {
 } from '@/utils/maintenance';
 
 const FILTER_VALUES = REPORT_FILTERS.map((f) => f.value);
+const PAGE_SIZE = 20;
 
 /**
  * Reports list. Mirrors the web's Reports tab
@@ -68,6 +69,12 @@ export default function ReportsScreen() {
   const [query, setQuery] = useState(params.q ?? '');
   const [filter, setFilter] = useState<FilterValue>(initialFilter);
 
+  // Pagination state — the backend returns page/size/totalPages/totalElements.
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadGeneration = useRef(0);
+
   // A3 smart search: structured filters parsed from a natural-language query.
   const [nlFilters, setNlFilters] = useState<NlSearchFilters | null>(null);
   const [interpretation, setInterpretation] = useState<string | null>(null);
@@ -76,16 +83,27 @@ export default function ReportsScreen() {
   const [askLoading, setAskLoading] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (reset = false) => {
     if (!site) return;
     setError(null);
-    if (reports === null) setLoading(true);
+    const targetPage = reset ? 0 : page;
+    const gen = ++loadGeneration.current;
+    if (targetPage === 0) setLoading(true);
+    else setLoadingMore(true);
     try {
-      const result = await listReports({ siteId: site.id });
-      setReports(result);
+      const result = await listReportsPage({
+        siteId: site.id,
+        page: targetPage,
+        size: PAGE_SIZE,
+      });
+      if (gen !== loadGeneration.current) return;
+      setReports((prev) =>
+        targetPage === 0 ? result.content : [...(prev ?? []), ...result.content],
+      );
+      setPage(targetPage);
+      setTotalPages(result.totalPages);
     } catch (err) {
-      // A 401 means the session died under us — sign out rather than leave the
-      // tab stuck on an error it can never clear.
+      if (gen !== loadGeneration.current) return;
       if (err instanceof ApiError && err.status === 401) {
         await logout().catch(() => {});
         return;
@@ -94,24 +112,34 @@ export default function ReportsScreen() {
         err instanceof ApiError ? err.message : t('reports.list.errors.couldNotLoad'),
       );
     } finally {
-      setLoading(false);
+      if (gen === loadGeneration.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [site?.id, logout]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
+      void load(true);
     }, [load]),
   );
 
   async function onRefresh() {
     setRefreshing(true);
     try {
-      await load();
+      await load(true);
     } finally {
       setRefreshing(false);
     }
+  }
+
+  function onLoadMore() {
+    if (loadingMore || loading || refreshing) return;
+    if (page + 1 >= totalPages) return;
+    setPage((p) => p + 1);
+    void load(false);
   }
 
   const siteName = useCallback(
@@ -288,7 +316,7 @@ export default function ReportsScreen() {
                   description={error}
                   actionLabel={t('reports.list.errors.retry')}
                   onAction={() => {
-                    void load();
+                    void load(true);
                   }}
                 />
               ) : loading ? (
@@ -318,6 +346,23 @@ export default function ReportsScreen() {
                 onPress={() => router.push(`/reports/${item.id}`)}
               />
             )}
+            onEndReached={onLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore ? (
+                <View className="py-3">
+                  <Text className="text-center text-[11px] text-dashboard-caption">
+                    {t('reports.list.loadingMore')}
+                  </Text>
+                </View>
+              ) : page + 1 < totalPages && reports !== null && reports.length > 0 ? (
+                <View className="py-3">
+                  <Text className="text-center text-[10px] text-dashboard-caption">
+                    {t('reports.list.scrollForMore')}
+                  </Text>
+                </View>
+              ) : null
+            }
           />
         </Card>
       </View>

@@ -240,11 +240,9 @@ function AdminView({ t }: { t: TranslateFn }) {
       // "Contract #N created for technician #M at SiteName on date."
       const siteName =
         sites?.find((site) => site.id === created.siteId)?.name ??
-        `Site #${created.siteId}`;
+        t('more.contracts.unknownSite');
       setConfirmation(
         t('more.contracts.confirmation', {
-          id: created.id,
-          technicianId: created.technicianId,
           site: siteName,
           date: formatDate(created.createdAt, true),
         }),

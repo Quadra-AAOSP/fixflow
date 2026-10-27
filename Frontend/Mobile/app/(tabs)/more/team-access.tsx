@@ -161,7 +161,7 @@ export default function TeamAccessScreen() {
         created.siteId === null
           ? t('more.teamAccess.noSitePlatform')
           : (sites?.find((site) => site.id === created.siteId)?.name ??
-            `Site #${created.siteId}`);
+            t('more.teamAccess.unknownSite'));
       setConfirmation(
         t('more.teamAccess.confirmation', {
           role: t(roleLabels[created.role]),

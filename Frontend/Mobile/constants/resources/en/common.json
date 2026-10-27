@@ -153,6 +153,9 @@
       "notSynced": "Not synced yet",
       "accessibilityLabel": "Refresh dashboard"
     },
+    "notifications": {
+      "accessibilityLabel": "Open notifications"
+    },
     "applicationBanner": {
       "approvedTitle": "Admin application approved",
       "approvedBody": "Sign out and back in to activate your administrator role.",
@@ -254,6 +257,8 @@
       "noMatchesTitle": "No matches",
       "noMatchesDesc": "Try a different filter or search term.",
       "loadingReports": "Loading reports…",
+      "loadingMore": "Loading more…",
+      "scrollForMore": "Scroll for more reports",
       "assigneeUnassigned": "Unassigned",
       "assigneeTechnicianId": "Technician #{id}",
       "urgencySuffix": "urgency",
@@ -368,7 +373,15 @@
         "permissionDenied": "Photo access is required. Enable it in Settings.",
         "uploadFailed": "Could not upload one or more photos.",
         "remove": "Remove photo"
-      }
+      },
+      "suggestionTitle": "Suggest a missing building",
+      "suggestionBody": "If a building or area is missing, let the administrator know so they can add it.",
+      "suggestionLabel": "What's missing?",
+      "suggestionPlaceholder": "e.g. Block C, or the east stairwell",
+      "suggestionSubmit": "Send suggestion",
+      "suggestionSubmitting": "Sending…",
+      "suggestionSuccess": "Suggestion sent — an administrator will review it.",
+      "suggestionFailed": "Could not send the suggestion."
     },
     "detail": {
       "allReports": "All reports",
@@ -398,7 +411,7 @@
         "reportedBy": "Reported by",
         "technician": "Technician",
         "unassigned": "Unassigned",
-        "technicianId": "Technician #{id}",
+        "assigned": "Assigned",
         "reporterUrgency": "Reporter urgency",
         "aiUrgency": "AI urgency",
         "notClassified": "Not classified",
@@ -504,7 +517,7 @@
     "assignedToMe": "Assigned to me ({count})",
     "availableToClaim": "Available to claim ({count})",
     "unassigned": "Unassigned",
-    "technicianId": "Technician #{id}",
+    "assigned": "Assigned",
     "errors": {
       "couldNotLoad": "Could not load reports.",
       "retry": "Retry"
@@ -624,6 +637,7 @@
       "dismissNote": "You can also dismiss a confirmation and the next account can be created in the same session. The initial password should be changed on first sign-in.",
       "confirmation": "{role} account created for {name} ({email}), at {site}. This account can now sign in.",
       "noSitePlatform": "no site (platform-level account)",
+      "unknownSite": "unknown site",
       "errors": {
         "chooseRole": "Choose a role for the new account.",
         "chooseSite": "Choose a site for the new account.",
@@ -716,8 +730,9 @@
       "couldNotLoadSites": "Could not load sites.",
       "couldNotLoadSitesTitle": "Could not load sites",
       "recordIntro": "Record a site contract only after the technician has agreed. This creates a contract directly; it does not process an online request or record an approval history.",
-      "confirmation": "Contract #{id} created for technician #{technicianId} at {site} on {date}.",
+      "confirmation": "Contract created for technician at {site} on {date}.",
       "siteLabel": "Site",
+      "unknownSite": "unknown site",
       "technicianIdLabel": "Technician account ID",
       "technicianIdPlaceholder": "e.g. 42",
       "consentLabel": "The technician has agreed to this site contract.",

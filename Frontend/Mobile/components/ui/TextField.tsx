@@ -49,7 +49,7 @@ export function TextField({
     <View className={`mb-4 ${className ?? ''}`}>
       <Text className="mb-1.5 text-[12px] font-medium text-ink">{label}</Text>
       <TextInput
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.subtitle}
         onFocus={(event) => {
           setFocused(true);
           onFocus?.(event);
@@ -63,7 +63,7 @@ export function TextField({
             ? 'border-tone-danger'
             : showRing
               ? 'border-[1.5px] border-dashboard-cta-bg bg-dashboard-cta-icon-bg'
-              : 'border-border'
+              : 'border-[1.5px] border-border'
         }`}
         {...props}
       />
