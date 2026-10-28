@@ -50,3 +50,22 @@ export const canAccessShop = (user: User | null | undefined): boolean => {
   // Fall back to the backend capability
   return user?.capabilities?.manageShop ?? false;
 };
+
+/** True for users who can assign technicians */
+export const canAssignTechnician = (user: User | null | undefined): boolean => user?.capabilities?.assignTechnician ?? false;
+
+/** True for users who can confirm reports */
+export const canConfirmReport = (user: User | null | undefined): boolean => user?.capabilities?.confirmReport ?? false;
+
+/** True for users who can reopen reports */
+export const canReopenReport = (user: User | null | undefined): boolean => user?.capabilities?.reopenReport ?? false;
+
+/** True for users who can view the full AI assessment */
+export const canViewFullAIAssessment = (user: User | null | undefined): boolean => {
+  return user?.role === 'staff' || user?.role === 'admin' || user?.role === 'super_admin' || user?.capabilities?.viewFullAIAssessment ?? false;
+};
+
+/** True for users who can trigger manual AI classification */
+export const canTriggerManualAIClassification = (user: User | null | undefined): boolean => {
+  return user?.role === 'admin' || user?.role === 'super_admin' || user?.capabilities?.triggerManualAIClassification ?? false;
+};

@@ -18,26 +18,11 @@ export function canConfirmReport(user: User | null | undefined): boolean {
 }
 
 /**
- /*
  * Checks if a user can reopen a report.
  */
 export function canReopenReport(user: User | null | undefined): boolean {
   return user?.capabilities?.reopenReport ?? false;
 }
-
-// NOTE: The following endpoints are required for full functionality but may not be available yet.
-// Required backend operations:
-// POST /api/reports/{id}/assign
-// Authorization: Staff with assignTechnician capability
-// Expected behavior: Assigns a technician to a report
-//
-// POST /api/reports/{id}/confirm
-// Authorization: Staff with confirmReport capability
-// Expected behavior: Confirms a report
-//
-// POST /api/reports/{id}/reopen
-// Authorization: Staff with reopenReport capability
-// Expected behavior: Reopens a report with a reason
 
 /**
  * Lists reports for a given site.
@@ -75,4 +60,11 @@ export function confirmReport(reportId: number): Promise<Report> {
  */
 export function reopenReport(reportId: number, reason: string): Promise<Report> {
   return api.post<Report>(endpoints.reports.reopen(reportId), { reason });
+}
+
+/**
+ * Lists available technicians for a site.
+ */
+export function listAvailableTechnicians(siteId: number): Promise<Technician[]> {
+  return api.get<Technician[]>(endpoints.sites.technicianPool(siteId).replace('/technician-pool', '/technicians/available'));
 }
