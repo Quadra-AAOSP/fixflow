@@ -55,6 +55,12 @@ import {
 // DELETE /api/reports/{id}/reporters/{reporterId}
 // Authorization: Only the reporter themselves or a site admin/super admin
 // Expected behavior: Removes the reporter from the report's reporter list
+
+// NOTE: The backend does not currently have a dedicated 'leaveReport' endpoint.
+// Required backend operation:
+// DELETE /api/reports/{id}/reporters/{reporterId}
+// Authorization: Only the reporter themselves or a site admin/super admin
+// Expected behavior: Removes the reporter from the report's reporter list
 // If implemented, add a leaveReport function to the reports service and implement the UI for it.
 import { useCurrentSite } from '@/stores/site';
 import type { Report, ReportReporter, Urgency } from '@/types';
@@ -386,9 +392,23 @@ export default function ReportDetailScreen() {
           ) : null}
         </View>
 
-        <Text className="mb-4 text-[14px] leading-[1.8] text-ink">
-          {report.description}
-        </Text>
+        <View className="mb-4">
+          <Text className="mb-2 text-[14px] leading-[1.8] text-ink">
+            {report.description}
+          </Text>
+          {reporters && reporters.some(r => r.userId === user?.id) && (
+            <Card className="mb-4">
+              <View className="flex-row items-center justify-between px-4 py-3">
+                <Text className="text-[12px] text-ink">
+                  {t('reports.detail.youAreJoined')}
+                </Text>
+                <Text className="text-[10px] text-tone-danger">
+                  {t('reports.detail.leaveReportNotAvailable')}
+                </Text>
+              </View>
+            </Card>
+          )}
+        </View>
 
         {/* AI Assessment Section */}
         {report.aiReport && (

@@ -1,3 +1,31 @@
+// Translations for Reports Screen
+// Add these to your i18n common.json file
+// {
+//   "reports": {
+//     "list": {
+//       "allReports": "All Reports",
+//       "loading": "Loading reports...",
+//       "noReportsTitle": "No reports found.",
+//       "noReportsDesc": "There are no reports for this site.",
+//       "noMatchesTitle": "No matches found.",
+//       "noMatchesDesc": "No reports match your search criteria.",
+//       "loadingMore": "Loading more...",
+//       "scrollForMore": "Scroll to load more",
+//       "loadingSite": "Loading site...",
+//       "noSiteTitle": "No site selected.",
+//       "noSiteDesc": "Please select a site to view reports.",
+//       "errors": {
+//         "couldNotLoad": "Failed to load reports.",
+//         "retry": "Retry",
+//         "noSiteSelected": "No site selected.",
+//         "unauthorized": "You are not authorized to access this site.",
+//         "forbidden": "Access denied.",
+//         "notFound": "Reports not found."
+//       }
+//     }
+//   }
+// }
+
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
@@ -57,23 +85,48 @@ export default function ReportsScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  const loadReports = useCallback(async (reset = false) => {
-    if (reset) {
-      setPage(1);
-      setReports([]);
-      setHasMore(true);
+  const loadReports = useCallback(async (reset = false, pageNumber?: number) => {
+    if (!site) {
+      setError(t('reports.list.errors.noSiteSelected'));
+      return;
     }
-
+    
+    const targetPage = reset ? 1 : pageNumber || page;
+    setPage(targetPage);
+    
     try {
-      const result = await listReportsPage(reset ? 1 : page, PAGE_SIZE);
-      if (reset) {
-        setReports(result.reports);
+      const result = await listReportsPage({
+        siteId: site.id,
+        page: targetPage,
+        size: PAGE_SIZE,
+      });
+      
+      if (result.content.length === 0 && targetPage > 1) {
+        setHasMore(false);
       } else {
-        setReports(prev => [...prev, ...result.reports]);
+        setHasMore(result.content.length === PAGE_SIZE && targetPage < result.totalPages);
       }
-      setHasMore(result.reports.length === PAGE_SIZE);
+      
+      if (reset) {
+        setReports(result.content);
+        setTotalPages(result.totalPages);
+      } else {
+        setReports(prev => [...prev, ...result.content]);
+      }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('reports.list.loadFail'));
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setError(t('reports.list.errors.unauthorized'));
+        } else if (err.status === 403) {
+          setError(t('reports.list.errors.forbidden'));
+        } else if (err.status === 404) {
+          setError(t('reports.list.errors.notFound'));
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError(t('reports.list.loadFail'));
+      }
     } finally {
       if (reset) {
         setRefreshing(false);
@@ -82,7 +135,7 @@ export default function ReportsScreen() {
         setLoadingMore(false);
       }
     }
-  }, [page, t]);
+  }, [site, page, t]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -172,21 +225,20 @@ export default function ReportsScreen() {
     }, [load]),
   );
 
-  async function onRefresh() {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await load(true);
+      await loadReports(true);
     } finally {
       setRefreshing(false);
     }
-  }
+  }, [loadReports]);
 
-  function onLoadMore() {
-    if (loadingMore || loading || refreshing) return;
-    if (page + 1 >= totalPages) return;
-    setPage((p) => p + 1);
-    void load(false);
-  }
+  const onLoadMore = useCallback(async () => {
+    if (loadingMore || loading || refreshing || page + 1 >= totalPages) return;
+    setLoadingMore(true);
+    await loadReports(false, page + 1);
+  }, [loadingMore, loading, refreshing, page, totalPages, loadReports]);
 
   const siteName = useCallback(
     (id: number | null) =>
