@@ -89,3 +89,17 @@ export function rankTechniciansForReport(
 ): Promise<void> {
   return api.post<void>(endpoints.reports.technicianRanking(reportId), payload);
 }
+
+/**
+ * Fetches the technician's availability.
+ */
+export function getTechnicianAvailability(): Promise<boolean> {
+  return api.get<boolean>(endpoints.technician.availability.me);
+}
+
+/**
+ * Updates the technician's availability.
+ */
+export function updateTechnicianAvailability(available: boolean): Promise<boolean> {
+  return api.put<boolean>(endpoints.technician.availability.me, { available });
+}
