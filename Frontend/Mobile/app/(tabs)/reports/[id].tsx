@@ -41,6 +41,7 @@ import {
   listReporters,
   reopenReport,
   triggerVisionProcessing,
+  getReportPhotos,
 } from '@/services/reports';
 
 // NOTE: The backend does not currently have a dedicated 'leaveReport' endpoint.
@@ -106,30 +107,30 @@ export default function ReportDetailScreen() {
 
       if (next.policy.canSeeSensitive) {
         try {
-          setReporters(await listReporters(reportId));
-        } catch {
-          // Non-fatal: the report body already loaded. Reporters is a bonus.
-          setReporters(null);
+          const report = await getReport(reportId);
+          const photos = await getReportPhotos(reportId);
+          setReport({ ...report, photos });
+          if (user) {
+            setReporters(await listReporters(reportId));
+          } else {
+            setReporters(null);
+          }
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 401) {
+            await logout().catch(() => {});
+            return;
+          } else if (err instanceof ApiError && err.status === 403) {
+            setLoadError(t('reports.detail.noAccess'));
+          } else if (err instanceof ApiError && err.status === 404) {
+            setLoadError(t('reports.detail.gone'));
+          } else {
+            setLoadError(
+              toErrorMessage(err, { fallback: t('reports.detail.couldNotLoad') }),
+            );
+          }
+        } finally {
+          setLoading(false);
         }
-      } else {
-        setReporters(null);
-      }
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        await logout().catch(() => {});
-        return;
-      } else if (err instanceof ApiError && err.status === 403) {
-        setLoadError(t('reports.detail.noAccess'));
-      } else if (err instanceof ApiError && err.status === 404) {
-        setLoadError(t('reports.detail.gone'));
-      } else {
-        setLoadError(
-          toErrorMessage(err, { fallback: t('reports.detail.couldNotLoad') }),
-        );
-      }
-    } finally {
-      setLoading(false);
-    }
   }, [reportId, t]);
 
   const triggerAiAssessment = useCallback(async () => {
@@ -390,48 +391,48 @@ export default function ReportDetailScreen() {
         </Text>
 
         {/* AI Assessment Section */}
-        <Card className="mb-4">
-          <View className="flex-row items-center justify-between">
-            <Text
-              className="text-[15px] font-semibold text-ink"
-              style={{ letterSpacing: -0.3 }}
-            >
-              {t('reports.detail.aiAssessment.title')}
-            </Text>
-            {report.aiReport && (
-              <Pressable
-                onPress={triggerAiAssessment}
-                disabled={aiLoading}
-                accessibilityRole="button"
-                className="flex-row items-center gap-1 active:opacity-70"
+        {report.aiReport && (
+          <Card className="mb-4">
+            <View className="flex-row items-center justify-between">
+              <Text
+                className="text-[15px] font-semibold text-ink"
+                style={{ letterSpacing: -0.3 }}
               >
-                <Sparkles color={dashboardColors.teal} size={16} />
-                <Text className="text-[11px] font-medium text-dashboard-teal">
-                  {aiLoading ? t('reports.detail.aiAssessment.loading') : t('reports.detail.aiAssessment.trigger')}
-                </Text>
-              </Pressable>
+                {t('reports.detail.aiAssessment.title')}
+              </Text>
+              {canTriggerManualAIClassification(user) && (
+                <Pressable
+                  onPress={triggerAiAssessment}
+                  disabled={aiLoading}
+                  accessibilityRole="button"
+                  className="flex-row items-center gap-1 active:opacity-70"
+                >
+                  <Sparkles color={dashboardColors.teal} size={16} />
+                  <Text className="text-[11px] font-medium text-dashboard-teal">
+                    {aiLoading ? t('reports.detail.aiAssessment.loading') : t('reports.detail.aiAssessment.trigger')}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+            {aiError && (
+              <Text className="mt-2 text-[10px] text-tone-danger">
+                {aiError}
+              </Text>
             )}
-          </View>
-          {aiError && (
-            <Text className="mt-2 text-[10px] text-tone-danger">
-              {aiError}
-            </Text>
-          )}
-          {aiAssessment && aiAssessment.aiReport && (
             <View className="mt-2">
               <Text className="text-[12px] text-dashboard-subtitle">
-                {t('reports.detail.aiAssessment.urgency')}: {urgencyLabels[aiAssessment.aiReport.urgency]}
+                {t('reports.detail.aiAssessment.urgency')}: {urgencyLabels[report.aiReport.urgency]}
               </Text>
-              {aiAssessment.aiReport.description && (
+              {report.aiReport.description && (
                 <Text className="mt-1 text-[12px] text-ink">
-                  {aiAssessment.aiReport.description}
+                  {report.aiReport.description}
                 </Text>
               )}
             </View>
-          )}
-        </Card>
+          </Card>
+        )}
 
-        {/* Photos gallery — fullscreen preview via Modal */}
+        {/* Photos gallery — fullscreen preview via Modal */
         <Card className="mb-4">
           <Text
             className="mb-2 text-[15px] font-semibold text-ink"

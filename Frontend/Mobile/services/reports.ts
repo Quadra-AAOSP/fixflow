@@ -99,6 +99,13 @@ export function getVisionJobStatus(reportId: number, jobId: string): Promise<Vis
   return api.get<VisionJob>(endpoints.reports.visionJob(reportId, jobId));
 }
 
+/**
+ * Fetches photos for a report.
+ */
+export function getReportPhotos(reportId: number): Promise<ReportPhoto[]> {
+  return api.get<ReportPhoto[]>(endpoints.reports.photos(reportId));
+}
+
 /*
  * Endpoints NOT exposed here yet — backend audit dependencies #1, #2, #4, #6:
  *
