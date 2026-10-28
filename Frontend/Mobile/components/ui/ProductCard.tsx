@@ -1,6 +1,7 @@
 import { Image, Pressable, Text, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import { useCartStore } from '@/stores/cart';
 
 import { shopColors } from '@/constants/theme';
 import type { ShopProduct } from '@/types';
@@ -10,7 +11,8 @@ type ProductCardProps = {
   product: ShopProduct;
   currency: string;
   minorUnitDigits: number;
-  onPress: () => void;
+  onPress?: () => void;
+  onAddToBasket?: (product: ShopProduct, quantity: number) => void;
 };
 
 /** Catalogue tile. Mirrors the web's `.shop-product-card`: a vertical card
@@ -22,11 +24,21 @@ export function ProductCard({
   product,
   currency,
   minorUnitDigits,
-  onPress,
-}: ProductCardProps) {
+  onPress = () => {},
+  onAddToBasket,
+}: ProductCardProps) { {
   const { t } = useTranslation('common');
   const imageUri = safeImageUrl(product.imageUrl);
   const outOfStock = product.stock <= 0;
+  const { addToBasket } = useCartStore();
+
+  const handleAddToBasket = () => {
+    if (onAddToBasket) {
+      onAddToBasket(product, 1);
+    } else {
+      addToBasket(product, 1);
+    }
+  };
 
   return (
     <Pressable
@@ -99,7 +111,15 @@ export function ProductCard({
               opacity: outOfStock ? 0.48 : 1,
             }}
           >
-            <Plus color={shopColors.ink} size={16} />
+            <Pressable
+              onPress={handleAddToBasket}
+              accessibilityRole="button"
+              className="h-8 w-8 items-center justify-center rounded-full"
+              style={{ backgroundColor: shopColors.mint, opacity: outOfStock ? 0.48 : 1 }}
+              disabled={outOfStock}
+            >
+              <Plus color={shopColors.ink} size={16} />
+            </Pressable>
           </View>
         </View>
       </View>

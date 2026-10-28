@@ -462,7 +462,7 @@ export default function ShopIndexScreen() {
               product={item}
               currency={catalog!.currency}
               minorUnitDigits={catalog!.minorUnitDigits}
-              onPress={() => setActiveProduct(item)}
+              onAddToBasket={addToBasket}
             />
           )}
         />

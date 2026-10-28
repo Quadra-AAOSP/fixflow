@@ -67,6 +67,15 @@ export default function ShopCheckoutScreen() {
     }
   }, []);
 
+  // Validate basket before checkout
+  const validateBasket = useCallback(() => {
+    if (!basket || basket.items.length === 0) {
+      setBasketError(t('shop.checkout.errors.emptyBasket'));
+      return false;
+    }
+    return true;
+  }, [basket, t]);
+
   const requestQuote = useCallback(async () => {
     if (!basket) return;
     setLoading(true);
@@ -84,22 +93,53 @@ export default function ShopCheckoutScreen() {
   }, [basket, t]);
 
   const submitOrder = useCallback(async () => {
-    if (!quote) return;
+    if (!quote || !user) return;
     setSubmitting(true);
     setError(null);
     try {
-      const order = await createOrder(quote);
+      // Validate shipping information
+      if (!shippingName.trim() || !shippingPhone.trim() || !shippingAddress.trim()) {
+        setError(t('shop.checkout.errors.invalidShippingInfo'));
+        return;
+      }
+      
+      const order = await createOrder({
+        items: quote.lines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+        shippingName: shippingName.trim(),
+        shippingPhone: shippingPhone.trim(),
+        shippingAddress: shippingAddress.trim(),
+      });
       setOrder(order);
-      // Clear basket after successful order
       clearBasket();
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('shop.checkout.orderFail'),
-      );
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setError(t('shop.checkout.errors.unauthorized'));
+        } else if (err.status === 403) {
+          setError(t('shop.checkout.errors.forbidden'));
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError(t('shop.checkout.orderFail'));
+      }
     } finally {
       setSubmitting(false);
     }
-  }, [quote, t, clearBasket]);
+  }, [quote, user, shippingName, shippingPhone, shippingAddress, t, clearBasket]);
+
+  // Handle payment confirmation via backend/webhook
+  const handlePaymentConfirmation = useCallback(async () => {
+    if (!order?.checkoutUrl) return;
+    try {
+      Linking.openURL(order.checkoutUrl).catch((err) => {
+        console.error('Failed to open URL:', err);
+        setError(t('shop.checkout.errors.paymentFailed'));
+      });
+    } catch (err) {
+      setError(t('shop.checkout.errors.paymentFailed'));
+    }
+  }, [order]);
 
   useEffect(() => {
     void loadBasket();
