@@ -40,8 +40,8 @@ const SITE_TYPES: { value: SiteType; labelKey: string }[] = [
 ];
 
 const CONTRACT_STATUSES: { value: ContractStatus; labelKey: string }[] = [
-  { value: 'contracted', labelKey: 'more.sites.contractStatuses.contracted' },
-  { value: 'uncontracted', labelKey: 'more.sites.contractStatuses.uncontracted' },
+  { value: 'contracted', labelKey: 'more.sites.contractStatuses.siteContracted' },
+  { value: 'uncontracted', labelKey: 'more.sites.contractStatuses.siteUncontracted' },
 ];
 
 /**

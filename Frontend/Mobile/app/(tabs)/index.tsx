@@ -2,6 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Activity,
   ArrowRight,
+  Bell,
   Building2,
   CheckCircle2,
   ChevronRight,
@@ -47,6 +48,8 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
+
+// Reporter-specific dashboard components and logic
 import { useCurrentSite } from '@/stores/site';
 import type { Report, ReportStatus } from '@/types';
 import { humanize, relativeTime } from '@/utils/format';
@@ -325,7 +328,6 @@ export default function HomeScreen() {
   const setupRequired = user?.siteOnboarding?.setupRequired === true;
   const applicationStatus = user?.adminApplication?.status ?? null;
   const quickActionFlags = {
-    canCreate: canFile,
     canSetupSite: canManageSubsites(user),
     canProvisionUsers: canProvision(user),
     reviewApplications: user?.role === 'super_admin',
@@ -446,6 +448,11 @@ export default function HomeScreen() {
       >
         <WelcomeBanner
           t={t}
+          palette={palette}
+          user={user}
+          site={site}
+          canFile={canFile}
+          fileDisabledReason={fileDisabledReason}
           greeting={greeting}
           firstName={user?.firstName}
           ctaDisabled={isOps ? !site : !canFile}
@@ -454,15 +461,18 @@ export default function HomeScreen() {
           onPressCta={isOps ? () => gotoReports('open') : gotoNewReport}
         />
 
-        <SiteRow
-          t={t}
-          loading={loading || refreshing}
-          error={reports === null ? error : null}
-          lastSynced={lastSynced}
-          onRefresh={() => {
-            void load();
-          }}
-        />
+        <View className="flex-row justify-end mb-3 px-1">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('home.notifications.accessibilityLabel')}
+            onPress={() => router.push('/more/notifications')}
+            className="active:opacity-70"
+          >
+            <Bell color={dashboardColors.subtitle} size={16} strokeWidth={1.9} />
+          </Pressable>
+        </View>
+
+
 
         {applicationStatus === 'pending' || applicationStatus === 'approved' ? (
           <ApplicationStatusBanner
@@ -488,17 +498,21 @@ export default function HomeScreen() {
         {reports === null && loading ? <HomeSkeleton /> : null}
 
         {error && reports === null ? (
+          {error ? (
           <StateView
             variant="error"
-            title={t('home.errors.couldNotLoadTitle')}
+            title={t('home.errors.couldNotLoad')}
             description={error}
             actionLabel={t('home.errors.retry')}
             onAction={() => {
               void load();
             }}
-            className="py-8"
           />
         ) : null}
+
+        {loading && !reports && (
+          <StateView variant="loading" title={t('home.loading')} />
+        )}
 
         {reports !== null && site ? (
           allReports.length === 0 ? (
@@ -512,7 +526,6 @@ export default function HomeScreen() {
               <QuickActionsCard
                 t={t}
                 flags={quickActionFlags}
-                onPressCreate={gotoNewReport}
                 onPressBrowse={() => gotoReports('all')}
                 onPressSites={() => router.push('/more/sites')}
                 onPressSiteSetup={() => router.push('/more/site-setup')}
@@ -603,7 +616,6 @@ export default function HomeScreen() {
               <QuickActionsCard
                 t={t}
                 flags={quickActionFlags}
-                onPressCreate={gotoNewReport}
                 onPressBrowse={() => gotoReports('all')}
                 onPressSites={() => router.push('/more/sites')}
                 onPressSiteSetup={() => router.push('/more/site-setup')}
@@ -758,12 +770,14 @@ function SiteRow({
   error,
   lastSynced,
   onRefresh,
+  onNotifications,
 }: {
   t: TranslateFn;
   loading: boolean;
   error: string | null;
   lastSynced: Date | null;
   onRefresh: () => void;
+  onNotifications: () => void;
 }) {
   const syncLabel = loading
     ? t('home.sync.refreshing')
@@ -782,23 +796,33 @@ function SiteRow({
         />
         <SiteSwitcher />
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('home.sync.accessibilityLabel')}
-        accessibilityState={{ disabled: loading }}
-        disabled={loading}
-        onPress={onRefresh}
-        className={`flex-row items-center gap-1.5 active:opacity-70 ${
-          loading ? 'opacity-40' : ''
-        }`}
-      >
-        <Text className="text-[10px] text-dashboard-caption">{syncLabel}</Text>
-        <RefreshCw
-          color={dashboardColors.subtitle}
-          size={12}
-          strokeWidth={1.9}
-        />
-      </Pressable>
+      <View className="flex-row items-center gap-3">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('home.notifications.accessibilityLabel')}
+          onPress={onNotifications}
+          className="active:opacity-70"
+        >
+          <Bell color={dashboardColors.subtitle} size={16} strokeWidth={1.9} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('home.sync.accessibilityLabel')}
+          accessibilityState={{ disabled: loading }}
+          disabled={loading}
+          onPress={onRefresh}
+          className={`flex-row items-center gap-1.5 active:opacity-70 ${
+            loading ? 'opacity-40' : ''
+          }`}
+        >
+          <Text className="text-[10px] text-dashboard-caption">{syncLabel}</Text>
+          <RefreshCw
+            color={dashboardColors.subtitle}
+            size={12}
+            strokeWidth={1.9}
+          />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -1377,7 +1401,6 @@ function RecentUpdatesCard({
 }
 
 type QuickActionFlags = {
-  canCreate: boolean;
   canSetupSite: boolean;
   canProvisionUsers: boolean;
   reviewApplications: boolean;
@@ -1388,7 +1411,6 @@ type QuickActionFlags = {
 function QuickActionsCard({
   t,
   flags,
-  onPressCreate,
   onPressBrowse,
   onPressSites,
   onPressSiteSetup,
@@ -1397,7 +1419,6 @@ function QuickActionsCard({
 }: {
   t: TranslateFn;
   flags: QuickActionFlags;
-  onPressCreate: () => void;
   onPressBrowse: () => void;
   onPressSites: () => void;
   onPressSiteSetup: () => void;
@@ -1412,16 +1433,6 @@ function QuickActionsCard({
         </Text>
       </View>
       <View className="flex-row flex-wrap gap-2 px-3 pb-3">
-        {flags.canCreate ? (
-          <ActionTile
-            t={t}
-            icon={Plus}
-            titleKey="home.quickActions.createReport.title"
-            subtitleKey="home.quickActions.createReport.subtitle"
-            tone="mint"
-            onPress={onPressCreate}
-          />
-        ) : null}
         {flags.canSetupSite ? (
           <ActionTile
             t={t}

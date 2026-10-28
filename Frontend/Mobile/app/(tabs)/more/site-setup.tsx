@@ -19,8 +19,12 @@ import {
   listSubsites,
   updateSubsite,
   archiveSubsite,
+  getReportingSetup,
+  createSubsiteAlert,
+  listSubsiteAlerts,
+  resolveSubsiteAlert,
 } from '@/services/sites';
-import type { Subsite } from '@/types';
+import type { Subsite, ReportingSetup } from '@/types';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -32,7 +36,8 @@ export default function SiteSetupScreen() {
 
   const canManage = canManageSubsites(user);
 
-  const [subsites, setSubsites] = useState<Subsite[] | null>(null);
+  const [subsites, setSubsites] = useState<Subsite[]>([]);
+  const [subsiteAlerts, setSubsiteAlerts] = useState<SubsiteAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,13 +47,22 @@ export default function SiteSetupScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
+    const [reportingSetup, setReportingSetup] = useState<ReportingSetup | null>(null);
+    const [suggestingBuilding, setSuggestingBuilding] = useState(false);
+    const [missingBuildingName, setMissingBuildingName] = useState('');
+    const [missingBuildingDescription, setMissingBuildingDescription] = useState('');
+    const [suggestionSuccess, setSuggestionSuccess] = useState(false);
+    const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!site) return;
     setError(null);
     setLoading(true);
     try {
-      setSubsites(await listSubsites(site.id));
+      const subsites = await listSubsites(site.id);
+      setSubsites(subsites);
+      const alerts = await listSubsiteAlerts(site.id);
+      setSubsiteAlerts(alerts);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotLoad'),
@@ -61,7 +75,8 @@ export default function SiteSetupScreen() {
   useEffect(() => {
     if (!site) return;
     void load();
-  }, [site?.id, load]);
+    void loadReportingSetup();
+  }, [site?.id, load, loadReportingSetup]);
 
   function openEdit(row: Subsite) {
     setEditingId(row.id);
@@ -91,6 +106,99 @@ export default function SiteSetupScreen() {
     if (!site) return;
     if (!label.trim() || !name.trim()) return;
     setBusy(true);
+
+    try {
+      if (creating) {
+        await createSubsite(site.id, {
+          label: label.trim(),
+          name: name.trim(),
+          description: description.trim(),
+        });
+      } else if (editingId !== null) {
+        await updateSubsite(site.id, editingId, {
+          label: label.trim(),
+          name: name.trim(),
+          description: description.trim(),
+        });
+      }
+      await load();
+      cancelForm();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSave'),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadReportingSetup() {
+    if (!site) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const setup = await getReportingSetup(site.id);
+      setReportingSetup(setup);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotLoadSetup'),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function suggestMissingBuilding() {
+    if (!site || !missingBuildingName.trim()) return;
+    setBusy(true);
+    setSuggestionError(null);
+    try {
+      await createSubsiteAlert(site.id, missingBuildingName.trim());
+      setSuggestionSuccess(true);
+      setMissingBuildingName('');
+      setMissingBuildingDescription('');
+      // Refresh alerts after suggestion
+      const alerts = await listSubsiteAlerts(site.id);
+      setSubsiteAlerts(alerts);
+    } catch (err) {
+      setSuggestionError(
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSuggest'),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resolveSubsiteAlert(alertId: number) {
+    if (!site) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await resolveSubsiteAlert(site.id, alertId);
+      // Refresh alerts after resolution
+      const alerts = await listSubsiteAlerts(site.id);
+      setSubsiteAlerts(alerts);
+      setSuggestionSuccess(true);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotResolve'),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openSuggestBuilding() {
+    setSuggestingBuilding(true);
+    setSuggestionSuccess(false);
+    setSuggestionError(null);
+  }
+
+  function closeSuggestBuilding() {
+    setSuggestingBuilding(false);
+    setMissingBuildingName('');
+    setMissingBuildingDescription('');
+  }
     try {
       if (creating) {
         await createSubsite(site.id, {
@@ -270,6 +378,42 @@ export default function SiteSetupScreen() {
             </Text>
             {subsites !== null && (
               <Text className="mt-0.5 text-[10px] text-dashboard-subtitle">
+                {subsites.length} {t('siteSetup.buildingsCount', { count: subsites.length, plural: subsites.length === 1 ? '' : 's' })}
+              </Text>
+            )}
+
+            <Text className="mt-4 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+              {t('siteSetup.missingBuildings')}
+            </Text>
+            {subsiteAlerts.length > 0 ? (
+              <Card padded={false} className="mb-4">
+                {subsiteAlerts.map((alert) => (
+                  <View
+                    key={alert.id}
+                    className="px-4 py-3 border-t border-dashboard-card-line"
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-sm font-semibold text-ink" numberOfLines={2}>
+                        {alert.note}
+                      </Text>
+                      <Pressable
+                        onPress={() => resolveSubsiteAlert(alert.id)}
+                        accessibilityRole="button"
+                        className="flex-row items-center gap-1 active:opacity-70"
+                      >
+                        <Text className="text-[11px] font-medium text-tone-success underline">
+                          {t('siteSetup.resolve')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </Card>
+            ) : (
+              <Text className="mt-2 text-[10px] text-dashboard-subtitle">
+                {t('siteSetup.noMissingBuildings')}
+              </Text>
+            )}
                 {t('siteSetup.activeCount', { count: active.length })}
                 {archived.length > 0
                   ? ` · ${t('siteSetup.archivedCount', { count: archived.length })}`

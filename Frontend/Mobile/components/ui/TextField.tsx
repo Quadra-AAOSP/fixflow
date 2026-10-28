@@ -47,9 +47,10 @@ export function TextField({
 
   return (
     <View className={`mb-4 ${className ?? ''}`}>
-      <Text className="mb-1.5 text-[12px] font-medium text-ink">{label}</Text>
+      <Text className="mb-1.5 text-[12px] font-medium text-ink" numberOfLines={1}>{label}</Text>
       <TextInput
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.subtitle}
+        selectionColor={colors.primary}
         onFocus={(event) => {
           setFocused(true);
           onFocus?.(event);
@@ -60,11 +61,18 @@ export function TextField({
         }}
         className={`rounded-lg border bg-card px-3 py-3 text-[12px] text-ink ${
           error
-            ? 'border-tone-danger'
+            ? 'border-tone-danger border-[1.5px]'
             : showRing
               ? 'border-[1.5px] border-dashboard-cta-bg bg-dashboard-cta-icon-bg'
-              : 'border-border'
-        }`}
+              : 'border-[1.5px] border-border'
+        }`
+        disabledTextColor={colors.subtitle}
+        placeholderClassName="text-[11px] text-subtitle"
+        textAlignVertical="center"
+        editable={props.editable !== false}
+        keyboardShouldPersistTaps="handled"
+        importantForAccessibility="yes"
+      />}
         {...props}
       />
       {error ? (

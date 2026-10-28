@@ -77,7 +77,7 @@ export default function ProfileScreen() {
               <Text className="text-coral-decay">.</Text>
             </Text>
             <Text className="mt-0.5 text-[11px] text-dashboard-caption">
-              {t('profile.idLabel', { id: user.id })}
+              {user.email}
             </Text>
           </View>
           <Pressable
@@ -101,12 +101,6 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <Definition t={t} label={t('profile.labels.role')} value={roleLabel} />
-          <Definition t={t} label={t('profile.labels.accountId')} value={String(user.id)} />
-          <Definition
-            t={t}
-            label={t('profile.labels.siteId')}
-            value={user.siteId != null ? String(user.siteId) : t('profile.dash')}
-          />
           <Definition
             t={t}
             label={t('profile.labels.phone')}

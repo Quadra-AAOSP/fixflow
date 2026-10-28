@@ -4,7 +4,9 @@ import type {
   AssignTechnicianPayload,
   CreateReportPayload,
   Report,
+  ReportPage,
   ReportReporter,
+  VisionJob,
 } from '@/types';
 
 export function createReport(payload: CreateReportPayload): Promise<Report> {
@@ -12,14 +14,30 @@ export function createReport(payload: CreateReportPayload): Promise<Report> {
 }
 
 /**
- * Lists reports for a given site. The caller must belong to that site
- * (or be super_admin); the backend returns 403 otherwise
- * (`ReportService.resolveSiteForList`).
+ * Lists reports for a given site with pagination. The backend returns a
+ * `ReportPageResponse` with content, page, size, totalElements, totalPages.
+ * Default page size is 20 (backend max 100).
+ */
+export function listReportsPage(opts: {
+  siteId: number;
+  page?: number;
+  size?: number;
+  category?: string;
+}): Promise<ReportPage> {
+  const params = new URLSearchParams();
+  params.set('siteId', String(opts.siteId));
+  if (opts.page !== undefined) params.set('page', String(opts.page));
+  if (opts.size !== undefined) params.set('size', String(opts.size));
+  if (opts.category) params.set('category', opts.category);
+  return api.get<ReportPage>(`${endpoints.reports.list}?${params.toString()}`);
+}
+
+/**
+ * Convenience wrapper that returns just the content array from the first page.
+ * Used by dashboards that need a quick snapshot without pagination metadata.
  */
 export async function listReports(opts: { siteId: number }): Promise<Report[]> {
-  const page = await api.get<{ content: Report[] }>(
-    `${endpoints.reports.list}?siteId=${encodeURIComponent(opts.siteId)}`,
-  );
+  const page = await listReportsPage({ siteId: opts.siteId });
   return page.content ?? [];
 }
 
@@ -58,6 +76,27 @@ export function reopenReport(id: number, reason: string): Promise<Report> {
     endpoints.reports.reopen.replace('{id}', String(id)),
     { reason },
   );
+}
+
+/**
+ * Triggers AI classification for a report.
+ */
+export function classifyReport(id: number): Promise<Report> {
+  return api.post<Report>(endpoints.reports.classify.replace('{id}', String(id)));
+}
+
+/**
+ * Triggers AI vision processing for a report.
+ */
+export function triggerVisionProcessing(reportId: number): Promise<VisionJob> {
+  return api.post<VisionJob>(endpoints.reports.vision(reportId));
+}
+
+/**
+ * Gets the status of a vision processing job.
+ */
+export function getVisionJobStatus(reportId: number, jobId: string): Promise<VisionJob> {
+  return api.get<VisionJob>(endpoints.reports.visionJob(reportId, jobId));
 }
 
 /*
