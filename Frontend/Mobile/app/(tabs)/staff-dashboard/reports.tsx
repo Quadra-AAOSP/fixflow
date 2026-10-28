@@ -1,4 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View, Pressable, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -9,9 +10,13 @@ import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
+import { canAssignTechnician, canConfirmReport, canReopenReport } from '@/constants/access';
 import { ApiError } from '@/lib/apiClient';
 import {
   assignTechnicianToReport,
+  canAssignTechnician,
+  canConfirmReport,
+  canReopenReport,
   confirmReport,
   listReports,
   reopenReport,
@@ -21,11 +26,43 @@ import type { Report } from '@/types';
 /**
  * Staff reports management screen.
  */
+// Translations for Staff Reports
+// Add these to your i18n common.json file
+// {
+//   "staff": {
+//     "reports": {
+//       "title": "Manage Reports",
+//       "loading": "Loading reports...",
+//       "noReports": "No reports found.",
+//       "assignTechnician": "Assign Technician",
+//       "enterTechnicianId": "Enter technician ID",
+//       "assign": "Assign",
+//       "cancel": "Cancel",
+//       "confirmReport": "Confirm Report",
+//       "confirm": "Confirm",
+//       "reopenReport": "Reopen Report",
+//       "enterReason": "Enter reason",
+//       "reopen": "Reopen",
+//       "errors": {
+//         "couldNotLoad": "Failed to load reports.",
+//         "couldNotAssign": "Failed to assign technician.",
+//         "couldNotConfirm": "Failed to confirm report.",
+//         "couldNotReopen": "Failed to reopen report.",
+//         "notAuthorized": "You are not authorized to perform this action.",
+//         "endpointNotFound": "The requested endpoint is not available."
+//       }
+//     }
+//   }
+// }
+
 export default function StaffReportsScreen() {
   const { t } = useTranslation('common');
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
+  const canAssign = canAssignTechnician(user);
+  const canConfirm = canConfirmReport(user);
+  const canReopen = canReopenReport(user);
 
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,9 +97,15 @@ export default function StaffReportsScreen() {
       setSelectedReportId(null);
       setTechnicianId(null);
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('staff.reports.errors.couldNotAssign'),
-      );
+      if (err instanceof ApiError && err.status === 403) {
+        setError(t('staff.reports.errors.notAuthorized'));
+      } else if (err instanceof ApiError && err.status === 404) {
+        setError(t('staff.reports.errors.endpointNotFound'));
+      } else {
+        setError(
+          err instanceof ApiError ? err.message : t('staff.reports.errors.couldNotAssign'),
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -77,9 +120,15 @@ export default function StaffReportsScreen() {
       await loadReports();
       setSelectedReportId(null);
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('staff.reports.errors.couldNotConfirm'),
-      );
+      if (err instanceof ApiError && err.status === 403) {
+        setError(t('staff.reports.errors.notAuthorized'));
+      } else if (err instanceof ApiError && err.status === 404) {
+        setError(t('staff.reports.errors.endpointNotFound'));
+      } else {
+        setError(
+          err instanceof ApiError ? err.message : t('staff.reports.errors.couldNotConfirm'),
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -95,9 +144,15 @@ export default function StaffReportsScreen() {
       setSelectedReportId(null);
       setReason('');
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('staff.reports.errors.couldNotReopen'),
-      );
+      if (err instanceof ApiError && err.status === 403) {
+        setError(t('staff.reports.errors.notAuthorized'));
+      } else if (err instanceof ApiError && err.status === 404) {
+        setError(t('staff.reports.errors.endpointNotFound'));
+      } else {
+        setError(
+          err instanceof ApiError ? err.message : t('staff.reports.errors.couldNotReopen'),
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -109,7 +164,16 @@ export default function StaffReportsScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: t('staff.reports.title') }} />
+      <Stack.Screen
+        options={{ title: t('staff.reports.title'), headerLeft: () => (
+          <Pressable
+            onPress={() => router.back()}
+            className="flex-row items-center"
+          >
+            <ArrowLeft color={dashboardColors.teal} size={18} />
+          </Pressable>
+        )}}
+      />
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
         <Text
           className="mb-4 text-2xl font-bold text-ink"
@@ -192,7 +256,7 @@ export default function StaffReportsScreen() {
                       variant="primary"
                       onPress={handleAssignTechnician}
                       loading={loading}
-                      disabled={!technicianId}
+                      disabled={!technicianId || !canAssign}
                     >
                       {t('staff.reports.assign')}
                     </Button>
@@ -207,6 +271,7 @@ export default function StaffReportsScreen() {
                     variant="primary"
                     onPress={handleConfirmReport}
                     loading={loading}
+                    disabled={!canConfirm}
                   >
                     {t('staff.reports.confirm')}
                   </Button>
@@ -236,7 +301,7 @@ export default function StaffReportsScreen() {
                       variant="primary"
                       onPress={handleReopenReport}
                       loading={loading}
-                      disabled={!reason}
+                      disabled={!reason || !canReopen}
                     >
                       {t('staff.reports.reopen')}
                     </Button>

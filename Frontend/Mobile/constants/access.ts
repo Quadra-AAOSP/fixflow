@@ -17,6 +17,8 @@ export const canDecideContracts = (user: User | null | undefined): boolean => us
 export const canCreateSite = (user: User | null | undefined): boolean => user?.capabilities?.createSite ?? false;
 export const canEditSite = (user: User | null | undefined): boolean => user?.capabilities?.editSite ?? false;
 export const canAssignTechnician = (user: User | null | undefined): boolean => user?.capabilities?.assignTechnician ?? false;
+export const canConfirmReport = (user: User | null | undefined): boolean => user?.capabilities?.confirmReport ?? false;
+export const canReopenReport = (user: User | null | undefined): boolean => user?.capabilities?.reopenReport ?? false;
 export const canCreateReport = (user: User | null | undefined): boolean => user?.capabilities?.createReport ?? false;
 export const provisionableRoles = (user: User | null | undefined): UserRole[] => user?.capabilities?.provisionableRoles ?? [];
 export const canManageShop = (user: User | null | undefined): boolean => {

@@ -1,10 +1,12 @@
 import { Stack, useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Plus, Check, X } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
+import { ActivityIndicator } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { dashboardColors, themeColors } from '@/constants/theme';
@@ -12,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import {
   createTechnicianContractRequest,
+  decideTechnicianContractRequest,
   getTechnicianContractRequests,
 } from '@/services/technicians';
 import type { TechnicianContractRequest, TechnicianContractRequestStatus } from '@/types/technician';
@@ -19,6 +22,38 @@ import type { TechnicianContractRequest, TechnicianContractRequestStatus } from 
 /**
  * Technician contract requests screen.
  */
+// Translations for Technician Contract Requests
+// Add these to your i18n common.json file
+// {
+//   "technician": {
+//     "contractRequests": {
+//       "title": "Contract Requests",
+//       "loading": "Loading contract requests...",
+//       "existing": "Existing Requests",
+//       "noRequests": "No contract requests found.",
+//       "new": "New Request",
+//       "newSiteId": "Site ID",
+//       "enterSiteId": "Enter site ID",
+//       "submit": "Submit Request",
+//       "cancel": "Cancel",
+//       "createdAt": "Created at {{date}}",
+//       "status": {
+//         "pending": "Pending",
+//         "approved": "Approved",
+//         "rejected": "Rejected",
+//         "failed": "Failed"
+//       },
+//       "approve": "Approve",
+//       "reject": "Reject",
+//       "errors": {
+//         "couldNotLoad": "Failed to load contract requests.",
+//         "couldNotSubmit": "Failed to submit contract request.",
+//         "couldNotDecide": "Failed to decide on contract request."
+//       }
+//     }
+//   }
+// }
+
 export default function TechnicianContractRequestsScreen() {
   const { t } = useTranslation('common');
   const palette = themeColors();
@@ -66,6 +101,22 @@ export default function TechnicianContractRequestsScreen() {
     }
   }, [newRequestSiteId, loadRequests, t]);
 
+  const handleDecision = useCallback(async (requestId: number, decision: 'approve' | 'reject') => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await decideTechnicianContractRequest(requestId, decision);
+      await loadRequests();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('technician.contractRequests.errors.couldNotDecide'),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [user, loadRequests, t]);
+
   useEffect(() => {
     void loadRequests();
   }, [loadRequests]);
@@ -82,7 +133,16 @@ export default function TechnicianContractRequestsScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: t('technician.contractRequests.title') }} />
+      <Stack.Screen
+        options={{ title: t('technician.contractRequests.title'), headerLeft: () => (
+          <Pressable
+            onPress={() => router.back()}
+            className="flex-row items-center"
+          >
+            <ArrowLeft color={dashboardColors.teal} size={18} />
+          </Pressable>
+        )}}
+      />
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
         <Text
           className="mb-4 text-2xl font-bold text-ink"
@@ -132,6 +192,40 @@ export default function TechnicianContractRequestsScreen() {
                     <Text className="mt-1 text-[10px] text-dashboard-subtitle">
                       {t('technician.contractRequests.createdAt', { date: request.createdAt })}
                     </Text>
+                    {request.status === 'pending' && (
+                      <View className="mt-2 flex-row justify-end gap-2">
+                        <Button
+                          variant="secondary"
+                          onPress={() => handleDecision(request.id, 'reject')}
+                          loading={loading}
+                          style={{ minWidth: 100 }}
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <ActivityIndicator color={dashboardColors.ink} />
+                          ) : (
+                            <Text className="text-[11px] font-medium">
+                              {t('technician.contractRequests.reject')}
+                            </Text>
+                          )}
+                        </Button>
+                        <Button
+                          variant="primary"
+                          onPress={() => handleDecision(request.id, 'approve')}
+                          loading={loading}
+                          style={{ minWidth: 100 }}
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <ActivityIndicator color={dashboardColors.card} />
+                          ) : (
+                            <Text className="text-[11px] font-medium">
+                              {t('technician.contractRequests.approve')}
+                            </Text>
+                          )}
+                        </Button>
+                      </View>
+                    )}
                   </View>
                 ))}
               </Card>

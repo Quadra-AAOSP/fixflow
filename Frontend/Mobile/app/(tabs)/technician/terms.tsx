@@ -1,4 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +20,25 @@ import type { TechnicianTerm } from '@/types/technician';
 /**
  * Technician terms screen.
  */
+// Translations for Technician Terms
+// Add these to your i18n common.json file
+// {
+//   "technician": {
+//     "terms": {
+//       "title": "Terms",
+//       "loading": "Loading terms...",
+//       "version": "Version {{version}}",
+//       "status": "Status: {{status}}",
+//       "accept": "Accept Terms",
+//       "noTerms": "No terms found.",
+//       "errors": {
+//         "couldNotLoad": "Failed to load terms.",
+//         "couldNotAccept": "Failed to accept terms."
+//       }
+//     }
+//   }
+// }
+
 export default function TechnicianTermsScreen() {
   const { t } = useTranslation('common');
   const palette = themeColors();
@@ -68,7 +88,16 @@ export default function TechnicianTermsScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: t('technician.terms.title') }} />
+      <Stack.Screen
+        options={{ title: t('technician.terms.title'), headerLeft: () => (
+          <Pressable
+            onPress={() => router.back()}
+            className="flex-row items-center"
+          >
+            <ArrowLeft color={dashboardColors.teal} size={18} />
+          </Pressable>
+        )}}
+      />
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
         <Text
           className="mb-4 text-2xl font-bold text-ink"

@@ -1,4 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
+import { ArrowLeft } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +19,27 @@ import type { TechnicianInvitation } from '@/types/technician';
 /**
  * Technician invitations screen.
  */
+// Translations for Technician Invitations
+// Add these to your i18n common.json file
+// {
+//   "technician": {
+//     "invitations": {
+//       "title": "Invitations",
+//       "loading": "Loading invitations...",
+//       "noInvitations": "No invitations found.",
+//       "createdAt": "Created at {{date}}",
+//       "status": {
+//         "pending": "Pending",
+//         "accepted": "Accepted",
+//         "rejected": "Rejected"
+//       },
+//       "errors": {
+//         "couldNotLoad": "Failed to load invitations."
+//       }
+//     }
+//   }
+// }
+
 export default function TechnicianInvitationsScreen() {
   const { t } = useTranslation('common');
   const palette = themeColors();
@@ -59,7 +81,16 @@ export default function TechnicianInvitationsScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: t('technician.invitations.title') }} />
+      <Stack.Screen
+        options={{ title: t('technician.invitations.title'), headerLeft: () => (
+          <Pressable
+            onPress={() => router.back()}
+            className="flex-row items-center"
+          >
+            <ArrowLeft color={dashboardColors.teal} size={18} />
+          </Pressable>
+        )}}
+      />
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
         <Text
           className="mb-4 text-2xl font-bold text-ink"

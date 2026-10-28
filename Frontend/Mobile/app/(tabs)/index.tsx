@@ -498,17 +498,21 @@ export default function HomeScreen() {
         {reports === null && loading ? <HomeSkeleton /> : null}
 
         {error && reports === null ? (
+          {error ? (
           <StateView
             variant="error"
-            title={t('home.errors.couldNotLoadTitle')}
+            title={t('home.errors.couldNotLoad')}
             description={error}
             actionLabel={t('home.errors.retry')}
             onAction={() => {
               void load();
             }}
-            className="py-8"
           />
         ) : null}
+
+        {loading && !reports && (
+          <StateView variant="loading" title={t('home.loading')} />
+        )}
 
         {reports !== null && site ? (
           allReports.length === 0 ? (
