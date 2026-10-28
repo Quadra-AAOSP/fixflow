@@ -34,6 +34,13 @@ export default function SiteSetupScreen() {
   const { user } = useAuth();
   const { site, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
 
+  const hasActiveSubsites = subsites.some(subsite => !subsite.archived);
+
+  const navigateToSetup = useCallback(() => {
+    if (!site) return;
+    router.push('/more/site-setup');
+  }, [site, router]);
+
   const canManage = canManageSubsites(user);
 
   const [subsites, setSubsites] = useState<Subsite[]>([]);
@@ -382,7 +389,7 @@ export default function SiteSetupScreen() {
               </Text>
             )}
 
-            <Text className="mt-4 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+            <Text className="mb-2 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
               {t('siteSetup.missingBuildings')}
             </Text>
             {subsiteAlerts.length > 0 ? (
@@ -390,7 +397,7 @@ export default function SiteSetupScreen() {
                 {subsiteAlerts.map((alert) => (
                   <View
                     key={alert.id}
-                    className="px-4 py-3 border-t border-dashboard-card-line"
+                    className="border-t border-dashboard-card-line px-4 py-3"
                   >
                     <View className="flex-row items-center justify-between">
                       <Text className="text-sm font-semibold text-ink" numberOfLines={2}>
@@ -406,13 +413,18 @@ export default function SiteSetupScreen() {
                         </Text>
                       </Pressable>
                     </View>
+                    <Text className="mt-1 text-[10px] text-dashboard-subtitle">
+                      {t('siteSetup.createdAt', { date: alert.createdAt })} 
+                    </Text>
                   </View>
                 ))}
               </Card>
             ) : (
-              <Text className="mt-2 text-[10px] text-dashboard-subtitle">
-                {t('siteSetup.noMissingBuildings')}
-              </Text>
+              <Card className="mb-4">
+                <Text className="p-4 text-center text-dashboard-subtitle">
+                  {t('siteSetup.noMissingBuildings')}
+                </Text>
+              </Card>
             )}
                 {t('siteSetup.activeCount', { count: active.length })}
                 {archived.length > 0
