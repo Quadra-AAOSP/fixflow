@@ -10,6 +10,11 @@ export interface Site {
 export interface SiteRule {
   id: number; siteType: SiteType; category: string; urgencyWeight: number | null; sortOrder: number | null;
 }
+export interface Subsite {
+  id: number; siteId: number; label: string; name: string;
+  description: string | null; archivedAt: string | null;
+}
+export interface SubsitePayload { label: string; name: string; description: string | null }
 export interface Report {
   id: number; siteId: number | null; createdByUserId: number | null; createdByName: string | null;
   description: string; address: string | null; category: string; specialty: string | null;
