@@ -4,11 +4,11 @@ import type { UserRole } from '@/types';
 export const PASSWORD_MIN_LENGTH = 15; // Password-only authentication: OWASP/NIST recommendation.
 export const PASSWORD_MAX_LENGTH = 100; // Current backend DTO limit.
 export const roleLabels: Record<UserRole, string> = {
-  reporter: 'Reporter', technician: 'Technician', staff: 'Site staff', admin: 'Site administrator', super_admin: 'Super administrator',
+  reporter: 'Reporter', technician: 'Technician', staff: 'Site staff', admin: 'Site administrator', super_admin: 'Super administrator', shop_manager: 'Shop manager',
 };
 export const canProvision = (role: UserRole | undefined) => role === 'admin' || role === 'super_admin';
 export function canProvisionRole(actor: UserRole | undefined, target: UserRole) {
-  return target === 'staff' ? canProvision(actor) : target === 'admin' && actor === 'super_admin';
+  return target === 'staff' ? canProvision(actor) : (target === 'admin' || target === 'shop_manager') && actor === 'super_admin';
 }
 export const superAdminCriteria = [
   { title: 'Verified organizational identity', detail: 'A named person whose identity and organizational authority are verified through a trusted process. An email domain alone is not proof.' },

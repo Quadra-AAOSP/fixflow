@@ -82,6 +82,16 @@ describe('managed-role provisioning', () => {
     expect(buildProvisionPayload(input, 'admin', [71]).role).toBe('staff');
     expect(() => buildProvisionPayload(input, 'admin', [72])).toThrow('available');
   });
+  it('provisions shop managers without carrying over a site selection', async () => {
+    const input = { ...form, role: 'shop_manager' as const };
+    const payload = buildProvisionPayload(input, 'super_admin', []);
+    expect(payload).toMatchObject({ role: 'shop_manager', siteId: null });
+    expect(() => buildProvisionPayload(input, 'admin', [71])).toThrow('permission');
+    expect(() => buildRegistrationPayload(input)).toThrow('cannot self-register');
+    const fetch = vi.fn().mockResolvedValue(new Response('{}')); stubApiFetch(fetch);
+    await provisionUser(payload);
+    expect(JSON.parse(fetch.mock.calls[0]?.[1].body)).toMatchObject({ role: 'shop_manager', siteId: null });
+  });
   it('never exposes super-admin provisioning or self-elevation', () => {
     for (const actor of ['reporter','technician','staff','admin','super_admin'] as UserRole[]) {
       expect(canProvisionRole(actor, 'super_admin')).toBe(false);

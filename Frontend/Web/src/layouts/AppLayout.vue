@@ -18,13 +18,14 @@ const search = ref(String(route.query.q || ''));
 const notificationDialog = ref<HTMLDialogElement>();
 const name = computed(() => [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' '));
 const links = computed(() => {
+  if (user.value?.role === 'shop_manager') return [{ to: '/shop', label: 'Shop', icon: ShoppingBag }, { to: '/profile', label: 'Profile', icon: Users }];
   const technician = user.value?.role === 'technician';
   const items = technician
     ? [{ to: '/technician', label: 'My workspace', icon: Wrench }]
     : [{ to: '/', label: 'Dashboard', icon: House }];
   if (!technician || data.selectedSite) items.push({ to: '/reports', label: 'Reports', icon: FileText }, { to: '/sites', label: 'Sites', icon: MapPin }, { to: '/assignments', label: 'Assignments', icon: Users });
   if (technician || canProvision(user.value?.role)) items.push({ to: '/contracts', label: 'Site contracts', icon: Handshake });
-  if (canProvision(user.value?.role)) items.push({ to: '/team-access', label: 'Team access', icon: ShieldCheck });
+  if (user.value?.capabilities?.provision ?? canProvision(user.value?.role)) items.push({ to: '/team-access', label: 'Team access', icon: ShieldCheck });
   if (user.value?.adminApplication) items.push({ to: '/admin-application', label: 'My application', icon: ShieldCheck });
   items.push({ to: '/shop', label: 'Shop', icon: ShoppingBag });
   return items;
@@ -49,9 +50,13 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
         <div class="topbar-account"><button class="icon-button" aria-label="Notification availability" @click="notificationDialog?.showModal()"><Bell :size="23" /></button><span class="topbar-divider" /><RouterLink to="/profile" :aria-label="`${name}: view profile`" class="account-link"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></RouterLink></div>
       </header>
       <main class="dashboard-main">
-        <div class="live-toolbar"><label v-if="user?.role === 'super_admin' && data.sites.length" class="site-selector">Site<select :value="data.selectedSiteId" :disabled="data.loading" @change="data.selectSite(Number(($event.target as HTMLSelectElement).value))"><option v-for="site in data.sites" :key="site.id" :value="site.id">{{ site.name }}</option></select></label><span v-else>{{ data.selectedSite?.name || (data.loading ? 'Loading your site…' : user?.role === 'technician' ? 'Technician account' : 'No site available') }}</span><span class="live-sync">{{ data.loading ? 'Refreshing…' : data.lastSynced ? `Updated ${formatDate(data.lastSynced, true)}` : 'Not synced' }}<button class="icon-button" :disabled="data.loading" aria-label="Refresh live data" @click="data.refresh()"><RefreshCw :size="16" /></button></span></div>
+        <div v-if="user?.role !== 'shop_manager'" class="live-toolbar"><label v-if="user?.role === 'super_admin' && data.sites.length" class="site-selector">Site<select :value="data.selectedSiteId" :disabled="data.loading" @change="data.selectSite(Number(($event.target as HTMLSelectElement).value))"><option v-for="site in data.sites" :key="site.id" :value="site.id">{{ site.name }}</option></select></label><span v-else>{{ data.selectedSite?.name || (data.loading ? 'Loading your site…' : user?.role === 'technician' ? 'Technician account' : 'No site available') }}</span><span class="live-sync">{{ data.loading ? 'Refreshing…' : data.lastSynced ? `Updated ${formatDate(data.lastSynced, true)}` : 'Not synced' }}<button class="icon-button" :disabled="data.loading" aria-label="Refresh live data" @click="data.refresh()"><RefreshCw :size="16" /></button></span></div>
         <div v-if="data.sitesError" class="live-error" role="alert">{{ data.sitesError }} <button @click="data.refresh()">Retry</button></div>
-        <p v-else-if="!data.loading && !data.sites.length && user?.role !== 'technician'" class="live-empty">No sites are available for this account. Ask your administrator to check your site access.</p>
+        <p v-else-if="!data.loading && !data.sites.length && user?.role !== 'technician' && user?.role !== 'shop_manager'" class="live-empty">No sites are available for this account. Ask your administrator to check your site access.</p>
+        <div v-if="user?.siteOnboarding?.setupRequired && user.siteOnboarding.canManageSubsites" class="draft-notice" role="status">
+          Your site needs a labelled building before reports can be submitted.
+          <RouterLink :to="`/sites/${user.siteOnboarding.siteId}/subsites`" class="text-action">Set up buildings →</RouterLink>
+        </div>
         <RouterView />
       </main>
       <footer class="dashboard-footer"><span><b>FixFlow</b> © {{ new Date().getFullYear() }} FixFlow. Keeping spaces working beautifully.</span><span><Heart :size="13" fill="currentColor" />Better spaces. Brighter tomorrows.</span></footer>

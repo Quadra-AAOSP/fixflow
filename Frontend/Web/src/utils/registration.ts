@@ -36,6 +36,7 @@ export function buildRegistrationPayload(input: RegistrationInput): RegisterPayl
 }
 export function buildProvisionPayload(input: RegistrationInput, actorRole: UserRole | undefined, permittedSiteIds: number[]): ProvisionUserPayload {
   if (!canProvisionRole(actorRole, input.role)) throw new Error('You do not have permission to provision this role.');
+  if (input.role === 'shop_manager') return { ...validateAccount(input), role: 'shop_manager', siteId: null };
   const siteId = positiveId(input.siteId);
   if (!permittedSiteIds.includes(siteId)) throw new Error('Choose a site available to your account.');
   return { ...validateAccount(input), role: input.role as 'admin' | 'staff', siteId };

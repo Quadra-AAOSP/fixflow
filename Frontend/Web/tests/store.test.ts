@@ -15,6 +15,15 @@ beforeEach(() => {
   vi.mocked(api.listReports).mockResolvedValue([]);
 });
 describe('site-scoped live state', () => {
+  it('does not fetch maintenance data for a shop manager', async () => {
+    useAuthStore().user!.role = 'shop_manager';
+    const store = useMaintenanceStore();
+    await store.refresh();
+    expect(api.listSites).not.toHaveBeenCalled();
+    expect(store.canCreate).toBe(false);
+    expect(store.canAssign).toBe(false);
+    expect(store.sites).toEqual([]);
+  });
   it('takes site IDs and categories from API results', async () => {
     vi.mocked(api.listRules).mockResolvedValue([{ id: 81, siteType: 'school', category: 'backend_new_trade', urgencyWeight: 2, sortOrder: 1 }]);
     const store = useMaintenanceStore(); await store.refresh();

@@ -24,6 +24,12 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(payload: LoginPayload) {
     user.value = await authApi.login(payload); initialized.value = true;
   }
+  async function refreshUser() {
+    const accountId = user.value?.id;
+    if (accountId == null) return;
+    const current = await authApi.getMe();
+    if (user.value?.id === accountId) user.value = current;
+  }
   async function register(payload: RegisterPayload) {
     await authApi.register(payload);
     await login({ email: payload.email, password: payload.password });
@@ -32,5 +38,5 @@ export const useAuthStore = defineStore('auth', () => {
     // Keep the UI session if the server failed to invalidate the actual cookie.
     await authApi.logout(); clearSession();
   }
-  return { user, isLoading, isAuthenticated, hydrate, login, register, logout, clearSession };
+  return { user, isLoading, isAuthenticated, hydrate, login, register, logout, clearSession, refreshUser };
 });

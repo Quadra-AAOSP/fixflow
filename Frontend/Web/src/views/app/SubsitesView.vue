@@ -9,7 +9,7 @@ import { errorMessage } from '@/services/api';
 import type { Subsite, SubsiteAlert } from '@/types/maintenance';
 
 const route = useRoute();
-const { user } = useAuth();
+const { user, refreshUser } = useAuth();
 const data = useMaintenanceStore();
 const siteId = computed(() => Number(route.params.siteId));
 const site = computed(() => data.sites.find(item => item.id === siteId.value));
@@ -65,6 +65,10 @@ async function submit() {
     items.value = [...items.value.filter(item => item.id !== saved.id), saved].sort((a, b) => a.label.localeCompare(b.label));
     success.value = `${saved.label} · ${saved.name} saved for ${site.value?.name}.`;
     cancelEdit();
+    if (user.value?.siteOnboarding?.siteId === id) {
+      try { await refreshUser(); }
+      catch { success.value += ' Refresh your session to update the site setup prompt.'; }
+    }
   } catch (err) {
     if (siteId.value === id) formError.value = errorMessage(err);
   } finally {
@@ -90,6 +94,10 @@ async function archive(item: Subsite) {
     items.value = items.value.filter(row => row.id !== item.id);
     if (editingId.value === item.id) cancelEdit();
     success.value = `${item.label} archived. Existing reports keep their location history.`;
+    if (user.value?.siteOnboarding?.siteId === id) {
+      try { await refreshUser(); }
+      catch { success.value += ' Refresh your session to update the site setup prompt.'; }
+    }
   } catch (err) { if (siteId.value === id) loadError.value = errorMessage(err); }
   finally { actionId.value = ''; }
 }

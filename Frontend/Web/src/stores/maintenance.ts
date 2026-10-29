@@ -19,8 +19,8 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   const lastSynced = ref<string | null>(null);
   let generation = 0;
   const selectedSite = computed(() => sites.value.find(site => site.id === selectedSiteId.value));
-  const canCreate = computed(() => !!auth.user && ['reporter', 'staff', 'admin', 'super_admin'].includes(auth.user.role));
-  const canAssign = computed(() => !!auth.user && ['staff', 'admin', 'super_admin'].includes(auth.user.role));
+  const canCreate = computed(() => auth.user?.capabilities?.createReport ?? (!!auth.user && ['reporter', 'staff', 'admin', 'super_admin'].includes(auth.user.role)));
+  const canAssign = computed(() => auth.user?.capabilities?.assignTechnician ?? (!!auth.user && ['staff', 'admin', 'super_admin'].includes(auth.user.role)));
   const siteName = (id: number | null) => sites.value.find(site => site.id === id)?.name ?? (id == null ? 'Site unavailable' : `Site #${id}`);
 
   function reset() {
@@ -42,7 +42,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     loading.value = false;
   }
   async function refresh() {
-    if (!auth.user) { reset(); return; }
+    if (!auth.user || auth.user.role === 'shop_manager') { reset(); return; }
     const version = ++generation;
     loading.value = true; sitesError.value = ''; reportsError.value = ''; rulesError.value = '';
     reports.value = []; rules.value = []; reportsLoaded.value = false; lastSynced.value = null;

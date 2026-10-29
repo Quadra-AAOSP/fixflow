@@ -7,11 +7,12 @@ import Button from '@/components/ui/Button.vue';
 import TextField from '@/components/ui/TextField.vue';
 import { useAuth } from '@/composables/useAuth';
 import { ApiError } from '@/services/auth';
+import { accountHome } from '@/utils/navigation';
 
 const router = useRouter();
 const route = useRoute();
 
-const { login } = useAuth();
+const { login, user } = useAuth();
 
 const email = ref('');
 const password = ref('');
@@ -30,7 +31,7 @@ async function onSubmit() {
   try {
     await login({ email: trimmedEmail, password: password.value });
     const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') && !route.query.redirect.startsWith('//') ? route.query.redirect : '/';
-    await router.replace(redirect);
+    await router.replace(redirect === '/' ? accountHome(user.value) : redirect);
   } catch (err) {
     if (err instanceof ApiError) {
       error.value =

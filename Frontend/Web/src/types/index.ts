@@ -3,7 +3,27 @@ export type UserRole =
   | 'technician'
   | 'staff'
   | 'admin'
+  | 'shop_manager'
   | 'super_admin';
+
+export type UserCapabilities = {
+  provision: boolean;
+  decideContracts: boolean;
+  createSite: boolean;
+  editSite: boolean;
+  assignTechnician: boolean;
+  createReport: boolean;
+  provisionableRoles: UserRole[];
+  manageShop: boolean;
+};
+
+export type SiteOnboarding = {
+  siteId: number;
+  reportingReady: boolean;
+  setupRequired: boolean;
+  canManageSubsites: boolean;
+  setupEndpoint: string;
+};
 
 export type AdminApplication = {
   id: number;
@@ -30,6 +50,8 @@ export type User = {
   role: UserRole;
   siteId: number | null;
   adminApplication?: AdminApplication | null;
+  capabilities?: UserCapabilities;
+  siteOnboarding?: SiteOnboarding | null;
 };
 
 export type LoginPayload = {
@@ -52,10 +74,10 @@ export type RegisterPayload = AccountDetails & (
   | { role: 'admin'; siteId: number }
 );
 
-export type ProvisionUserPayload = AccountDetails & {
-  role: 'admin' | 'staff';
-  siteId: number;
-};
+export type ProvisionUserPayload = AccountDetails & (
+  | { role: 'admin' | 'staff'; siteId: number }
+  | { role: 'shop_manager'; siteId: null }
+);
 
 export type ApiErrorBody = {
   timestamp?: string;

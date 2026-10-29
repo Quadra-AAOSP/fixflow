@@ -16,8 +16,8 @@ const editingId = ref<number | null>(null);
 const busy = ref(false);
 const error = ref('');
 const form = reactive({ name: '', type: '' as Site['type'] | '', contractStatus: '' as Site['contractStatus'] | '', address: '', description: '', imageUrl: '' });
-const canCreate = computed(() => user.value?.role === 'super_admin');
-const canEdit = computed(() => canCreate.value || user.value?.role === 'admin');
+const canCreate = computed(() => user.value?.capabilities?.createSite ?? user.value?.role === 'super_admin');
+const canEdit = computed(() => user.value?.capabilities?.editSite ?? (canCreate.value || user.value?.role === 'admin'));
 async function viewReports(id: number) { await data.selectSite(id); await router.push('/reports'); }
 const imageUrl = (value: string | null) => value && /^https?:\/\//i.test(value) ? value : undefined;
 function edit(site?: Site) {
