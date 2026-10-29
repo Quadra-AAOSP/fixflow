@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import { createRouter, createWebHistory, type RouteRecordRaw, type RouterHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { accountHome } from '@/utils/navigation';
 
@@ -28,16 +28,20 @@ const routes: RouteRecordRaw[] = [
   ] },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
-export const router = createRouter({ history: createWebHistory(), routes, scrollBehavior(to) {
-  return to.hash ? { el: to.hash, behavior: 'smooth' } : { top: 0 };
-} });
-router.beforeEach(async to => {
-  const auth = useAuthStore();
-  await auth.hydrate();
-  if (to.meta.requiresAuth && !auth.isAuthenticated) return { name: 'login', query: { redirect: to.fullPath } };
-  if (to.meta.guest && auth.isAuthenticated) return accountHome(auth.user);
-  if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && to.name !== 'profile') return '/shop';
-  if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.user?.role)) return { name: 'home' };
-  if (to.name === 'home' && auth.user?.role === 'technician') return { name: 'technician' };
-  return true;
-});
+export function createAppRouter(history: RouterHistory = createWebHistory()) {
+  const router = createRouter({ history, routes, scrollBehavior(to) {
+    return to.hash ? { el: to.hash, behavior: 'smooth' } : { top: 0 };
+  } });
+  router.beforeEach(async to => {
+    const auth = useAuthStore();
+    await auth.hydrate();
+    if (to.meta.requiresAuth && !auth.isAuthenticated) return { name: 'login', query: { redirect: to.fullPath } };
+    if (to.meta.guest && auth.isAuthenticated) return accountHome(auth.user);
+    if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && to.name !== 'profile') return '/shop';
+    if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.user?.role)) return { name: 'home' };
+    if (to.name === 'home' && auth.user?.role === 'technician') return { name: 'technician' };
+    return true;
+  });
+  return router;
+}
+export const router = createAppRouter();

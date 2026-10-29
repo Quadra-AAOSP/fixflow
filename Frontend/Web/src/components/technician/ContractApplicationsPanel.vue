@@ -48,7 +48,7 @@ async function submit() {
   error.value = ''; success.value = '';
   const current = generation;
   try {
-    const target = positiveId(siteId.value);
+    const target = positiveId(String(siteId.value));
     if (note.value.length > 1000) throw new Error('Use a note of 1,000 characters or fewer.');
     submitting.value = true;
     const saved = await requestTechnicianContract(target, note.value);
