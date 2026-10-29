@@ -5,6 +5,19 @@ export type UserRole =
   | 'admin'
   | 'super_admin';
 
+export type AdminApplication = {
+  id: number;
+  status: 'pending' | 'approved' | 'rejected';
+};
+
+export type SiteAdminApplication = AdminApplication & {
+  userId: number;
+  siteId: number;
+  createdAt: string;
+  decidedAt: string | null;
+  decidedBy: number | null;
+};
+
 export type Urgency = 'low' | 'medium' | 'high' | 'critical';
 
 export type User = {
@@ -16,6 +29,7 @@ export type User = {
   address: string | null;
   role: UserRole;
   siteId: number | null;
+  adminApplication?: AdminApplication | null;
 };
 
 export type LoginPayload = {
@@ -35,6 +49,7 @@ export type AccountDetails = {
 export type RegisterPayload = AccountDetails & (
   | { role: 'reporter'; siteId: number }
   | { role: 'technician'; siteId: null }
+  | { role: 'admin'; siteId: number }
 );
 
 export type ProvisionUserPayload = AccountDetails & {

@@ -23,6 +23,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'team-access', name: 'team-access', meta: { roles: ['admin', 'super_admin'] }, component: () => import('@/views/app/TeamAccessView.vue') },
     { path: 'contracts', name: 'contracts', meta: { roles: ['technician', 'admin', 'super_admin'] }, component: () => import('@/views/app/ContractsView.vue') },
     { path: 'profile', name: 'profile', component: () => import('@/views/app/ProfileView.vue') },
+    { path: 'admin-application', name: 'admin-application', component: () => import('@/views/app/AdminApplicationView.vue') },
   ] },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ];

@@ -1,5 +1,5 @@
 import { request } from './api';
-import type { LoginPayload, RegisterPayload, User } from '@/types';
+import type { LoginPayload, RegisterPayload, SiteAdminApplication, User } from '@/types';
 export { ApiError } from './api';
 
 export function login(payload: LoginPayload): Promise<User> {
@@ -12,3 +12,12 @@ export function logout(): Promise<void> {
   return request('/api/auth/logout', { method: 'POST' });
 }
 export function getMe(): Promise<User> { return request('/api/auth/me'); }
+export function getSiteAdminApplication(): Promise<SiteAdminApplication | null> {
+  return request('/api/auth/site-admin-application');
+}
+export function getPendingSiteAdminApplications(): Promise<SiteAdminApplication[]> {
+  return request('/api/admin/site-admin-applications');
+}
+export function decideSiteAdminApplication(id: number, decision: 'approve' | 'reject'): Promise<SiteAdminApplication> {
+  return request(`/api/admin/site-admin-applications/${id}/${decision}`, { method: 'POST' });
+}
