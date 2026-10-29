@@ -15,6 +15,10 @@ export interface Subsite {
   description: string | null; archivedAt: string | null;
 }
 export interface SubsitePayload { label: string; name: string; description: string | null }
+export interface SubsiteAlert {
+  id: number; siteId: number; requestedByUserId: number;
+  note: string | null; status: 'pending' | 'resolved'; createdAt: string;
+}
 export interface Report {
   id: number; siteId: number | null; subsiteId: number | null; createdByUserId: number | null; createdByName: string | null;
   description: string; address: string | null; category: string; specialty: string | null;

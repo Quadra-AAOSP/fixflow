@@ -1,5 +1,5 @@
 import { request } from './api';
-import type { CreateReportPayload, Report, ReportReporter, Site, SiteRule, SiteType, SitePayload, Subsite, SubsitePayload } from '@/types/maintenance';
+import type { CreateReportPayload, Report, ReportReporter, Site, SiteRule, SiteType, SitePayload, Subsite, SubsitePayload, SubsiteAlert } from '@/types/maintenance';
 
 export const listSites = () => request<Site[]>('/api/sites');
 export const listRules = (type: SiteType) => request<SiteRule[]>(`/api/site-rules?siteType=${encodeURIComponent(type)}`);
@@ -31,6 +31,32 @@ export function createSubsite(siteId: number, value: SubsitePayload) {
   return request<Subsite>(subsitePath(siteId), {
     method: 'POST', body: JSON.stringify({ label, name, description }),
   });
+}
+export function updateSubsite(siteId: number, subsiteId: number, value: SubsitePayload) {
+  if (!Number.isSafeInteger(subsiteId) || subsiteId <= 0) throw new Error('Choose a valid building.');
+  const label = value.label.trim().toUpperCase();
+  const name = value.name.trim();
+  const description = value.description?.trim() || null;
+  if (!label || label.length > 64 || !name || name.length > 255 || (description?.length ?? 0) > 2000) {
+    throw new Error('Enter a valid label, name and description.');
+  }
+  return request<Subsite>(`${subsitePath(siteId)}/${subsiteId}`, {
+    method: 'PUT', body: JSON.stringify({ label, name, description }),
+  });
+}
+export function archiveSubsite(siteId: number, subsiteId: number) {
+  if (!Number.isSafeInteger(subsiteId) || subsiteId <= 0) throw new Error('Choose a valid building.');
+  return request<Subsite>(`${subsitePath(siteId)}/${subsiteId}/archive`, { method: 'POST' });
+}
+export function listPendingSubsiteRequests(siteId: number) {
+  if (!Number.isSafeInteger(siteId) || siteId <= 0) throw new Error('Choose a valid site.');
+  return request<SubsiteAlert[]>(`/api/sites/${siteId}/subsite-requests`);
+}
+export function resolveSubsiteRequest(siteId: number, requestId: number) {
+  if (!Number.isSafeInteger(siteId) || siteId <= 0 || !Number.isSafeInteger(requestId) || requestId <= 0) {
+    throw new Error('Choose a valid site and request.');
+  }
+  return request<SubsiteAlert>(`/api/sites/${siteId}/subsite-requests/${requestId}/resolve`, { method: 'POST' });
 }
 export function requestSubsiteAddition(siteId: number, note: string) {
   if (!Number.isSafeInteger(siteId) || siteId <= 0) throw new Error('Choose a valid site.');

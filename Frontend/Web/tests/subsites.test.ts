@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSubsite, listSubsites, requestSubsiteAddition } from '../src/services/maintenance';
+import { archiveSubsite, createSubsite, listPendingSubsiteRequests, listSubsites, requestSubsiteAddition, resolveSubsiteRequest, updateSubsite } from '../src/services/maintenance';
 import { stubApiFetch } from './csrfFetch';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
@@ -35,5 +35,32 @@ describe('subsite web endpoints', () => {
     expect(fetch.mock.calls[0]?.[1].body).toBe(JSON.stringify({ note: 'The west annex is missing' }));
     expect(() => requestSubsiteAddition(7, ' ')).toThrow('Describe the missing building');
     expect(fetch).toHaveBeenCalledOnce();
+  });
+  it('edits and archives a building through the site-scoped endpoints', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 12, siteId: 7, label: 'B', name: 'West Annex', description: null, archivedAt: null })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 12, siteId: 7, label: 'B', name: 'West Annex', description: null, archivedAt: '2026-10-29T00:00:00Z' })));
+    stubApiFetch(fetch);
+    expect((await updateSubsite(7, 12, { label: ' b ', name: ' West Annex ', description: null })).label).toBe('B');
+    expect(fetch.mock.calls[0]?.[0]).toBe('/api/sites/7/subsites/12');
+    expect(fetch.mock.calls[0]?.[1].method).toBe('PUT');
+    expect(fetch.mock.calls[0]?.[1].body).toBe(JSON.stringify({ label: 'B', name: 'West Annex', description: null }));
+    expect((await archiveSubsite(7, 12)).archivedAt).toBeTruthy();
+    expect(fetch.mock.calls[1]?.[0]).toBe('/api/sites/7/subsites/12/archive');
+    expect(fetch.mock.calls[1]?.[1].method).toBe('POST');
+    expect(() => archiveSubsite(7, -1)).toThrow('valid building');
+  });
+  it('shows only pending requests and resolves the selected request', async () => {
+    const pending = [{ id: 9, siteId: 7, requestedByUserId: 41, note: 'West annex', status: 'pending', createdAt: '2026-10-29T00:00:00Z' }];
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(pending)))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...pending[0], status: 'resolved' })));
+    stubApiFetch(fetch);
+    expect(await listPendingSubsiteRequests(7)).toEqual(pending);
+    expect(fetch.mock.calls[0]?.[0]).toBe('/api/sites/7/subsite-requests');
+    expect((await resolveSubsiteRequest(7, 9)).status).toBe('resolved');
+    expect(fetch.mock.calls[1]?.[0]).toBe('/api/sites/7/subsite-requests/9/resolve');
+    expect(fetch.mock.calls[1]?.[1].method).toBe('POST');
+    expect(() => resolveSubsiteRequest(7, 0)).toThrow('valid site and request');
   });
 });
