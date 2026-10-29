@@ -1,9 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { stubApiFetch } from './csrfFetch';
 import { refreshReportPhotoUrl, removeReportPhoto, safePhotoUrl, uploadReportPhoto, validateReportPhoto } from '../src/services/reportPhotos';
+import { createReportWithPhotos } from '../src/services/maintenance';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('authorized report photo contract', () => {
+  it('creates a report with its location and photos in the backend multipart field format', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('{}')); stubApiFetch(fetch);
+    const photo = new File(['photo'], 'issue.png', { type: 'image/png' });
+    await createReportWithPhotos({ siteId: 7, subsiteId: 42, description: 'A leak', category: 'plumbing', reporterUrgency: 'high' }, [photo]);
+    const body = fetch.mock.calls[0]?.[1].body as FormData;
+    expect(body.get('siteId')).toBe('7');
+    expect(body.get('subsiteId')).toBe('42');
+    expect(body.get('reporterUrgency')).toBe('high');
+    expect(body.getAll('photos')).toEqual([photo]);
+    expect(body.has('address')).toBe(false);
+  });
   it('sends a file as multipart with credentials and lets the browser set its boundary', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response('{}')); stubApiFetch(fetch);
     const file = new File(['photo'], 'issue.png', { type: 'image/png' });

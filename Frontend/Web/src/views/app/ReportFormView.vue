@@ -4,8 +4,9 @@ import { useRouter } from 'vue-router';
 import { ArrowLeft, ArrowRight } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
-import { createReport, listSubsites, requestSubsiteAddition } from '@/services/maintenance';
-import { errorMessage } from '@/services/api';
+import { createReport, createReportWithPhotos, listSubsites, requestSubsiteAddition } from '@/services/maintenance';
+import { REPORT_PHOTO_LIMIT, REPORT_PHOTO_TYPES, validateReportPhoto } from '@/services/reportPhotos';
+import { ApiError, errorMessage } from '@/services/api';
 import { humanize, urgencyLabels } from '@/utils/maintenance';
 import type { Subsite } from '@/types/maintenance';
 import type { Urgency } from '@/types';
@@ -28,6 +29,25 @@ const requestError = ref('');
 const requestSent = ref(false);
 const submitting = ref(false);
 const error = ref('');
+const photos = ref<File[]>([]);
+const photoInput = ref<HTMLInputElement>();
+const photoError = ref('');
+function clearPhotos() {
+  photos.value = []; photoError.value = '';
+  if (photoInput.value) photoInput.value.value = '';
+}
+function selectPhotos(event: Event) {
+  photos.value = []; photoError.value = '';
+  const selected = Array.from((event.target as HTMLInputElement).files ?? []);
+  try {
+    if (selected.length > REPORT_PHOTO_LIMIT) throw new Error('Choose up to 5 photos.');
+    selected.forEach(validateReportPhoto);
+    photos.value = selected;
+  } catch (err) {
+    photoError.value = errorMessage(err);
+    if (photoInput.value) photoInput.value.value = '';
+  }
+}
 const categories = computed(() => [...new Set(data.rules.map(rule => rule.category))]);
 const canManageBuildings = computed(() => user.value?.role === 'super_admin' || user.value?.role === 'admin');
 let disposed = false;
@@ -49,6 +69,7 @@ async function loadLocations(id: number | null) {
   }
 }
 watch(() => data.selectedSiteId, id => {
+  clearPhotos();
   category.value = ''; error.value = ''; requestNote.value = ''; requestError.value = ''; requestSent.value = false;
   void loadLocations(id);
 }, { immediate: true });
@@ -67,7 +88,7 @@ async function requestLocation() {
 }
 
 async function submit() {
-  if (submitting.value) return;
+  if (submitting.value || photoError.value) return;
   error.value = '';
   const siteId = data.selectedSiteId;
   if (!data.canCreate || !siteId || !description.value.trim() || !categories.value.includes(category.value) || !urgency.value ||
@@ -83,11 +104,15 @@ async function submit() {
   const actorId = user.value?.id;
   submitting.value = true;
   try {
-    const report = await createReport(payload);
+    const report = photos.value.length ? await createReportWithPhotos(payload, photos.value) : await createReport(payload);
     if (disposed || user.value?.id !== actorId || data.selectedSiteId !== siteId) return;
     data.upsert(report);
     await router.replace({ name: 'report-detail', params: { id: report.id } });
-  } catch (err) { error.value = errorMessage(err); }
+  } catch (err) {
+    if (disposed || user.value?.id !== actorId || data.selectedSiteId !== siteId) return;
+    error.value = errorMessage(err);
+    if (err instanceof ApiError && err.status === 409) await loadLocations(siteId);
+  }
   finally { submitting.value = false; }
 }
 </script>
@@ -120,7 +145,12 @@ async function submit() {
             <label>Your urgency<select v-model="urgency" required><option disabled value="">Choose an urgency</option><option v-for="(label, value) in urgencyLabels" :key="value" :value="value">{{ label }}</option></select></label>
           </div>
           <label>Why this urgency? (optional)<textarea v-model="reason" rows="3" maxlength="2000" placeholder="Explain how this issue affects the space." /></label>
-          <button class="report-issue-button" type="submit" :disabled="submitting">{{ submitting ? 'Submitting…' : 'Submit report' }}<ArrowRight :size="18" /></button>
+          <label>Photos (optional)<input ref="photoInput" type="file" multiple :accept="REPORT_PHOTO_TYPES.join(',')" @change="selectPhotos" /></label>
+          <p class="field-hint">Up to {{ REPORT_PHOTO_LIMIT }} photos, 5 MiB each. Attached photos can be viewed by people authorized to access the report.</p>
+          <p v-if="photoError" class="live-error" role="alert">{{ photoError }} Choose again or clear the selection to continue.</p>
+          <ul v-if="photos.length"><li v-for="(photo, index) in photos" :key="index">{{ photo.name }}</li></ul>
+          <button v-if="photos.length || photoError" type="button" class="text-action" @click="clearPhotos">Clear photo selection</button>
+          <button class="report-issue-button" type="submit" :disabled="submitting || !!photoError">{{ submitting ? 'Submitting…' : 'Submit report' }}<ArrowRight :size="18" /></button>
         </fieldset>
       </form>
       <section class="missing-location">

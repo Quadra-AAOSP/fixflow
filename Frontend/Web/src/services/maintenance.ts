@@ -1,4 +1,5 @@
 import { request } from './api';
+import { REPORT_PHOTO_LIMIT, validateReportPhoto } from './reportPhotos';
 import type { CreateReportPayload, Report, ReportReporter, Site, SiteRule, SiteType, SitePayload, Subsite, SubsitePayload, SubsiteAlert } from '@/types/maintenance';
 
 export const listSites = () => request<Site[]>('/api/sites');
@@ -9,6 +10,16 @@ export const listReports = async (siteId: number) => {
 };
 export const getReport = (id: number) => request<Report>(`/api/reports/${id}`);
 export const createReport = (payload: CreateReportPayload) => request<Report>('/api/reports', { method: 'POST', body: JSON.stringify(payload) });
+export function createReportWithPhotos(payload: CreateReportPayload, photos: File[]) {
+  if (photos.length > REPORT_PHOTO_LIMIT) throw new Error('A report may have at most 5 photos.');
+  photos.forEach(validateReportPhoto);
+  const body = new FormData();
+  for (const [key, value] of Object.entries(payload)) {
+    if (value != null) body.append(key, String(value));
+  }
+  photos.forEach(photo => body.append('photos', photo));
+  return request<Report>('/api/reports', { method: 'POST', body });
+}
 export const joinReport = (id: number) => request<Report>(`/api/reports/${id}/join`, { method: 'POST' });
 export const listReporters = (id: number) => request<ReportReporter[]>(`/api/reports/${id}/reporters`);
 export const assignTechnician = (id: number, technicianId: number) => request<Report>(`/api/reports/${id}/assign`, { method: 'POST', body: JSON.stringify({ technicianId }) });
