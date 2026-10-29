@@ -25,6 +25,17 @@ export interface Report {
   aiUrgency: Urgency | null; reporterUrgency: Urgency; reporterReason: string | null; finalUrgency: Urgency | null;
   status: ReportStatus; assignedTechnicianId: number | null; editable: boolean; reopenCount: number;
   createdAt: string; updatedAt: string;
+  policy?: {
+    statusGroup: string; effectiveUrgency: Urgency; urgent: boolean;
+    inAssignmentQueue: boolean; participant: boolean; canSeeSensitive: boolean;
+    canAssign: boolean; canJoin: boolean;
+  };
+  photos?: ReportPhoto[];
+  aiReport?: { urgency: Urgency | null; category: string | null; specialty: string | null; description: string | null; urgencyReason: string | null };
+}
+export interface ReportPhoto {
+  id: number; objectKey: string; url: string | null; contentType: string;
+  fileSizeBytes: number; sortOrder: number; createdAt: string; retrievalPath: string;
 }
 export interface CreateReportPayload {
   description: string; address?: string; category: string; specialty?: string;

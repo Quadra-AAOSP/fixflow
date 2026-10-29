@@ -8,6 +8,7 @@ import * as api from '@/services/maintenance';
 import { ApiError, errorMessage } from '@/services/api';
 import { formatDate, humanize, statusLabels, statusTone, urgencyLabels } from '@/utils/maintenance';
 import type { Report, ReportReporter } from '@/types/maintenance';
+import ReportPhotosPanel from '@/components/ReportPhotosPanel.vue';
 
 const route = useRoute();
 const { user } = useAuth();
@@ -84,6 +85,7 @@ async function assign() {
       <p v-if="message" class="draft-notice" role="status">{{ message }}</p><p v-if="actionError" class="live-error" role="alert">{{ actionError }}</p>
       <section class="detail-section"><h2>People attached to this report</h2><p v-if="reportersError" class="live-error">{{ reportersError }}</p><ul v-else-if="reportersLoaded" class="reporter-list"><li v-for="person in reporters" :key="person.userId">{{ person.userId === user?.id ? 'You' : `User #${person.userId}` }}<span>Joined {{ formatDate(person.joinedAt, true) }}</span></li></ul><p v-else class="dialog-intro">Reporter identities are only available to people with access to this report.</p><button v-if="user?.role === 'reporter' && !joined" class="report-issue-button" :disabled="busy" @click="join">{{ busy ? 'Saving…' : 'This issue affects me too' }}</button><p v-if="user?.role === 'reporter' && !joined" class="dialog-intro">Joining attaches your account to the report and gives you access to its shared details.</p></section>
       <section v-if="data.canAssign" class="detail-section"><h2>{{ report.assignedTechnicianId ? 'Reassign technician' : 'Assign a technician' }}</h2><p class="dialog-intro">Enter the technician’s account ID supplied by your administrator.</p><form class="assignment-form" @submit.prevent="assign"><label>Technician ID<input v-model="technicianId" type="number" min="1" step="1" required :disabled="busy" /></label><button class="report-issue-button" :disabled="busy" type="submit">{{ busy ? 'Saving…' : 'Save assignment' }}</button></form></section>
+      <ReportPhotosPanel :report="report" />
     </template>
   </section>
 </template>
