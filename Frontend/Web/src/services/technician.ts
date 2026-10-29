@@ -1,4 +1,13 @@
 import { request } from './api';
+import type { TechnicianTermsStatus } from '@/types/technician';
+
+export function getTechnicianTerms(): Promise<TechnicianTermsStatus> {
+  return request('/api/technician-terms/me');
+}
+
+export function acceptTechnicianTerms(version: string): Promise<TechnicianTermsStatus> {
+  return request('/api/technician-terms/accept', { method: 'POST', body: JSON.stringify({ version }) });
+}
 
 export function addTechnicianSkill(technicianId: number, category: string, specialty: string, proficiency: string) {
   const level = Number(proficiency);
