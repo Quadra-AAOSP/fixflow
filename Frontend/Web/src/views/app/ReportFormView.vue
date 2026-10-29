@@ -4,47 +4,138 @@ import { useRouter } from 'vue-router';
 import { ArrowLeft, ArrowRight } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
-import { createReport } from '@/services/maintenance';
+import { createReport, listSubsites, requestSubsiteAddition } from '@/services/maintenance';
 import { errorMessage } from '@/services/api';
 import { humanize, urgencyLabels } from '@/utils/maintenance';
+import type { Subsite } from '@/types/maintenance';
 import type { Urgency } from '@/types';
 
 const data = useMaintenanceStore();
 const { user } = useAuth();
-let disposed = false;
-onBeforeUnmount(() => { disposed = true; });
 const router = useRouter();
 const description = ref('');
 const address = ref('');
 const category = ref('');
 const urgency = ref<Urgency | ''>('');
 const reason = ref('');
+const subsiteId = ref<number | null>(null);
+const subsites = ref<Subsite[]>([]);
+const locationsLoading = ref(false);
+const locationsError = ref('');
+const requestNote = ref('');
+const requestBusy = ref(false);
+const requestError = ref('');
+const requestSent = ref(false);
 const submitting = ref(false);
 const error = ref('');
 const categories = computed(() => [...new Set(data.rules.map(rule => rule.category))]);
-watch(() => data.selectedSiteId, () => { category.value = ''; error.value = ''; });
+const canManageBuildings = computed(() => user.value?.role === 'super_admin' || user.value?.role === 'admin');
+let disposed = false;
+let siteLoad = 0;
+onBeforeUnmount(() => { disposed = true; siteLoad++; });
+
+async function loadLocations(id: number | null) {
+  const current = ++siteLoad;
+  subsiteId.value = null; subsites.value = []; locationsError.value = ''; locationsLoading.value = false;
+  if (!id) return;
+  locationsLoading.value = true;
+  try {
+    const result = await listSubsites(id);
+    if (current === siteLoad) subsites.value = result.filter(item => !item.archivedAt);
+  } catch (err) {
+    if (current === siteLoad) locationsError.value = errorMessage(err);
+  } finally {
+    if (current === siteLoad) locationsLoading.value = false;
+  }
+}
+watch(() => data.selectedSiteId, id => {
+  category.value = ''; error.value = ''; requestNote.value = ''; requestError.value = ''; requestSent.value = false;
+  void loadLocations(id);
+}, { immediate: true });
 watch(categories, values => { if (!values.includes(category.value)) category.value = ''; });
+
+async function requestLocation() {
+  const siteId = data.selectedSiteId;
+  if (!siteId || requestBusy.value || requestSent.value) return;
+  requestError.value = '';
+  requestBusy.value = true;
+  try {
+    await requestSubsiteAddition(siteId, requestNote.value);
+    if (!disposed && data.selectedSiteId === siteId) { requestSent.value = true; requestNote.value = ''; }
+  } catch (err) { if (!disposed && data.selectedSiteId === siteId) requestError.value = errorMessage(err); }
+  finally { requestBusy.value = false; }
+}
+
 async function submit() {
   if (submitting.value) return;
   error.value = '';
-  if (!data.canCreate || !data.selectedSiteId || !description.value.trim() || !categories.value.includes(category.value) || !urgency.value) {
-    error.value = 'Choose a site, category, and urgency, and describe the issue.'; return;
+  const siteId = data.selectedSiteId;
+  if (!data.canCreate || !siteId || !description.value.trim() || !categories.value.includes(category.value) || !urgency.value ||
+      !subsites.value.some(item => item.id === subsiteId.value)) {
+    error.value = 'Choose a site, building, category, and urgency, and describe the issue.';
+    return;
   }
-  const payload = { siteId: data.selectedSiteId, description: description.value.trim(), address: address.value.trim() || undefined, category: category.value, reporterUrgency: urgency.value, reporterReason: reason.value.trim() || undefined };
+  const payload = {
+    siteId, subsiteId: subsiteId.value!, description: description.value.trim(),
+    address: address.value.trim() || undefined, category: category.value,
+    reporterUrgency: urgency.value, reporterReason: reason.value.trim() || undefined,
+  };
   const actorId = user.value?.id;
   submitting.value = true;
   try {
     const report = await createReport(payload);
-    if (disposed || user.value?.id !== actorId) return;
+    if (disposed || user.value?.id !== actorId || data.selectedSiteId !== siteId) return;
     data.upsert(report);
     await router.replace({ name: 'report-detail', params: { id: report.id } });
   } catch (err) { error.value = errorMessage(err); }
   finally { submitting.value = false; }
 }
 </script>
+
 <template>
-  <section class="dashboard-card live-page report-form-page"><RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />All reports</RouterLink><h1>Report an issue</h1><p class="dialog-intro">Describe what needs attention at {{ data.selectedSite?.name || 'your site' }}. Your report will be saved to the maintenance system.</p>
-    <p v-if="!data.canCreate" class="live-empty">Your account cannot create reports.</p><p v-else-if="data.loading" class="live-empty">Loading site categories…</p><div v-else-if="data.rulesError" class="live-error" role="alert">{{ data.rulesError }} <button @click="data.refresh()">Retry</button></div><p v-else-if="!data.selectedSite || !categories.length" class="live-empty">No reporting categories are available for this site. Ask your administrator to configure them.</p>
-    <form v-else class="draft-form" @submit.prevent="submit"><p v-if="error" role="alert" class="live-error">{{ error }}</p><fieldset :disabled="submitting" class="report-fields"><label>What happened?<textarea v-model="description" required rows="5" placeholder="Describe the issue and what you noticed." /></label><label>Location (optional)<input v-model="address" maxlength="512" placeholder="Building, floor, or room" /></label><div class="form-two-columns"><label>Category<select v-model="category" required><option disabled value="">Choose a category</option><option v-for="item in categories" :key="item" :value="item">{{ humanize(item) }}</option></select></label><label>Your urgency<select v-model="urgency" required><option disabled value="">Choose an urgency</option><option v-for="(label, value) in urgencyLabels" :key="value" :value="value">{{ label }}</option></select></label></div><label>Why this urgency? (optional)<textarea v-model="reason" rows="3" placeholder="Explain how this issue affects the space." /></label><button class="report-issue-button" type="submit" :disabled="submitting">{{ submitting ? 'Submitting…' : 'Submit report' }}<ArrowRight :size="18" /></button></fieldset></form>
+  <section class="dashboard-card live-page report-form-page">
+    <RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />All reports</RouterLink>
+    <h1>Report an issue</h1>
+    <p class="dialog-intro">Describe what needs attention at {{ data.selectedSite?.name || 'your site' }}. Your report will be saved to the maintenance system.</p>
+    <p v-if="!data.canCreate" class="live-empty">Your account cannot create reports.</p>
+    <p v-else-if="data.loading" class="live-empty" role="status">Loading site categories…</p>
+    <p v-else-if="data.rulesError" class="live-error" role="alert">{{ data.rulesError }} <button @click="data.refresh()">Retry</button></p>
+    <p v-else-if="!data.selectedSite || !categories.length" class="live-empty">No reporting categories are available for this site. Ask your administrator to configure them.</p>
+    <template v-else>
+      <p v-if="locationsLoading" class="live-empty" role="status">Loading buildings…</p>
+      <p v-else-if="locationsError" class="live-error" role="alert">{{ locationsError }} <button type="button" @click="loadLocations(data.selectedSiteId)">Retry</button></p>
+      <p v-else-if="!subsites.length" class="live-empty">Reporting is not ready: a site admin must add a labelled building first.
+        <RouterLink v-if="canManageBuildings" :to="{ name: 'subsites', params: { siteId: data.selectedSiteId } }">Set up buildings →</RouterLink>
+      </p>
+      <form v-else class="draft-form" @submit.prevent="submit">
+        <p v-if="error" role="alert" class="live-error">{{ error }}</p>
+        <fieldset :disabled="submitting" class="report-fields">
+          <label>What happened?<textarea v-model="description" required maxlength="10000" rows="5" placeholder="Describe the issue and what you noticed." /></label>
+          <div class="form-two-columns">
+            <label>Building or location<select v-model.number="subsiteId" required><option :value="null" disabled>Choose a building</option><option v-for="item in subsites" :key="item.id" :value="item.id">{{ item.label }} · {{ item.name }}</option></select></label>
+            <label>Room or exact spot (optional)<input v-model="address" maxlength="512" placeholder="Floor, room, or nearby landmark" /></label>
+          </div>
+          <div class="form-two-columns">
+            <label>Category<select v-model="category" required><option disabled value="">Choose a category</option><option v-for="item in categories" :key="item" :value="item">{{ humanize(item) }}</option></select></label>
+            <label>Your urgency<select v-model="urgency" required><option disabled value="">Choose an urgency</option><option v-for="(label, value) in urgencyLabels" :key="value" :value="value">{{ label }}</option></select></label>
+          </div>
+          <label>Why this urgency? (optional)<textarea v-model="reason" rows="3" maxlength="2000" placeholder="Explain how this issue affects the space." /></label>
+          <button class="report-issue-button" type="submit" :disabled="submitting">{{ submitting ? 'Submitting…' : 'Submit report' }}<ArrowRight :size="18" /></button>
+        </fieldset>
+      </form>
+      <section class="missing-location">
+        <h2>Can’t find your building?</h2>
+        <p v-if="requestSent" role="status">Your request was sent to the site administrator.</p>
+        <form v-else class="draft-form" @submit.prevent="requestLocation">
+          <p v-if="requestError" class="live-error" role="alert">{{ requestError }}</p>
+          <label>Describe the missing location<textarea v-model="requestNote" required maxlength="1000" rows="2" placeholder="Building name or how to find it" /></label>
+          <button class="text-action" type="submit" :disabled="requestBusy">{{ requestBusy ? 'Sending…' : 'Request a new building →' }}</button>
+        </form>
+      </section>
+    </template>
   </section>
 </template>
+
+<style scoped>
+.missing-location{border-top:1px solid #e8eeea;margin-top:26px;padding-top:22px}.missing-location h2{font-size:16px;font-weight:650}.missing-location p{font-size:12px;color:#62778a;margin:8px 0}.missing-location form{margin-top:12px}.missing-location .text-action{width:max-content}.report-form-page .live-empty a{color:#008e82;text-decoration:underline}
+</style>

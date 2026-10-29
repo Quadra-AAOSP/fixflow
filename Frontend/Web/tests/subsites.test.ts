@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSubsite, listSubsites } from '../src/services/maintenance';
+import { createSubsite, listSubsites, requestSubsiteAddition } from '../src/services/maintenance';
 import { stubApiFetch } from './csrfFetch';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
@@ -12,7 +12,7 @@ describe('subsite web endpoints', () => {
     expect(await listSubsites(7)).toEqual(rows);
     expect(fetch.mock.calls[0]?.[0]).toBe('/api/sites/7/subsites');
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({ credentials: 'include' });
-    await expect(listSubsites(0)).rejects.toThrow('Choose a valid site.');
+    expect(() => listSubsites(0)).toThrow('Choose a valid site.');
     expect(fetch).toHaveBeenCalledOnce();
   });
 
@@ -24,7 +24,16 @@ describe('subsite web endpoints', () => {
     expect(fetch.mock.calls[0]?.[0]).toBe('/api/sites/7/subsites');
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({ method: 'POST', body: JSON.stringify({ label: 'A', name: 'Main Building', description: null }), credentials: 'include' });
     expect(fetch.mock.calls[0]?.[1].headers.get('X-CSRF-TOKEN')).toBe('test-token');
-    await expect(createSubsite(7, { label: '', name: 'Blank', description: null })).rejects.toThrow('building label');
+    expect(() => createSubsite(7, { label: '', name: 'Blank', description: null })).toThrow('building label');
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+  it('submits a missing-building request without inventing a building', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 19, siteId: 7, status: 'pending' }), { status: 201 }));
+    stubApiFetch(fetch);
+    expect(await requestSubsiteAddition(7, '  The west annex is missing  ')).toMatchObject({ status: 'pending' });
+    expect(fetch.mock.calls[0]?.[0]).toBe('/api/sites/7/subsite-requests');
+    expect(fetch.mock.calls[0]?.[1].body).toBe(JSON.stringify({ note: 'The west annex is missing' }));
+    expect(() => requestSubsiteAddition(7, ' ')).toThrow('Describe the missing building');
     expect(fetch).toHaveBeenCalledOnce();
   });
 });

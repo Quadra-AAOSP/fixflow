@@ -16,7 +16,7 @@ export interface Subsite {
 }
 export interface SubsitePayload { label: string; name: string; description: string | null }
 export interface Report {
-  id: number; siteId: number | null; createdByUserId: number | null; createdByName: string | null;
+  id: number; siteId: number | null; subsiteId: number | null; createdByUserId: number | null; createdByName: string | null;
   description: string; address: string | null; category: string; specialty: string | null;
   aiUrgency: Urgency | null; reporterUrgency: Urgency; reporterReason: string | null; finalUrgency: Urgency | null;
   status: ReportStatus; assignedTechnicianId: number | null; editable: boolean; reopenCount: number;
@@ -24,7 +24,7 @@ export interface Report {
 }
 export interface CreateReportPayload {
   description: string; address?: string; category: string; specialty?: string;
-  reporterUrgency: Urgency; reporterReason?: string; siteId: number;
+  reporterUrgency: Urgency; reporterReason?: string; siteId: number; subsiteId?: number;
 }
 export interface ReportReporter { reportId: number; userId: number; joinedAt: string }
 export type SitePayload = Pick<Site, 'name' | 'type' | 'contractStatus' | 'address' | 'description' | 'imageUrl'>;

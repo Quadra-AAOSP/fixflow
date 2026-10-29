@@ -7,7 +7,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); setUnauthorizedHa
 describe('API transport', () => {
   it('includes session cookies and serializes the backend create contract', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 91 }), { status: 201 })); stubApiFetch(fetch);
-    const payload = { siteId: 7, description: 'Leaking pipe', category: 'plumbing', reporterUrgency: 'high' as const };
+    const payload = { siteId: 7, subsiteId: 12, description: 'Leaking pipe', category: 'plumbing', reporterUrgency: 'high' as const };
     expect(await createReport(payload)).toEqual({ id: 91 });
     expect(fetch.mock.calls[0]?.[0]).toBe('/api/reports');
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({ method: 'POST', body: JSON.stringify(payload), credentials: 'include' });

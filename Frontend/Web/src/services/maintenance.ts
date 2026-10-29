@@ -32,3 +32,11 @@ export function createSubsite(siteId: number, value: SubsitePayload) {
     method: 'POST', body: JSON.stringify({ label, name, description }),
   });
 }
+export function requestSubsiteAddition(siteId: number, note: string) {
+  if (!Number.isSafeInteger(siteId) || siteId <= 0) throw new Error('Choose a valid site.');
+  const trimmed = note.trim();
+  if (!trimmed || trimmed.length > 1000) throw new Error('Describe the missing building in 1–1,000 characters.');
+  return request<{ id: number; siteId: number; status: string }>(`/api/sites/${siteId}/subsite-requests`, {
+    method: 'POST', body: JSON.stringify({ note: trimmed }),
+  });
+}
