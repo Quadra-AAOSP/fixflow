@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { confirmReport, reopenReport } from '@/services/maintenance';
 import { errorMessage } from '@/services/api';
 import type { Report } from '@/types/maintenance';
+const { t } = useLocale();
 
 const props = defineProps<{ report: Report; disabled?: boolean }>();
 const emit = defineEmits<{ saved: [report: Report]; busy: [value: boolean] }>();
@@ -31,11 +33,11 @@ async function save(action: 'confirm' | 'reopen') {
 
 <template>
   <section v-if="reviewable" class="detail-section">
-    <h2>{{ report.status === 'confirmed' ? 'Issue confirmed' : 'Check the completed repair' }}</h2>
-    <p v-if="report.status === 'resolved_pending_confirmation'" class="dialog-intro">Confirm the issue is fixed after checking the repair. If it still needs attention, reopen it with a reason.</p>
-    <p v-else class="dialog-intro">If the same issue returns, you can reopen this report and explain what still needs attention.</p>
-    <p v-if="error" role="alert" class="live-error">{{ error }}</p>
-    <button v-if="report.status === 'resolved_pending_confirmation'" type="button" class="report-issue-button" :disabled="busy || disabled" @click="save('confirm')">{{ busy ? 'Saving…' : 'Confirm issue is fixed' }}</button>
-    <form class="draft-form" @submit.prevent="save('reopen')"><fieldset class="report-fields" :disabled="busy || disabled"><label>Why does this issue need more work?<textarea v-model="reason" rows="3" maxlength="500" required /></label><button type="submit" class="text-action">{{ busy ? 'Saving…' : 'Reopen report' }}</button></fieldset></form>
+    <h2>{{ t(report.status === 'confirmed' ? 'Issue confirmed' : 'Check the completed repair') }}</h2>
+    <p v-if="report.status === 'resolved_pending_confirmation'" class="dialog-intro">{{ t("Confirm the issue is fixed after checking the repair. If it still needs attention, reopen it with a reason.") }}</p>
+    <p v-else class="dialog-intro">{{ t("If the same issue returns, you can reopen this report and explain what still needs attention.") }}</p>
+    <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
+    <button v-if="report.status === 'resolved_pending_confirmation'" type="button" class="report-issue-button" :disabled="busy || disabled" @click="save('confirm')">{{ t(busy ? 'Saving…' : 'Confirm issue is fixed') }}</button>
+    <form class="draft-form" @submit.prevent="save('reopen')"><fieldset class="report-fields" :disabled="busy || disabled"><label>{{ t("Why does this issue need more work?") }}<textarea v-model="reason" rows="3" maxlength="500" required /></label><button type="submit" class="text-action">{{ t(busy ? 'Saving…' : 'Reopen report') }}</button></fieldset></form>
   </section>
 </template>

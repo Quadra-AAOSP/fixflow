@@ -6,6 +6,7 @@ import ReportReviewPanel from '../src/components/ReportReviewPanel.vue';
 import { useAuthStore } from '../src/stores/auth';
 import * as api from '../src/services/maintenance';
 import { report } from './fixtures';
+import { setLocale } from '../src/i18n';
 
 vi.mock('../src/services/maintenance', () => ({ confirmReport: vi.fn(), reopenReport: vi.fn() }));
 let wrapper: VueWrapper;
@@ -14,7 +15,7 @@ beforeEach(() => {
   useAuthStore().user = { id: 54, role: 'reporter', siteId: 7,
     firstName: 'Test', lastName: 'Reporter', email: 'test@example.invalid', phone: null, address: null };
 });
-afterEach(() => wrapper?.unmount());
+afterEach(() => { wrapper?.unmount(); setLocale('en'); });
 describe('repair confirmation and reopen interaction', () => {
   it('lets an attached reporter confirm a repair awaiting confirmation', async () => {
     vi.mocked(api.confirmReport).mockResolvedValue(report({ status: 'confirmed' }));
@@ -44,4 +45,14 @@ describe('repair confirmation and reopen interaction', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('no longer awaiting confirmation');
     expect(wrapper.emitted('saved')).toBeUndefined();
   });
+});
+
+it('keeps the entered reopen reason intact when the interface uses Chinese', async () => {
+  setLocale('zh-CN');
+  vi.mocked(api.reopenReport).mockResolvedValue(report({ status: 'reopened' }));
+  wrapper = mount(ReportReviewPanel, { props: { report: report({ status: 'confirmed', createdByUserId: 54 }) } });
+  expect(wrapper.text()).toContain('重新开启报修');
+  await wrapper.get('textarea').setValue('The original leak returned.');
+  await wrapper.get('form').trigger('submit'); await flushPromises();
+  expect(api.reopenReport).toHaveBeenCalledWith(1, 'The original leak returned.');
 });

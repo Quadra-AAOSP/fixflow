@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, ArrowRight } from '@lucide/vue';
@@ -10,6 +11,7 @@ import { ApiError, errorMessage } from '@/services/api';
 import { humanize, urgencyLabels } from '@/utils/maintenance';
 import type { Subsite } from '@/types/maintenance';
 import type { Urgency } from '@/types';
+const { t } = useLocale();
 
 const data = useMaintenanceStore();
 const { user } = useAuth();
@@ -119,47 +121,47 @@ async function submit() {
 
 <template>
   <section class="dashboard-card live-page report-form-page">
-    <RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />All reports</RouterLink>
-    <h1>Report an issue</h1>
-    <p class="dialog-intro">Describe what needs attention at {{ data.selectedSite?.name || 'your site' }}. Your report will be saved to the maintenance system.</p>
-    <p v-if="!data.canCreate" class="live-empty">Your account cannot create reports.</p>
-    <p v-else-if="data.loading" class="live-empty" role="status">Loading site categories…</p>
-    <p v-else-if="data.rulesError" class="live-error" role="alert">{{ data.rulesError }} <button @click="data.refresh()">Retry</button></p>
-    <p v-else-if="!data.selectedSite || !categories.length" class="live-empty">No reporting categories are available for this site. Ask your administrator to configure them.</p>
+    <RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />{{ t("All reports") }}</RouterLink>
+    <h1>{{ t("Report an issue") }}</h1>
+    <p class="dialog-intro">{{ t('Describe what needs attention at {site}. Your report will be saved to the maintenance system.', { site: data.selectedSite?.name || t('your site') }) }}</p>
+    <p v-if="!data.canCreate" class="live-empty">{{ t("Your account cannot create reports.") }}</p>
+    <p v-else-if="data.loading" class="live-empty" role="status">{{ t("Loading site categories…") }}</p>
+    <p v-else-if="data.rulesError" class="live-error" role="alert">{{ t(data.rulesError) }} <button @click="data.refresh()">{{ t("Retry") }}</button></p>
+    <p v-else-if="!data.selectedSite || !categories.length" class="live-empty">{{ t("No reporting categories are available for this site. Ask your administrator to configure them.") }}</p>
     <template v-else>
-      <p v-if="locationsLoading" class="live-empty" role="status">Loading buildings…</p>
-      <p v-else-if="locationsError" class="live-error" role="alert">{{ locationsError }} <button type="button" @click="loadLocations(data.selectedSiteId)">Retry</button></p>
-      <p v-else-if="!subsites.length" class="live-empty">Reporting is not ready: a site admin must add a labelled building first.
-        <RouterLink v-if="canManageBuildings" :to="{ name: 'subsites', params: { siteId: data.selectedSiteId } }">Set up buildings →</RouterLink>
+      <p v-if="locationsLoading" class="live-empty" role="status">{{ t("Loading buildings…") }}</p>
+      <p v-else-if="locationsError" class="live-error" role="alert">{{ t(locationsError) }} <button type="button" @click="loadLocations(data.selectedSiteId)">{{ t("Retry") }}</button></p>
+      <p v-else-if="!subsites.length" class="live-empty">{{ t("Reporting is not ready: a site admin must add a labelled building first.") }}
+        <RouterLink v-if="canManageBuildings" :to="{ name: 'subsites', params: { siteId: data.selectedSiteId } }">{{ t("Set up buildings →") }}</RouterLink>
       </p>
       <form v-else class="draft-form" @submit.prevent="submit">
-        <p v-if="error" role="alert" class="live-error">{{ error }}</p>
+        <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
         <fieldset :disabled="submitting" class="report-fields">
-          <label>What happened?<textarea v-model="description" required maxlength="10000" rows="5" placeholder="Describe the issue and what you noticed." /></label>
+          <label>{{ t("What happened?") }}<textarea v-model="description" required maxlength="10000" rows="5" :placeholder="t('Describe the issue and what you noticed.')" /></label>
           <div class="form-two-columns">
-            <label>Building or location<select v-model.number="subsiteId" required><option :value="null" disabled>Choose a building</option><option v-for="item in subsites" :key="item.id" :value="item.id">{{ item.label }} · {{ item.name }}</option></select></label>
-            <label>Room or exact spot (optional)<input v-model="address" maxlength="512" placeholder="Floor, room, or nearby landmark" /></label>
+            <label>{{ t("Building or location") }}<select v-model.number="subsiteId" required><option :value="null" disabled>{{ t("Choose a building") }}</option><option v-for="item in subsites" :key="item.id" :value="item.id">{{ item.label }} · {{ item.name }}</option></select></label>
+            <label>{{ t("Room or exact spot (optional)") }}<input v-model="address" maxlength="512" :placeholder="t('Floor, room, or nearby landmark')" /></label>
           </div>
           <div class="form-two-columns">
-            <label>Category<select v-model="category" required><option disabled value="">Choose a category</option><option v-for="item in categories" :key="item" :value="item">{{ humanize(item) }}</option></select></label>
-            <label>Your urgency<select v-model="urgency" required><option disabled value="">Choose an urgency</option><option v-for="(label, value) in urgencyLabels" :key="value" :value="value">{{ label }}</option></select></label>
+            <label>{{ t("Category") }}<select v-model="category" required><option disabled value="">{{ t("Choose a category") }}</option><option v-for="item in categories" :key="item" :value="item">{{ t(humanize(item)) }}</option></select></label>
+            <label>{{ t("Your urgency") }}<select v-model="urgency" required><option disabled value="">{{ t("Choose an urgency") }}</option><option v-for="(label, value) in urgencyLabels" :key="value" :value="value">{{ t(label) }}</option></select></label>
           </div>
-          <label>Why this urgency? (optional)<textarea v-model="reason" rows="3" maxlength="2000" placeholder="Explain how this issue affects the space." /></label>
-          <label>Photos (optional)<input ref="photoInput" type="file" multiple :accept="REPORT_PHOTO_TYPES.join(',')" @change="selectPhotos" /></label>
-          <p class="field-hint">Up to {{ REPORT_PHOTO_LIMIT }} photos, 5 MiB each. Attached photos can be viewed by people authorized to access the report.</p>
-          <p v-if="photoError" class="live-error" role="alert">{{ photoError }} Choose again or clear the selection to continue.</p>
+          <label>{{ t("Why this urgency? (optional)") }}<textarea v-model="reason" rows="3" maxlength="2000" :placeholder="t('Explain how this issue affects the space.')" /></label>
+          <label>{{ t("Photos (optional)") }}<input ref="photoInput" type="file" multiple :accept="REPORT_PHOTO_TYPES.join(',')" @change="selectPhotos" /></label>
+          <p class="field-hint">{{ t('Up to {limit} photos, 5 MiB each. Attached photos can be viewed by people authorized to access the report.', { limit: REPORT_PHOTO_LIMIT }) }}</p>
+          <p v-if="photoError" class="live-error" role="alert">{{ t(photoError) }} {{ t('Choose again or clear the selection to continue.') }}</p>
           <ul v-if="photos.length"><li v-for="(photo, index) in photos" :key="index">{{ photo.name }}</li></ul>
-          <button v-if="photos.length || photoError" type="button" class="text-action" @click="clearPhotos">Clear photo selection</button>
-          <button class="report-issue-button" type="submit" :disabled="submitting || !!photoError">{{ submitting ? 'Submitting…' : 'Submit report' }}<ArrowRight :size="18" /></button>
+          <button v-if="photos.length || photoError" type="button" class="text-action" @click="clearPhotos">{{ t("Clear photo selection") }}</button>
+          <button class="report-issue-button" type="submit" :disabled="submitting || !!photoError">{{ t(submitting ? 'Submitting…' : 'Submit report') }}<ArrowRight :size="18" /></button>
         </fieldset>
       </form>
       <section class="missing-location">
-        <h2>Can’t find your building?</h2>
-        <p v-if="requestSent" role="status">Your request was sent to the site administrator.</p>
+        <h2>{{ t("Can’t find your building?") }}</h2>
+        <p v-if="requestSent" role="status">{{ t("Your request was sent to the site administrator.") }}</p>
         <form v-else class="draft-form" @submit.prevent="requestLocation">
-          <p v-if="requestError" class="live-error" role="alert">{{ requestError }}</p>
-          <label>Describe the missing location<textarea v-model="requestNote" required maxlength="1000" rows="2" placeholder="Building name or how to find it" /></label>
-          <button class="text-action" type="submit" :disabled="requestBusy">{{ requestBusy ? 'Sending…' : 'Request a new building →' }}</button>
+          <p v-if="requestError" class="live-error" role="alert">{{ t(requestError) }}</p>
+          <label>{{ t("Describe the missing location") }}<textarea v-model="requestNote" required maxlength="1000" rows="2" :placeholder="t('Building name or how to find it')" /></label>
+          <button class="text-action" type="submit" :disabled="requestBusy">{{ t(requestBusy ? 'Sending…' : 'Request a new building →') }}</button>
         </form>
       </section>
     </template>

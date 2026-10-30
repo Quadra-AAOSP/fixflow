@@ -8,6 +8,7 @@ import { useAuthStore } from '../src/stores/auth';
 import { useMaintenanceStore } from '../src/stores/maintenance';
 import * as api from '../src/services/maintenance';
 import { report, site } from './fixtures';
+import { setLocale } from '../src/i18n';
 
 vi.mock('../src/services/maintenance', () => ({
   listSubsites: vi.fn(), createReport: vi.fn(), createReportWithPhotos: vi.fn(), requestSubsiteAddition: vi.fn(),
@@ -24,7 +25,7 @@ beforeEach(() => {
   vi.mocked(api.createReport).mockResolvedValue(report({ id: 91, subsiteId: 42 }));
   vi.mocked(api.createReportWithPhotos).mockResolvedValue(report({ id: 91, subsiteId: 42 }));
 });
-afterEach(() => wrapper?.unmount());
+afterEach(() => { wrapper?.unmount(); setLocale('en'); });
 async function mountForm() {
   const router = createRouter({ history: createMemoryHistory(), routes: [
     { path: '/', component: { template: '<div />' } },
@@ -72,4 +73,12 @@ describe('report intake interactions', () => {
     expect(wrapper.get('a[href="/sites/7/subsites"]').text()).toContain('Set up buildings');
     expect(wrapper.find('input[type="file"]').exists()).toBe(false);
   });
+});
+
+it('submits unchanged taxonomy codes and user text from the Chinese report form', async () => {
+  setLocale('zh-CN'); await mountForm(); await completeFields();
+  expect(wrapper.get('h1').text()).toBe('提交报修');
+  expect(wrapper.text()).toContain('管道维修');
+  await wrapper.findAll('form')[0]!.trigger('submit'); await flushPromises();
+  expect(api.createReport).toHaveBeenCalledWith(expect.objectContaining({ description: 'A pipe is leaking.', category: 'plumbing', subsiteId: 42, reporterUrgency: 'high' }));
 });

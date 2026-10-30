@@ -6,6 +6,7 @@ import ReportClassificationPanel from '../src/components/ReportClassificationPan
 import { useAuthStore } from '../src/stores/auth';
 import { classifyReport } from '../src/services/maintenance';
 import { report } from './fixtures';
+import { setLocale } from '../src/i18n';
 
 vi.mock('../src/services/maintenance', () => ({ classifyReport: vi.fn() }));
 let wrapper: VueWrapper;
@@ -14,7 +15,7 @@ beforeEach(() => {
   useAuthStore().user = { id: 5, role: 'admin', siteId: 7,
     firstName: 'Test', lastName: 'Admin', email: 'admin@example.invalid', phone: null, address: null };
 });
-afterEach(() => wrapper?.unmount());
+afterEach(() => { wrapper?.unmount(); setLocale('en'); });
 describe('separate AI assessment', () => {
   it('renders returned AI fields as text without copying the original description', () => {
     wrapper = mount(ReportClassificationPanel, { props: { report: report({ description: 'Original reporter description', aiReport: {
@@ -48,4 +49,15 @@ describe('separate AI assessment', () => {
     wrapper = mount(ReportClassificationPanel, { props: { report: report() } });
     expect(wrapper.find('button').exists()).toBe(false);
   });
+});
+
+it('translates assessment labels while preserving returned AI narrative verbatim', () => {
+  setLocale('zh-CN');
+  wrapper = mount(ReportClassificationPanel, { props: { report: report({ aiReport: {
+    urgency: 'high', category: 'plumbing', specialty: null, description: 'Not available', urgencyReason: 'Original AI reasoning',
+  } }) } });
+  expect(wrapper.get('h2').text()).toBe('AI 评估');
+  expect(wrapper.text()).toContain('管道维修');
+  expect(wrapper.text()).toContain('Not available');
+  expect(wrapper.text()).toContain('Original AI reasoning');
 });

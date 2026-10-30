@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { errorMessage } from '@/services/api';
 import { REPORT_PHOTO_LIMIT, REPORT_PHOTO_TYPES, listReportPhotos, uploadReportPhoto, removeReportPhoto, refreshReportPhotoUrl, validateReportPhoto, safePhotoUrl } from '@/services/reportPhotos';
 import type { Report, ReportPhoto } from '@/types/maintenance';
+const { t } = useLocale();
 
 const props = defineProps<{ report: Report }>();
 const { user } = useAuth();
@@ -82,22 +84,22 @@ async function refreshUrl(item: ReportPhoto) {
 
 <template>
   <section v-if="allowed" class="detail-section">
-    <div class="card-heading"><h2>Report photos</h2><button class="text-action" type="button" :disabled="loading || busy" @click="load">Refresh photos</button></div>
-    <p class="dialog-intro">Up to {{ REPORT_PHOTO_LIMIT }} photos, 5 MiB each. Photos are shared with people authorized to access this report.</p>
-    <p v-if="error" class="live-error" role="alert">{{ error }}</p><p v-if="success" class="draft-notice" role="status">{{ success }}</p>
-    <p v-if="loading" role="status">Loading photos…</p>
-    <p v-else-if="!error && !photos.length">No photos attached.</p>
+    <div class="card-heading"><h2>{{ t("Report photos") }}</h2><button class="text-action" type="button" :disabled="loading || busy" @click="load">{{ t("Refresh photos") }}</button></div>
+    <p class="dialog-intro">{{ t('Up to {limit} photos, 5 MiB each. Photos are shared with people authorized to access this report.', { limit: REPORT_PHOTO_LIMIT }) }}</p>
+    <p v-if="error" class="live-error" role="alert">{{ t(error) }}</p><p v-if="success" class="draft-notice" role="status">{{ t(success) }}</p>
+    <p v-if="loading" role="status">{{ t("Loading photos…") }}</p>
+    <p v-else-if="!error && !photos.length">{{ t("No photos attached.") }}</p>
     <ul class="report-photo-grid"><li v-for="(item, index) in photos" :key="item.id">
-      <img v-if="safePhotoUrl(item.url) && !failedImages.includes(item.id)" :src="safePhotoUrl(item.url)" :alt="`Report photo ${index + 1}`" loading="lazy" referrerpolicy="no-referrer" @error="failedImages.push(item.id)" />
-      <p v-else>Photo preview unavailable. Try refreshing its link.</p>
-      <a v-if="safePhotoUrl(item.url)" :href="safePhotoUrl(item.url)" target="_blank" rel="noopener noreferrer" class="text-action">View or download photo {{ index + 1 }} ↗</a>
-      <button type="button" class="text-action" :disabled="busy" @click="refreshUrl(item)">Refresh photo {{ index + 1 }} link</button>
-      <template v-if="confirmingId === item.id"><p>Remove this photo permanently?</p><button type="button" :disabled="busy" class="text-action" @click="remove(item.id)">Confirm removal</button><button type="button" :disabled="busy" class="text-action" @click="confirmingId = null">Cancel</button></template>
-      <button v-else type="button" class="text-action" :disabled="busy" @click="confirmingId = item.id">Remove photo {{ index + 1 }}</button>
+      <img v-if="safePhotoUrl(item.url) && !failedImages.includes(item.id)" :src="safePhotoUrl(item.url)" :alt="t('Report photo {number}', { number: index + 1 })" loading="lazy" referrerpolicy="no-referrer" @error="failedImages.push(item.id)" />
+      <p v-else>{{ t("Photo preview unavailable. Try refreshing its link.") }}</p>
+      <a v-if="safePhotoUrl(item.url)" :href="safePhotoUrl(item.url)" target="_blank" rel="noopener noreferrer" class="text-action">{{ t('View or download photo {number} ↗', { number: index + 1 }) }}</a>
+      <button type="button" class="text-action" :disabled="busy" @click="refreshUrl(item)">{{ t('Refresh photo {number} link', { number: index + 1 }) }}</button>
+      <template v-if="confirmingId === item.id"><p>{{ t("Remove this photo permanently?") }}</p><button type="button" :disabled="busy" class="text-action" @click="remove(item.id)">{{ t("Confirm removal") }}</button><button type="button" :disabled="busy" class="text-action" @click="confirmingId = null">{{ t("Cancel") }}</button></template>
+      <button v-else type="button" class="text-action" :disabled="busy" @click="confirmingId = item.id">{{ t('Remove photo {number}', { number: index + 1 }) }}</button>
     </li></ul>
     <form class="draft-form" @submit.prevent="upload"><fieldset class="report-fields" :disabled="loading || busy || photos.length >= REPORT_PHOTO_LIMIT">
-      <label>Add a photo<input ref="input" type="file" :accept="REPORT_PHOTO_TYPES.join(',')" @change="select" /></label>
-      <button type="submit" class="report-issue-button" :disabled="!file">{{ busy ? 'Saving…' : 'Upload photo' }}</button>
+      <label>{{ t("Add a photo") }}<input ref="input" type="file" :accept="REPORT_PHOTO_TYPES.join(',')" @change="select" /></label>
+      <button type="submit" class="report-issue-button" :disabled="!file">{{ t(busy ? 'Saving…' : 'Upload photo') }}</button>
     </fieldset></form>
   </section>
 </template>

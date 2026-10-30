@@ -6,6 +6,7 @@ import ReportVisionPanel from '../src/components/ReportVisionPanel.vue';
 import { useAuthStore } from '../src/stores/auth';
 import * as api from '../src/services/reportVision';
 import { report } from './fixtures';
+import { setLocale } from '../src/i18n';
 
 vi.mock('../src/services/reportVision', async importOriginal => ({
   ...await importOriginal<typeof api>(), enqueueReportVision: vi.fn(), getReportVisionJob: vi.fn(),
@@ -19,7 +20,7 @@ beforeEach(() => {
   vi.mocked(api.enqueueReportVision).mockResolvedValue({ reportId: 1, jobId: 'job-1', status: 'queued', model: null });
   vi.mocked(api.getReportVisionJob).mockResolvedValue({ reportId: 1, jobId: 'job-1', status: 'completed', model: 'configured-model' });
 });
-afterEach(() => { wrapper?.unmount(); vi.useRealTimers(); });
+afterEach(() => { wrapper?.unmount(); vi.useRealTimers(); setLocale('en'); });
 async function selectImage() {
   const input = wrapper.get<HTMLInputElement>('input[type="file"]');
   const file = new File(['image'], 'issue.png', { type: 'image/png' });
@@ -70,4 +71,18 @@ describe('consented background image analysis', () => {
     expect(wrapper.find('form').exists()).toBe(false);
     expect(api.enqueueReportVision).not.toHaveBeenCalled();
   });
+});
+
+it('uses Chinese consent and processing status without submitting before explicit consent', async () => {
+  setLocale('zh-CN');
+  wrapper = mount(ReportVisionPanel, { props: { report: report({ createdByUserId: 54 }) } });
+  expect(wrapper.text()).toContain('我同意由已配置的 AI 服务商处理此图片');
+  await selectImage(); await wrapper.get('form').trigger('submit');
+  expect(api.enqueueReportVision).not.toHaveBeenCalled();
+  await wrapper.get('input[type="checkbox"]').setValue(true);
+  await wrapper.get('form').trigger('submit'); await flushPromises();
+  expect(wrapper.text()).toContain('图片分析：排队中');
+  await vi.advanceTimersByTimeAsync(3000); await flushPromises();
+  expect(wrapper.text()).toContain('图片分析：已完成');
+  expect(wrapper.emitted('finished')?.[0]).toEqual([1]);
 });

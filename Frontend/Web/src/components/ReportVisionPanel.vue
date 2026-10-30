@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { enqueueReportVision, getReportVisionJob, validateVisionImage } from '@/services/reportVision';
 import { errorMessage } from '@/services/api';
 import type { Report, ReportVisionJob } from '@/types/maintenance';
+const { t } = useLocale();
 
 const props = defineProps<{ report: Report; disabled?: boolean }>();
 const emit = defineEmits<{ finished: [reportId: number]; busy: [value: boolean] }>();
@@ -67,11 +69,11 @@ async function submit() {
 
 <template>
   <section v-if="allowed" class="detail-section">
-    <h2>Optional image analysis</h2>
-    <p class="dialog-intro">Send one image to the configured AI provider for this open report. Ordinary report photos are not automatically submitted for AI analysis. Use JPEG or PNG, up to 5 MiB, no more than 4096 pixels per side and 16 million pixels total.</p>
-    <p v-if="error" role="alert" class="live-error">{{ error }}</p>
-    <div v-if="job" class="draft-notice" role="status"><p>Image analysis: {{ job.status.replaceAll('_', ' ') }}<template v-if="job.model"> · {{ job.model }}</template></p><p v-if="job.status === 'stale'">The report changed during processing. The outdated result was not applied.</p><p v-if="job.status === 'review_required' || job.status === 'failed'">An administrator should review this report; image analysis did not produce a completed assessment.</p><p v-if="pending">You can continue using the report while processing runs. If you leave this page, reload the report later to see any updated assessment.</p><button v-if="pending" type="button" class="text-action" :disabled="checking" @click="check">{{ checking ? 'Checking…' : 'Check analysis status' }}</button></div>
-    <form v-if="report.status === 'open' && !pending" class="draft-form" @submit.prevent="submit"><fieldset class="report-fields" :disabled="uploading || disabled"><label>Image for AI analysis<input ref="input" type="file" accept="image/jpeg,image/png" @change="select" /></label><label class="consent-row"><input v-model="consent" type="checkbox" required /><span>I consent to this image being processed by the configured AI provider. It contains no faces, personal information, or confidential information.</span></label><button type="submit" class="report-issue-button" :disabled="!image || !consent">{{ uploading ? 'Submitting image…' : 'Analyze image with consent' }}</button></fieldset></form>
-    <p v-else-if="report.status !== 'open' && !job" class="dialog-intro">New image analysis is available only while the report is open.</p>
+    <h2>{{ t("Optional image analysis") }}</h2>
+    <p class="dialog-intro">{{ t("Send one image to the configured AI provider for this open report. Ordinary report photos are not automatically submitted for AI analysis. Use JPEG or PNG, up to 5 MiB, no more than 4096 pixels per side and 16 million pixels total.") }}</p>
+    <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
+    <div v-if="job" class="draft-notice" role="status"><p>{{ t('Image analysis: {status}', { status: t(job.status.replaceAll('_', ' ')) }) }}<template v-if="job.model"> · {{ job.model }}</template></p><p v-if="job.status === 'stale'">{{ t("The report changed during processing. The outdated result was not applied.") }}</p><p v-if="job.status === 'review_required' || job.status === 'failed'">{{ t("An administrator should review this report; image analysis did not produce a completed assessment.") }}</p><p v-if="pending">{{ t("You can continue using the report while processing runs. If you leave this page, reload the report later to see any updated assessment.") }}</p><button v-if="pending" type="button" class="text-action" :disabled="checking" @click="check">{{ t(checking ? 'Checking…' : 'Check analysis status') }}</button></div>
+    <form v-if="report.status === 'open' && !pending" class="draft-form" @submit.prevent="submit"><fieldset class="report-fields" :disabled="uploading || disabled"><label>{{ t("Image for AI analysis") }}<input ref="input" type="file" accept="image/jpeg,image/png" @change="select" /></label><label class="consent-row"><input v-model="consent" type="checkbox" required /><span>{{ t("I consent to this image being processed by the configured AI provider. It contains no faces, personal information, or confidential information.") }}</span></label><button type="submit" class="report-issue-button" :disabled="!image || !consent">{{ t(uploading ? 'Submitting image…' : 'Analyze image with consent') }}</button></fieldset></form>
+    <p v-else-if="report.status !== 'open' && !job" class="dialog-intro">{{ t("New image analysis is available only while the report is open.") }}</p>
   </section>
 </template>
