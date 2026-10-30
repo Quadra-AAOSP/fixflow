@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Bell, House, FileText, MapPin, Users, Search, ChevronDown, Heart, Menu, X, RefreshCw, ShieldCheck, Handshake, Wrench, ShoppingBag } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
+import { useRealtimeStore } from '@/stores/realtime';
 import { canProvision } from '@/constants/access';
 import { initials, formatDate } from '@/utils/maintenance';
 import PlantArt from '@/components/dashboard/PlantArt.vue';
@@ -13,6 +14,7 @@ const route = useRoute();
 const router = useRouter();
 const { user } = useAuth();
 const data = useMaintenanceStore();
+const realtime = useRealtimeStore();
 const mobileOpen = ref(false);
 const search = ref(String(route.query.q || ''));
 const notificationDialog = ref<HTMLDialogElement>();
@@ -58,6 +60,7 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
           Your site needs a labelled building before reports can be submitted.
           <RouterLink :to="`/sites/${user.siteOnboarding.siteId}/subsites`" class="text-action">Set up buildings →</RouterLink>
         </div>
+        <p v-if="user?.role !== 'shop_manager'" class="dialog-intro" role="status">{{ realtime.state === 'connected' ? 'Live updates connected' : realtime.state === 'connecting' ? 'Connecting and rechecking access…' : 'Live updates disconnected. Use refresh to check current data.' }}</p>
         <RouterView />
       </main>
       <footer class="dashboard-footer"><span><b>FixFlow</b> © {{ new Date().getFullYear() }} FixFlow. Keeping spaces working beautifully.</span><span><Heart :size="13" fill="currentColor" />Better spaces. Brighter tomorrows.</span></footer>

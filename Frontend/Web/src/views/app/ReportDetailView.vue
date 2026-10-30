@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { ArrowLeft, RefreshCw } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
+import { useRealtimeStore } from '@/stores/realtime';
 import * as api from '@/services/maintenance';
 import { ApiError, errorMessage } from '@/services/api';
 import { formatDate, humanize, statusLabels, statusTone, urgencyLabels } from '@/utils/maintenance';
@@ -18,6 +19,7 @@ import ReportVisionPanel from '@/components/ReportVisionPanel.vue';
 const route = useRoute();
 const { user } = useAuth();
 const data = useMaintenanceStore();
+const realtime = useRealtimeStore();
 const report = ref<Report | null>(null);
 const reporters = ref<ReportReporter[]>([]);
 const reportersLoaded = ref(false);
@@ -34,7 +36,16 @@ const classificationBusy = ref(false);
 const visionBusy = ref(false);
 const actionInProgress = computed(() => busy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value || visionBusy.value);
 let generation = 0;
-onBeforeUnmount(() => { generation++; });
+onBeforeUnmount(() => { generation++; realtime.setReport(null); });
+watch(report, value => realtime.setReport(value));
+watch(() => realtime.accessRevision, () => {
+  generation++; report.value = null; reporters.value = []; reportersLoaded.value = false;
+  reportersError.value = ''; actionError.value = ''; message.value = '';
+  loading.value = false; error.value = 'Report access is being rechecked. Reload if the connection remains unavailable.';
+});
+watch(() => realtime.refreshRevision, () => {
+  if (realtime.changedReportIds === null || realtime.changedReportIds.includes(Number(route.params.id))) void load();
+});
 const joined = computed(() => reporters.value.some(item => item.userId === user.value?.id));
 async function loadReporters(id: number, version: number) {
   try {
