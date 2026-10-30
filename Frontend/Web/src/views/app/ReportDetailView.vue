@@ -11,6 +11,7 @@ import type { Report, ReportReporter } from '@/types/maintenance';
 import ReportPhotosPanel from '@/components/ReportPhotosPanel.vue';
 import TechnicianAssignmentPanel from '@/components/technician/TechnicianAssignmentPanel.vue';
 import TechnicianInvitationSender from '@/components/technician/TechnicianInvitationSender.vue';
+import ReportReviewPanel from '@/components/ReportReviewPanel.vue';
 
 const route = useRoute();
 const { user } = useAuth();
@@ -26,6 +27,7 @@ const message = ref('');
 const busy = ref(false);
 const assignmentBusy = ref(false);
 const invitationBusy = ref(false);
+const reviewBusy = ref(false);
 let generation = 0;
 onBeforeUnmount(() => { generation++; });
 const joined = computed(() => reporters.value.some(item => item.userId === user.value?.id));
@@ -72,16 +74,22 @@ function assigned(saved: Report) {
   data.upsert(saved);
   message.value = 'Technician assignment saved.';
 }
+function reviewed(saved: Report) {
+  report.value = saved; data.upsert(saved);
+  message.value = saved.status === 'confirmed' ? 'The issue is confirmed as fixed.' : 'The report was reopened for further work.';
+}
 
 </script>
 <template>
-  <section class="dashboard-card live-page"><div class="card-heading"><RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />All reports</RouterLink><button class="icon-button" :disabled="loading || busy || assignmentBusy || invitationBusy" aria-label="Reload report" @click="load"><RefreshCw :size="17" /></button></div><p v-if="loading" class="live-empty" role="status">Loading report…</p><p v-else-if="error" role="alert" class="live-error">{{ error }}</p>
+  <section class="dashboard-card live-page"><div class="card-heading"><RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />All reports</RouterLink><button class="icon-button" :disabled="loading || busy || assignmentBusy || invitationBusy || reviewBusy" aria-label="Reload report" @click="load"><RefreshCw :size="17" /></button></div><p v-if="loading" class="live-empty" role="status">Loading report…</p><p v-else-if="error" role="alert" class="live-error">{{ error }}</p>
     <template v-else-if="report"><div class="card-heading"><h1>Report #{{ report.id }}</h1><span class="status-badge" :class="statusTone(report.status)">{{ statusLabels[report.status] }}</span></div><p class="report-description">{{ report.description }}</p>
       <dl class="report-detail-grid"><div><dt>Site</dt><dd>{{ data.siteName(report.siteId) }}</dd></div><div><dt>Location</dt><dd>{{ report.address || 'Not shared or not provided' }}</dd></div><div><dt>Category</dt><dd>{{ humanize(report.category) }}</dd></div><div><dt>Specialty</dt><dd>{{ report.specialty ? humanize(report.specialty) : 'Not specified' }}</dd></div><div><dt>Reported by</dt><dd>{{ report.createdByName || 'Not shared' }}</dd></div><div><dt>Technician</dt><dd>{{ report.assignedTechnicianId == null ? 'Unassigned' : `Technician #${report.assignedTechnicianId}` }}</dd></div><div><dt>Reporter urgency</dt><dd>{{ urgencyLabels[report.reporterUrgency] }}</dd></div><div><dt>AI urgency</dt><dd>{{ report.aiUrgency ? urgencyLabels[report.aiUrgency] : 'Not classified' }}</dd></div><div><dt>Final urgency</dt><dd>{{ report.finalUrgency ? urgencyLabels[report.finalUrgency] : 'Not determined' }}</dd></div><div><dt>Urgency reason</dt><dd>{{ report.reporterReason || 'Not shared or not provided' }}</dd></div><div><dt>Created</dt><dd>{{ formatDate(report.createdAt, true) }}</dd></div><div><dt>Updated</dt><dd>{{ formatDate(report.updatedAt, true) }}</dd></div><div><dt>Times reopened</dt><dd>{{ report.reopenCount }}</dd></div></dl>
       <p v-if="message" class="draft-notice" role="status">{{ message }}</p><p v-if="actionError" class="live-error" role="alert">{{ actionError }}</p>
-      <section class="detail-section"><h2>People attached to this report</h2><p v-if="reportersError" class="live-error">{{ reportersError }}</p><ul v-else-if="reportersLoaded" class="reporter-list"><li v-for="person in reporters" :key="person.userId">{{ person.userId === user?.id ? 'You' : `User #${person.userId}` }}<span>Joined {{ formatDate(person.joinedAt, true) }}</span></li></ul><p v-else class="dialog-intro">Reporter identities are only available to people with access to this report.</p><button v-if="user?.role === 'reporter' && !joined" class="report-issue-button" :disabled="busy || assignmentBusy || invitationBusy" @click="join">{{ busy ? 'Saving…' : 'This issue affects me too' }}</button><p v-if="user?.role === 'reporter' && !joined" class="dialog-intro">Joining attaches your account to the report and gives you access to its shared details.</p></section>
-      <TechnicianAssignmentPanel :report="report" :disabled="busy || invitationBusy" @busy="assignmentBusy = $event" @saved="assigned" />
-      <TechnicianInvitationSender :report="report" :disabled="busy || assignmentBusy" @busy="invitationBusy = $event" />
+      <section class="detail-section"><h2>People attached to this report</h2><p v-if="reportersError" class="live-error">{{ reportersError }}</p><ul v-else-if="reportersLoaded" class="reporter-list"><li v-for="person in reporters" :key="person.userId">{{ person.userId === user?.id ? 'You' : `User #${person.userId}` }}<span>Joined {{ formatDate(person.joinedAt, true) }}</span></li></ul><p v-else class="dialog-intro">Reporter identities are only available to people with access to this report.</p><button v-if="user?.role === 'reporter' && !joined" class="report-issue-button" :disabled="busy || assignmentBusy || invitationBusy || reviewBusy" @click="join">{{ busy ? 'Saving…' : 'This issue affects me too' }}</button><p v-if="user?.role === 'reporter' && !joined" class="dialog-intro">Joining attaches your account to the report and gives you access to its shared details.</p></section>
+      <div v-if="report.confirmedAt || report.reopenReason" class="detail-section"><p v-if="report.confirmedAt">Confirmed {{ formatDate(report.confirmedAt, true) }}<template v-if="report.confirmedByName"> by {{ report.confirmedByName }}</template></p><p v-if="report.reopenReason">Reopen reason: {{ report.reopenReason }}</p></div>
+      <ReportReviewPanel :report="report" :disabled="busy || assignmentBusy || invitationBusy" @busy="reviewBusy = $event" @saved="reviewed" />
+      <TechnicianAssignmentPanel :report="report" :disabled="busy || invitationBusy || reviewBusy" @busy="assignmentBusy = $event" @saved="assigned" />
+      <TechnicianInvitationSender :report="report" :disabled="busy || assignmentBusy || reviewBusy" @busy="invitationBusy = $event" />
       <ReportPhotosPanel :report="report" />
     </template>
   </section>

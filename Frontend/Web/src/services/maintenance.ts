@@ -21,6 +21,12 @@ export function createReportWithPhotos(payload: CreateReportPayload, photos: Fil
   return request<Report>('/api/reports', { method: 'POST', body });
 }
 export const joinReport = (id: number) => request<Report>(`/api/reports/${id}/join`, { method: 'POST' });
+export const confirmReport = (id: number) => request<Report>(`/api/reports/${id}/confirm`, { method: 'POST' });
+export function reopenReport(id: number, reason: string) {
+  const message = reason.trim();
+  if (!message || message.length > 500) throw new Error('Enter a reopen reason of 1–500 characters.');
+  return request<Report>(`/api/reports/${id}/reopen`, { method: 'POST', body: JSON.stringify({ reason: message }) });
+}
 export const listReporters = (id: number) => request<ReportReporter[]>(`/api/reports/${id}/reporters`);
 export const assignTechnician = (id: number, technicianId: number) => request<Report>(`/api/reports/${id}/assign`, { method: 'POST', body: JSON.stringify({ technicianId }) });
 

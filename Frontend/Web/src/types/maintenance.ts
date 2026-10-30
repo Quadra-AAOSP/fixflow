@@ -31,6 +31,10 @@ export interface Report {
     canAssign: boolean; canJoin: boolean;
   };
   photos?: ReportPhoto[];
+  reopenReason?: string | null;
+  confirmedByUserId?: number | null;
+  confirmedByName?: string | null;
+  confirmedAt?: string | null;
   aiReport?: { urgency: Urgency | null; category: string | null; specialty: string | null; description: string | null; urgencyReason: string | null };
 }
 export interface ReportPhoto {
