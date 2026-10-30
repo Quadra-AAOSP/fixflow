@@ -57,6 +57,19 @@ Application controls use English or Simplified Chinese, while names, narratives,
 product/category data and unknown server messages remain as returned. Date and
 currency formatting follows the selected locale without changing server amounts.
 
+## Published registration policy
+
+Signup and administrator provisioning load the public `/api/auth/policy` contract.
+The returned password minimum is used in native controls, guidance and payload
+validation. Signup offers only supported self-registration forms advertised by the
+service; site-admin enrollment still requires the approval-flow flag, and privileged
+roles never gain a public signup form. Missing or malformed policy metadata leaves
+signup/provisioning unavailable with a retry action, without a guessed minimum.
+The policy endpoint does not publish DTO maximum sizes; those limits still mirror
+the backend request schemas. Component and service tests exercise a different
+minimum and role set, policy-read failure/retry, and routing from the signed-in
+account response rather than the submitted role.
+
 ## Open acceptance work
 
 - Desktop/other viewport checks, contrast review and a wider assistive-technology audit.

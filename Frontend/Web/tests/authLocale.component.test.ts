@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { useAccountPolicyStore } from '../src/stores/accountPolicy';
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import RegisterView from '../src/views/auth/RegisterView.vue';
@@ -7,6 +9,7 @@ import AccessPolicyView from '../src/views/auth/AccessPolicyView.vue';
 import { setLocale } from '../src/i18n';
 vi.mock('vue-router', () => ({ useRouter: () => ({ replace: vi.fn() }), RouterLink: { template: '<a><slot /></a>' } }));
 vi.mock('../src/composables/useAuth', () => ({ useAuth: () => ({ login: vi.fn() }) }));
+beforeEach(() => { setActivePinia(createPinia()); useAccountPolicyStore().policy = { passwordMinLength: 15, selfRegistrationRoles: ['reporter', 'technician', 'admin'], siteAdminApprovalRequired: true }; });
 afterEach(() => setLocale('en'));
 it('switches registration guidance without clearing the chosen role or entered name', async () => {
   const wrapper = mount(RegisterView);
@@ -14,7 +17,7 @@ it('switches registration guidance without clearing the chosen role or entered n
   await wrapper.get('input[autocomplete="given-name"]').setValue('Mei');
   setLocale('zh-CN'); await nextTick();
   expect(wrapper.text()).toContain('注册时不关联任何签约场地');
-  expect(wrapper.text()).toContain('请至少使用 15 个字符');
+  expect(wrapper.text()).toContain('请使用 15 至 100 个字符');
   expect(wrapper.get('input[autocomplete="given-name"]').element.value).toBe('Mei');
   expect(wrapper.text()).toContain('创建账户并添加工种');
   setLocale('en'); await nextTick();

@@ -104,7 +104,6 @@
   "View access requirements →": "查看权限要求 →",
   "Already have an account?": "已有账户？",
   "Your account was created, but automatic sign-in did not finish. Sign in with your new account.": "您的账户已创建，但自动登录未完成。请使用新账户登录。",
-  "Use at least {min} characters. A long, unique passphrase works well.": "请至少使用 {min} 个字符。建议使用较长且独一无二的密码短语。",
   "ACCESS THAT FITS YOUR RESPONSIBILITY": "与职责相匹配的权限",
   "Trusted access": "可信权限",
   "Reporters and technicians can self-register. Site-admin applicants can register for one site and receive reporter access while a super administrator reviews the request. Site staff need an administrator to create their account.": "报修人和技术人员可自行注册。场地管理员申请人可为一个场地注册，在超级管理员审核期间获得报修人权限。场地工作人员的账户须由管理员创建。",
@@ -434,7 +433,6 @@
   "Names must be 128 characters or fewer.": "名字与姓氏均不得超过 128 个字符。",
   "Enter a valid email address.": "请输入有效的电子邮箱地址。",
   "Email address is too long.": "电子邮箱地址过长。",
-  "Use a password between 15 and 100 characters. Spaces and passphrases are welcome.": "请使用 15 至 100 个字符的密码，支持空格和密码短语。",
   "This password exceeds the current server’s 72-byte limit. Use a shorter passphrase; accented characters and emoji can use more than one byte.": "此密码超过当前服务器的 72 字节限制。请缩短密码短语；中文、重音字符及表情可能占用多个字节。",
   "Phone numbers must be 64 characters or fewer.": "电话号码不得超过 64 个字符。",
   "Enter a valid site ID from your administrator.": "请输入管理员提供的有效场地编号。",
@@ -790,5 +788,10 @@
   "This web flow cannot provision that role.": "此网页流程无法创建该角色的账户。",
   "Photo:": "摄影：",
   "Your basket: {count} items": "您的购物篮：{count} 件商品",
-  "Only the currently assigned technician may view this report": "只有当前被分配的技术人员才能查看此报修。"
+  "Only the currently assigned technician may view this report": "只有当前被分配的技术人员才能查看此报修。",
+  "Loading registration policy…": "正在加载注册规则…",
+  "Registration policy is unavailable. Reload and try again.": "注册规则暂不可用，请重新加载后重试。",
+  "Use a password that meets the displayed length requirements.": "请使用符合页面所示长度要求的密码。",
+  "Use between {min} and {max} characters. A long, unique passphrase works well.": "请使用 {min} 至 {max} 个字符，建议使用较长且独特的密码短语。",
+  "Self-registration for this role is unavailable. Ask an administrator about approved access.": "此角色暂不开放自行注册，请联系管理员申请经批准的权限。"
 }

@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import AdminApplicationView from '../src/views/app/AdminApplicationView.vue';
 import TeamAccessView from '../src/views/app/TeamAccessView.vue';
+import { useAccountPolicyStore } from '../src/stores/accountPolicy';
 import { useAuthStore } from '../src/stores/auth';
 import { useMaintenanceStore } from '../src/stores/maintenance';
 import { getSiteAdminApplication, getPendingSiteAdminApplications, decideSiteAdminApplication } from '../src/services/auth';
@@ -18,6 +19,7 @@ let wrapper: VueWrapper;
 const render = () => mount(TeamAccessView, { global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } } });
 beforeEach(() => {
   setActivePinia(createPinia()); vi.resetAllMocks(); setLocale('en');
+  useAccountPolicyStore().policy = { passwordMinLength: 15, selfRegistrationRoles: ['reporter', 'technician', 'admin'], siteAdminApprovalRequired: true };
   useAuthStore().user = { id: 1, role: 'super_admin', siteId: null, firstName: 'Test', lastName: 'Admin', email: 'admin@example.invalid', phone: null, address: null };
   const data = useMaintenanceStore(); data.sites = [site(7)]; data.selectedSiteId = 7;
   vi.mocked(getPendingSiteAdminApplications).mockResolvedValue([application]);
@@ -87,4 +89,16 @@ it.each([
   expect(wrapper.text()).toContain('状态：' + label);
   expect(wrapper.text()).toContain(guidance);
   expect(wrapper.text()).toContain('2026年10月20日');
+});
+
+it('applies the backend password minimum to team-account provisioning', async () => {
+  useAccountPolicyStore().policy!.passwordMinLength = 30;
+  wrapper = render(); await flushPromises();
+  expect(wrapper.get('input[type="password"]').attributes('minlength')).toBe('30');
+  const inputs = wrapper.findAll('form input');
+  await inputs[0]!.setValue('Test'); await inputs[1]!.setValue('Staff');
+  await inputs[2]!.setValue('staff@example.invalid'); await inputs[3]!.setValue('a'.repeat(20));
+  await wrapper.get('form').trigger('submit'); await flushPromises();
+  expect(provisionUser).not.toHaveBeenCalled();
+  expect(wrapper.get('[role="alert"]').text()).toContain('displayed length requirements');
 });

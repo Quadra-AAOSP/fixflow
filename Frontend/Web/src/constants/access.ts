@@ -2,7 +2,6 @@ import type { UserRole } from '@/types';
 
 // UI policy and API enum labels, not account data or proof of server authorization.
 export const EMAIL_MAX_LENGTH = 255; // RegisterRequest, LoginRequest, and ProvisionUserRequest.
-export const PASSWORD_MIN_LENGTH = 15; // Password-only authentication: OWASP/NIST recommendation.
 export const PASSWORD_MAX_LENGTH = 100; // Current backend DTO limit.
 export const roleLabels: Record<UserRole, string> = {
   reporter: 'Reporter', technician: 'Technician', staff: 'Site staff', admin: 'Site administrator', super_admin: 'Super administrator', shop_manager: 'Shop manager',
