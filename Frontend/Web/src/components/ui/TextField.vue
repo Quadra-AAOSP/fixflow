@@ -24,12 +24,13 @@ defineEmits<{
 
 <template>
   <label class="mb-4 block">
-    <span class="mb-1.5 block text-sm font-medium text-ink dark:text-ink-dark">
+    <span :id="`${fieldId}-label`" class="mb-1.5 block text-sm font-medium text-ink dark:text-ink-dark">
       {{ t(label) }}
     </span>
     <input
       :type="type ?? 'text'"
       :id="fieldId"
+      :aria-labelledby="`${fieldId}-label`"
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="error ? `${fieldId}-error` : undefined"
       :value="modelValue"

@@ -49,6 +49,8 @@ describe('English and Chinese web locale', () => {
     expect(wrapper.text()).toContain('电子邮箱');
     const input = wrapper.get('input');
     expect(input.attributes('aria-invalid')).toBe('true');
+    expect(input.attributes('aria-labelledby')).toBe(wrapper.get('label > span').attributes('id'));
+    expect(wrapper.get('label > span').text()).toBe('电子邮箱');
     expect(input.attributes('aria-describedby')).toBe(wrapper.get('[role="alert"]').attributes('id'));
     wrapper.unmount();
   });

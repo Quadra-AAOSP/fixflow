@@ -31,7 +31,7 @@ const routes: RouteRecordRaw[] = [
 ];
 export function createAppRouter(history: RouterHistory = createWebHistory()) {
   const router = createRouter({ history, routes, scrollBehavior(to) {
-    return to.hash ? { el: to.hash, behavior: 'smooth' } : { top: 0 };
+    return to.hash ? { el: to.hash, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' } : { top: 0 };
   } });
   router.beforeEach(async to => {
     const auth = useAuthStore();

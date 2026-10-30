@@ -14,6 +14,7 @@ defineProps<{
   <button
     :type="type ?? 'button'"
     :disabled="disabled || loading"
+    :aria-busy="loading || undefined"
     class="inline-flex min-h-12 w-full items-center justify-center rounded-lg px-4 py-3 text-base font-semibold transition active:opacity-80 disabled:opacity-50"
     :class="
       (variant ?? 'primary') === 'primary'

@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Bell, House, FileText, MapPin, Users, Search, ChevronDown, Heart, Menu, X, RefreshCw, ShieldCheck, Handshake, Wrench, ShoppingBag } from '@lucide/vue';
+import { Bell, Search, ChevronDown, Heart, Menu, X, RefreshCw } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
 import { useRealtimeStore } from '@/stores/realtime';
 import LanguageSelector from '@/components/ui/LanguageSelector.vue';
 import { useLocale } from '@/i18n';
-import { canProvision } from '@/constants/access';
 import { initials, formatDate } from '@/utils/maintenance';
-import PlantArt from '@/components/dashboard/PlantArt.vue';
+import WorkspaceNavigation from '@/components/dashboard/WorkspaceNavigation.vue';
+import SkipLink from '@/components/ui/SkipLink.vue';
 import '@/styles/dashboard.css';
 
 const route = useRoute();
@@ -19,23 +19,17 @@ const data = useMaintenanceStore();
 const realtime = useRealtimeStore();
 const { t } = useLocale();
 const mobileOpen = ref(false);
+const mobileNavigation = ref<HTMLDialogElement>();
+let mobileQuery: MediaQueryList | undefined;
+function closeNavigation() { mobileNavigation.value?.close(); }
+function openNavigation() { mobileNavigation.value?.showModal(); mobileOpen.value = true; }
+function adaptNavigation() { if (!mobileQuery?.matches) closeNavigation(); }
+onMounted(() => { mobileQuery = window.matchMedia('(max-width: 800px)'); mobileQuery.addEventListener('change', adaptNavigation); });
+onBeforeUnmount(() => mobileQuery?.removeEventListener('change', adaptNavigation));
+watch(() => route.fullPath, closeNavigation);
 const search = ref(String(route.query.q || ''));
 const notificationDialog = ref<HTMLDialogElement>();
 const name = computed(() => [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' '));
-const links = computed(() => {
-  if (user.value?.role === 'shop_manager') return [{ to: '/shop', label: 'Shop', icon: ShoppingBag }, { to: '/profile', label: 'Profile', icon: Users }];
-  const technician = user.value?.role === 'technician';
-  const items = technician
-    ? [{ to: '/technician', label: 'My workspace', icon: Wrench }]
-    : [{ to: '/', label: 'Dashboard', icon: House }];
-  if (!technician || data.selectedSite) items.push({ to: '/reports', label: 'Reports', icon: FileText }, { to: '/sites', label: 'Sites', icon: MapPin }, { to: '/assignments', label: 'Assignments', icon: Users });
-  if (technician || canProvision(user.value?.role)) items.push({ to: '/contracts', label: 'Site contracts', icon: Handshake });
-  if (technician) items.push({ to: '/technician/invitations', label: 'Invitations', icon: Bell });
-  if (user.value?.capabilities?.provision ?? canProvision(user.value?.role)) items.push({ to: '/team-access', label: 'Team access', icon: ShieldCheck });
-  if (user.value?.adminApplication) items.push({ to: '/admin-application', label: 'My application', icon: ShieldCheck });
-  items.push({ to: '/shop', label: 'Shop', icon: ShoppingBag });
-  return items;
-});
 watch(() => route.query.q, value => { search.value = String(value || ''); });
 onMounted(() => data.refresh());
 function runSearch() { router.push({ name: 'reports', query: search.value.trim() ? { q: search.value.trim() } : {} }); }
@@ -43,19 +37,20 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
 
 <template>
   <div class="dashboard-app">
-    <button v-if="mobileOpen" class="sidebar-scrim" :aria-label="t('Close navigation')" @click="mobileOpen = false" />
-    <aside class="dashboard-sidebar" :class="{ 'is-open': mobileOpen }">
-      <RouterLink to="/" class="dashboard-brand" @click="mobileOpen = false"><span class="leaf-logo"><i /><i /><i /></span><span>FixFlow<small>{{ t("Spaces work better together") }}</small></span></RouterLink>
-      <nav :aria-label="t('Main navigation')"><RouterLink v-for="link in links" :key="link.to" :to="link.to" :class="{ selected: ['/', '/technician'].includes(link.to) ? route.path === link.to : route.path.startsWith(link.to) }" @click="mobileOpen = false"><component :is="link.icon" :size="21" />{{ t(link.label) }}</RouterLink></nav>
-      <div class="sidebar-garden"><PlantArt /><p>{{ t('Well-maintained spaces create brighter days.') }}</p></div>
-      <span class="sidebar-version">{{ t("A little care. A big difference.") }}</span>
+    <SkipLink />
+    <aside class="dashboard-sidebar desktop-sidebar">
+      <WorkspaceNavigation />
     </aside>
+    <dialog id="mobile-navigation" ref="mobileNavigation" class="dashboard-sidebar mobile-sidebar" :aria-label="t('Main navigation')" @close="mobileOpen = false" @click="event => { if (event.target === mobileNavigation) closeNavigation(); }">
+      <div class="mobile-navigation-heading"><strong>{{ t('Navigation') }}</strong><button type="button" autofocus class="icon-button" :aria-label="t('Close navigation')" @click="closeNavigation"><X :size="22" /></button></div>
+      <WorkspaceNavigation @navigate="closeNavigation" />
+    </dialog>
     <div class="dashboard-workspace">
-      <header class="dashboard-topbar"><button class="mobile-menu icon-button" :aria-label="t('Open navigation')" @click="mobileOpen = true"><Menu :size="22" /></button>
+      <header class="dashboard-topbar"><button class="mobile-menu icon-button" :aria-label="t('Open navigation')" aria-controls="mobile-navigation" :aria-expanded="mobileOpen" @click="openNavigation"><Menu :size="22" /></button>
         <form class="dashboard-search" role="search" @submit.prevent="runSearch"><Search :size="19" /><input v-model="search" :aria-label="t('Search reports')" :placeholder="t('Search reports')" /><kbd>↵</kbd></form>
         <div class="topbar-account"><button class="icon-button" :aria-label="t('Notification availability')" @click="notificationDialog?.showModal()"><Bell :size="23" /></button><span class="topbar-divider" /><RouterLink to="/profile" :aria-label="t('{name}: view profile', { name })" class="account-link"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></RouterLink></div>
       </header>
-      <main class="dashboard-main">
+      <main id="main-content" tabindex="-1" class="dashboard-main">
         <div class="workspace-language"><LanguageSelector /></div>
         <div v-if="user?.role !== 'shop_manager'" class="live-toolbar"><label v-if="user?.role === 'super_admin' && data.sites.length" class="site-selector">{{ t("Site") }}<select :value="data.selectedSiteId" :disabled="data.loading" @change="data.selectSite(Number(($event.target as HTMLSelectElement).value))"><option v-for="site in data.sites" :key="site.id" :value="site.id">{{ site.name }}</option></select></label><span v-else>{{ data.selectedSite?.name || t(data.loading ? 'Loading your site…' : user?.role === 'technician' ? 'Technician account' : 'No site available') }}</span><span class="live-sync">{{ data.loading ? t('Refreshing…') : data.lastSynced ? t('Updated {date}', { date: formatDate(data.lastSynced, true) }) : t('Not synced') }}<button class="icon-button" :disabled="data.loading" :aria-label="t('Refresh live data')" @click="data.refresh()"><RefreshCw :size="16" /></button></span></div>
         <div v-if="data.sitesError" class="live-error" role="alert">{{ t(data.sitesError) }} <button @click="data.refresh()">{{ t("Retry") }}</button></div>

@@ -73,3 +73,12 @@ describe('actual application route guards', () => {
     expect(router.currentRoute.value.params.siteId).toBe('71');
   });
 });
+
+it.each([true, false])('uses reduced-motion preference %s for anchor navigation', reduced => {
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: reduced })));
+  try {
+    const router = createAppRouter(createMemoryHistory());
+    const result = router.options.scrollBehavior!(router.resolve('/reports#main-content'), router.resolve('/reports'), null);
+    expect(result).toEqual({ el: '#main-content', behavior: reduced ? 'auto' : 'smooth' });
+  } finally { vi.unstubAllGlobals(); }
+});

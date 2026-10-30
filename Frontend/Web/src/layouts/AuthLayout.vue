@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SkipLink from '@/components/ui/SkipLink.vue';
 import { useLocale } from '@/i18n';
 import { ArrowUpRight, Check, Wrench } from '@lucide/vue';
 import LanguageSelector from '@/components/ui/LanguageSelector.vue';
@@ -7,7 +8,7 @@ const { t } = useLocale();
 </script>
 
 <template>
-  <div class="auth-page">
+  <div class="auth-page"><SkipLink />
     <header class="brand-header">
       <RouterLink to="/" class="brand"><span class="brand-symbol"><Wrench :size="22" /></span>fixflow<span class="brand-dot">.</span></RouterLink>
       <span class="header-note">{{ t("Little fixes. Better places.") }}</span>
@@ -28,7 +29,7 @@ const { t } = useLocale();
         </div>
         <div class="story-bottom"><span><i class="color-dot coral"></i> {{ t("Report it.") }}</span><span><i class="color-dot mint"></i> {{ t("Track it.") }}</span><span><i class="color-dot citron"></i> {{ t("Feel at home.") }}</span></div>
       </section>
-      <section class="auth-form-panel"><RouterView /></section>
+      <section id="main-content" tabindex="-1" class="auth-form-panel"><RouterView /></section>
     </main>
     <footer class="auth-footer"><span>{{ t("Made for the places we share.") }}</span><span>{{ t("Schools · Hostels · Hotels") }} <span class="footer-spark">✳</span></span></footer>
   </div>

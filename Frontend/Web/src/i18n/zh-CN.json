@@ -677,5 +677,11 @@
   "No contracts are recorded for this site.": "此场地暂无已登记的合同。",
   "Contract #{id}": "合同 #{id}",
   "Created {date}": "创建时间：{date}",
-  "The contract list did not match the selected site. Refresh and try again.": "合同列表与所选场地不匹配，请刷新后重试。"
+  "The contract list did not match the selected site. Refresh and try again.": "合同列表与所选场地不匹配，请刷新后重试。",
+  "Navigation": "导航",
+  "Skip to main content": "跳至主要内容",
+  "Report details": "报修详情",
+  "Access requirements": "权限要求",
+  "Reports table": "报修记录表格",
+  "Reports for the selected site": "所选场地的报修记录"
 }
