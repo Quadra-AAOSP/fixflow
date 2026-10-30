@@ -1,9 +1,17 @@
 import { stubApiFetch } from './csrfFetch';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { addTechnicianSkill, getTechnicianInvitations, listTechnicians, rankTechnicians, sendTechnicianInvitations } from '../src/services/technician';
+import { addTechnicianSkill, getTechnicianAvailability, getTechnicianInvitations, listTechnicians, rankTechnicians, sendTechnicianInvitations, setTechnicianAvailability } from '../src/services/technician';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('technician trade submission', () => {
+  it('reads and updates only the signed-in technician availability', async () => {
+    const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);
+    await getTechnicianAvailability();
+    await setTechnicianAvailability('available');
+    expect(fetch.mock.calls.map(call => call[0])).toEqual(['/api/technicians/me/availability', '/api/technicians/me/availability']);
+    expect(fetch.mock.calls[1]?.[1].method).toBe('PUT');
+    expect(JSON.parse(fetch.mock.calls[1]?.[1].body)).toEqual({ status: 'available' });
+  });
   it('reads inbox pages and sends invitations with an explicit reason and batch', async () => {
     const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);
     await getTechnicianInvitations(2);

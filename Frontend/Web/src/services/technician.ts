@@ -1,5 +1,10 @@
 import { request } from './api';
-import type { RankingMode, TechnicianInvitationInbox, TechnicianInvitationsSent, TechnicianRanking, TechnicianSummary, TechnicianTermsStatus } from '@/types/technician';
+import type { RankingMode, TechnicianAvailability, TechnicianInvitationInbox, TechnicianInvitationsSent, TechnicianRanking, TechnicianSummary, TechnicianTermsStatus } from '@/types/technician';
+
+export const getTechnicianAvailability = () => request<TechnicianAvailability>('/api/technicians/me/availability');
+export function setTechnicianAvailability(status: TechnicianAvailability['status']) {
+  return request<TechnicianAvailability>('/api/technicians/me/availability', { method: 'PUT', body: JSON.stringify({ status }) });
+}
 
 export function getTechnicianInvitations(page = 0) {
   return request<TechnicianInvitationInbox>(`/api/technician-invitations?page=${page}`);

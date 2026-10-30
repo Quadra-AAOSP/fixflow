@@ -35,3 +35,4 @@ export type TechnicianInvitation = {
 };
 export type TechnicianInvitationInbox = { items: TechnicianInvitation[]; page: number; hasNext: boolean };
 export type TechnicianInvitationsSent = { created: number; page: number; hasNext: boolean };
+export type TechnicianAvailability = { technicianId: number; status: 'available' | 'unavailable'; updatedAt: string | null };
