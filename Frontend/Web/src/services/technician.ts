@@ -1,5 +1,14 @@
 import { request } from './api';
-import type { RankingMode, TechnicianRanking, TechnicianSummary, TechnicianTermsStatus } from '@/types/technician';
+import type { RankingMode, TechnicianInvitationInbox, TechnicianInvitationsSent, TechnicianRanking, TechnicianSummary, TechnicianTermsStatus } from '@/types/technician';
+
+export function getTechnicianInvitations(page = 0) {
+  return request<TechnicianInvitationInbox>(`/api/technician-invitations?page=${page}`);
+}
+export function sendTechnicianInvitations(reportId: number, reason: string, page = 0) {
+  const message = reason.trim();
+  if (!message || message.length > 1000) throw new Error('Enter an invitation reason of 1–1,000 characters.');
+  return request<TechnicianInvitationsSent>(`/api/reports/${reportId}/technician-invitations?page=${page}`, { method: 'POST', body: JSON.stringify({ reason: message }) });
+}
 
 export const listTechnicians = () => request<TechnicianSummary[]>('/api/technicians');
 export function rankTechnicians(reportId: number, mode: RankingMode) {

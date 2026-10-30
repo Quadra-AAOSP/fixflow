@@ -1,9 +1,17 @@
 import { stubApiFetch } from './csrfFetch';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { addTechnicianSkill, listTechnicians, rankTechnicians } from '../src/services/technician';
+import { addTechnicianSkill, getTechnicianInvitations, listTechnicians, rankTechnicians, sendTechnicianInvitations } from '../src/services/technician';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('technician trade submission', () => {
+  it('reads inbox pages and sends invitations with an explicit reason and batch', async () => {
+    const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);
+    await getTechnicianInvitations(2);
+    await sendTechnicianInvitations(91, ' Plumbing expertise ', 3);
+    expect(fetch.mock.calls.map(call => call[0])).toEqual(['/api/technician-invitations?page=2', '/api/reports/91/technician-invitations?page=3']);
+    expect(JSON.parse(fetch.mock.calls[1]?.[1].body)).toEqual({ reason: 'Plumbing expertise' });
+    expect(() => sendTechnicianInvitations(91, '', 0)).toThrow('invitation reason');
+  });
   it('loads the directory and requests the chosen ranking mode for the actual report', async () => {
     const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);
     await listTechnicians();

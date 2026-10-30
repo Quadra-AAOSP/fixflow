@@ -9,6 +9,7 @@ import TechnicianTermsPanel from '@/components/TechnicianTermsPanel.vue';
 import type { ContractApplication, TechnicianTermsStatus } from '@/types/technician';
 
 const { user } = useAuth();
+const props = defineProps<{ initialSiteId?: number }>();
 const technician = computed(() => user.value?.role === 'technician');
 const siteAdmin = computed(() => user.value?.role === 'admin');
 const items = ref<ContractApplication[]>([]);
@@ -17,7 +18,7 @@ const submitting = ref(false);
 const decidingId = ref<number | null>(null);
 const error = ref('');
 const success = ref('');
-const siteId = ref('');
+const siteId = ref(props.initialSiteId == null ? '' : String(props.initialSiteId));
 const note = ref('');
 const reasons = reactive<Record<number, string>>({});
 const terms = ref<TechnicianTermsStatus | null>(null);

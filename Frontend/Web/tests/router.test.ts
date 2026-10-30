@@ -27,7 +27,7 @@ async function signIn(role: UserRole) {
 
 describe('actual application route guards', () => {
   it.each(['/', '/reports', '/reports/new', '/reports/91', '/sites', '/sites/71/subsites',
-    '/assignments', '/technician', '/team-access', '/contracts', '/profile', '/admin-application'])
+    '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/profile', '/admin-application'])
   ('sends a signed-out visit to %s to login with its return path', async path => {
     const router = createAppRouter(createMemoryHistory());
     await router.push(path);

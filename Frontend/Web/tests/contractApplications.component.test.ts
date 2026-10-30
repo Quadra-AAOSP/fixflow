@@ -32,6 +32,11 @@ beforeEach(() => {
 afterEach(() => wrapper?.unmount());
 
 describe('contract request screen interactions', () => {
+  it('prefills an invitation site without automatically requesting a contract', async () => {
+    wrapper = mount(ContractApplicationsPanel, { props: { initialSiteId: 71 } }); await flushPromises();
+    expect(wrapper.get<HTMLInputElement>('input[type="number"]').element.value).toBe('71');
+    expect(api.requestTechnicianContract).not.toHaveBeenCalled();
+  });
   it('submits the site and note, then displays the saved request in history', async () => {
     wrapper = mount(ContractApplicationsPanel); await flushPromises();
     expect(api.listContractApplications).toHaveBeenCalledWith(undefined);

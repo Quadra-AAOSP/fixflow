@@ -25,6 +25,7 @@ const links = computed(() => {
     : [{ to: '/', label: 'Dashboard', icon: House }];
   if (!technician || data.selectedSite) items.push({ to: '/reports', label: 'Reports', icon: FileText }, { to: '/sites', label: 'Sites', icon: MapPin }, { to: '/assignments', label: 'Assignments', icon: Users });
   if (technician || canProvision(user.value?.role)) items.push({ to: '/contracts', label: 'Site contracts', icon: Handshake });
+  if (technician) items.push({ to: '/technician/invitations', label: 'Invitations', icon: Bell });
   if (user.value?.capabilities?.provision ?? canProvision(user.value?.role)) items.push({ to: '/team-access', label: 'Team access', icon: ShieldCheck });
   if (user.value?.adminApplication) items.push({ to: '/admin-application', label: 'My application', icon: ShieldCheck });
   items.push({ to: '/shop', label: 'Shop', icon: ShoppingBag });
@@ -40,7 +41,7 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
     <button v-if="mobileOpen" class="sidebar-scrim" aria-label="Close navigation" @click="mobileOpen = false" />
     <aside class="dashboard-sidebar" :class="{ 'is-open': mobileOpen }">
       <RouterLink to="/" class="dashboard-brand" @click="mobileOpen = false"><span class="leaf-logo"><i /><i /><i /></span><span>FixFlow<small>Spaces work better together</small></span></RouterLink>
-      <nav aria-label="Main navigation"><RouterLink v-for="link in links" :key="link.to" :to="link.to" :class="{ selected: link.to === '/' ? route.path === '/' : route.path.startsWith(link.to) }" @click="mobileOpen = false"><component :is="link.icon" :size="21" />{{ link.label }}</RouterLink></nav>
+      <nav aria-label="Main navigation"><RouterLink v-for="link in links" :key="link.to" :to="link.to" :class="{ selected: ['/', '/technician'].includes(link.to) ? route.path === link.to : route.path.startsWith(link.to) }" @click="mobileOpen = false"><component :is="link.icon" :size="21" />{{ link.label }}</RouterLink></nav>
       <div class="sidebar-garden"><PlantArt /><p>Well-maintained<br />spaces create<br /><strong>brighter days.</strong></p></div>
       <span class="sidebar-version">A little care. A big difference.</span>
     </aside>
