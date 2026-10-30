@@ -24,7 +24,7 @@ const { t } = useLocale();
         <div class="campus-photo">
           <img src="https://images.unsplash.com/photo-1583373834259-46cc92173cb7?auto=format&fit=crop&w=1400&q=85" :alt="t('Warm evening light over a university campus and its green courtyard')" />
           <div class="photo-caption"><span>{{ t("SPACES WORTH CARING FOR") }}</span><strong>{{ t("A better day starts here.") }}</strong></div>
-          <a class="photo-credit" href="https://unsplash.com/photos/k4vFDPJoDZk" target="_blank" rel="noopener noreferrer">Photo: Camilo Botia / Unsplash ↗</a>
+          <a class="photo-credit" href="https://unsplash.com/photos/k4vFDPJoDZk" target="_blank" rel="noopener noreferrer">{{ t('Photo:') }} Camilo Botia / Unsplash ↗</a>
           <div class="care-sticker"><Check :size="18" /><span>{{ t("A little fix.") }}<br /><b>{{ t("A big difference.") }}</b></span></div>
         </div>
         <div class="story-bottom"><span><i class="color-dot coral"></i> {{ t("Report it.") }}</span><span><i class="color-dot mint"></i> {{ t("Track it.") }}</span><span><i class="color-dot citron"></i> {{ t("Feel at home.") }}</span></div>

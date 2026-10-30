@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue';
+import { localeTag } from '@/i18n';
 import { defineStore } from 'pinia';
 import { loadCatalog } from '@/services/shop';
 import { errorMessage } from '@/services/api';
@@ -36,7 +37,7 @@ export const useShopStore = defineStore('shop', () => {
   }
   function money(amount: number) {
     if (!catalog.value) return '';
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: catalog.value.currency, minimumFractionDigits: catalog.value.minorUnitDigits, maximumFractionDigits: catalog.value.minorUnitDigits }).format(amount / 10 ** catalog.value.minorUnitDigits);
+    return new Intl.NumberFormat(localeTag(), { style: 'currency', currency: catalog.value.currency, minimumFractionDigits: catalog.value.minorUnitDigits, maximumFractionDigits: catalog.value.minorUnitDigits }).format(amount / 10 ** catalog.value.minorUnitDigits);
   }
   return { catalog, loading, error, quantities, lines, count, subtotal, reset, refresh, setQuantity, clearBasket, money };
 });
