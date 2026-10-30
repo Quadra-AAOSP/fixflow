@@ -24,17 +24,22 @@ function csrfToken(signal?: AbortSignal | null): Promise<CsrfToken> {
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 20_000);
+  const cancel = () => controller.abort();
+  if (init.signal?.aborted) cancel();
+  else init.signal?.addEventListener('abort', cancel, { once: true });
   try {
+    if (init.signal?.aborted) throw new DOMException('Request cancelled.', 'AbortError');
     const headers = new Headers(init.headers);
     headers.set('Accept', 'application/json');
     if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
     if (!['GET', 'HEAD', 'OPTIONS'].includes((init.method ?? 'GET').toUpperCase())) {
-      const csrf = await csrfToken(init.signal ?? controller.signal);
+      const csrf = await csrfToken(controller.signal);
       headers.set(csrf.headerName, csrf.token);
     }
     const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init, headers, credentials: 'include', redirect: 'error', signal: init.signal ?? controller.signal,
+      ...init, headers, credentials: 'include', redirect: 'error', signal: controller.signal,
     });
     if (!response.ok) {
       let message = response.status === 401 ? 'Your session has expired. Please sign in again.' : response.statusText || 'Request failed';
@@ -49,10 +54,12 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     return await response.json() as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    if (controller.signal.aborted) throw new Error('The server took too long to respond. Please try again.');
+    if (timedOut) throw new Error('The server took too long to respond. Please try again.');
+    if (init.signal?.aborted) throw new DOMException('Request cancelled.', 'AbortError');
     throw new Error('Unable to reach the server. Check your connection and try again.');
   } finally {
     clearTimeout(timeout);
+    init.signal?.removeEventListener('abort', cancel);
   }
 }
 

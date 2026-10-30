@@ -18,20 +18,22 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   const reportsLoaded = ref(false);
   const lastSynced = ref<string | null>(null);
   let generation = 0;
+  let scopeRequest: AbortController | undefined;
   const selectedSite = computed(() => sites.value.find(site => site.id === selectedSiteId.value));
   const canCreate = computed(() => auth.user?.capabilities?.createReport ?? (!!auth.user && ['reporter', 'staff', 'admin', 'super_admin'].includes(auth.user.role)));
   const canAssign = computed(() => auth.user?.capabilities?.assignTechnician ?? (!!auth.user && ['staff', 'admin', 'super_admin'].includes(auth.user.role)));
   const siteName = (id: number | null) => sites.value.find(site => site.id === id)?.name ?? (id == null ? 'Site unavailable' : `Site #${id}`);
 
   function reset() {
-    generation++; sites.value = []; reports.value = []; rules.value = []; selectedSiteId.value = null;
+    generation++; scopeRequest?.abort(); scopeRequest = undefined;
+    sites.value = []; reports.value = []; rules.value = []; selectedSiteId.value = null;
     loading.value = false; sitesError.value = ''; reportsError.value = ''; rulesError.value = '';
     reportsLoaded.value = false; lastSynced.value = null;
   }
   async function loadScope(version: number) {
     const site = selectedSite.value;
     if (!site) { if (version === generation) loading.value = false; return; }
-    const results = await Promise.allSettled([api.listReports(site.id), api.listRules(site.type)]);
+    const results = await Promise.allSettled([api.listReports(site.id, scopeRequest?.signal), api.listRules(site.type)]);
     if (version !== generation) return;
     const [reportResult, ruleResult] = results;
     if (reportResult.status === 'fulfilled') {
@@ -44,6 +46,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   async function refresh() {
     if (!auth.user || auth.user.role === 'shop_manager') { reset(); return; }
     const version = ++generation;
+    scopeRequest?.abort(); scopeRequest = new AbortController();
     loading.value = true; sitesError.value = ''; reportsError.value = ''; rulesError.value = '';
     reports.value = []; rules.value = []; reportsLoaded.value = false; lastSynced.value = null;
     try {
@@ -61,6 +64,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   async function selectSite(id: number) {
     if (!sites.value.some(site => site.id === id)) return;
     const version = ++generation;
+    scopeRequest?.abort(); scopeRequest = new AbortController();
     selectedSiteId.value = id; reports.value = []; rules.value = []; reportsLoaded.value = false;
     reportsError.value = ''; rulesError.value = ''; lastSynced.value = null; loading.value = true;
     await loadScope(version);

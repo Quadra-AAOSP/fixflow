@@ -1,12 +1,23 @@
 import { request } from './api';
 import { REPORT_PHOTO_LIMIT, validateReportPhoto } from './reportPhotos';
-import type { CreateReportPayload, Report, ReportReporter, Site, SiteRule, SiteType, SitePayload, Subsite, SubsitePayload, SubsiteAlert } from '@/types/maintenance';
+import type { CreateReportPayload, Report, ReportPage, ReportReporter, Site, SiteRule, SiteType, SitePayload, Subsite, SubsitePayload, SubsiteAlert } from '@/types/maintenance';
 
 export const listSites = () => request<Site[]>('/api/sites');
 export const listRules = (type: SiteType) => request<SiteRule[]>(`/api/site-rules?siteType=${encodeURIComponent(type)}`);
-export const listReports = async (siteId: number) => {
-  const page = await request<{ content: Report[] }>(`/api/reports?siteId=${siteId}`);
-  return page.content ?? [];
+export const listReports = async (siteId: number, signal?: AbortSignal) => {
+  const reports = new Map<number, Report>();
+  let pageNumber = 0;
+  let totalPages = 1;
+  do {
+    const page = await request<ReportPage>(`/api/reports?siteId=${siteId}&page=${pageNumber}&size=100`, { signal });
+    if (!Array.isArray(page.content) || page.page !== pageNumber || !Number.isInteger(page.totalPages) || page.totalPages < 0) {
+      throw new Error('The report paging response is incomplete. Please refresh the site.');
+    }
+    page.content.forEach(report => reports.set(report.id, report));
+    totalPages = page.totalPages;
+    pageNumber++;
+  } while (pageNumber < totalPages);
+  return [...reports.values()];
 };
 export const getReport = (id: number) => request<Report>(`/api/reports/${id}`);
 export const classifyReport = (id: number) => request<Report>(`/api/reports/${id}/classify`, { method: 'POST' });

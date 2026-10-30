@@ -41,6 +41,9 @@ export interface ReportPhoto {
   id: number; objectKey: string; url: string | null; contentType: string;
   fileSizeBytes: number; sortOrder: number; createdAt: string; retrievalPath: string;
 }
+export interface ReportPage {
+  content: Report[]; page: number; size: number; totalElements: number; totalPages: number;
+}
 export interface CreateReportPayload {
   description: string; address?: string; category: string; specialty?: string;
   reporterUrgency: Urgency; reporterReason?: string; siteId: number; subsiteId?: number;
