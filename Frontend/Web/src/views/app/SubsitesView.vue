@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Archive, ArrowLeft, Building2, Check, Pencil, Plus, RefreshCw } from '@lucide/vue';
 import { useRoute } from 'vue-router';
@@ -7,6 +8,7 @@ import { useMaintenanceStore } from '@/stores/maintenance';
 import { archiveSubsite, createSubsite, listPendingSubsiteRequests, listSubsites, resolveSubsiteRequest, updateSubsite } from '@/services/maintenance';
 import { errorMessage } from '@/services/api';
 import type { Subsite, SubsiteAlert } from '@/types/maintenance';
+const { t } = useLocale();
 
 const route = useRoute();
 const { user, refreshUser } = useAuth();
@@ -24,7 +26,8 @@ const editingId = ref<number | null>(null);
 const loadError = ref('');
 const requestsError = ref('');
 const formError = ref('');
-const success = ref('');
+const success = ref<{ key: string; values: Record<string, string | number> } | null>(null);
+const sessionRefreshNeeded = ref(false);
 const form = reactive({ label: '', name: '', description: '' });
 let generation = 0;
 onBeforeUnmount(() => { generation++; });
@@ -33,6 +36,7 @@ async function load() {
   const id = site.value?.id;
   const current = ++generation;
   items.value = []; requests.value = []; loadError.value = ''; requestsError.value = '';
+  success.value = null; sessionRefreshNeeded.value = false;
   cancelEdit();
   if (!id) { loading.value = false; return; }
   loading.value = true;
@@ -57,27 +61,28 @@ watch(() => site.value?.id, () => { void load(); }, { immediate: true });
 async function submit() {
   if (!site.value || !canManage.value || saving.value || actionId.value) return;
   const id = site.value.id;
-  formError.value = ''; success.value = '';
+  const current = generation;
+  formError.value = ''; success.value = null; sessionRefreshNeeded.value = false;
   saving.value = true;
   try {
     const saved = editingId.value == null ? await createSubsite(id, form) : await updateSubsite(id, editingId.value, form);
-    if (siteId.value !== id) return;
+    if (current !== generation || siteId.value !== id) return;
     items.value = [...items.value.filter(item => item.id !== saved.id), saved].sort((a, b) => a.label.localeCompare(b.label));
-    success.value = `${saved.label} · ${saved.name} saved for ${site.value?.name}.`;
+    success.value = { key: '{label} · {name} saved for {site}.', values: { label: saved.label, name: saved.name, site: site.value?.name ?? '' } };
     cancelEdit();
     if (user.value?.siteOnboarding?.siteId === id) {
       try { await refreshUser(); }
-      catch { success.value += ' Refresh your session to update the site setup prompt.'; }
+      catch { if (current === generation) sessionRefreshNeeded.value = true; }
     }
   } catch (err) {
-    if (siteId.value === id) formError.value = errorMessage(err);
+    if (current === generation && siteId.value === id) formError.value = errorMessage(err);
   } finally {
     saving.value = false;
   }
 }
 function edit(item: Subsite) {
   editingId.value = item.id;
-  formError.value = ''; success.value = '';
+  formError.value = ''; success.value = null; sessionRefreshNeeded.value = false;
   Object.assign(form, { label: item.label, name: item.name, description: item.description ?? '' });
 }
 function cancelEdit() {
@@ -87,59 +92,61 @@ function cancelEdit() {
 async function archive(item: Subsite) {
   if (!site.value || !canManage.value || saving.value || actionId.value) return;
   const id = site.value.id;
-  actionId.value = `archive-${item.id}`; loadError.value = ''; success.value = '';
+  const current = generation;
+  actionId.value = `archive-${item.id}`; loadError.value = ''; success.value = null; sessionRefreshNeeded.value = false;
   try {
     await archiveSubsite(id, item.id);
-    if (siteId.value !== id) return;
+    if (current !== generation || siteId.value !== id) return;
     items.value = items.value.filter(row => row.id !== item.id);
     if (editingId.value === item.id) cancelEdit();
-    success.value = `${item.label} archived. Existing reports keep their location history.`;
+    success.value = { key: '{label} archived. Existing reports keep their location history.', values: { label: item.label } };
     if (user.value?.siteOnboarding?.siteId === id) {
       try { await refreshUser(); }
-      catch { success.value += ' Refresh your session to update the site setup prompt.'; }
+      catch { if (current === generation) sessionRefreshNeeded.value = true; }
     }
-  } catch (err) { if (siteId.value === id) loadError.value = errorMessage(err); }
+  } catch (err) { if (current === generation && siteId.value === id) loadError.value = errorMessage(err); }
   finally { actionId.value = ''; }
 }
 async function resolve(item: SubsiteAlert) {
   if (!site.value || !canManage.value || saving.value || actionId.value) return;
   const id = site.value.id;
-  actionId.value = `request-${item.id}`; requestsError.value = ''; success.value = '';
+  const current = generation;
+  actionId.value = `request-${item.id}`; requestsError.value = ''; success.value = null; sessionRefreshNeeded.value = false;
   try {
     await resolveSubsiteRequest(id, item.id);
-    if (siteId.value !== id) return;
+    if (current !== generation || siteId.value !== id) return;
     requests.value = requests.value.filter(row => row.id !== item.id);
-    success.value = `Request #${item.id} marked resolved.`;
-  } catch (err) { if (siteId.value === id) requestsError.value = errorMessage(err); }
+    success.value = { key: 'Request #{id} marked resolved.', values: { id: item.id } };
+  } catch (err) { if (current === generation && siteId.value === id) requestsError.value = errorMessage(err); }
   finally { actionId.value = ''; }
 }
 </script>
 
 <template>
   <section class="live-page subsite-page">
-    <RouterLink to="/sites" class="text-action subsite-back"><ArrowLeft :size="16" /> All sites</RouterLink>
-    <div class="card-heading"><div><h1>Buildings &amp; locations</h1><p v-if="site">{{ site.name }} · labelled places for maintenance reports</p></div><Building2 :size="30" /></div>
-    <p v-if="!Number.isSafeInteger(siteId) || siteId <= 0" class="live-error" role="alert">This site link is invalid.</p>
-    <p v-else-if="!site && data.loading" class="live-empty" role="status">Loading your sites…</p>
-    <p v-else-if="!site" class="live-error" role="alert">This site is not available to your account. <RouterLink to="/sites">Choose an accessible site</RouterLink>.</p>
+    <RouterLink to="/sites" class="text-action subsite-back"><ArrowLeft :size="16" /> {{ t("All sites") }}</RouterLink>
+    <div class="card-heading"><div><h1>{{ t("Buildings & locations") }}</h1><p v-if="site">{{ t('{site} · labelled places for maintenance reports', { site: site.name }) }}</p></div><Building2 :size="30" /></div>
+    <p v-if="!Number.isSafeInteger(siteId) || siteId <= 0" class="live-error" role="alert">{{ t("This site link is invalid.") }}</p>
+    <p v-else-if="!site && data.loading" class="live-empty" role="status">{{ t("Loading your sites…") }}</p>
+    <p v-else-if="!site" class="live-error" role="alert">{{ t("This site is not available to your account.") }} <RouterLink to="/sites">{{ t("Choose an accessible site") }}</RouterLink>.</p>
     <template v-else>
-      <p v-if="success" class="draft-notice" role="status">{{ success }}</p>
+      <p v-if="success" class="draft-notice" role="status">{{ t(success.key, success.values) }} <span v-if="sessionRefreshNeeded">{{ t('Refresh your session to update the site setup prompt.') }}</span></p>
       <div class="subsite-grid">
-        <section class="dashboard-card"><div class="card-heading"><div><h2>Saved buildings</h2><p>{{ items.length }} active {{ items.length === 1 ? 'location' : 'locations' }}</p></div><button class="icon-button" type="button" :disabled="loading || saving || !!actionId" aria-label="Refresh buildings" @click="load"><RefreshCw :size="18" /></button></div>
-          <p v-if="loadError" class="live-error" role="alert">{{ loadError }} <button type="button" @click="load">Try again</button></p>
-          <p v-else-if="loading" class="live-empty" role="status">Loading buildings…</p>
-          <p v-else-if="!items.length" class="live-empty">No buildings are configured yet. A site admin can add the first labelled location here.</p>
-          <ul v-else class="subsite-list"><li v-for="item in items" :key="item.id"><span class="subsite-code">{{ item.label }}</span><div class="subsite-row-copy"><strong>{{ item.name }}</strong><p v-if="item.description">{{ item.description }}</p></div><div v-if="canManage" class="subsite-row-actions"><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="`Edit ${item.name}`" @click="edit(item)"><Pencil :size="15" />Edit</button><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="`Archive ${item.name}`" @click="archive(item)"><Archive :size="15" />{{ actionId === `archive-${item.id}` ? 'Archiving…' : 'Archive' }}</button></div></li></ul>
+        <section class="dashboard-card"><div class="card-heading"><div><h2>{{ t("Saved buildings") }}</h2><p v-if="!loading && !loadError">{{ t(items.length === 1 ? '{count} active location' : '{count} active locations', { count: items.length }) }}</p></div><button class="icon-button" type="button" :disabled="loading || saving || !!actionId" :aria-label="t('Refresh buildings')" @click="load"><RefreshCw :size="18" /></button></div>
+          <p v-if="loadError" class="live-error" role="alert">{{ t(loadError) }} <button type="button" @click="load">{{ t("Try again") }}</button></p>
+          <p v-else-if="loading" class="live-empty" role="status">{{ t("Loading buildings…") }}</p>
+          <p v-else-if="!items.length" class="live-empty">{{ t("No buildings are configured yet. A site admin can add the first labelled location here.") }}</p>
+          <ul v-else class="subsite-list"><li v-for="item in items" :key="item.id"><span class="subsite-code">{{ item.label }}</span><div class="subsite-row-copy"><strong>{{ item.name }}</strong><p v-if="item.description">{{ item.description }}</p></div><div v-if="canManage" class="subsite-row-actions"><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Edit {name}', { name: item.name })" @click="edit(item)"><Pencil :size="15" />{{ t("Edit") }}</button><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Archive {name}', { name: item.name })" @click="archive(item)"><Archive :size="15" />{{ t(actionId === `archive-${item.id}` ? 'Archiving…' : 'Archive') }}</button></div></li></ul>
         </section>
-        <section v-if="canManage" class="dashboard-card"><div class="card-heading"><div><h2>{{ editingId == null ? 'Add a building' : 'Edit building' }}</h2><p>Give reporters a clear location to choose when filing an issue.</p></div><Plus :size="20" /></div>
-          <p v-if="formError" class="live-error" role="alert">{{ formError }}</p>
-          <form class="draft-form" @submit.prevent="submit"><fieldset class="report-fields" :disabled="saving || loading || !!actionId"><label>Short label<input v-model="form.label" maxlength="64" placeholder="e.g. A" required /></label><label>Building or location name<input v-model="form.name" maxlength="255" placeholder="e.g. Main Building" required /></label><label>Description (optional)<textarea v-model="form.description" maxlength="2000" rows="3" placeholder="Floor, wing or wayfinding details" /></label><div class="subsite-form-actions"><button class="report-issue-button" type="submit" :disabled="saving">{{ saving ? 'Saving…' : editingId == null ? 'Add building' : 'Save changes' }}</button><button v-if="editingId != null" class="text-action" type="button" @click="cancelEdit">Cancel editing</button></div></fieldset></form>
+        <section v-if="canManage" class="dashboard-card"><div class="card-heading"><div><h2>{{ t(editingId == null ? 'Add a building' : 'Edit building') }}</h2><p>{{ t("Give reporters a clear location to choose when filing an issue.") }}</p></div><Plus :size="20" /></div>
+          <p v-if="formError" class="live-error" role="alert">{{ t(formError) }}</p>
+          <form class="draft-form" @submit.prevent="submit"><fieldset class="report-fields" :disabled="saving || loading || !!actionId"><label>{{ t("Short label") }}<input v-model="form.label" maxlength="64" :placeholder="t('e.g. A')" required /></label><label>{{ t("Building or location name") }}<input v-model="form.name" maxlength="255" :placeholder="t('e.g. Main Building')" required /></label><label>{{ t("Description (optional)") }}<textarea v-model="form.description" maxlength="2000" rows="3" :placeholder="t('Floor, wing or wayfinding details')" /></label><div class="subsite-form-actions"><button class="report-issue-button" type="submit" :disabled="saving">{{ t(saving ? 'Saving…' : editingId == null ? 'Add building' : 'Save changes') }}</button><button v-if="editingId != null" class="text-action" type="button" @click="cancelEdit">{{ t("Cancel editing") }}</button></div></fieldset></form>
         </section>
-        <section v-if="canManage" class="dashboard-card subsite-requests"><div class="card-heading"><div><h2>Missing-building requests</h2><p>Review the location, add it above if needed, then mark the request resolved.</p></div><span class="status-badge mint">{{ requests.length }} pending</span></div>
-          <p v-if="requestsError" class="live-error" role="alert">{{ requestsError }} <button type="button" @click="load">Try again</button></p>
-          <p v-else-if="loading" class="live-empty" role="status">Loading requests…</p>
-          <p v-else-if="!requests.length" class="live-empty">No pending building requests.</p>
-          <ul v-else class="subsite-list"><li v-for="item in requests" :key="item.id"><span class="subsite-code">#{{ item.id }}</span><div class="subsite-row-copy"><strong>Requested by account #{{ item.requestedByUserId }}</strong><p>{{ item.note || 'No description provided.' }}</p></div><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="`Resolve request ${item.id}`" @click="resolve(item)"><Check :size="15" />{{ actionId === `request-${item.id}` ? 'Resolving…' : 'Mark resolved' }}</button></li></ul>
+        <section v-if="canManage" class="dashboard-card subsite-requests"><div class="card-heading"><div><h2>{{ t("Missing-building requests") }}</h2><p>{{ t("Review the location, add it above if needed, then mark the request resolved.") }}</p></div><span v-if="!loading && !requestsError" class="status-badge mint">{{ t('{count} pending', { count: requests.length }) }}</span></div>
+          <p v-if="requestsError" class="live-error" role="alert">{{ t(requestsError) }} <button type="button" @click="load">{{ t("Try again") }}</button></p>
+          <p v-else-if="loading" class="live-empty" role="status">{{ t("Loading requests…") }}</p>
+          <p v-else-if="!requests.length" class="live-empty">{{ t("No pending building requests.") }}</p>
+          <ul v-else class="subsite-list"><li v-for="item in requests" :key="item.id"><span class="subsite-code">#{{ item.id }}</span><div class="subsite-row-copy"><strong>{{ t('Requested by account #{id}', { id: item.requestedByUserId }) }}</strong><p>{{ item.note || t('No description provided.') }}</p></div><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Resolve request {id}', { id: item.id })" @click="resolve(item)"><Check :size="15" />{{ t(actionId === `request-${item.id}` ? 'Resolving…' : 'Mark resolved') }}</button></li></ul>
         </section>
       </div>
     </template>
