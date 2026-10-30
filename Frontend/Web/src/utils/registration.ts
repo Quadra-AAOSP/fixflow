@@ -1,4 +1,4 @@
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, canProvisionRole } from '@/constants/access';
+import { EMAIL_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, canProvisionRole } from '@/constants/access';
 import type { AccountDetails, ProvisionUserPayload, RegisterPayload, UserRole } from '@/types';
 
 export interface RegistrationInput {
@@ -7,6 +7,7 @@ export interface RegistrationInput {
 export function validateAccount(input: Omit<RegistrationInput, 'role' | 'siteId'>): AccountDetails {
   if (![input.firstName, input.lastName, input.email].every(value => value.trim()) || !input.password) throw new Error('First name, last name, email, and password are required.');
   if (input.firstName.trim().length > 128 || input.lastName.trim().length > 128) throw new Error('Names must be 128 characters or fewer.');
+  if (input.email.trim().length > EMAIL_MAX_LENGTH) throw new Error('Email address is too long.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) throw new Error('Enter a valid email address.');
   if ([...input.password].length < PASSWORD_MIN_LENGTH || input.password.length > PASSWORD_MAX_LENGTH) throw new Error(`Use a password between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters. Spaces and passphrases are welcome.`);
   // Current backend uses bcrypt; reject inputs it cannot safely represent instead of truncating them.

@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button.vue';
 import TextField from '@/components/ui/TextField.vue';
 import { useAuth } from '@/composables/useAuth';
 import { ApiError } from '@/services/auth';
+import { EMAIL_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '@/constants/access';
 import { accountHome } from '@/utils/navigation';
 
 const { t } = useLocale();
@@ -63,6 +64,7 @@ async function onSubmit() {
         v-model="email"
         label="Email"
         type="email"
+        :maxlength="EMAIL_MAX_LENGTH"
         autocomplete="email"
         placeholder="you@example.com"
       />
@@ -70,6 +72,7 @@ async function onSubmit() {
         v-model="password"
         label="Password"
         type="password"
+        :maxlength="PASSWORD_MAX_LENGTH"
         autocomplete="current-password"
         placeholder="••••••••"
       />

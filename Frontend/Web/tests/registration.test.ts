@@ -106,3 +106,7 @@ describe('managed-role provisioning', () => {
     expect(JSON.parse(fetch.mock.calls[1]?.[1].body)).toEqual({ technicianId: 54, siteId: 71 });
   });
 });
+
+it('rejects email addresses beyond the backend DTO limit', () => {
+  expect(() => buildRegistrationPayload({ ...form, email: 'a'.repeat(244) + '@example.com' })).toThrow('Email address is too long.');
+});
