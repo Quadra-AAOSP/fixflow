@@ -83,6 +83,7 @@ describe('contract request screen interactions', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Approve request #93')!.trigger('click');
     await flushPromises();
     expect(api.decideContractApplication).toHaveBeenCalledWith(93, 'approve', 'Qualifications checked');
+    expect(wrapper.emitted('contractCreated')).toHaveLength(1);
     expect(wrapper.get('li').text()).toContain('approved');
     expect(wrapper.get('li').find('textarea').exists()).toBe(false);
   });

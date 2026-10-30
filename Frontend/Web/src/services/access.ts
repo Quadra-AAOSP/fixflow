@@ -25,3 +25,8 @@ export function decideContractApplication(id: number, decision: 'approve' | 'rej
     method: 'POST', body: JSON.stringify({ decision, reason: reason.trim() || null }),
   });
 }
+
+export function listSiteContracts(siteId: number): Promise<TechnicianContract[]> {
+  if (!Number.isSafeInteger(siteId) || siteId <= 0) throw new Error('Choose a valid site.');
+  return request(`/api/technician-contracts?siteId=${siteId}`);
+}

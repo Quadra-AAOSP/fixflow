@@ -668,5 +668,14 @@
   "Invitation pages": "邀请分页",
   "Previous": "上一页",
   "Next": "下一页",
-  "Page {page}": "第 {page} 页"
+  "Page {page}": "第 {page} 页",
+  "Recorded site contracts": "已登记的场地合同",
+  "Refresh contracts": "刷新合同",
+  "These are recorded site relationships, separate from pending contract requests. Each record identifies the technician account and when the contract was created.": "此处显示已登记的场地合作关系，与待审核的合作申请分开记录。每条记录包含技术人员账户编号和合同创建时间。",
+  "Choose an accessible site to view its recorded contracts.": "请选择可访问的场地以查看已登记的合同。",
+  "Loading recorded contracts…": "正在加载已登记的合同…",
+  "No contracts are recorded for this site.": "此场地暂无已登记的合同。",
+  "Contract #{id}": "合同 #{id}",
+  "Created {date}": "创建时间：{date}",
+  "The contract list did not match the selected site. Refresh and try again.": "合同列表与所选场地不匹配，请刷新后重试。"
 }

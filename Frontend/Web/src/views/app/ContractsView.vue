@@ -2,6 +2,7 @@
 import { useLocale } from '@/i18n';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import ContractDirectoryPanel from '@/components/technician/ContractDirectoryPanel.vue';
 import ContractApplicationsPanel from '@/components/technician/ContractApplicationsPanel.vue';
 import { Handshake, ShieldCheck } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
@@ -24,6 +25,7 @@ const consent = ref(false);
 const busy = ref(false);
 const error = ref('');
 const created = ref<TechnicianContract | null>(null);
+const contractRevision = ref(0);
 watch(() => data.selectedSiteId, id => { if (!busy.value) siteId.value = id == null ? '' : String(id); }, { immediate: true });
 async function submit() {
   if (busy.value) return;
@@ -34,7 +36,7 @@ async function submit() {
     error.value = 'Choose an accessible site, enter a valid technician ID, and confirm their agreement.'; return;
   }
   busy.value = true;
-  try { created.value = await createTechnicianContract(technician, site); technicianId.value = ''; consent.value = false; }
+  try { created.value = await createTechnicianContract(technician, site); contractRevision.value++; technicianId.value = ''; consent.value = false; }
   catch (err) { error.value = errorMessage(err); }
   finally { busy.value = false; }
 }
@@ -43,6 +45,7 @@ async function submit() {
   <section class="dashboard-card live-page report-form-page"><div class="card-heading"><div><h1>{{ t("Site contracts") }}</h1><p>{{ t("Optional site relationships for technicians") }}</p></div><Handshake :size="30" /></div>
     <template v-if="user?.role === 'technician'"><section class="contract-choice"><h2>{{ t("Stay independent") }}</h2><p>{{ t("No site contract is required to keep your account. You can continue independently or request a site contract below.") }}</p><RouterLink to="/technician" class="text-action">{{ t("Continue independently →") }}</RouterLink></section></template>
     <template v-else-if="isManager"><p class="dialog-intro">{{ t("Record a site contract only after the technician has agreed. This creates a contract directly; it does not process an online request or record an approval history.") }}</p><div v-if="created" role="status" class="draft-notice">{{ t('Contract #{id} created for technician #{technicianId} at {site} on {date}.', { id: created.id, technicianId: created.technicianId, site: data.siteName(created.siteId), date: formatDate(created.createdAt, true) }) }}</div><p v-if="data.loading" class="live-empty">{{ t("Loading sites…") }}</p><p v-else-if="!data.sites.length" class="live-empty">{{ t("An accessible site is required to record a contract.") }}</p><form v-else class="draft-form" @submit.prevent="submit"><p v-if="error" role="alert" class="live-error">{{ t(error) }}</p><fieldset class="report-fields" :disabled="busy"><label>{{ t("Site") }}<select v-model="siteId" required><option disabled value="">{{ t("Choose a site") }}</option><option v-for="site in data.sites" :key="site.id" :value="String(site.id)">{{ site.name }}</option></select></label><label>{{ t("Technician account ID") }}<input v-model="technicianId" type="number" min="1" step="1" required /></label><label class="consent-row"><input v-model="consent" type="checkbox" required /><span>{{ t("The technician has agreed to this site contract.") }}</span></label><button class="report-issue-button" :disabled="busy" type="submit"><ShieldCheck :size="18" />{{ t(busy ? 'Saving…' : 'Record agreed contract') }}</button></fieldset></form><p class="dialog-intro">{{ t("The request history below is separate from direct contract creation.") }}</p></template>
-    <ContractApplicationsPanel :initial-site-id="initialSiteId" />
+    <ContractDirectoryPanel :revision="contractRevision" />
+    <ContractApplicationsPanel :initial-site-id="initialSiteId" @contract-created="contractRevision++" />
   </section>
 </template>

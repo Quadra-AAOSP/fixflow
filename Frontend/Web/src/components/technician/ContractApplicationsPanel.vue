@@ -12,6 +12,7 @@ const { t } = useLocale();
 
 const { user } = useAuth();
 const props = defineProps<{ initialSiteId?: number }>();
+const emit = defineEmits<{ contractCreated: [] }>();
 const technician = computed(() => user.value?.role === 'technician');
 const siteAdmin = computed(() => user.value?.role === 'admin');
 const items = ref<ContractApplication[]>([]);
@@ -76,6 +77,7 @@ async function decide(item: ContractApplication, decision: 'approve' | 'reject')
     if (current !== generation) return;
     items.value = items.value.map(row => row.id === saved.id ? saved : row);
     success.value = saved; submittedRequest.value = false;
+    if (saved.status === 'approved') emit('contractCreated');
     delete reasons[item.id];
   } catch (err) { if (current === generation) error.value = errorMessage(err); }
   finally { decidingId.value = null; }
