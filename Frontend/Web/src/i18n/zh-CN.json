@@ -789,5 +789,6 @@
   "Enter a reopen reason of 1–500 characters.": "请输入 1 至 500 个字符的重新开启原因。",
   "This web flow cannot provision that role.": "此网页流程无法创建该角色的账户。",
   "Photo:": "摄影：",
-  "Your basket: {count} items": "您的购物篮：{count} 件商品"
+  "Your basket: {count} items": "您的购物篮：{count} 件商品",
+  "Only the currently assigned technician may view this report": "只有当前被分配的技术人员才能查看此报修。"
 }
