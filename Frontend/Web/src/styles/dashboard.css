@@ -329,3 +329,5 @@
 .access-policy-summary { margin-top: 25px; }
 @media(max-width:650px) { .technician-grid { grid-template-columns: 1fr; } }
 .contract-choice .report-issue-button:disabled { cursor: not-allowed; }
+
+.workspace-language { display: flex; justify-content: flex-end; margin-bottom: 10px; }

@@ -8,10 +8,12 @@ import { useMaintenanceStore } from './stores/maintenance';
 import { useRealtimeStore } from './stores/realtime';
 import { setUnauthorizedHandler } from './services/api';
 import './styles/global.css';
+import { i18n } from './i18n';
 
 const app = createApp(App);
 const pinia = createPinia();
 app.use(pinia);
+app.use(i18n);
 const auth = useAuthStore(pinia);
 const maintenance = useMaintenanceStore(pinia);
 const shop = useShopStore(pinia);

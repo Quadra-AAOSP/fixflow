@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
+const { t } = useLocale();
 defineProps<{
   label: string;
   variant?: 'primary' | 'secondary';
@@ -24,6 +26,6 @@ defineProps<{
       class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"
       aria-hidden="true"
     />
-    {{ label }}
+    {{ t(label) }}
   </button>
 </template>

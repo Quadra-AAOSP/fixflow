@@ -5,6 +5,8 @@ import { Bell, House, FileText, MapPin, Users, Search, ChevronDown, Heart, Menu,
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
 import { useRealtimeStore } from '@/stores/realtime';
+import LanguageSelector from '@/components/ui/LanguageSelector.vue';
+import { useLocale } from '@/i18n';
 import { canProvision } from '@/constants/access';
 import { initials, formatDate } from '@/utils/maintenance';
 import PlantArt from '@/components/dashboard/PlantArt.vue';
@@ -15,6 +17,7 @@ const router = useRouter();
 const { user } = useAuth();
 const data = useMaintenanceStore();
 const realtime = useRealtimeStore();
+const { t } = useLocale();
 const mobileOpen = ref(false);
 const search = ref(String(route.query.q || ''));
 const notificationDialog = ref<HTMLDialogElement>();
@@ -43,7 +46,7 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
     <button v-if="mobileOpen" class="sidebar-scrim" aria-label="Close navigation" @click="mobileOpen = false" />
     <aside class="dashboard-sidebar" :class="{ 'is-open': mobileOpen }">
       <RouterLink to="/" class="dashboard-brand" @click="mobileOpen = false"><span class="leaf-logo"><i /><i /><i /></span><span>FixFlow<small>Spaces work better together</small></span></RouterLink>
-      <nav aria-label="Main navigation"><RouterLink v-for="link in links" :key="link.to" :to="link.to" :class="{ selected: ['/', '/technician'].includes(link.to) ? route.path === link.to : route.path.startsWith(link.to) }" @click="mobileOpen = false"><component :is="link.icon" :size="21" />{{ link.label }}</RouterLink></nav>
+      <nav :aria-label="t('Main navigation')"><RouterLink v-for="link in links" :key="link.to" :to="link.to" :class="{ selected: ['/', '/technician'].includes(link.to) ? route.path === link.to : route.path.startsWith(link.to) }" @click="mobileOpen = false"><component :is="link.icon" :size="21" />{{ t(link.label) }}</RouterLink></nav>
       <div class="sidebar-garden"><PlantArt /><p>Well-maintained<br />spaces create<br /><strong>brighter days.</strong></p></div>
       <span class="sidebar-version">A little care. A big difference.</span>
     </aside>
@@ -53,6 +56,7 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
         <div class="topbar-account"><button class="icon-button" aria-label="Notification availability" @click="notificationDialog?.showModal()"><Bell :size="23" /></button><span class="topbar-divider" /><RouterLink to="/profile" :aria-label="`${name}: view profile`" class="account-link"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></RouterLink></div>
       </header>
       <main class="dashboard-main">
+        <div class="workspace-language"><LanguageSelector /></div>
         <div v-if="user?.role !== 'shop_manager'" class="live-toolbar"><label v-if="user?.role === 'super_admin' && data.sites.length" class="site-selector">Site<select :value="data.selectedSiteId" :disabled="data.loading" @change="data.selectSite(Number(($event.target as HTMLSelectElement).value))"><option v-for="site in data.sites" :key="site.id" :value="site.id">{{ site.name }}</option></select></label><span v-else>{{ data.selectedSite?.name || (data.loading ? 'Loading your site…' : user?.role === 'technician' ? 'Technician account' : 'No site available') }}</span><span class="live-sync">{{ data.loading ? 'Refreshing…' : data.lastSynced ? `Updated ${formatDate(data.lastSynced, true)}` : 'Not synced' }}<button class="icon-button" :disabled="data.loading" aria-label="Refresh live data" @click="data.refresh()"><RefreshCw :size="16" /></button></span></div>
         <div v-if="data.sitesError" class="live-error" role="alert">{{ data.sitesError }} <button @click="data.refresh()">Retry</button></div>
         <p v-else-if="!data.loading && !data.sites.length && user?.role !== 'technician' && user?.role !== 'shop_manager'" class="live-empty">No sites are available for this account. Ask your administrator to check your site access.</p>

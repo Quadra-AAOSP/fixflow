@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowUpRight, Check, Wrench } from '@lucide/vue';
+import LanguageSelector from '@/components/ui/LanguageSelector.vue';
 </script>
 
 <template>
@@ -7,6 +8,7 @@ import { ArrowUpRight, Check, Wrench } from '@lucide/vue';
     <header class="brand-header">
       <RouterLink to="/" class="brand"><span class="brand-symbol"><Wrench :size="22" /></span>fixflow<span class="brand-dot">.</span></RouterLink>
       <span class="header-note">Little fixes. Better places.</span>
+      <LanguageSelector />
       <RouterLink to="/register" class="header-link">Join your community <ArrowUpRight :size="17" /></RouterLink>
     </header>
     <main class="auth-grid">
