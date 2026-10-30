@@ -1,5 +1,10 @@
 import { request } from './api';
-import type { TechnicianTermsStatus } from '@/types/technician';
+import type { RankingMode, TechnicianRanking, TechnicianSummary, TechnicianTermsStatus } from '@/types/technician';
+
+export const listTechnicians = () => request<TechnicianSummary[]>('/api/technicians');
+export function rankTechnicians(reportId: number, mode: RankingMode) {
+  return request<TechnicianRanking>(`/api/reports/${reportId}/technician-ranking`, { method: 'POST', body: JSON.stringify({ mode }) });
+}
 
 export function getTechnicianTerms(): Promise<TechnicianTermsStatus> {
   return request('/api/technician-terms/me');

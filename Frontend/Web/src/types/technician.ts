@@ -18,3 +18,15 @@ export type ContractApplication = {
   createdAt: string;
   decidedAt: string | null;
 };
+
+export type TechnicianSummary = {
+  id: number; firstName: string; lastName: string; email: string; phone: string | null;
+  availabilityStatus: 'available' | 'unavailable';
+  skills: { id: number; category: string; specialty: string | null; proficiency: number }[];
+  contracts: { siteId: number; siteName: string; createdAt: string }[];
+};
+export type RankingMode = 'STANDARD' | 'AI';
+export type TechnicianRanking = {
+  reportId: number; requestedMode: RankingMode; methodUsed: RankingMode; fallbackReason: string | null;
+  candidates: { technicianId: number; proficiency: number; specialtyMatch: boolean; activeCases: number; score: number }[];
+};

@@ -1,9 +1,16 @@
 import { stubApiFetch } from './csrfFetch';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { addTechnicianSkill } from '../src/services/technician';
+import { addTechnicianSkill, listTechnicians, rankTechnicians } from '../src/services/technician';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('technician trade submission', () => {
+  it('loads the directory and requests the chosen ranking mode for the actual report', async () => {
+    const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);
+    await listTechnicians();
+    await rankTechnicians(91, 'AI');
+    expect(fetch.mock.calls.map(call => call[0])).toEqual(['/api/technicians', '/api/reports/91/technician-ranking']);
+    expect(JSON.parse(fetch.mock.calls[1]?.[1].body)).toEqual({ mode: 'AI' });
+  });
   it('saves supplied skills with the actual technician ID and explicit proficiency', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 9, category: 'electrical', specialty: 'lighting', proficiency: 4 })));
     stubApiFetch(fetch);
