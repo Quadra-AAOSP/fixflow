@@ -39,7 +39,15 @@ describe('technician trade submission', () => {
     const fetch = vi.fn(); stubApiFetch(fetch);
     for (const level of ['', '0', '6', '2.5']) expect(() => addTechnicianSkill(28, 'electrical', 'lighting', level)).toThrow('proficiency');
     expect(() => addTechnicianSkill(28, '', 'lighting', '3')).toThrow('trade');
-    expect(() => addTechnicianSkill(28, 'electrical', '', '3')).toThrow('specialty');
+    expect(() => addTechnicianSkill(28, 'electrical', 'x'.repeat(129), '3')).toThrow('specialty');
     expect(fetch).not.toHaveBeenCalled();
   });
+});
+
+it('sends an optional empty specialty as null while keeping an explicit proficiency', async () => {
+  const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 9, category: 'general', specialty: null, proficiency: 3 })));
+  stubApiFetch(fetch);
+  const saved = await addTechnicianSkill(28, 'general', ' ', '3');
+  expect(JSON.parse(fetch.mock.calls[0]?.[1].body)).toEqual({ technicianId: 28, category: 'general', specialty: null, proficiency: 3 });
+  expect(saved.specialty).toBeNull();
 });

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { setLocale } from '../src/i18n';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
@@ -29,7 +30,7 @@ beforeEach(() => {
   vi.mocked(api.decideContractApplication).mockResolvedValue({ ...application, status: 'approved' });
   vi.mocked(termsApi.getTechnicianTerms).mockResolvedValue({ ...terms });
 });
-afterEach(() => wrapper?.unmount());
+afterEach(() => { wrapper?.unmount(); setLocale('en'); });
 
 describe('contract request screen interactions', () => {
   it('prefills an invitation site without automatically requesting a contract', async () => {
@@ -91,4 +92,14 @@ describe('contract request screen interactions', () => {
     expect(api.listContractApplications).not.toHaveBeenCalled();
     expect(wrapper.find('section').exists()).toBe(false);
   });
+});
+
+it('submits a contract request from Chinese controls without translating its note or identifiers', async () => {
+  setLocale('zh-CN'); wrapper = mount(ContractApplicationsPanel); await flushPromises();
+  await wrapper.get('input[type="number"]').setValue('71');
+  await wrapper.get('textarea').setValue('Original trade experience');
+  await wrapper.get('form').trigger('submit'); await flushPromises();
+  expect(api.requestTechnicianContract).toHaveBeenCalledWith(71, 'Original trade experience');
+  expect(wrapper.text()).toContain('申请 #93 已提交至场地 #71');
+  expect(wrapper.get('li').text()).toContain('待审核');
 });

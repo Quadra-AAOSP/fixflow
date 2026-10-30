@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { setLocale } from '../src/i18n';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
@@ -25,7 +26,7 @@ beforeEach(() => {
   vi.mocked(api.rankTechnicians).mockResolvedValue({ ...ranking });
   vi.mocked(assignTechnician).mockResolvedValue(report({ assignedTechnicianId: 54, status: 'assigned' }));
 });
-afterEach(() => wrapper?.unmount());
+afterEach(() => { wrapper?.unmount(); setLocale('en'); });
 
 describe('ranked technician assignment', () => {
   it('shows server workloads and assigns only a selected returned candidate', async () => {
@@ -74,4 +75,18 @@ describe('ranked technician assignment', () => {
     expect(api.listTechnicians).not.toHaveBeenCalled();
     expect(api.rankTechnicians).not.toHaveBeenCalled();
   });
+});
+
+it('explains Chinese AI fallback while preserving requested ranking codes and candidate IDs', async () => {
+  setLocale('zh-CN');
+  vi.mocked(api.rankTechnicians).mockResolvedValue({ ...ranking, requestedMode: 'AI', fallbackReason: 'AI ranking is not configured; deterministic ranking used' });
+  wrapper = mount(TechnicianAssignmentPanel, { props: { report: report() } }); await flushPromises();
+  await wrapper.get('select').setValue('AI'); await flushPromises();
+  expect(api.rankTechnicians).toHaveBeenLastCalledWith(1, 'AI');
+  expect(wrapper.get('[role="status"]').text()).toContain('未配置 AI 排序，已使用规则排序');
+  expect(wrapper.text()).toContain('Alex Rivera');
+  expect(wrapper.text()).toContain('此场地有 3 个进行中的任务');
+  await wrapper.get('input[type="radio"]').setValue(true);
+  await wrapper.get('form').trigger('submit'); await flushPromises();
+  expect(assignTechnician).toHaveBeenCalledWith(1, 54);
 });

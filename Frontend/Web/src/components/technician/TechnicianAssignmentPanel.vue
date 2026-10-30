@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { listTechnicians, rankTechnicians } from '@/services/technician';
@@ -6,6 +7,7 @@ import { assignTechnician } from '@/services/maintenance';
 import { ApiError, errorMessage } from '@/services/api';
 import type { Report } from '@/types/maintenance';
 import type { RankingMode, TechnicianRanking, TechnicianSummary } from '@/types/technician';
+const { t } = useLocale();
 
 const props = defineProps<{ report: Report; disabled?: boolean }>();
 const emit = defineEmits<{ saved: [report: Report]; busy: [value: boolean] }>();
@@ -34,7 +36,7 @@ const candidates = computed(() => {
 });
 const technicianName = (id: number) => {
   const item = directory.value.find(person => person.id === id);
-  return item ? `${item.firstName} ${item.lastName}` : `Technician #${id}`;
+  return item ? `${item.firstName} ${item.lastName}` : t('Technician #{id}', { id });
 };
 let generation = 0;
 onBeforeUnmount(() => { generation++; });
@@ -75,18 +77,18 @@ async function assign() {
 
 <template>
   <section v-if="allowed" class="detail-section">
-    <div class="card-heading"><h2>{{ report.assignedTechnicianId ? 'Reassign technician' : 'Assign a technician' }}</h2><button type="button" class="text-action" :disabled="loading || saving || disabled" @click="load">Refresh candidates</button></div>
-    <label v-if="manager" class="ranking-mode">Ranking method<select v-model="mode" :disabled="loading || saving || disabled" @change="load"><option value="STANDARD">Standard</option><option value="AI">AI assisted</option></select></label>
-    <p v-if="ranking" class="dialog-intro">Requested: {{ ranking.requestedMode }} · Method used: {{ ranking.methodUsed }}</p>
-    <p v-if="ranking?.fallbackReason" class="draft-notice" role="status">{{ ranking.fallbackReason }}</p>
-    <p v-if="!manager" class="dialog-intro">Available technicians with a contract and matching trade are shown. The service checks current terms when you assign. Ranking and workload counts require administrator access.</p>
-    <p v-if="error" class="live-error" role="alert">{{ error }}</p><p v-if="directoryError" class="live-error" role="alert">Directory: {{ directoryError }}</p>
-    <p v-if="loading" role="status">Loading contracted candidates…</p>
-    <p v-else-if="!error && !directoryError && !candidates.length">No matching available contracted technicians were returned. Refresh after a contract, skill, availability, or terms update.</p>
+    <div class="card-heading"><h2>{{ t(report.assignedTechnicianId ? 'Reassign technician' : 'Assign a technician') }}</h2><button type="button" class="text-action" :disabled="loading || saving || disabled" @click="load">{{ t("Refresh candidates") }}</button></div>
+    <label v-if="manager" class="ranking-mode">{{ t("Ranking method") }}<select v-model="mode" :disabled="loading || saving || disabled" @change="load"><option value="STANDARD">{{ t("Standard") }}</option><option value="AI">{{ t("AI assisted") }}</option></select></label>
+    <p v-if="ranking" class="dialog-intro">{{ t('Requested: {requested} · Method used: {used}', { requested: t(ranking.requestedMode), used: t(ranking.methodUsed) }) }}</p>
+    <p v-if="ranking?.fallbackReason" class="draft-notice" role="status">{{ t(ranking.fallbackReason) }}</p>
+    <p v-if="!manager" class="dialog-intro">{{ t("Available technicians with a contract and matching trade are shown. The service checks current terms when you assign. Ranking and workload counts require administrator access.") }}</p>
+    <p v-if="error" class="live-error" role="alert">{{ t(error) }}</p><p v-if="directoryError" class="live-error" role="alert">{{ t('Directory: {error}', { error: t(directoryError) }) }}</p>
+    <p v-if="loading" role="status">{{ t("Loading contracted candidates…") }}</p>
+    <p v-else-if="!error && !directoryError && !candidates.length">{{ t("No matching available contracted technicians were returned. Refresh after a contract, skill, availability, or terms update.") }}</p>
     <form v-else-if="candidates.length" @submit.prevent="assign"><fieldset :disabled="loading || saving || disabled" class="candidate-options">
-      <legend class="sr-only">Choose a technician</legend>
-      <label v-for="item in candidates" :key="item.technicianId" class="candidate-option"><input v-model="selectedId" type="radio" name="technician" :value="item.technicianId" required /><span><strong>{{ technicianName(item.technicianId) }}</strong><small>Account #{{ item.technicianId }} · Proficiency {{ item.proficiency }}/5<template v-if="item.specialtyMatch"> · Specialty match</template><template v-if="item.activeCases !== null"> · {{ item.activeCases }} active cases at this site</template></small></span></label>
-      <button type="submit" class="report-issue-button" :disabled="selectedId === null">{{ saving ? 'Saving assignment…' : 'Save assignment' }}</button>
+      <legend class="sr-only">{{ t("Choose a technician") }}</legend>
+      <label v-for="item in candidates" :key="item.technicianId" class="candidate-option"><input v-model="selectedId" type="radio" name="technician" :value="item.technicianId" required /><span><strong>{{ technicianName(item.technicianId) }}</strong><small>{{ t('Account #{id} · Proficiency {level}/5', { id: item.technicianId, level: item.proficiency }) }}<template v-if="item.specialtyMatch"> · {{ t('Specialty match') }}</template><template v-if="item.activeCases !== null"> · {{ t('{count} active cases at this site', { count: item.activeCases }) }}</template></small></span></label>
+      <button type="submit" class="report-issue-button" :disabled="selectedId === null">{{ t(saving ? 'Saving assignment…' : 'Save assignment') }}</button>
     </fieldset></form>
   </section>
 </template>

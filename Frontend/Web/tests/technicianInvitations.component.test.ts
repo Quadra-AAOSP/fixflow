@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { setLocale } from '../src/i18n';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory, createRouter } from 'vue-router';
@@ -19,7 +20,7 @@ beforeEach(() => {
     { id: 7, siteId: 71, category: 'plumbing', specialty: null, reason: 'We need plumbing expertise', createdAt: '2026-10-30T08:00:00Z' },
   ] });
 });
-afterEach(() => wrapper?.unmount());
+afterEach(() => { wrapper?.unmount(); setLocale('en'); });
 describe('technician invitation screens', () => {
   it('shows the authorized inbox and links to a contract review with the supplied site ID', async () => {
     const router = createRouter({ history: createMemoryHistory(), routes: [
@@ -59,4 +60,15 @@ describe('technician invitation screens', () => {
     expect(wrapper.find('form').exists()).toBe(false);
     expect(api.sendTechnicianInvitations).not.toHaveBeenCalled();
   });
+});
+
+it('shows Chinese invitation batch results without translating the supplied invitation reason', async () => {
+  setLocale('zh-CN'); useAuthStore().user!.role = 'admin';
+  vi.mocked(api.sendTechnicianInvitations).mockResolvedValue({ created: 4, page: 0, hasNext: false });
+  wrapper = mount(TechnicianInvitationSender, { props: { report: report() } });
+  await wrapper.get('textarea').setValue('Original invitation reason');
+  await wrapper.get('form').trigger('submit'); await flushPromises();
+  expect(api.sendTechnicianInvitations).toHaveBeenCalledWith(1, 'Original invitation reason', 0);
+  expect(wrapper.text()).toContain('已从第 1 批创建 4 条邀请');
+  expect(wrapper.text()).toContain('已无更多匹配技能的候选批次');
 });

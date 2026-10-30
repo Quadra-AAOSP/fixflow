@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { getTechnicianAvailability, setTechnicianAvailability } from '@/services/technician';
 import { errorMessage } from '@/services/api';
 import { formatDate } from '@/utils/maintenance';
 import type { TechnicianAvailability } from '@/types/technician';
+const { t } = useLocale();
 
 const { user } = useAuth();
 const availability = ref<TechnicianAvailability | null>(null);
@@ -37,10 +39,10 @@ async function toggle() {
 
 <template>
   <section v-if="user?.role === 'technician'" class="dashboard-card availability-panel">
-    <div class="card-heading"><h2>Your availability</h2><button type="button" class="text-action" :disabled="loading || saving" @click="load">Refresh availability</button></div>
-    <p class="dialog-intro">Available technicians can appear in matching site candidate lists when they have the required contract, skills, and terms acceptance. Changing availability does not change existing assignments.</p>
-    <p v-if="loading" role="status">Loading availability…</p><p v-if="error" role="alert" class="live-error">{{ error }}</p>
-    <template v-if="availability"><p role="status">Current status: <strong>{{ availability.status }}</strong></p><button type="button" role="switch" aria-label="Available for site work" :aria-checked="availability.status === 'available'" :disabled="loading || saving" class="report-issue-button" @click="toggle">{{ saving ? 'Saving…' : availability.status === 'available' ? 'Set unavailable' : 'Set available' }}</button><p v-if="availability.updatedAt" class="dialog-intro">Updated {{ formatDate(availability.updatedAt, true) }}</p></template>
+    <div class="card-heading"><h2>{{ t("Your availability") }}</h2><button type="button" class="text-action" :disabled="loading || saving" @click="load">{{ t("Refresh availability") }}</button></div>
+    <p class="dialog-intro">{{ t("Available technicians can appear in matching site candidate lists when they have the required contract, skills, and terms acceptance. Changing availability does not change existing assignments.") }}</p>
+    <p v-if="loading" role="status">{{ t("Loading availability…") }}</p><p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
+    <template v-if="availability"><p role="status">{{ t("Current status:") }} <strong>{{ t(availability.status) }}</strong></p><button type="button" role="switch" :aria-label="t('Available for site work')" :aria-checked="availability.status === 'available'" :disabled="loading || saving" class="report-issue-button" @click="toggle">{{ t(saving ? 'Saving…' : availability.status === 'available' ? 'Set unavailable' : 'Set available') }}</button><p v-if="availability.updatedAt" class="dialog-intro">{{ t('Updated {date}', { date: formatDate(availability.updatedAt, true) }) }}</p></template>
   </section>
 </template>
 
