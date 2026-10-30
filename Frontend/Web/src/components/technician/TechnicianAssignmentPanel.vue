@@ -52,7 +52,7 @@ async function load() {
   else error.value = errorMessage(results[1].reason);
   loading.value = false;
 }
-watch(() => [props.report.id, props.report.siteId, props.report.category, props.report.specialty, allowed.value, user.value?.id, user.value?.role], load, { immediate: true });
+watch([() => props.report.id, () => props.report.siteId, () => props.report.category, () => props.report.specialty, () => allowed.value, () => user.value?.id, () => user.value?.role], load, { immediate: true });
 async function assign() {
   const id = selectedId.value;
   if (!allowed.value || loading.value || saving.value || props.disabled || !candidates.value.some(item => item.technicianId === id)) return;

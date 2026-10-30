@@ -18,7 +18,7 @@ const error = ref('');
 let generation = 0;
 onBeforeUnmount(() => { generation++; });
 function reset() { generation++; reason.value = ''; sent.value = null; error.value = ''; }
-watch(() => [props.report.id, props.report.category, props.report.specialty, allowed.value, user.value?.id], reset);
+watch([() => props.report.id, () => props.report.category, () => props.report.specialty, () => allowed.value, () => user.value?.id], reset);
 async function send() {
   if (!allowed.value || busy.value || props.disabled || sent.value && !sent.value.hasNext) return;
   const current = generation;

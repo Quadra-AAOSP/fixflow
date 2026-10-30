@@ -13,6 +13,7 @@ import TechnicianAssignmentPanel from '@/components/technician/TechnicianAssignm
 import TechnicianInvitationSender from '@/components/technician/TechnicianInvitationSender.vue';
 import ReportReviewPanel from '@/components/ReportReviewPanel.vue';
 import ReportClassificationPanel from '@/components/ReportClassificationPanel.vue';
+import ReportVisionPanel from '@/components/ReportVisionPanel.vue';
 
 const route = useRoute();
 const { user } = useAuth();
@@ -30,7 +31,8 @@ const assignmentBusy = ref(false);
 const invitationBusy = ref(false);
 const reviewBusy = ref(false);
 const classificationBusy = ref(false);
-const actionInProgress = computed(() => busy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value);
+const visionBusy = ref(false);
+const actionInProgress = computed(() => busy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value || visionBusy.value);
 let generation = 0;
 onBeforeUnmount(() => { generation++; });
 const joined = computed(() => reporters.value.some(item => item.userId === user.value?.id));
@@ -84,6 +86,15 @@ function reviewed(saved: Report) {
 function classified(saved: Report) {
   report.value = saved; data.upsert(saved); message.value = 'Classification refreshed from the service.';
 }
+async function visionFinished(id: number) {
+  const current = generation;
+  const snapshot = report.value;
+  if (report.value?.id !== id) return;
+  try {
+    const saved = await api.getReport(id);
+    if (current === generation && report.value === snapshot) { report.value = saved; data.upsert(saved); }
+  } catch (err) { if (current === generation && report.value === snapshot) actionError.value = errorMessage(err); }
+}
 
 </script>
 <template>
@@ -94,6 +105,7 @@ function classified(saved: Report) {
       <section class="detail-section"><h2>People attached to this report</h2><p v-if="reportersError" class="live-error">{{ reportersError }}</p><ul v-else-if="reportersLoaded" class="reporter-list"><li v-for="person in reporters" :key="person.userId">{{ person.userId === user?.id ? 'You' : `User #${person.userId}` }}<span>Joined {{ formatDate(person.joinedAt, true) }}</span></li></ul><p v-else class="dialog-intro">Reporter identities are only available to people with access to this report.</p><button v-if="user?.role === 'reporter' && !joined" class="report-issue-button" :disabled="actionInProgress" @click="join">{{ busy ? 'Saving…' : 'This issue affects me too' }}</button><p v-if="user?.role === 'reporter' && !joined" class="dialog-intro">Joining attaches your account to the report and gives you access to its shared details.</p></section>
       <div v-if="report.confirmedAt || report.reopenReason" class="detail-section"><p v-if="report.confirmedAt">Confirmed {{ formatDate(report.confirmedAt, true) }}<template v-if="report.confirmedByName"> by {{ report.confirmedByName }}</template></p><p v-if="report.reopenReason">Reopen reason: {{ report.reopenReason }}</p></div>
       <ReportClassificationPanel :report="report" :disabled="actionInProgress" @busy="classificationBusy = $event" @saved="classified" />
+      <ReportVisionPanel :report="report" :disabled="actionInProgress" @busy="visionBusy = $event" @finished="visionFinished" />
       <ReportReviewPanel :report="report" :disabled="actionInProgress" @busy="reviewBusy = $event" @saved="reviewed" />
       <TechnicianAssignmentPanel :report="report" :disabled="actionInProgress" @busy="assignmentBusy = $event" @saved="assigned" />
       <TechnicianInvitationSender :report="report" :disabled="actionInProgress" @busy="invitationBusy = $event" />

@@ -33,6 +33,8 @@ describe('ranked technician assignment', () => {
     expect(api.rankTechnicians).toHaveBeenCalledWith(1, 'STANDARD');
     expect(wrapper.text()).toContain('Alex Rivera');
     expect(wrapper.text()).toContain('3 active cases at this site');
+    await wrapper.setProps({ report: report({ address: 'Room 2' }) }); await flushPromises();
+    expect(api.rankTechnicians).toHaveBeenCalledTimes(1);
     await wrapper.get('form').trigger('submit');
     expect(assignTechnician).not.toHaveBeenCalled();
     await wrapper.get('input[type="radio"]').setValue(true);

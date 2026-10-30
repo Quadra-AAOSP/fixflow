@@ -46,4 +46,9 @@ export interface CreateReportPayload {
   reporterUrgency: Urgency; reporterReason?: string; siteId: number; subsiteId?: number;
 }
 export interface ReportReporter { reportId: number; userId: number; joinedAt: string }
+export interface ReportVisionJob {
+  jobId: string; reportId: number;
+  status: 'queued' | 'processing' | 'completed' | 'review_required' | 'stale' | 'failed';
+  model: string | null;
+}
 export type SitePayload = Pick<Site, 'name' | 'type' | 'contractStatus' | 'address' | 'description' | 'imageUrl'>;

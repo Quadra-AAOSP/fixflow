@@ -47,6 +47,7 @@ describe('technician invitation screens', () => {
     expect(api.sendTechnicianInvitations).toHaveBeenCalledWith(1, 'Additional plumbing expertise needed', 0);
     expect(wrapper.text()).toContain('Created 4 invitations from batch 1');
     expect(api.sendTechnicianInvitations).toHaveBeenCalledTimes(1);
+    await wrapper.setProps({ report: report({ updatedAt: '2026-10-30T08:00:00Z' }) });
     await wrapper.get('form').trigger('submit'); await flushPromises();
     expect(api.sendTechnicianInvitations).toHaveBeenLastCalledWith(1, 'Additional plumbing expertise needed', 1);
     expect(wrapper.text()).toContain('Created 2 invitations from batch 2');
