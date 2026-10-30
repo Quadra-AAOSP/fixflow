@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue';
+import { translate } from '@/i18n';
 import { defineStore } from 'pinia';
 import { useAuthStore } from './auth';
 import * as api from '@/services/maintenance';
@@ -22,7 +23,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   const selectedSite = computed(() => sites.value.find(site => site.id === selectedSiteId.value));
   const canCreate = computed(() => auth.user?.capabilities?.createReport ?? (!!auth.user && ['reporter', 'staff', 'admin', 'super_admin'].includes(auth.user.role)));
   const canAssign = computed(() => auth.user?.capabilities?.assignTechnician ?? (!!auth.user && ['staff', 'admin', 'super_admin'].includes(auth.user.role)));
-  const siteName = (id: number | null) => sites.value.find(site => site.id === id)?.name ?? (id == null ? 'Site unavailable' : `Site #${id}`);
+  const siteName = (id: number | null) => sites.value.find(site => site.id === id)?.name ?? (id == null ? translate('Site unavailable') : translate('Site #{id}', { id }));
 
   function reset() {
     generation++; scopeRequest?.abort(); scopeRequest = undefined;

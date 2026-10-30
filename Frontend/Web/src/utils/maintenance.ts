@@ -22,7 +22,7 @@ export function matchesFilter(report: Report, filter: ReportFilter) {
 }
 export function searchReports(reports: Report[], query: string, siteName: (id: number | null) => string, filter: ReportFilter = 'all') {
   const needle = query.trim().toLocaleLowerCase();
-  return reports.filter(report => matchesFilter(report, filter) && [report.id, report.description, report.category, report.createdByName, siteName(report.siteId), report.assignedTechnicianId, statusLabels[report.status]].filter(value => value != null).join(' ').toLocaleLowerCase().includes(needle));
+  return reports.filter(report => matchesFilter(report, filter) && [report.id, report.description, report.category, report.createdByName, siteName(report.siteId), report.assignedTechnicianId, statusLabels[report.status], translate(statusLabels[report.status]), translate(humanize(report.category))].filter(value => value != null).join(' ').toLocaleLowerCase().includes(needle));
 }
 export function summarize(reports: Report[]) {
   return { open: reports.filter(report => statusGroup(report.status) === 'open').length,
