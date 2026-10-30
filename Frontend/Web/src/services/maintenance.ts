@@ -9,6 +9,7 @@ export const listReports = async (siteId: number) => {
   return page.content ?? [];
 };
 export const getReport = (id: number) => request<Report>(`/api/reports/${id}`);
+export const classifyReport = (id: number) => request<Report>(`/api/reports/${id}/classify`, { method: 'POST' });
 export const createReport = (payload: CreateReportPayload) => request<Report>('/api/reports', { method: 'POST', body: JSON.stringify(payload) });
 export function createReportWithPhotos(payload: CreateReportPayload, photos: File[]) {
   if (photos.length > REPORT_PHOTO_LIMIT) throw new Error('A report may have at most 5 photos.');

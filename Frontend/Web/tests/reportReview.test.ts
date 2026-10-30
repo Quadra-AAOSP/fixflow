@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { confirmReport, reopenReport } from '../src/services/maintenance';
+import { classifyReport, confirmReport, reopenReport } from '../src/services/maintenance';
 import { stubApiFetch } from './csrfFetch';
 afterEach(() => vi.unstubAllGlobals());
 describe('report review API contract', () => {
+  it('posts manual classification to the selected report', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('{}')); stubApiFetch(fetch);
+    await classifyReport(91);
+    expect(fetch.mock.calls[0]?.[0]).toBe('/api/reports/91/classify');
+    expect(fetch.mock.calls[0]?.[1].method).toBe('POST');
+  });
   it('uses the confirmation and dedicated reopen endpoints', async () => {
     const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);
     await confirmReport(91); await reopenReport(91, ' The repair did not hold ');
