@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { ref } from 'vue';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
 import { Wrench } from '@lucide/vue';
@@ -8,6 +9,8 @@ import TextField from '@/components/ui/TextField.vue';
 import { useAuth } from '@/composables/useAuth';
 import { ApiError } from '@/services/auth';
 import { accountHome } from '@/utils/navigation';
+
+const { t } = useLocale();
 
 const router = useRouter();
 const route = useRoute();
@@ -49,10 +52,10 @@ async function onSubmit() {
 <template>
   <div>
     <div class="login-heading">
-      <span class="form-kicker">YOUR SPACE, TAKEN CARE OF</span>
+      <span class="form-kicker">{{ t("YOUR SPACE, TAKEN CARE OF") }}</span>
       <div class="welcome-symbol"><Wrench :size="26" /></div>
-      <h1>Welcome back<span>.</span></h1>
-      <p>A better place starts with you. Sign in to keep things flowing.</p>
+      <h1>{{ t("Welcome back") }}<span>.</span></h1>
+      <p>{{ t("A better place starts with you. Sign in to keep things flowing.") }}</p>
     </div>
 
     <form @submit.prevent="onSubmit">
@@ -71,20 +74,20 @@ async function onSubmit() {
         placeholder="••••••••"
       />
 
-      <p v-if="error" class="mb-3 text-sm text-urgency-critical">{{ error }}</p>
+      <p v-if="error" role="alert" class="mb-3 text-sm text-urgency-critical">{{ t(error) }}</p>
 
       <Button label="Sign in →" type="submit" :loading="submitting" />
     </form>
 
     <p class="mt-6 text-center text-sm text-muted dark:text-muted-dark">
-      New around here?
+      {{ t("New around here?") }}
       <RouterLink
         to="/register"
         class="font-semibold text-primary dark:text-primary-dark"
       >
-        Create an account
+        {{ t("Create an account") }}
       </RouterLink>
     </p>
-    <div class="auth-reassurance"><span>✳</span> Your report. The right people. A little peace of mind.</div>
+    <div class="auth-reassurance"><span>✳</span> {{ t("Your report. The right people. A little peace of mind.") }}</div>
   </div>
 </template>
