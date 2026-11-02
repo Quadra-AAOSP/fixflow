@@ -19,7 +19,9 @@ export interface SubsiteAlert {
   id: number; siteId: number; requestedByUserId: number;
   note: string | null; status: 'pending' | 'resolved'; createdAt: string;
 }
+export type ReportVisibility = 'public' | 'private';
 export interface Report {
+  visibility?: ReportVisibility;
   id: number; siteId: number | null; subsiteId: number | null; createdByUserId: number | null; createdByName: string | null;
   description: string; address: string | null; category: string; specialty: string | null;
   aiUrgency: Urgency | null; reporterUrgency: Urgency; reporterReason: string | null; finalUrgency: Urgency | null;
@@ -45,6 +47,7 @@ export interface ReportPage {
   content: Report[]; page: number; size: number; totalElements: number; totalPages: number;
 }
 export interface CreateReportPayload {
+  visibility?: ReportVisibility;
   description: string; address?: string; category: string; specialty?: string;
   reporterUrgency: Urgency; reporterReason?: string; siteId: number; subsiteId?: number;
 }

@@ -124,3 +124,10 @@ it('ignores an old suggestion after the user switches away from and back to a si
   await wrapper.get('button[aria-controls="building-suggestion"]').trigger('click');
   expect(wrapper.get('#building-suggestion-fields').text()).not.toContain('sent to the site administrator');
 });
+it('submits the selected privacy and optional specialty without changing category codes', async () => {
+  await mountForm(); await completeFields();
+  await wrapper.get('input[maxlength="128"]').setValue('pipework');
+  await wrapper.findAll('select')[3]!.setValue('private');
+  await wrapper.findAll('form')[0]!.trigger('submit'); await flushPromises();
+  expect(api.createReport).toHaveBeenCalledWith(expect.objectContaining({ visibility: 'private', specialty: 'pipework', category: 'plumbing' }));
+});

@@ -9,7 +9,7 @@ import { createReport, createReportWithPhotos, listSubsites, requestSubsiteAddit
 import { REPORT_PHOTO_LIMIT, REPORT_PHOTO_TYPES, validateReportPhoto } from '@/services/reportPhotos';
 import { ApiError, errorMessage } from '@/services/api';
 import { humanize, urgencyLabels } from '@/utils/maintenance';
-import type { Subsite } from '@/types/maintenance';
+import type { ReportVisibility, Subsite } from '@/types/maintenance';
 import type { Urgency } from '@/types';
 const { t } = useLocale();
 
@@ -19,6 +19,8 @@ const router = useRouter();
 const description = ref('');
 const address = ref('');
 const category = ref('');
+const specialty = ref('');
+const visibility = ref<ReportVisibility>('public');
 const urgency = ref<Urgency | ''>('');
 const reason = ref('');
 const subsiteId = ref<number | null>(null);
@@ -110,6 +112,7 @@ async function submit() {
   const payload = {
     siteId, subsiteId: subsiteId.value!, description: description.value.trim(),
     address: address.value.trim() || undefined, category: category.value,
+    specialty: specialty.value.trim() || undefined, visibility: visibility.value,
     reporterUrgency: urgency.value, reporterReason: reason.value.trim() || undefined,
   };
   const actorId = user.value?.id;
@@ -155,6 +158,9 @@ async function submit() {
             <label>{{ t("Category") }}<select v-model="category" required><option disabled value="">{{ t("Choose a category") }}</option><option v-for="item in categories" :key="item" :value="item">{{ t(humanize(item)) }}</option></select></label>
             <label>{{ t("Your urgency") }}<select v-model="urgency" required><option disabled value="">{{ t("Choose an urgency") }}</option><option v-for="(label, value) in urgencyLabels" :key="value" :value="value">{{ t(label) }}</option></select></label>
           </div>
+          <label>{{ t('Specialty (optional)') }}<input v-model="specialty" maxlength="128" :placeholder="t('Specific trade or equipment, if known')" /></label>
+          <label>{{ t('Report visibility') }}<select v-model="visibility" required><option value="public">{{ t('Public within your site') }}</option><option value="private">{{ t('Private report') }}</option></select></label>
+          <p class="field-hint">{{ t(visibility === 'private' ? 'Private reports are restricted to the creator, attached reporters, authorized staff and admins, and the assigned technician.' : 'Other reporters at your site can browse and join this report. Your identity and exact address stay masked until they join.') }}</p>
           <label>{{ t("Why this urgency? (optional)") }}<textarea v-model="reason" rows="3" maxlength="2000" :placeholder="t('Explain how this issue affects the space.')" /></label>
           <label>{{ t("Photos (optional)") }}<input ref="photoInput" type="file" multiple :accept="REPORT_PHOTO_TYPES.join(',')" @change="selectPhotos" /></label>
           <p class="field-hint">{{ t('Up to {limit} photos, 5 MiB each. Attached photos can be viewed by people authorized to access the report.', { limit: REPORT_PHOTO_LIMIT }) }}</p>

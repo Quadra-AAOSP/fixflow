@@ -199,3 +199,32 @@ configured school categories and two available contracted technicians. No site
 was deleted. Component/service tests cover routes, DTO paths, pool privacy,
 late responses, independent failures and refused deletion. Full regression:
 50 test files / 302 tests and production build passed.
+
+## Report intake and live peer privacy (2 November)
+
+Report intake now exposes the backend's optional specialty and public/private
+visibility fields. JSON uses lowercase visibility; multipart uses the Java enum
+name required by the request-parameter binding. Both transports share DTO-bound
+validation: description 10,000, address 512, category/specialty 128, urgency reason
+2,000 characters; blank optional fields are omitted. Backend authorization and
+validation remain authoritative. Boundary tests cover accepted maximums, oversized
+rejection before transport, context validation and both visibility encodings.
+
+Live browser flow in fixflow_web_verify_1793370073:
+
+1. web-reporter@example.invalid submitted public report #3 through the actual
+   form (building A, plumbing, medium urgency, specialty pipework). The form
+   navigated to the saved detail, which displayed the entered fields.
+2. After logout, web-peer@example.invalid opened the same report. Description
+   and specialty were visible; creator name, exact room and urgency reason were
+   absent from rendered DOM before membership. The join action was available.
+3. Clicking the join action attached only this synthetic fixture. The detail
+   refreshed from the backend: creator, room and reason appeared, with the peer
+   in the attached-reporter list and the join action removed.
+4. Opening unrelated private report #2 still returned Report not found; its
+   description/room and the join action were absent. Joining public #3 did not
+   grant access to private #2. No AI provider or real personal data was used.
+
+This verifies the create/detail/join/peer privacy acceptance slice; it does not
+prove every form's limits or the unpublished resolution lifecycle. All 51 test
+files / 318 tests and the production build passed.

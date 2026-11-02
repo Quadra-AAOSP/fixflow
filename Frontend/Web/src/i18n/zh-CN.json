@@ -891,5 +891,14 @@
   "Permanently delete {name}? This cannot be undone. The server may refuse deletion while related records exist.": "要永久删除 {name} 吗？此操作无法撤销。若存在关联记录，服务器可能拒绝删除。",
   "Type the exact site name to confirm": "输入完整场地名称以确认",
   "Delete site permanently": "永久删除场地",
-  "Deleting…": "正在删除…"
+  "Deleting…": "正在删除…",
+  "Check the report field lengths and complete the required description and category.": "请检查报修字段长度，并填写必填的描述和类别。",
+  "Choose a valid site, building, urgency and visibility.": "请选择有效的场地、建筑、紧急程度和可见范围。",
+  "Specialty (optional)": "专业细分（可选）",
+  "Specific trade or equipment, if known": "如已知，请填写具体工种或设备",
+  "Report visibility": "报修可见范围",
+  "Public within your site": "场地内公开",
+  "Private report": "私密报修",
+  "Private reports are restricted to the creator, attached reporters, authorized staff and admins, and the assigned technician.": "私密报修仅限创建者、已加入的报修人、有权访问的工作人员和管理员，以及被指派的技术人员查看。",
+  "Other reporters at your site can browse and join this report. Your identity and exact address stay masked until they join.": "同一场地的其他报修人可以浏览并加入此报修。加入前，他们无法查看您的身份和具体地址。"
 }
