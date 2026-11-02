@@ -10,6 +10,7 @@ import * as api from '@/services/maintenance';
 import { ApiError, errorMessage } from '@/services/api';
 import { formatDate, humanize, statusLabels, statusTone, urgencyLabels } from '@/utils/maintenance';
 import type { Report, ReportReporter } from '@/types/maintenance';
+import ReportAssistantPanel from '@/components/ReportAssistantPanel.vue';
 import ReportPhotosPanel from '@/components/ReportPhotosPanel.vue';
 import TechnicianAssignmentPanel from '@/components/technician/TechnicianAssignmentPanel.vue';
 import TechnicianInvitationSender from '@/components/technician/TechnicianInvitationSender.vue';
@@ -123,6 +124,7 @@ async function visionFinished(id: number) {
       <TechnicianAssignmentPanel :report="report" :disabled="actionInProgress" @busy="assignmentBusy = $event" @saved="assigned" />
       <TechnicianInvitationSender :report="report" :disabled="actionInProgress" @busy="invitationBusy = $event" />
       <ReportPhotosPanel :report="report" />
+      <ReportAssistantPanel :report="report" />
     </template>
   </section>
 </template>

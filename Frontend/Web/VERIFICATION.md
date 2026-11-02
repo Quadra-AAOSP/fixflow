@@ -121,3 +121,15 @@ No real report was submitted or building automatically approved.
 Endpoint source review is recorded in ENDPOINT_AUDIT.md, including unconnected
 product administration, assistant and destructive administration routes. This
 batch does not establish that every backend endpoint is connected.
+
+## Report assistant integration
+
+Report detail now exposes the published assistant endpoint only to the matching
+role/site/participant audience. Each send requires an opt-in checkbox explaining
+that the configured provider receives the question and authorized report context.
+The UI never sends automatically, never fabricates a reply after provider fallback,
+renders replies as text, bounds history to the backend's 20-turn limit and clears
+conversation state on report/account/access changes. Late responses after clearing
+are ignored. Component/service tests cover consent, private-state invalidation,
+fallback, unsafe markup, role restrictions and the exact POST body. Live provider
+answers have not been verified; the disposable server has AI disabled.

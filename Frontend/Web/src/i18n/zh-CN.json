@@ -799,5 +799,17 @@
   "Browse your community’s reports to find an existing issue before creating another.": "提交新报修前，先查看社区中是否已有相同问题。",
   "You have not reported or joined any issues at this site yet.": "您尚未在此场地提交或加入任何报修。",
   "Suggest a missing building": "建议添加缺少的建筑",
-  "Suggestions are reviewed by your site administrator. Choose an approved building before submitting your report.": "您的建议将由场地管理员审核。提交报修前，请选择已获批准的建筑。"
+  "Suggestions are reviewed by your site administrator. Choose an approved building before submitting your report.": "您的建议将由场地管理员审核。提交报修前，请选择已获批准的建筑。",
+  "Report assistant": "报修助手",
+  "Ask about this report. Answers may be inaccurate; use the recorded report status for decisions. Chat stays in this page and is cleared when access changes.": "就此报修提问。回答可能不准确，请以记录的报修状态为准。聊天仅保留在当前页面，访问权限变更时将清除。",
+  "Send my question and authorized report context to the configured AI provider. Do not include personal or confidential information.": "将我的问题和已授权的报修信息发送至配置的 AI 服务商。请勿输入个人或机密信息。",
+  "Your question": "您的问题",
+  "Ask assistant": "向助手提问",
+  "Clear chat": "清除聊天",
+  "Assistant": "助手",
+  "The assistant is unavailable. Your question was not answered. Please try again.": "助手暂时不可用，尚未回答您的问题。请重试。",
+  "Enter a question of up to 2,000 characters.": "请输入不超过 2,000 字符的问题。",
+  "The assistant response is incomplete. Please try again.": "助手回复不完整，请重试。",
+  "Assistant is not configured": "尚未配置助手",
+  "Too many assistant requests; please slow down": "助手请求过于频繁，请稍后重试。"
 }

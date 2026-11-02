@@ -25,7 +25,7 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 | ContractApplicationController | `POST /api/technician-contract-requests` | Connected: Contracts request tracking and site-admin decisions. |
 | ContractApplicationController | `GET /api/technician-contract-requests` | Connected: Contracts request tracking and site-admin decisions. |
 | ContractApplicationController | `POST /api/technician-contract-requests/{id}/decision` | Connected: Contracts request tracking and site-admin decisions. |
-| ReportAssistantController | `POST /api/reports/{reportId}/assistant` | Not connected: report assistant chat still needs its screen. |
+| ReportAssistantController | `POST /api/reports/{reportId}/assistant` | Connected: role-scoped ReportAssistantPanel with opt-in, stateless history, fallback/error handling and access-change cleanup. Live provider answers remain unverified. |
 | ReportController | `POST /api/reports` | Connected: report intake, browse/detail, classification, join, assignment and repair review. |
 | ReportController | `POST /api/reports` | Connected: report intake, browse/detail, classification, join, assignment and repair review. |
 | ReportController | `GET /api/reports` | Connected: report intake, browse/detail, classification, join, assignment and repair review. |
@@ -89,7 +89,7 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 
 ## Remaining integration work
 
-- Implement super-admin/shop-manager product administration and authorized report assistant UI.
+- Implement super-admin/shop-manager product administration.
 - Connect dedicated site reporting-setup/taxonomy/pool reads where they replace broad reads; retain schema/permission checks.
 - Add intentional, reviewed site/rule/contract deletion workflows rather than exposing destructive buttons on every role’s screen.
 - Verify role flows and mutations in the live browser against disposable fixtures. Unit coverage alone is insufficient.
