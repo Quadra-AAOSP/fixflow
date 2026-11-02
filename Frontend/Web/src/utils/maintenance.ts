@@ -1,4 +1,5 @@
 import type { Report, ReportStatus } from '@/types/maintenance';
+import { localeTag, translate } from '@/i18n';
 
 // Labels and state groups mirror the backend's ReportStatus and Urgency contract.
 export const statusLabels: Record<ReportStatus, string> = {
@@ -21,7 +22,7 @@ export function matchesFilter(report: Report, filter: ReportFilter) {
 }
 export function searchReports(reports: Report[], query: string, siteName: (id: number | null) => string, filter: ReportFilter = 'all') {
   const needle = query.trim().toLocaleLowerCase();
-  return reports.filter(report => matchesFilter(report, filter) && [report.id, report.description, report.category, report.createdByName, siteName(report.siteId), report.assignedTechnicianId, statusLabels[report.status]].filter(value => value != null).join(' ').toLocaleLowerCase().includes(needle));
+  return reports.filter(report => matchesFilter(report, filter) && [report.id, report.description, report.category, report.createdByName, siteName(report.siteId), report.assignedTechnicianId, statusLabels[report.status], translate(statusLabels[report.status]), translate(humanize(report.category))].filter(value => value != null).join(' ').toLocaleLowerCase().includes(needle));
 }
 export function summarize(reports: Report[]) {
   return { open: reports.filter(report => statusGroup(report.status) === 'open').length,
@@ -36,12 +37,12 @@ export function weeklyChart(reports: Report[], weekOffset: number, now = new Dat
     const start = new Date(monday); start.setDate(start.getDate() + index);
     const end = new Date(start); end.setDate(end.getDate() + 1);
     const counts = summarize(reports.filter(report => new Date(report.createdAt) >= start && new Date(report.createdAt) < end));
-    return { date: start, label: start.toLocaleDateString(undefined, { weekday: 'short' }), values: [counts.open, counts.progress, counts.resolved] };
+    return { date: start, label: start.toLocaleDateString(localeTag(), { weekday: 'short' }), values: [counts.open, counts.progress, counts.resolved] };
   });
 }
 export function formatDate(value: string | null | undefined, includeTime = false) {
-  if (!value || !Number.isFinite(Date.parse(value))) return 'Not available';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', ...(includeTime ? { timeStyle: 'short' as const } : {}) }).format(new Date(value));
+  if (!value || !Number.isFinite(Date.parse(value))) return translate('Not available');
+  return new Intl.DateTimeFormat(localeTag(), { dateStyle: 'medium', ...(includeTime ? { timeStyle: 'short' as const } : {}) }).format(new Date(value));
 }
 export const humanize = (value: string) => value.replaceAll('_', ' ').replace(/^./, char => char.toUpperCase());
 export const initials = (name: string) => name.trim().split(/\s+/).map(part => part.charAt(0)).slice(0, 2).join('').toUpperCase();

@@ -15,11 +15,20 @@ beforeEach(() => {
   vi.mocked(api.listReports).mockResolvedValue([]);
 });
 describe('site-scoped live state', () => {
+  it('does not fetch maintenance data for a shop manager', async () => {
+    useAuthStore().user!.role = 'shop_manager';
+    const store = useMaintenanceStore();
+    await store.refresh();
+    expect(api.listSites).not.toHaveBeenCalled();
+    expect(store.canCreate).toBe(false);
+    expect(store.canAssign).toBe(false);
+    expect(store.sites).toEqual([]);
+  });
   it('takes site IDs and categories from API results', async () => {
     vi.mocked(api.listRules).mockResolvedValue([{ id: 81, siteType: 'school', category: 'backend_new_trade', urgencyWeight: 2, sortOrder: 1 }]);
     const store = useMaintenanceStore(); await store.refresh();
     expect(store.selectedSiteId).toBe(7);
-    expect(api.listReports).toHaveBeenCalledWith(7);
+    expect(api.listReports).toHaveBeenCalledWith(7, expect.any(AbortSignal));
     expect(store.rules[0]?.category).toBe('backend_new_trade');
     expect(store.reportsLoaded).toBe(true);
   });
@@ -34,7 +43,9 @@ describe('site-scoped live state', () => {
     const store = useMaintenanceStore(); await store.refresh();
     let resolveOld!: (rows: Report[]) => void;
     vi.mocked(api.listReports).mockImplementation(id => id === 7 ? new Promise(resolve => { resolveOld = resolve; }) : Promise.resolve([report({ siteId: 9, id: 90 })]));
-    const old = store.selectSite(7); await store.selectSite(9);
+    const old = store.selectSite(7);
+    const signal = vi.mocked(api.listReports).mock.calls.at(-1)?.[1];
+    await store.selectSite(9); expect(signal?.aborted).toBe(true);
     resolveOld([report({ siteId: 7 })]); await old;
     expect(store.selectedSiteId).toBe(9); expect(store.reports.map(row => row.id)).toEqual([90]);
   });
@@ -42,7 +53,10 @@ describe('site-scoped live state', () => {
     const store = useMaintenanceStore(); await store.refresh();
     let resolve!: (rows: Report[]) => void;
     vi.mocked(api.listReports).mockImplementation(() => new Promise(done => { resolve = done; }));
-    const loading = store.selectSite(7); store.reset(); resolve([report()]); await loading;
+    const loading = store.selectSite(7);
+    const signal = vi.mocked(api.listReports).mock.calls.at(-1)?.[1];
+    store.reset(); expect(signal?.aborted).toBe(true);
+    resolve([report()]); await loading;
     expect(store.reports).toEqual([]); expect(store.selectedSiteId).toBeNull(); expect(store.reportsLoaded).toBe(false);
   });
   it('keeps updates from another site out of the current table', async () => {

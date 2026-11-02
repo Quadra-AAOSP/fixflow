@@ -3,11 +3,34 @@ import { request, setUnauthorizedHandler } from '../src/services/api';
 import { assignTechnician, createReport, joinReport, listRules } from '../src/services/maintenance';
 import { stubApiFetch } from './csrfFetch';
 
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); setUnauthorizedHandler(() => {}); });
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); setUnauthorizedHandler(() => {}); });
 describe('API transport', () => {
+  it('never dispatches a request whose scope was already cancelled', async () => {
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    const controller = new AbortController(); controller.abort();
+    await expect(request('/api/reports', { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('keeps the timeout active when the caller also supplies a cancellation signal', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+    })));
+    const pending = request('/api/reports', { signal: new AbortController().signal });
+    const result = expect(pending).rejects.toThrow('too long');
+    await vi.advanceTimersByTimeAsync(20_000); await result;
+  });
+  it('preserves caller cancellation as AbortError instead of a network failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+    })));
+    const controller = new AbortController();
+    const pending = request('/api/reports', { signal: controller.signal }); controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
   it('includes session cookies and serializes the backend create contract', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 91 }), { status: 201 })); stubApiFetch(fetch);
-    const payload = { siteId: 7, description: 'Leaking pipe', category: 'plumbing', reporterUrgency: 'high' as const };
+    const payload = { siteId: 7, subsiteId: 12, description: 'Leaking pipe', category: 'plumbing', reporterUrgency: 'high' as const };
     expect(await createReport(payload)).toEqual({ id: 91 });
     expect(fetch.mock.calls[0]?.[0]).toBe('/api/reports');
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({ method: 'POST', body: JSON.stringify(payload), credentials: 'include' });

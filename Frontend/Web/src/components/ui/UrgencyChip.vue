@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import type { Urgency } from '@/types';
+const { t } = useLocale();
 
 const props = defineProps<{
   level: Urgency;
@@ -25,6 +27,6 @@ const containerClass: Record<Urgency, string> = {
     class="inline-flex rounded-md px-2.5 py-1 text-xs font-semibold"
     :class="containerClass[props.level]"
   >
-    {{ labels[props.level] }}
+    {{ t(labels[props.level]) }}
   </span>
 </template>

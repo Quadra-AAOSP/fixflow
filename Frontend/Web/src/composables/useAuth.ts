@@ -15,5 +15,6 @@ export function useAuth() {
     register: store.register,
     logout: store.logout,
     hydrate: store.hydrate,
+    refreshUser: store.refreshUser,
   };
 }
