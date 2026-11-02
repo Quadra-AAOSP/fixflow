@@ -254,3 +254,20 @@ cancelled and removed the cancellation action. No existing order was modified.
 
 Full suite: 53 test files / 325 tests passed; production build passed. Two additional
 direct-order route checks passed afterward (51 router checks total).
+
+## Remaining form boundary review
+
+FORM_CONTRACTS.md maps current request DTOs to the web form/service boundaries.
+Site create/update now validate the published sizes and normalize optional blanks.
+Quote/order calls reject empty carts and invalid Java integer quantities; order
+creation bounds shipping fields even when values came from autofill/component
+state. Contract requests/decisions bound optional text and validate positive IDs.
+No new description cap, price, stock or role policy was invented.
+Boundary tests verify exact maximums, oversized rejection before network calls,
+nullable optional fields and unchanged opaque product identifiers. Full suite:
+54 files / 343 tests passed; production build passed.
+
+Readability audit identified additional small workspace text below a 4.5:1 ratio,
+including selected teal navigation on pale mint, coral status text, muted chart
+labels and footer metadata. These remain targeted follow-up work; this audit does
+not establish whole-application accessibility conformance.

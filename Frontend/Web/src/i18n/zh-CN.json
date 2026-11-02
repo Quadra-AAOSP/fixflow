@@ -915,5 +915,10 @@
   "Cancelling…": "正在取消…",
   "Cancel this unpaid order? Its stock reservation will be released. You will need a new order to purchase these items later.": "要取消此未支付订单吗？预留库存将被释放，之后购买这些商品需要重新下单。",
   "The order response did not match the requested order.": "订单响应与请求的订单不匹配。",
-  "Review cancellation": "查看取消确认"
+  "Review cancellation": "查看取消确认",
+  "Complete the site fields within the displayed limits.": "请在显示的限制内填写场地信息。",
+  "Choose products with valid whole-number quantities.": "请选择商品并输入有效的整数数量。",
+  "Enter a name and shipping address within the displayed limits.": "请在显示的限制内输入姓名和配送地址。",
+  "Use a note or reason of 1,000 characters or fewer.": "备注或原因不得超过 1,000 字符。",
+  "Choose a valid request.": "请选择有效申请。"
 }

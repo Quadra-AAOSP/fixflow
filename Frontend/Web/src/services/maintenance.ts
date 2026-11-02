@@ -1,3 +1,4 @@
+import { sitePayload } from '@/utils/requestFields';
 import { reportIntakePayload } from '@/utils/reportIntake';
 import { request } from './api';
 import { REPORT_PHOTO_LIMIT, validateReportPhoto } from './reportPhotos';
@@ -43,8 +44,8 @@ export function reopenReport(id: number, reason: string) {
 export const listReporters = (id: number) => request<ReportReporter[]>(`/api/reports/${id}/reporters`);
 export const assignTechnician = (id: number, technicianId: number) => request<Report>(`/api/reports/${id}/assign`, { method: 'POST', body: JSON.stringify({ technicianId }) });
 
-export const createSite = (payload: SitePayload) => request<Site>('/api/sites', { method: 'POST', body: JSON.stringify(payload) });
-export const updateSite = (id: number, payload: SitePayload) => request<Site>(`/api/sites/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+export const createSite = (payload: SitePayload) => request<Site>('/api/sites', { method: 'POST', body: JSON.stringify(sitePayload(payload)) });
+export const updateSite = (id: number, payload: SitePayload) => request<Site>(`/api/sites/${id}`, { method: 'PUT', body: JSON.stringify(sitePayload(payload)) });
 
 function subsitePath(siteId: number) {
   if (!Number.isSafeInteger(siteId) || siteId <= 0) throw new Error('Choose a valid site.');

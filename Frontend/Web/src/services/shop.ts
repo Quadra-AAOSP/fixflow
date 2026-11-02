@@ -1,3 +1,4 @@
+import { cartPayload, shippingPayload } from '@/utils/requestFields';
 import { request } from './api';
 import type {
   ShopCartItem,
@@ -78,7 +79,7 @@ export async function loadCatalog(): Promise<ShopCatalog> {
 export async function quoteCheckout(items: ShopCartItem[]): Promise<ShopQuote> {
   return request<ShopQuote>('/api/shop/checkout/quote', {
     method: 'POST',
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items: cartPayload(items) }),
   });
 }
 
@@ -93,10 +94,8 @@ export async function createOrder(payload: {
     method: 'POST',
     headers: { 'Idempotency-Key': payload.idempotencyKey },
     body: JSON.stringify({
-      items: payload.items,
-      shippingName: payload.shippingName,
-      shippingPhone: payload.shippingPhone || null,
-      shippingAddress: payload.shippingAddress,
+      items: cartPayload(payload.items),
+      ...shippingPayload(payload),
     }),
   });
 }
