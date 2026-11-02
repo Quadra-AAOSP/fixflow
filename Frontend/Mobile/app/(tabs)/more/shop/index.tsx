@@ -48,6 +48,8 @@ import {
   matchesProductQuery,
   productCategories,
   safeImageUrl,
+  sortProducts,
+  toCartPayload,
 } from '@/utils/shop';
 import { useCartStore } from '@/stores/cart';
 
@@ -55,10 +57,11 @@ import { useCartStore } from '@/stores/cart';
 const { addToBasket, updateBasketQuantity, removeFromBasket, clearBasket, getBasketLines } = useCartStore();
 
 
-};
 import { formatDate, formatMoney, fullName } from '@/utils/format';
 
-const ALL_CATEGORIES = 'all';
+const ALL_CATEGORIES = 'all'
+
+// Remove the extra closing brace that was causing the error
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -178,7 +181,6 @@ export default function ShopIndexScreen() {
   }, [products, inStockOnly, category, query, sort]);
 
   const basketLines = getBasketLines();
-  }, [basket, catalog]);
 
   const basketTotalCount = basketCount(getBasketLines());
   const basketSubtotalMinor = basketLines.reduce(

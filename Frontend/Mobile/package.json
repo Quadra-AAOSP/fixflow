@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/manrope": "^0.4.2",
+    "@react-native-async-storage/async-storage": "^3.1.1",
     "babel-preset-expo": "~57.0.0",
     "expo": "~57.0.23",
     "expo-audio": "~57.0.5",
@@ -33,7 +34,8 @@
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-web": "~0.21.0",
-    "react-native-worklets": "0.10.1"
+    "react-native-worklets": "0.10.1",
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",

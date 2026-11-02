@@ -841,6 +841,9 @@
       "completeDevPayment": "完成开发支付",
       "cancel": "取消",
       "devPaymentNote": "开发支付接口的存在是为了在没有真实支付服务商的情况下测试结算流程。",
+      "errorTitle": "无法完成结算",
+      "orderSuccess": "订单已创建",
+      "payNow": "立即支付",
       "errors": {
         "signInToOrder": "请登录后再下单。",
         "refreshQuote": "无法刷新报价。",

@@ -841,6 +841,9 @@
       "completeDevPayment": "Complete dev payment",
       "cancel": "Cancel",
       "devPaymentNote": "The dev payment endpoint exists so checkout can be exercised without a real payment provider.",
+      "errorTitle": "Could not complete checkout",
+      "orderSuccess": "Order created",
+      "payNow": "Pay now",
       "errors": {
         "signInToOrder": "Sign in to place an order.",
         "refreshQuote": "Could not refresh the quote.",
