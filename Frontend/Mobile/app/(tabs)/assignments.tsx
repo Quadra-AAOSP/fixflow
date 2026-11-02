@@ -22,8 +22,8 @@ import { UrgencyChip } from '@/components/ui/UrgencyChip';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listReports, getReport } from '@/services/reports';
-import { listTechnicianInvitations } from '@/services/technicians';
+import { listReports } from '@/services/reports';
+import { listTechnicianContracts } from '@/services/technician';
 import { useCurrentSite } from '@/stores/site';
 import type { Report, Urgency } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
@@ -73,16 +73,17 @@ export default function AssignmentsScreen() {
     if (reports === null) setLoading(true);
     try {
       if (isTechnician) {
-        // Technicians can be contracted without an account site, so the
-        // site-scoped report list cannot be the source of their queue. Their
-        // invitations are the authoritative list of joined reports.
-        const invitations = await listTechnicianInvitations();
-        const loaded = await Promise.all(
-          invitations.map((invitation) =>
-            getReport(invitation.reportId).catch(() => null),
-          ),
+        // Technicians may be contracted without an account site. Their
+        // contracts — not the account site — define which reports are reachable,
+        // so fan out over every contract site and merge by report id.
+        const contracts = await listTechnicianContracts();
+        const siteIds = Array.from(new Set(contracts.map((contract) => contract.siteId)));
+        const pages = await Promise.all(
+          siteIds.map((siteId) => listReports({ siteId }).catch(() => [])),
         );
-        setReports(loaded.filter((report): report is Report => report !== null));
+        const merged = new Map<number, Report>();
+        for (const report of pages.flat()) merged.set(report.id, report);
+        setReports(Array.from(merged.values()));
       } else if (currentSite) {
         const result = await listReports({ siteId: currentSite.id });
         setReports(result);

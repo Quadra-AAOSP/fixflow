@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View, Pressable, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react-native';
@@ -18,7 +18,9 @@ import {
   listReports,
   reopenReport,
 } from '@/services/staff';
-import type { Report } from '@/types';
+import { listTechnicians } from '@/services/technicians';
+import type { Report, TechnicianSummary } from '@/types';
+import { fullName } from '@/utils/format';
 
 /**
  * Staff reports management screen.
@@ -65,7 +67,8 @@ export default function StaffReportsScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
-  const [technicianId, setTechnicianId] = useState<number | null>(null);
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState<number | null>(null);
+  const [directory, setDirectory] = useState<TechnicianSummary[]>([]);
   const [reason, setReason] = useState('');
 
   const loadReports = useCallback(async () => {
@@ -75,6 +78,7 @@ export default function StaffReportsScreen() {
     try {
       const reports = await listReports({ siteId: user.siteId });
       setReports(reports);
+      setDirectory(await listTechnicians().catch(() => []));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t('staff.reports.errors.couldNotLoad'),
@@ -84,17 +88,63 @@ export default function StaffReportsScreen() {
     }
   }, [user, t]);
 
+  const selectedReport = useMemo(
+    () => reports.find((report) => report.id === selectedReportId) ?? null,
+    [reports, selectedReportId],
+  );
+
+  /**
+   * Same directory rule the report-detail screen uses: available technicians
+   * contracted at the report's site with a skill matching its category and
+   * specialty. Avoids asking staff to type a raw account ID.
+   */
+  const candidates = useMemo(() => {
+    if (!selectedReport?.siteId) return [];
+    const category = selectedReport.category.toLowerCase();
+    const specialty = selectedReport.specialty?.toLowerCase() ?? null;
+    return directory
+      .filter(
+        (person) =>
+          person.availabilityStatus === 'available' &&
+          person.contracts.some(
+            (contract) => contract.siteId === selectedReport.siteId,
+          ),
+      )
+      .flatMap((person) => {
+        const matches = person.skills.filter(
+          (skill) =>
+            skill.proficiency >= 1 &&
+            skill.proficiency <= 5 &&
+            skill.category.toLowerCase() === category &&
+            (!specialty || skill.specialty?.toLowerCase() === specialty),
+        );
+        if (!matches.length) return [];
+        return [
+          {
+            technician: person,
+            proficiency: Math.max(
+              ...matches.map((skill) => skill.proficiency),
+            ),
+          },
+        ];
+      });
+  }, [directory, selectedReport]);
+
   const handleAssignTechnician = useCallback(async () => {
-    if (!selectedReportId || !technicianId) return;
+    if (!selectedReportId || selectedTechnicianId === null) return;
+    if (!candidates.some((row) => row.technician.id === selectedTechnicianId)) {
+      setError(t('staff.reports.errors.selectCandidate'));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       await assignTechnicianToReport(selectedReportId, {
-        technicianId,
+        technicianId: selectedTechnicianId,
       });
       await loadReports();
       setSelectedReportId(null);
-      setTechnicianId(null);
+      setSelectedTechnicianId(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setError(t('staff.reports.errors.notAuthorized'));
@@ -108,7 +158,7 @@ export default function StaffReportsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [selectedReportId, technicianId, loadReports, t]);
+  }, [selectedReportId, selectedTechnicianId, candidates, loadReports, t]);
 
   const handleConfirmReport = useCallback(async () => {
     if (!selectedReportId) return;
@@ -232,22 +282,50 @@ export default function StaffReportsScreen() {
                   <Text className="mb-2 text-[12px] text-ink">
                     {t('staff.reports.assignTechnician')}
                   </Text>
-                  <TextInput
-                    placeholder={t('staff.reports.enterTechnicianId')}
-                    placeholderTextColor={dashboardColors.subtitle}
-                    className="mb-2 rounded-lg border border-dashboard-card-line bg-card px-3 py-2 text-[12px] text-ink"
-                    value={technicianId ? String(technicianId) : ''}
-                    onChangeText={(text) => setTechnicianId(text ? Number(text) : null)}
-                    keyboardType="numeric"
-                  />
+                  {candidates.length > 0 ? (
+                    <View className="mb-2 overflow-hidden rounded-lg border border-dashboard-card-line">
+                      {candidates.map((row, index) => {
+                        const active = selectedTechnicianId === row.technician.id;
+                        return (
+                          <Pressable
+                            key={row.technician.id}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: active }}
+                            onPress={() => setSelectedTechnicianId(row.technician.id)}
+                            className={`px-3 py-2 active:opacity-80 ${
+                              index > 0 ? 'border-t border-dashboard-card-line' : ''
+                            }`}
+                            style={{
+                              backgroundColor: active
+                                ? dashboardColors.statMintSoft
+                                : 'transparent',
+                            }}
+                          >
+                            <Text className="text-[12px] font-medium text-ink">
+                              {fullName(row.technician.firstName, row.technician.lastName)}
+                            </Text>
+                            <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                              {t('staff.reports.proficiency', {
+                                level: row.proficiency,
+                              })}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : (
+                    <Text className="mb-2 text-[11px] leading-[1.7] text-dashboard-subtitle">
+                      {t('staff.reports.noCandidates')}
+                    </Text>
+                  )}
                   <View className="flex-row justify-end gap-2">
                     <Button
                       variant="secondary"
                       onPress={() => {
                         setSelectedReportId(null);
-                        setTechnicianId(null);
+                        setSelectedTechnicianId(null);
                       }}
-                      disabled={!technicianId}
+                      disabled={selectedTechnicianId === null}
                     >
                       {t('staff.reports.cancel')}
                     </Button>
@@ -255,7 +333,7 @@ export default function StaffReportsScreen() {
                       variant="primary"
                       onPress={handleAssignTechnician}
                       loading={loading}
-                      disabled={!technicianId || !canAssign}
+                      disabled={selectedTechnicianId === null || !canAssign}
                     >
                       {t('staff.reports.assign')}
                     </Button>
