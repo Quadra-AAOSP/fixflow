@@ -7,6 +7,24 @@ vi.mock('../src/services/auth', () => ({ getMe: vi.fn(), login: vi.fn(), registe
 const user: User = { id: 42, email: 'test@example.invalid', firstName: 'Test', lastName: 'User', role: 'reporter', siteId: 9, phone: null, address: null };
 beforeEach(() => { setActivePinia(createPinia()); vi.resetAllMocks(); });
 describe('session lifecycle', () => {
+  it('does not restore a session from a hydration response received after logout', async () => {
+    let finish!: (value: User) => void;
+    vi.mocked(api.getMe).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const store = useAuthStore(); const pending = store.hydrate();
+    store.clearSession(); finish(user); await pending;
+    expect(store.user).toBeNull(); expect(store.isLoading).toBe(false);
+  });
+  it('ignores an old refresh after the same account signs in with a new session', async () => {
+    const store = useAuthStore();
+    vi.mocked(api.login).mockResolvedValue(user); await store.login({ email: user.email, password: 'passphrase' });
+    let finish!: (value: User) => void;
+    vi.mocked(api.getMe).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const pending = store.refreshUser(); store.clearSession();
+    vi.mocked(api.login).mockResolvedValue({ ...user, role: 'admin' });
+    await store.login({ email: user.email, password: 'passphrase' });
+    finish(user); await pending;
+    expect(store.user?.role).toBe('admin');
+  });
   it('shares one restoration request between navigation guards', async () => {
     let resolve!: (value: User) => void;
     vi.mocked(api.getMe).mockImplementation(() => new Promise(done => { resolve = done; }));

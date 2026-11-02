@@ -1,50 +1,173 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, ArrowRight } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
-import { createReport } from '@/services/maintenance';
-import { errorMessage } from '@/services/api';
+import { createReport, createReportWithPhotos, listSubsites, requestSubsiteAddition } from '@/services/maintenance';
+import { REPORT_PHOTO_LIMIT, REPORT_PHOTO_TYPES, validateReportPhoto } from '@/services/reportPhotos';
+import { ApiError, errorMessage } from '@/services/api';
 import { humanize, urgencyLabels } from '@/utils/maintenance';
+import type { Subsite } from '@/types/maintenance';
 import type { Urgency } from '@/types';
+const { t } = useLocale();
 
 const data = useMaintenanceStore();
 const { user } = useAuth();
-let disposed = false;
-onBeforeUnmount(() => { disposed = true; });
 const router = useRouter();
 const description = ref('');
 const address = ref('');
 const category = ref('');
 const urgency = ref<Urgency | ''>('');
 const reason = ref('');
+const subsiteId = ref<number | null>(null);
+const subsites = ref<Subsite[]>([]);
+const locationsLoading = ref(false);
+const locationsError = ref('');
+const requestNote = ref('');
+const requestBusy = ref(false);
+const requestError = ref('');
+const requestSent = ref(false);
 const submitting = ref(false);
 const error = ref('');
-const categories = computed(() => [...new Set(data.rules.map(rule => rule.category))]);
-watch(() => data.selectedSiteId, () => { category.value = ''; error.value = ''; });
-watch(categories, values => { if (!values.includes(category.value)) category.value = ''; });
-async function submit() {
-  if (submitting.value) return;
-  error.value = '';
-  if (!data.canCreate || !data.selectedSiteId || !description.value.trim() || !categories.value.includes(category.value) || !urgency.value) {
-    error.value = 'Choose a site, category, and urgency, and describe the issue.'; return;
+const photos = ref<File[]>([]);
+const photoInput = ref<HTMLInputElement>();
+const photoError = ref('');
+function clearPhotos() {
+  photos.value = []; photoError.value = '';
+  if (photoInput.value) photoInput.value.value = '';
+}
+function selectPhotos(event: Event) {
+  photos.value = []; photoError.value = '';
+  const selected = Array.from((event.target as HTMLInputElement).files ?? []);
+  try {
+    if (selected.length > REPORT_PHOTO_LIMIT) throw new Error('Choose up to 5 photos.');
+    selected.forEach(validateReportPhoto);
+    photos.value = selected;
+  } catch (err) {
+    photoError.value = errorMessage(err);
+    if (photoInput.value) photoInput.value.value = '';
   }
-  const payload = { siteId: data.selectedSiteId, description: description.value.trim(), address: address.value.trim() || undefined, category: category.value, reporterUrgency: urgency.value, reporterReason: reason.value.trim() || undefined };
+}
+const categories = computed(() => [...new Set(data.rules.map(rule => rule.category))]);
+const canManageBuildings = computed(() => user.value?.role === 'super_admin' || user.value?.role === 'admin');
+let disposed = false;
+let siteLoad = 0;
+onBeforeUnmount(() => { disposed = true; siteLoad++; });
+
+async function loadLocations(id: number | null) {
+  const current = ++siteLoad;
+  subsiteId.value = null; subsites.value = []; locationsError.value = ''; locationsLoading.value = false;
+  if (!id) return;
+  locationsLoading.value = true;
+  try {
+    const result = await listSubsites(id);
+    if (current === siteLoad) subsites.value = result.filter(item => !item.archivedAt);
+  } catch (err) {
+    if (current === siteLoad) locationsError.value = errorMessage(err);
+  } finally {
+    if (current === siteLoad) locationsLoading.value = false;
+  }
+}
+watch(() => data.selectedSiteId, id => {
+  clearPhotos();
+  category.value = ''; error.value = ''; requestNote.value = ''; requestError.value = ''; requestSent.value = false;
+  void loadLocations(id);
+}, { immediate: true });
+watch(categories, values => { if (!values.includes(category.value)) category.value = ''; });
+
+async function requestLocation() {
+  const siteId = data.selectedSiteId;
+  if (!siteId || requestBusy.value || requestSent.value) return;
+  requestError.value = '';
+  requestBusy.value = true;
+  try {
+    await requestSubsiteAddition(siteId, requestNote.value);
+    if (!disposed && data.selectedSiteId === siteId) { requestSent.value = true; requestNote.value = ''; }
+  } catch (err) { if (!disposed && data.selectedSiteId === siteId) requestError.value = errorMessage(err); }
+  finally { requestBusy.value = false; }
+}
+
+async function submit() {
+  if (submitting.value || photoError.value) return;
+  error.value = '';
+  const siteId = data.selectedSiteId;
+  if (!data.canCreate || !siteId || !description.value.trim() || !categories.value.includes(category.value) || !urgency.value ||
+      !subsites.value.some(item => item.id === subsiteId.value)) {
+    error.value = 'Choose a site, building, category, and urgency, and describe the issue.';
+    return;
+  }
+  const payload = {
+    siteId, subsiteId: subsiteId.value!, description: description.value.trim(),
+    address: address.value.trim() || undefined, category: category.value,
+    reporterUrgency: urgency.value, reporterReason: reason.value.trim() || undefined,
+  };
   const actorId = user.value?.id;
   submitting.value = true;
   try {
-    const report = await createReport(payload);
-    if (disposed || user.value?.id !== actorId) return;
+    const report = photos.value.length ? await createReportWithPhotos(payload, photos.value) : await createReport(payload);
+    if (disposed || user.value?.id !== actorId || data.selectedSiteId !== siteId) return;
     data.upsert(report);
     await router.replace({ name: 'report-detail', params: { id: report.id } });
-  } catch (err) { error.value = errorMessage(err); }
+  } catch (err) {
+    if (disposed || user.value?.id !== actorId || data.selectedSiteId !== siteId) return;
+    error.value = errorMessage(err);
+    if (err instanceof ApiError && err.status === 409) await loadLocations(siteId);
+  }
   finally { submitting.value = false; }
 }
 </script>
+
 <template>
-  <section class="dashboard-card live-page report-form-page"><RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />All reports</RouterLink><h1>Report an issue</h1><p class="dialog-intro">Describe what needs attention at {{ data.selectedSite?.name || 'your site' }}. Your report will be saved to the maintenance system.</p>
-    <p v-if="!data.canCreate" class="live-empty">Your account cannot create reports.</p><p v-else-if="data.loading" class="live-empty">Loading site categories…</p><div v-else-if="data.rulesError" class="live-error" role="alert">{{ data.rulesError }} <button @click="data.refresh()">Retry</button></div><p v-else-if="!data.selectedSite || !categories.length" class="live-empty">No reporting categories are available for this site. Ask your administrator to configure them.</p>
-    <form v-else class="draft-form" @submit.prevent="submit"><p v-if="error" role="alert" class="live-error">{{ error }}</p><fieldset :disabled="submitting" class="report-fields"><label>What happened?<textarea v-model="description" required rows="5" placeholder="Describe the issue and what you noticed." /></label><label>Location (optional)<input v-model="address" maxlength="512" placeholder="Building, floor, or room" /></label><div class="form-two-columns"><label>Category<select v-model="category" required><option disabled value="">Choose a category</option><option v-for="item in categories" :key="item" :value="item">{{ humanize(item) }}</option></select></label><label>Your urgency<select v-model="urgency" required><option disabled value="">Choose an urgency</option><option v-for="(label, value) in urgencyLabels" :key="value" :value="value">{{ label }}</option></select></label></div><label>Why this urgency? (optional)<textarea v-model="reason" rows="3" placeholder="Explain how this issue affects the space." /></label><button class="report-issue-button" type="submit" :disabled="submitting">{{ submitting ? 'Submitting…' : 'Submit report' }}<ArrowRight :size="18" /></button></fieldset></form>
+  <section class="dashboard-card live-page report-form-page">
+    <RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />{{ t("All reports") }}</RouterLink>
+    <h1>{{ t("Report an issue") }}</h1>
+    <p class="dialog-intro">{{ t('Describe what needs attention at {site}. Your report will be saved to the maintenance system.', { site: data.selectedSite?.name || t('your site') }) }}</p>
+    <p v-if="!data.canCreate" class="live-empty">{{ t("Your account cannot create reports.") }}</p>
+    <p v-else-if="data.loading" class="live-empty" role="status">{{ t("Loading site categories…") }}</p>
+    <p v-else-if="data.rulesError" class="live-error" role="alert">{{ t(data.rulesError) }} <button @click="data.refresh()">{{ t("Retry") }}</button></p>
+    <p v-else-if="!data.selectedSite || !categories.length" class="live-empty">{{ t("No reporting categories are available for this site. Ask your administrator to configure them.") }}</p>
+    <template v-else>
+      <p v-if="locationsLoading" class="live-empty" role="status">{{ t("Loading buildings…") }}</p>
+      <p v-else-if="locationsError" class="live-error" role="alert">{{ t(locationsError) }} <button type="button" @click="loadLocations(data.selectedSiteId)">{{ t("Retry") }}</button></p>
+      <p v-else-if="!subsites.length" class="live-empty">{{ t("Reporting is not ready: a site admin must add a labelled building first.") }}
+        <RouterLink v-if="canManageBuildings" :to="{ name: 'subsites', params: { siteId: data.selectedSiteId } }">{{ t("Set up buildings →") }}</RouterLink>
+      </p>
+      <form v-else class="draft-form" @submit.prevent="submit">
+        <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
+        <fieldset :disabled="submitting" class="report-fields">
+          <label>{{ t("What happened?") }}<textarea v-model="description" required maxlength="10000" rows="5" :placeholder="t('Describe the issue and what you noticed.')" /></label>
+          <div class="form-two-columns">
+            <label>{{ t("Building or location") }}<select v-model.number="subsiteId" required><option :value="null" disabled>{{ t("Choose a building") }}</option><option v-for="item in subsites" :key="item.id" :value="item.id">{{ item.label }} · {{ item.name }}</option></select></label>
+            <label>{{ t("Room or exact spot (optional)") }}<input v-model="address" maxlength="512" :placeholder="t('Floor, room, or nearby landmark')" /></label>
+          </div>
+          <div class="form-two-columns">
+            <label>{{ t("Category") }}<select v-model="category" required><option disabled value="">{{ t("Choose a category") }}</option><option v-for="item in categories" :key="item" :value="item">{{ t(humanize(item)) }}</option></select></label>
+            <label>{{ t("Your urgency") }}<select v-model="urgency" required><option disabled value="">{{ t("Choose an urgency") }}</option><option v-for="(label, value) in urgencyLabels" :key="value" :value="value">{{ t(label) }}</option></select></label>
+          </div>
+          <label>{{ t("Why this urgency? (optional)") }}<textarea v-model="reason" rows="3" maxlength="2000" :placeholder="t('Explain how this issue affects the space.')" /></label>
+          <label>{{ t("Photos (optional)") }}<input ref="photoInput" type="file" multiple :accept="REPORT_PHOTO_TYPES.join(',')" @change="selectPhotos" /></label>
+          <p class="field-hint">{{ t('Up to {limit} photos, 5 MiB each. Attached photos can be viewed by people authorized to access the report.', { limit: REPORT_PHOTO_LIMIT }) }}</p>
+          <p v-if="photoError" class="live-error" role="alert">{{ t(photoError) }} {{ t('Choose again or clear the selection to continue.') }}</p>
+          <ul v-if="photos.length"><li v-for="(photo, index) in photos" :key="index">{{ photo.name }}</li></ul>
+          <button v-if="photos.length || photoError" type="button" class="text-action" @click="clearPhotos">{{ t("Clear photo selection") }}</button>
+          <button class="report-issue-button" type="submit" :disabled="submitting || !!photoError">{{ t(submitting ? 'Submitting…' : 'Submit report') }}<ArrowRight :size="18" /></button>
+        </fieldset>
+      </form>
+      <section class="missing-location">
+        <h2>{{ t("Can’t find your building?") }}</h2>
+        <p v-if="requestSent" role="status">{{ t("Your request was sent to the site administrator.") }}</p>
+        <form v-else class="draft-form" @submit.prevent="requestLocation">
+          <p v-if="requestError" class="live-error" role="alert">{{ t(requestError) }}</p>
+          <label>{{ t("Describe the missing location") }}<textarea v-model="requestNote" required maxlength="1000" rows="2" :placeholder="t('Building name or how to find it')" /></label>
+          <button class="text-action" type="submit" :disabled="requestBusy">{{ t(requestBusy ? 'Sending…' : 'Request a new building →') }}</button>
+        </form>
+      </section>
+    </template>
   </section>
 </template>
+
+<style scoped>
+.missing-location{border-top:1px solid #e8eeea;margin-top:26px;padding-top:22px}.missing-location h2{font-size:16px;font-weight:650}.missing-location p{font-size:12px;color:#62778a;margin:8px 0}.missing-location form{margin-top:12px}.missing-location .text-action{width:max-content}.report-form-page .live-empty a{color:#008e82;text-decoration:underline}
+</style>

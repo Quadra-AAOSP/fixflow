@@ -9,7 +9,10 @@ export default defineConfig(({ mode }) => {
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     server: {
       port: 5173,
-      proxy: { '/api': { target: env.API_PROXY_TARGET || 'http://127.0.0.1:8080', changeOrigin: true } },
+      proxy: {
+        '/api': { target: env.API_PROXY_TARGET || 'http://127.0.0.1:8080', changeOrigin: true },
+        '/ws': { target: env.API_PROXY_TARGET || 'http://127.0.0.1:8080', ws: true },
+      },
     },
   };
 });

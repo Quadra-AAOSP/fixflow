@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { localeTag, useLocale } from '@/i18n';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   ArrowUpRight, ArrowRight, ShoppingBag, Search, Plus, Minus, X, Package,
@@ -19,6 +20,7 @@ import { errorMessage } from '@/services/api';
 import ProductImage from '@/components/shop/ProductImage.vue';
 import type { ShopOrder, ShopQuote } from '@/types/shop';
 import '@/styles/shop.css';
+const { t } = useLocale();
 
 const shop = useShopStore();
 const auth = useAuthStore();
@@ -33,7 +35,8 @@ const detailId = ref<string | null>(null);
 const detail = ref<HTMLDialogElement>();
 const basket = ref<HTMLDialogElement>();
 const ordersDialog = ref<HTMLDialogElement>();
-const announcement = ref('');
+const announcement = ref<{ key: string; values: Record<string, string | number> } | null>(null);
+const announcementText = computed(() => announcement.value ? t(announcement.value.key, announcement.value.values) : '');
 const checkoutBusy = ref(false);
 const checkoutError = ref('');
 const shippingName = ref('');
@@ -55,7 +58,7 @@ const cartItems = computed(() => shop.lines.map(line => ({ productId: line.produ
 
 function money(amount: number, currency = shop.catalog?.currency, digits = shop.catalog?.minorUnitDigits) {
   if (!currency || digits == null) return shop.money(amount);
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(localeTag(), {
     style: 'currency',
     currency,
     minimumFractionDigits: digits,
@@ -64,13 +67,15 @@ function money(amount: number, currency = shop.catalog?.currency, digits = shop.
 }
 
 function add(id: string) {
+  const product = shop.catalog?.products.find(item => item.id === id);
+  if (!product) return;
   const before = shop.quantities[id] || 0;
   shop.setQuantity(id, before + 1);
   if (shop.quantities[id] > before) {
-    announcement.value = `${shop.catalog?.products.find(p => p.id === id)?.name} added to your basket. ${shop.count} items in basket.`;
+    announcement.value = { key: '{name} added to your basket. {count} items in basket.', values: { name: product.name, count: shop.count } };
   }
 }
-function inspect(id: string) { detailId.value = id; detail.value?.showModal(); }
+async function inspect(id: string) { detailId.value = id; await nextTick(); detail.value?.showModal(); }
 function clearFilters() { query.value = ''; category.value = ''; availableOnly.value = false; sort.value = 'name'; }
 
 async function refreshQuote() {
@@ -105,11 +110,11 @@ async function placeOrder() {
     });
     shop.clearBasket();
     quote.value = null;
-    announcement.value = `Order ${result.orderId} created.`;
+    announcement.value = { key: 'Order {id} created.', values: { id: result.orderId } };
     if (result.checkoutUrl) {
       if (result.paymentProvider === 'dev') {
         await completeDevPayment(result.orderId);
-        announcement.value = `Order ${result.orderId} paid (dev checkout).`;
+        announcement.value = { key: 'Order {id} paid (dev checkout).', values: { id: result.orderId } };
         await loadOrders();
         basket.value?.close();
         ordersDialog.value?.showModal();
@@ -188,68 +193,68 @@ onMounted(async () => {
   <div class="fixflow-shop">
     <div class="shop-titlebar">
       <div>
-        <span class="shop-eyebrow">THE FIXFLOW SHOP</span>
-        <h1>A little care starts here.</h1>
+        <span class="shop-eyebrow">{{ t("THE FIXFLOW SHOP") }}</span>
+        <h1>{{ t("A little care starts here.") }}</h1>
       </div>
       <div class="shop-titlebar-actions">
-        <button v-if="auth.isAuthenticated" class="shop-secondary" type="button" @click="openOrders">Orders</button>
-        <button class="shop-basket-button" type="button" @click="basket?.showModal()">
-          <ShoppingBag :size="19" />Your basket<span>{{ shop.count }}</span>
+        <button v-if="auth.isAuthenticated" class="shop-secondary" type="button" @click="openOrders">{{ t("Orders") }}</button>
+        <button class="shop-basket-button" type="button" :aria-label="t('Your basket: {count} items', { count: shop.count })" @click="basket?.showModal()">
+          <ShoppingBag :size="19" />{{ t("Your basket") }}<span>{{ shop.count }}</span>
         </button>
       </div>
     </div>
     <section class="shop-hero">
       <div class="shop-hero-copy">
-        <span class="shop-pill"><span /> FOR THE SPACES YOU CARE FOR</span>
-        <h2>Small fixes.<br />Big <em>possibilities.</em></h2>
-        <p>Make room for your next project. Find tools, parts, and everyday essentials to keep good spaces working beautifully.</p>
-        <a class="shop-primary" href="#shop-catalogue">Explore the shop <ArrowRight :size="18" /></a>
-        <div class="shop-hero-foot"><span class="shop-star">✳</span><span>A fresh start for your toolkit.</span></div>
+        <span class="shop-pill"><span /> {{ t("FOR THE SPACES YOU CARE FOR") }}</span>
+        <h2>{{ t('Small fixes.') }}<br /><em>{{ t('Big possibilities.') }}</em></h2>
+        <p>{{ t("Make room for your next project. Find tools, parts, and everyday essentials to keep good spaces working beautifully.") }}</p>
+        <a class="shop-primary" href="#shop-catalogue">{{ t("Explore the shop") }} <ArrowRight :size="18" /></a>
+        <div class="shop-hero-foot"><span class="shop-star">✳</span><span>{{ t("A fresh start for your toolkit.") }}</span></div>
       </div>
       <div class="shop-hero-image">
-        <img src="https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Drill and hand tools arranged on a wooden workbench" fetchpriority="high" />
-        <div class="shop-image-note"><span>THE EVERYDAY ESSENTIALS</span><strong>Good tools.<br />Great beginnings.</strong><ArrowUpRight :size="28" /></div>
+        <img src="https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=1200" :alt="t('Drill and hand tools arranged on a wooden workbench')" fetchpriority="high" />
+        <div class="shop-image-note"><span>{{ t("THE EVERYDAY ESSENTIALS") }}</span><strong>{{ t("Good tools.") }}<br />{{ t("Great beginnings.") }}</strong><ArrowUpRight :size="28" /></div>
       </div>
     </section>
     <div class="shop-values">
-      <span><i class="mint" />Tools for the task</span>
-      <span><i class="coral" />Parts for the little fixes</span>
-      <span><i class="citron" />Care for shared spaces</span>
+      <span><i class="mint" />{{ t("Tools for the task") }}</span>
+      <span><i class="coral" />{{ t("Parts for the little fixes") }}</span>
+      <span><i class="citron" />{{ t("Care for shared spaces") }}</span>
     </div>
     <section id="shop-catalogue" class="shop-catalogue" :aria-busy="shop.loading">
       <div class="shop-section-heading">
-        <div><span class="shop-eyebrow">BUILD YOUR TOOLKIT</span><h2>Find your next essential</h2></div>
-        <span v-if="ready">{{ products.length }} {{ products.length === 1 ? 'product' : 'products' }}</span>
+        <div><span class="shop-eyebrow">{{ t("BUILD YOUR TOOLKIT") }}</span><h2>{{ t("Find your next essential") }}</h2></div>
+        <span v-if="ready" role="status">{{ t(products.length === 1 ? '{count} product' : '{count} products', { count: products.length }) }}</span>
       </div>
       <div class="shop-controls">
-        <label class="shop-search"><Search :size="19" /><input v-model="query" type="search" placeholder="Search tools, parts, and supplies" aria-label="Search products" :disabled="!ready" /></label>
-        <label class="shop-sort"><SlidersHorizontal :size="17" /><select v-model="sort" aria-label="Sort products" :disabled="!ready"><option value="name">Name: A–Z</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></label>
+        <label class="shop-search"><Search :size="19" /><input v-model="query" type="search" :placeholder="t('Search tools, parts, and supplies')" :aria-label="t('Search products')" :disabled="!ready" /></label>
+        <label class="shop-sort"><SlidersHorizontal :size="17" /><select v-model="sort" :aria-label="t('Sort products')" :disabled="!ready"><option value="name">{{ t("Name: A–Z") }}</option><option value="price-low">{{ t("Price: low to high") }}</option><option value="price-high">{{ t("Price: high to low") }}</option></select></label>
       </div>
       <div v-if="ready" class="shop-filters">
-        <div class="shop-category-tabs" aria-label="Product categories">
-          <button type="button" :aria-pressed="!category" @click="category = ''">All products</button>
+        <div class="shop-category-tabs" role="group" :aria-label="t('Product categories')">
+          <button type="button" :aria-pressed="!category" @click="category = ''">{{ t("All products") }}</button>
           <button v-for="item in categories" :key="item" type="button" :aria-pressed="category === item" @click="category = item">{{ item }}</button>
         </div>
-        <label><input v-model="availableOnly" type="checkbox" />In stock only</label>
+        <label><input v-model="availableOnly" type="checkbox" />{{ t("In stock only") }}</label>
       </div>
-      <div v-if="shop.loading" class="shop-state" role="status"><RefreshCw :size="28" /><h3>Finding your essentials…</h3><p>Loading the latest catalogue.</p></div>
+      <div v-if="shop.loading" class="shop-state" role="status"><RefreshCw :size="28" /><h3>{{ t("Finding your essentials…") }}</h3><p>{{ t("Loading the latest catalogue.") }}</p></div>
       <div v-else-if="shop.error" class="shop-state">
         <span class="shop-state-icon"><ShoppingBag :size="29" /></span>
-        <span class="shop-eyebrow">{{ catalogPath ? 'CATALOGUE UNAVAILABLE' : 'SOMETHING GOOD IS TAKING SHAPE' }}</span>
-        <h3>{{ catalogPath ? 'We couldn’t load the shop.' : 'Your next project starts here. Soon.' }}</h3>
-        <p role="status">{{ shop.error }}</p>
-        <button v-if="catalogPath" class="shop-secondary" type="button" @click="shop.refresh()"><RefreshCw :size="16" />Try again</button>
+        <span class="shop-eyebrow">{{ t(catalogPath ? 'CATALOGUE UNAVAILABLE' : 'SOMETHING GOOD IS TAKING SHAPE') }}</span>
+        <h3>{{ t(catalogPath ? 'We couldn’t load the shop.' : 'Your next project starts here. Soon.') }}</h3>
+        <p role="status">{{ t(shop.error) }}</p>
+        <button v-if="catalogPath" class="shop-secondary" type="button" @click="shop.refresh()"><RefreshCw :size="16" />{{ t("Try again") }}</button>
       </div>
       <div v-else-if="!products.length" class="shop-state">
         <Package :size="32" />
-        <h3>{{ shop.catalog?.products.length ? 'No matches just yet.' : 'The shelves are getting ready.' }}</h3>
-        <p>{{ shop.catalog?.products.length ? 'Try another search or give your filters a little room.' : 'There are no products in the catalogue yet. Check back for new additions.' }}</p>
-        <button v-if="shop.catalog?.products.length" class="shop-secondary" type="button" @click="clearFilters">Clear filters</button>
-        <button v-else class="shop-secondary" type="button" @click="shop.refresh()">Refresh catalogue</button>
+        <h3>{{ t(shop.catalog?.products.length ? 'No matches just yet.' : 'The shelves are getting ready.') }}</h3>
+        <p>{{ t(shop.catalog?.products.length ? 'Try another search or give your filters a little room.' : 'There are no products in the catalogue yet. Check back for new additions.') }}</p>
+        <button v-if="shop.catalog?.products.length" class="shop-secondary" type="button" @click="clearFilters">{{ t("Clear filters") }}</button>
+        <button v-else class="shop-secondary" type="button" @click="shop.refresh()">{{ t("Refresh catalogue") }}</button>
       </div>
       <div v-else class="shop-product-grid">
         <article v-for="product in products" :key="product.id" class="shop-product-card">
-          <button class="shop-product-open" type="button" :aria-label="`View ${product.name}`" @click="inspect(product.id)">
+          <button class="shop-product-open" type="button" :aria-label="t('View {name}', { name: product.name })" @click="inspect(product.id)">
             <ProductImage :src="product.imageUrl" :alt="product.name" />
           </button>
           <div class="shop-product-copy">
@@ -257,28 +262,28 @@ onMounted(async () => {
             <button class="shop-product-name" type="button" @click="inspect(product.id)">{{ product.name }}</button>
             <p v-if="product.brand">{{ product.brand }}</p>
             <div class="shop-product-bottom">
-              <div><strong>{{ shop.money(product.priceMinor) }}</strong><small>{{ product.stock ? 'In stock' : 'Out of stock' }}</small></div>
-              <button class="shop-add" type="button" :disabled="!product.stock || (shop.quantities[product.id] || 0) >= product.stock" :aria-label="`Add ${product.name} to basket`" @click="add(product.id)"><Plus :size="20" /></button>
+              <div><strong>{{ shop.money(product.priceMinor) }}</strong><small>{{ t(product.stock ? 'In stock' : 'Out of stock') }}</small></div>
+              <button class="shop-add" type="button" :disabled="!product.stock || (shop.quantities[product.id] || 0) >= product.stock" :aria-label="t('Add {name} to basket', { name: product.name })" @click="add(product.id)"><Plus :size="20" /></button>
             </div>
           </div>
         </article>
       </div>
     </section>
     <section class="shop-editorial">
-      <img src="https://images.pexels.com/photos/30413428/pexels-photo-30413428.jpeg?auto=compress&cs=tinysrgb&w=1000" alt="A selection of cordless drills on a workshop bench" loading="lazy" />
+      <img src="https://images.pexels.com/photos/30413428/pexels-photo-30413428.jpeg?auto=compress&cs=tinysrgb&w=1000" :alt="t('A selection of cordless drills on a workshop bench')" loading="lazy" />
       <div>
-        <span class="shop-eyebrow">A LITTLE PREPARATION GOES A LONG WAY</span>
-        <h2>Ready for the<br />next little fix.</h2>
-        <p>Start with the task. Check the fit, materials, and specifications before choosing what goes into your toolkit.</p>
-        <a href="#shop-catalogue">Find your essentials <ArrowUpRight :size="19" /></a>
+        <span class="shop-eyebrow">{{ t("A LITTLE PREPARATION GOES A LONG WAY") }}</span>
+        <h2>{{ t('Ready for the next little fix.') }}</h2>
+        <p>{{ t("Start with the task. Check the fit, materials, and specifications before choosing what goes into your toolkit.") }}</p>
+        <a href="#shop-catalogue">{{ t("Find your essentials") }} <ArrowUpRight :size="19" /></a>
       </div>
       <span class="shop-editorial-flower" aria-hidden="true">✳</span>
     </section>
-    <p class="shop-photo-credit">Workshop photography: <a href="https://www.pexels.com/photo/close-up-shot-of-a-hand-drill-11398216/" target="_blank" rel="noopener noreferrer">Benjamin Lehman</a> &amp; <a href="https://www.pexels.com/photo/close-up-of-power-drills-on-a-workbench-30413428/" target="_blank" rel="noopener noreferrer">Christina &amp; Peter</a> / Pexels. Editorial images.</p>
-    <span class="sr-only" role="status" aria-live="polite">{{ announcement }}</span>
+    <p class="shop-photo-credit">{{ t("Workshop photography:") }} <a href="https://www.pexels.com/photo/close-up-shot-of-a-hand-drill-11398216/" target="_blank" rel="noopener noreferrer">Benjamin Lehman</a> &amp; <a href="https://www.pexels.com/photo/close-up-of-power-drills-on-a-workbench-30413428/" target="_blank" rel="noopener noreferrer">Christina &amp; Peter</a> / Pexels. {{ t('Editorial images.') }}</p>
+    <span class="sr-only" role="status" aria-live="polite">{{ announcementText }}</span>
 
     <dialog ref="detail" class="shop-dialog" aria-labelledby="product-title">
-      <div class="shop-dialog-top"><span class="shop-eyebrow">A CLOSER LOOK</span><button type="button" aria-label="Close product details" @click="detail?.close()"><X :size="22" /></button></div>
+      <div class="shop-dialog-top"><span class="shop-eyebrow">{{ t("A CLOSER LOOK") }}</span><button type="button" :aria-label="t('Close product details')" @click="detail?.close()"><X :size="22" /></button></div>
       <template v-if="selected">
         <ProductImage :src="selected.imageUrl" :alt="selected.name" />
         <span class="shop-eyebrow">{{ selected.category }}</span>
@@ -286,77 +291,77 @@ onMounted(async () => {
         <p v-if="selected.brand">{{ selected.brand }}</p>
         <p class="shop-description">{{ selected.description }}</p>
         <strong class="shop-detail-price">{{ shop.money(selected.priceMinor) }}</strong>
-        <p>{{ selected.stock ? `${selected.stock} available` : 'Currently out of stock' }}</p>
-        <button class="shop-primary" type="button" :disabled="!ready || !selected.stock || (shop.quantities[selected.id] || 0) >= selected.stock" @click="add(selected.id)">Add to basket <Plus :size="18" /></button>
-        <p role="status">{{ announcement }}</p>
+        <p>{{ selected.stock ? t('{count} available', { count: selected.stock }) : t('Currently out of stock') }}</p>
+        <button class="shop-primary" type="button" :disabled="!ready || !selected.stock || (shop.quantities[selected.id] || 0) >= selected.stock" @click="add(selected.id)">{{ t("Add to basket") }} <Plus :size="18" /></button>
+        <p role="status">{{ announcementText }}</p>
       </template>
     </dialog>
 
     <dialog ref="basket" class="shop-dialog shop-cart-dialog" aria-labelledby="basket-title">
-      <div class="shop-dialog-top"><h2 id="basket-title">Your basket <span>({{ shop.count }})</span></h2><button type="button" aria-label="Close basket" @click="basket?.close()"><X :size="22" /></button></div>
+      <div class="shop-dialog-top"><h2 id="basket-title">{{ t("Your basket") }} <span>({{ shop.count }})</span></h2><button type="button" :aria-label="t('Close basket')" @click="basket?.close()"><X :size="22" /></button></div>
       <div v-if="!shop.lines.length" class="shop-state">
         <ShoppingBag :size="36" />
-        <h3>A little room for possibilities.</h3>
-        <p>Your basket is empty. Explore the catalogue to get started.</p>
-        <button class="shop-primary" type="button" @click="basket?.close()">Continue browsing <ArrowRight :size="17" /></button>
+        <h3>{{ t("A little room for possibilities.") }}</h3>
+        <p>{{ t("Your basket is empty. Explore the catalogue to get started.") }}</p>
+        <button class="shop-primary" type="button" @click="basket?.close()">{{ t("Continue browsing") }} <ArrowRight :size="17" /></button>
       </div>
       <template v-else>
-        <p class="shop-cart-note">Your basket stays in this session until you check out. Stock is reserved only when an order is created.</p>
-        <p v-if="shop.error" role="alert">Refresh the catalogue before changing your basket.</p>
+        <p class="shop-cart-note">{{ t("Your basket stays in this session until you check out. Stock is reserved only when an order is created.") }}</p>
+        <p v-if="shop.error" role="alert">{{ t("Refresh the catalogue before changing your basket.") }}</p>
         <article v-for="line in shop.lines" :key="line.product.id" class="shop-cart-line">
           <ProductImage :src="line.product.imageUrl" :alt="line.product.name" />
           <div>
             <h3>{{ line.product.name }}</h3>
-            <p>{{ shop.money(line.product.priceMinor) }} each</p>
+            <p>{{ t('{price} each', { price: shop.money(line.product.priceMinor) }) }}</p>
             <div class="shop-quantity">
-              <button type="button" :disabled="!ready" :aria-label="`Decrease ${line.product.name} quantity`" @click="shop.setQuantity(line.product.id, line.quantity - 1)"><Minus :size="14" /></button>
-              <span :aria-label="`Quantity: ${line.quantity}`">{{ line.quantity }}</span>
-              <button type="button" :disabled="!ready || line.quantity >= line.product.stock" :aria-label="`Increase ${line.product.name} quantity`" @click="shop.setQuantity(line.product.id, line.quantity + 1)"><Plus :size="14" /></button>
-              <button class="shop-remove" type="button" :disabled="!ready" @click="shop.setQuantity(line.product.id, 0)">Remove</button>
+              <button type="button" :disabled="!ready" :aria-label="t('Decrease {name} quantity', { name: line.product.name })" @click="shop.setQuantity(line.product.id, line.quantity - 1)"><Minus :size="14" /></button>
+              <span :aria-label="t('Quantity: {count}', { count: line.quantity })">{{ line.quantity }}</span>
+              <button type="button" :disabled="!ready || line.quantity >= line.product.stock" :aria-label="t('Increase {name} quantity', { name: line.product.name })" @click="shop.setQuantity(line.product.id, line.quantity + 1)"><Plus :size="14" /></button>
+              <button class="shop-remove" type="button" :disabled="!ready" @click="shop.setQuantity(line.product.id, 0)">{{ t("Remove") }}</button>
             </div>
           </div>
           <strong>{{ shop.money(line.product.priceMinor * line.quantity) }}</strong>
         </article>
-        <div class="shop-cart-total"><span>Product subtotal</span><strong>{{ shop.money(shop.subtotal) }}</strong></div>
+        <div class="shop-cart-total"><span>{{ t("Product subtotal") }}</span><strong>{{ shop.money(shop.subtotal) }}</strong></div>
         <template v-if="auth.isAuthenticated">
-          <div v-if="quote" class="shop-cart-total"><span>Shipping</span><strong>{{ money(quote.shippingMinor, quote.currency, quote.minorUnitDigits) }}</strong></div>
-          <div v-if="quote" class="shop-cart-total"><span>Order total</span><strong>{{ money(quote.totalMinor, quote.currency, quote.minorUnitDigits) }}</strong></div>
-          <label class="shop-field">Full name<input v-model="shippingName" type="text" autocomplete="name" /></label>
-          <label class="shop-field">Phone (optional)<input v-model="shippingPhone" type="tel" autocomplete="tel" /></label>
-          <label class="shop-field">Shipping address<textarea v-model="shippingAddress" rows="3" autocomplete="street-address" /></label>
-          <p v-if="checkoutError" role="alert">{{ checkoutError }}</p>
+          <div v-if="quote" class="shop-cart-total"><span>{{ t("Shipping") }}</span><strong>{{ money(quote.shippingMinor, quote.currency, quote.minorUnitDigits) }}</strong></div>
+          <div v-if="quote" class="shop-cart-total"><span>{{ t("Order total") }}</span><strong>{{ money(quote.totalMinor, quote.currency, quote.minorUnitDigits) }}</strong></div>
+          <label class="shop-field">{{ t("Full name") }}<input v-model="shippingName" type="text" autocomplete="name" /></label>
+          <label class="shop-field">{{ t("Phone (optional)") }}<input v-model="shippingPhone" type="tel" autocomplete="tel" /></label>
+          <label class="shop-field">{{ t("Shipping address") }}<textarea v-model="shippingAddress" rows="3" autocomplete="street-address" /></label>
+          <p v-if="checkoutError" role="alert">{{ t(checkoutError) }}</p>
           <button class="shop-primary" type="button" :disabled="checkoutBusy || !ready" @click="placeOrder">
-            {{ checkoutBusy ? 'Placing order…' : 'Checkout' }}
+            {{ t(checkoutBusy ? 'Placing order…' : 'Checkout') }}
           </button>
         </template>
         <template v-else>
-          <p class="shop-cart-note">Sign in to checkout and complete payment.</p>
-          <RouterLink class="shop-primary" to="/login">Sign in to checkout</RouterLink>
+          <p class="shop-cart-note">{{ t("Sign in to checkout and complete payment.") }}</p>
+          <RouterLink class="shop-primary" to="/login">{{ t("Sign in to checkout") }}</RouterLink>
         </template>
-        <button class="shop-secondary" type="button" :disabled="shop.loading" @click="shop.refresh()">Refresh prices &amp; availability</button>
+        <button class="shop-secondary" type="button" :disabled="shop.loading" @click="shop.refresh()">{{ t("Refresh prices & availability") }}</button>
       </template>
     </dialog>
 
     <dialog ref="ordersDialog" class="shop-dialog shop-cart-dialog" aria-labelledby="orders-title">
-      <div class="shop-dialog-top"><h2 id="orders-title">Your orders</h2><button type="button" aria-label="Close orders" @click="ordersDialog?.close()"><X :size="22" /></button></div>
-      <p v-if="ordersLoading" role="status">Loading orders…</p>
-      <p v-if="ordersError" role="alert">{{ ordersError }}</p>
-      <div v-if="!ordersLoading && !orders.length" class="shop-state">
+      <div class="shop-dialog-top"><h2 id="orders-title">{{ t("Your orders") }}</h2><button type="button" :aria-label="t('Close orders')" @click="ordersDialog?.close()"><X :size="22" /></button></div>
+      <p v-if="ordersLoading" role="status">{{ t("Loading orders…") }}</p>
+      <p v-if="ordersError" role="alert">{{ t(ordersError) }}</p>
+      <div v-if="!ordersLoading && !ordersError && !orders.length" class="shop-state">
         <Package :size="32" />
-        <h3>No orders yet.</h3>
-        <p>When you check out, your order history will appear here.</p>
+        <h3>{{ t("No orders yet.") }}</h3>
+        <p>{{ t("When you check out, your order history will appear here.") }}</p>
       </div>
       <article v-for="order in orders" :key="order.orderId" class="shop-cart-line shop-order-card">
         <div>
           <h3>{{ order.orderId }}</h3>
-          <p>{{ order.status.replaceAll('_', ' ') }} · {{ money(order.totalMinor, order.currency, order.minorUnitDigits) }}</p>
+          <p>{{ t(order.status.replaceAll('_', ' ')) }} · {{ money(order.totalMinor, order.currency, order.minorUnitDigits) }}</p>
           <p>{{ order.items.map(i => `${i.quantity}× ${i.name}`).join(', ') }}</p>
           <button
             v-if="order.status === 'pending_payment'"
             class="shop-remove"
             type="button"
             @click="cancelPending(order.orderId)"
-          >Cancel order</button>
+          >{{ t("Cancel order") }}</button>
         </div>
       </article>
     </dialog>

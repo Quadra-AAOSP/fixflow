@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { User } from '@lucide/vue';
@@ -8,6 +9,7 @@ import { useAuth } from '@/composables/useAuth';
 import { errorMessage } from '@/services/api';
 import { roleLabels } from '@/constants/access';
 import { colors } from '@/constants/theme';
+const { t } = useLocale();
 
 const router = useRouter();
 const { user, logout } = useAuth();
@@ -37,7 +39,7 @@ async function onLogout() {
         <User :size="36" :color="colors.light.primary" />
       </span>
       <h1 class="text-xl font-semibold text-ink dark:text-ink-dark">
-        {{ user ? `${user.firstName} ${user.lastName}` : 'Profile' }}
+        {{ user ? `${user.firstName} ${user.lastName}` : t('Profile') }}
       </h1>
       <p v-if="user" class="mt-1 text-sm text-muted dark:text-muted-dark">
         {{ user.email }}
@@ -49,19 +51,19 @@ async function onLogout() {
       class="mb-6 rounded-xl border border-border bg-card p-4 dark:border-border-dark dark:bg-card-dark"
     >
       <div class="mb-3 flex items-center justify-between">
-        <span class="text-sm text-muted dark:text-muted-dark">Role</span>
+        <span class="text-sm text-muted dark:text-muted-dark">{{ t("Role") }}</span>
         <span class="text-sm font-medium capitalize text-ink dark:text-ink-dark">
-          {{ roleLabels[user.role] }}
+          {{ t(roleLabels[user.role]) }}
         </span>
       </div>
       <div class="mb-3 flex items-center justify-between">
-        <span class="text-sm text-muted dark:text-muted-dark">Site ID</span>
+        <span class="text-sm text-muted dark:text-muted-dark">{{ t("Site ID") }}</span>
         <span class="text-sm font-medium text-ink dark:text-ink-dark">
           {{ user.siteId != null ? user.siteId : '—' }}
         </span>
       </div>
       <div v-if="user.phone" class="flex items-center justify-between">
-        <span class="text-sm text-muted dark:text-muted-dark">Phone</span>
+        <span class="text-sm text-muted dark:text-muted-dark">{{ t("Phone") }}</span>
         <span class="text-sm font-medium text-ink dark:text-ink-dark">
           {{ user.phone }}
         </span>
@@ -69,11 +71,11 @@ async function onLogout() {
     </div>
 
     <section v-if="user?.role === 'technician'" class="dashboard-card mb-5">
-      <h2 class="font-semibold">Site contracts are optional</h2>
-      <p class="dialog-intro">Your account ID is {{ user.id }}. Share it with a site administrator when arranging a contract. A site ID does not represent your contract list.</p>
-      <RouterLink to="/contracts" class="text-action">View contract options →</RouterLink>
+      <h2 class="font-semibold">{{ t("Site contracts are optional") }}</h2>
+      <p class="dialog-intro">{{ t('Your account ID is {id}. Share it with a site administrator when arranging a contract. A site ID does not represent your contract list.', { id: user.id }) }}</p>
+      <RouterLink to="/contracts" class="text-action">{{ t("View contract options →") }}</RouterLink>
     </section>
-    <p v-if="error" role="alert" class="live-error">{{ error }}</p>
+    <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <Button
       label="Sign out"
       variant="secondary"

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
+const { t } = useLocale();
 defineProps<{
   label: string;
   variant?: 'primary' | 'secondary';
@@ -12,6 +14,7 @@ defineProps<{
   <button
     :type="type ?? 'button'"
     :disabled="disabled || loading"
+    :aria-busy="loading || undefined"
     class="inline-flex min-h-12 w-full items-center justify-center rounded-lg px-4 py-3 text-base font-semibold transition active:opacity-80 disabled:opacity-50"
     :class="
       (variant ?? 'primary') === 'primary'
@@ -24,6 +27,6 @@ defineProps<{
       class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent"
       aria-hidden="true"
     />
-    {{ label }}
+    {{ t(label) }}
   </button>
 </template>

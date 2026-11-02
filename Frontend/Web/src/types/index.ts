@@ -3,7 +3,40 @@ export type UserRole =
   | 'technician'
   | 'staff'
   | 'admin'
+  | 'shop_manager'
   | 'super_admin';
+
+export type UserCapabilities = {
+  provision: boolean;
+  decideContracts: boolean;
+  createSite: boolean;
+  editSite: boolean;
+  assignTechnician: boolean;
+  createReport: boolean;
+  provisionableRoles: UserRole[];
+  manageShop: boolean;
+};
+
+export type SiteOnboarding = {
+  siteId: number;
+  reportingReady: boolean;
+  setupRequired: boolean;
+  canManageSubsites: boolean;
+  setupEndpoint: string;
+};
+
+export type AdminApplication = {
+  id: number;
+  status: 'pending' | 'approved' | 'rejected';
+};
+
+export type SiteAdminApplication = AdminApplication & {
+  userId: number;
+  siteId: number;
+  createdAt: string;
+  decidedAt: string | null;
+  decidedBy: number | null;
+};
 
 export type Urgency = 'low' | 'medium' | 'high' | 'critical';
 
@@ -16,6 +49,9 @@ export type User = {
   address: string | null;
   role: UserRole;
   siteId: number | null;
+  adminApplication?: AdminApplication | null;
+  capabilities?: UserCapabilities;
+  siteOnboarding?: SiteOnboarding | null;
 };
 
 export type LoginPayload = {
@@ -35,12 +71,13 @@ export type AccountDetails = {
 export type RegisterPayload = AccountDetails & (
   | { role: 'reporter'; siteId: number }
   | { role: 'technician'; siteId: null }
+  | { role: 'admin'; siteId: number }
 );
 
-export type ProvisionUserPayload = AccountDetails & {
-  role: 'admin' | 'staff';
-  siteId: number;
-};
+export type ProvisionUserPayload = AccountDetails & (
+  | { role: 'admin' | 'staff'; siteId: number }
+  | { role: 'shop_manager'; siteId: null }
+);
 
 export type ApiErrorBody = {
   timestamp?: string;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLocale } from '@/i18n';
 import { ref } from 'vue';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
 import { Wrench } from '@lucide/vue';
@@ -7,11 +8,15 @@ import Button from '@/components/ui/Button.vue';
 import TextField from '@/components/ui/TextField.vue';
 import { useAuth } from '@/composables/useAuth';
 import { ApiError } from '@/services/auth';
+import { EMAIL_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '@/constants/access';
+import { accountHome } from '@/utils/navigation';
+
+const { t } = useLocale();
 
 const router = useRouter();
 const route = useRoute();
 
-const { login } = useAuth();
+const { login, user } = useAuth();
 
 const email = ref('');
 const password = ref('');
@@ -30,7 +35,7 @@ async function onSubmit() {
   try {
     await login({ email: trimmedEmail, password: password.value });
     const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') && !route.query.redirect.startsWith('//') ? route.query.redirect : '/';
-    await router.replace(redirect);
+    await router.replace(redirect === '/' ? accountHome(user.value) : redirect);
   } catch (err) {
     if (err instanceof ApiError) {
       error.value =
@@ -48,10 +53,10 @@ async function onSubmit() {
 <template>
   <div>
     <div class="login-heading">
-      <span class="form-kicker">YOUR SPACE, TAKEN CARE OF</span>
+      <span class="form-kicker">{{ t("YOUR SPACE, TAKEN CARE OF") }}</span>
       <div class="welcome-symbol"><Wrench :size="26" /></div>
-      <h1>Welcome back<span>.</span></h1>
-      <p>A better place starts with you. Sign in to keep things flowing.</p>
+      <h1>{{ t("Welcome back") }}<span>.</span></h1>
+      <p>{{ t("A better place starts with you. Sign in to keep things flowing.") }}</p>
     </div>
 
     <form @submit.prevent="onSubmit">
@@ -59,6 +64,7 @@ async function onSubmit() {
         v-model="email"
         label="Email"
         type="email"
+        :maxlength="EMAIL_MAX_LENGTH"
         autocomplete="email"
         placeholder="you@example.com"
       />
@@ -66,24 +72,25 @@ async function onSubmit() {
         v-model="password"
         label="Password"
         type="password"
+        :maxlength="PASSWORD_MAX_LENGTH"
         autocomplete="current-password"
         placeholder="••••••••"
       />
 
-      <p v-if="error" class="mb-3 text-sm text-urgency-critical">{{ error }}</p>
+      <p v-if="error" role="alert" class="mb-3 text-sm text-urgency-critical">{{ t(error) }}</p>
 
       <Button label="Sign in →" type="submit" :loading="submitting" />
     </form>
 
     <p class="mt-6 text-center text-sm text-muted dark:text-muted-dark">
-      New around here?
+      {{ t("New around here?") }}
       <RouterLink
         to="/register"
         class="font-semibold text-primary dark:text-primary-dark"
       >
-        Create an account
+        {{ t("Create an account") }}
       </RouterLink>
     </p>
-    <div class="auth-reassurance"><span>✳</span> Your report. The right people. A little peace of mind.</div>
+    <div class="auth-reassurance"><span>✳</span> {{ t("Your report. The right people. A little peace of mind.") }}</div>
   </div>
 </template>

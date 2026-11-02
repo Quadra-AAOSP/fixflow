@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useId } from 'vue';
+import { useLocale } from '@/i18n';
+const { t } = useLocale();
+const fieldId = useId();
 defineProps<{
   label: string;
   error?: string;
@@ -20,14 +24,18 @@ defineEmits<{
 
 <template>
   <label class="mb-4 block">
-    <span class="mb-1.5 block text-sm font-medium text-ink dark:text-ink-dark">
-      {{ label }}
+    <span :id="`${fieldId}-label`" class="mb-1.5 block text-sm font-medium text-ink dark:text-ink-dark">
+      {{ t(label) }}
     </span>
     <input
       :type="type ?? 'text'"
+      :id="fieldId"
+      :aria-labelledby="`${fieldId}-label`"
+      :aria-invalid="error ? 'true' : undefined"
+      :aria-describedby="error ? `${fieldId}-error` : undefined"
       :value="modelValue"
       :autocomplete="autocomplete"
-      :placeholder="placeholder"
+      :placeholder="placeholder ? t(placeholder) : undefined"
       :required="required"
       :minlength="minlength"
       :maxlength="maxlength"
@@ -41,8 +49,8 @@ defineEmits<{
       "
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
-    <span v-if="error" class="mt-1 block text-xs text-urgency-critical">
-      {{ error }}
+    <span v-if="error" :id="`${fieldId}-error`" role="alert" class="mt-1 block text-xs text-urgency-critical">
+      {{ t(error) }}
     </span>
   </label>
 </template>

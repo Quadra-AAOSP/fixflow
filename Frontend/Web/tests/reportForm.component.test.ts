@@ -1,0 +1,84 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+import { createMemoryHistory, createRouter } from 'vue-router';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import ReportFormView from '../src/views/app/ReportFormView.vue';
+import { useAuthStore } from '../src/stores/auth';
+import { useMaintenanceStore } from '../src/stores/maintenance';
+import * as api from '../src/services/maintenance';
+import { report, site } from './fixtures';
+import { setLocale } from '../src/i18n';
+
+vi.mock('../src/services/maintenance', () => ({
+  listSubsites: vi.fn(), createReport: vi.fn(), createReportWithPhotos: vi.fn(), requestSubsiteAddition: vi.fn(),
+}));
+let wrapper: VueWrapper;
+beforeEach(() => {
+  setActivePinia(createPinia()); vi.resetAllMocks();
+  useAuthStore().user = { id: 54, role: 'reporter', siteId: 7,
+    firstName: 'Test', lastName: 'Reporter', email: 'test@example.invalid', phone: null, address: null };
+  const data = useMaintenanceStore();
+  data.sites = [site(7)]; data.selectedSiteId = 7;
+  data.rules = [{ id: 1, siteType: 'school', category: 'plumbing', urgencyWeight: 2, sortOrder: 1 }];
+  vi.mocked(api.listSubsites).mockResolvedValue([{ id: 42, siteId: 7, label: 'A', name: 'Main building', description: null, archivedAt: null }]);
+  vi.mocked(api.createReport).mockResolvedValue(report({ id: 91, subsiteId: 42 }));
+  vi.mocked(api.createReportWithPhotos).mockResolvedValue(report({ id: 91, subsiteId: 42 }));
+});
+afterEach(() => { wrapper?.unmount(); setLocale('en'); });
+async function mountForm() {
+  const router = createRouter({ history: createMemoryHistory(), routes: [
+    { path: '/', component: { template: '<div />' } },
+    { path: '/reports', name: 'reports', component: { template: '<div />' } },
+    { path: '/reports/:id', name: 'report-detail', component: { template: '<div />' } },
+    { path: '/sites/:siteId/subsites', name: 'subsites', component: { template: '<div />' } },
+  ] });
+  await router.push('/');
+  wrapper = mount(ReportFormView, { global: { plugins: [router] } }); await flushPromises();
+  return router;
+}
+async function completeFields() {
+  await wrapper.get('textarea').setValue('A pipe is leaking.');
+  const selects = wrapper.findAll('select');
+  await selects[0]!.setValue('42');
+  await selects[1]!.setValue('plumbing');
+  await selects[2]!.setValue('high');
+}
+describe('report intake interactions', () => {
+  it('requires the actual building selection and navigates to the saved report', async () => {
+    const router = await mountForm();
+    await wrapper.findAll('form')[0]!.trigger('submit');
+    expect(api.createReport).not.toHaveBeenCalled();
+    await completeFields();
+    await wrapper.findAll('form')[0]!.trigger('submit'); await flushPromises();
+    expect(api.createReport).toHaveBeenCalledWith(expect.objectContaining({ siteId: 7, subsiteId: 42, reporterUrgency: 'high' }));
+    expect(router.currentRoute.value.name).toBe('report-detail');
+    expect(router.currentRoute.value.params.id).toBe('91');
+  });
+  it('includes selected photos in the single create request', async () => {
+    await mountForm(); await completeFields();
+    const input = wrapper.get<HTMLInputElement>('input[type="file"]');
+    const photo = new File(['photo'], 'issue.png', { type: 'image/png' });
+    Object.defineProperty(input.element, 'files', { value: [photo], configurable: true });
+    await input.trigger('change');
+    await wrapper.findAll('form')[0]!.trigger('submit'); await flushPromises();
+    expect(api.createReportWithPhotos).toHaveBeenCalledWith(expect.objectContaining({ subsiteId: 42 }), [photo]);
+    expect(api.createReport).not.toHaveBeenCalled();
+  });
+  it('shows site setup guidance when no labelled building is configured', async () => {
+    Object.assign(useAuthStore().user!, { role: 'admin' });
+    vi.mocked(api.listSubsites).mockResolvedValue([]);
+    await mountForm();
+    expect(wrapper.text()).toContain('Reporting is not ready');
+    expect(wrapper.get('a[href="/sites/7/subsites"]').text()).toContain('Set up buildings');
+    expect(wrapper.find('input[type="file"]').exists()).toBe(false);
+  });
+});
+
+it('submits unchanged taxonomy codes and user text from the Chinese report form', async () => {
+  setLocale('zh-CN'); await mountForm(); await completeFields();
+  expect(wrapper.get('h1').text()).toBe('提交报修');
+  expect(wrapper.text()).toContain('管道维修');
+  await wrapper.findAll('form')[0]!.trigger('submit'); await flushPromises();
+  expect(api.createReport).toHaveBeenCalledWith(expect.objectContaining({ description: 'A pipe is leaking.', category: 'plumbing', subsiteId: 42, reporterUrgency: 'high' }));
+});

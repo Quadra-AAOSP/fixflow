@@ -9,20 +9,31 @@ export const useAuthStore = defineStore('auth', () => {
   const initialized = ref(false);
   const isAuthenticated = computed(() => user.value !== null);
   let hydration: Promise<void> | undefined;
-  function clearSession() { user.value = null; initialized.value = true; }
+  let sessionGeneration = 0;
+  function clearSession() { sessionGeneration++; user.value = null; initialized.value = true; isLoading.value = false; }
   async function hydrate() {
     if (initialized.value) return;
     if (hydration) return hydration;
+    const current = sessionGeneration;
     hydration = (async () => {
       isLoading.value = true;
-      try { user.value = await authApi.getMe(); }
-      catch { user.value = null; }
-      finally { initialized.value = true; isLoading.value = false; }
+      try { const result = await authApi.getMe(); if (current === sessionGeneration) user.value = result; }
+      catch { if (current === sessionGeneration) user.value = null; }
+      finally { if (current === sessionGeneration) { initialized.value = true; isLoading.value = false; } }
     })();
     return hydration;
   }
   async function login(payload: LoginPayload) {
-    user.value = await authApi.login(payload); initialized.value = true;
+    const current = ++sessionGeneration;
+    const result = await authApi.login(payload);
+    if (current === sessionGeneration) { user.value = result; initialized.value = true; isLoading.value = false; }
+  }
+  async function refreshUser() {
+    const accountId = user.value?.id;
+    const currentGeneration = sessionGeneration;
+    if (accountId == null) return;
+    const current = await authApi.getMe();
+    if (currentGeneration === sessionGeneration && user.value?.id === accountId) user.value = current;
   }
   async function register(payload: RegisterPayload) {
     await authApi.register(payload);
@@ -32,5 +43,5 @@ export const useAuthStore = defineStore('auth', () => {
     // Keep the UI session if the server failed to invalidate the actual cookie.
     await authApi.logout(); clearSession();
   }
-  return { user, isLoading, isAuthenticated, hydrate, login, register, logout, clearSession };
+  return { user, isLoading, isAuthenticated, hydrate, login, register, logout, clearSession, refreshUser };
 });

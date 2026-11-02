@@ -10,16 +10,48 @@ export interface Site {
 export interface SiteRule {
   id: number; siteType: SiteType; category: string; urgencyWeight: number | null; sortOrder: number | null;
 }
+export interface Subsite {
+  id: number; siteId: number; label: string; name: string;
+  description: string | null; archivedAt: string | null;
+}
+export interface SubsitePayload { label: string; name: string; description: string | null }
+export interface SubsiteAlert {
+  id: number; siteId: number; requestedByUserId: number;
+  note: string | null; status: 'pending' | 'resolved'; createdAt: string;
+}
 export interface Report {
-  id: number; siteId: number | null; createdByUserId: number | null; createdByName: string | null;
+  id: number; siteId: number | null; subsiteId: number | null; createdByUserId: number | null; createdByName: string | null;
   description: string; address: string | null; category: string; specialty: string | null;
   aiUrgency: Urgency | null; reporterUrgency: Urgency; reporterReason: string | null; finalUrgency: Urgency | null;
   status: ReportStatus; assignedTechnicianId: number | null; editable: boolean; reopenCount: number;
   createdAt: string; updatedAt: string;
+  policy?: {
+    statusGroup: string; effectiveUrgency: Urgency; urgent: boolean;
+    inAssignmentQueue: boolean; participant: boolean; canSeeSensitive: boolean;
+    canAssign: boolean; canJoin: boolean;
+  };
+  photos?: ReportPhoto[];
+  reopenReason?: string | null;
+  confirmedByUserId?: number | null;
+  confirmedByName?: string | null;
+  confirmedAt?: string | null;
+  aiReport?: { urgency: Urgency | null; category: string | null; specialty: string | null; description: string | null; urgencyReason: string | null };
+}
+export interface ReportPhoto {
+  id: number; objectKey: string; url: string | null; contentType: string;
+  fileSizeBytes: number; sortOrder: number; createdAt: string; retrievalPath: string;
+}
+export interface ReportPage {
+  content: Report[]; page: number; size: number; totalElements: number; totalPages: number;
 }
 export interface CreateReportPayload {
   description: string; address?: string; category: string; specialty?: string;
-  reporterUrgency: Urgency; reporterReason?: string; siteId: number;
+  reporterUrgency: Urgency; reporterReason?: string; siteId: number; subsiteId?: number;
 }
 export interface ReportReporter { reportId: number; userId: number; joinedAt: string }
+export interface ReportVisionJob {
+  jobId: string; reportId: number;
+  status: 'queued' | 'processing' | 'completed' | 'review_required' | 'stale' | 'failed';
+  model: string | null;
+}
 export type SitePayload = Pick<Site, 'name' | 'type' | 'contractStatus' | 'address' | 'description' | 'imageUrl'>;
