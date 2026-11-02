@@ -15,10 +15,10 @@ const labels: Record<Urgency, string> = {
 };
 
 const containerClass: Record<Urgency, string> = {
-  low: 'bg-urgency-low/15 text-urgency-low',
-  medium: 'bg-urgency-medium/15 text-urgency-medium',
-  high: 'bg-urgency-high/15 text-urgency-high',
-  critical: 'bg-urgency-critical/15 text-urgency-critical',
+  low: 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-200',
+  medium: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200',
+  high: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
+  critical: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200',
 };
 </script>
 

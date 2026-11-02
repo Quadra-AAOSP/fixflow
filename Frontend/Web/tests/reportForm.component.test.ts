@@ -82,3 +82,45 @@ it('submits unchanged taxonomy codes and user text from the Chinese report form'
   await wrapper.findAll('form')[0]!.trigger('submit'); await flushPromises();
   expect(api.createReport).toHaveBeenCalledWith(expect.objectContaining({ description: 'A pipe is leaking.', category: 'plumbing', subsiteId: 42, reporterUrgency: 'high' }));
 });
+
+it('opens a focused building suggestion beside the selector without losing the report draft', async () => {
+  await mountForm(); await completeFields();
+  await wrapper.get('button[aria-controls="building-suggestion"]').trigger('click');
+  const note = wrapper.get<HTMLTextAreaElement>('#building-suggestion-fields textarea');
+  await note.setValue('Please add the new science building.');
+  vi.mocked(api.requestSubsiteAddition).mockResolvedValue({ id: 8, siteId: 7, status: 'pending' });
+  await wrapper.get('#building-suggestion-fields form').trigger('submit'); await flushPromises();
+  expect(api.requestSubsiteAddition).toHaveBeenCalledWith(7, 'Please add the new science building.');
+  expect(wrapper.get('#building-suggestion-fields').text()).toContain('sent to the site administrator');
+  expect(wrapper.get('textarea').element.value).toBe('A pipe is leaking.');
+  expect(api.createReport).not.toHaveBeenCalled();
+});
+it('offers a suggestion even when the site has no buildings', async () => {
+  vi.mocked(api.listSubsites).mockResolvedValue([]); await mountForm();
+  await wrapper.get('button[aria-controls="building-suggestion-fields"]').trigger('click');
+  expect(wrapper.find('#building-suggestion-fields textarea').exists()).toBe(true);
+  expect(wrapper.find('button[type="submit"].report-issue-button').exists()).toBe(false);
+});
+it('keeps failed building suggestions available for retry', async () => {
+  await mountForm();
+  await wrapper.get('button[aria-controls="building-suggestion"]').trigger('click');
+  await wrapper.get('#building-suggestion-fields textarea').setValue('New annex');
+  vi.mocked(api.requestSubsiteAddition).mockRejectedValue(new Error('Request failed'));
+  await wrapper.get('#building-suggestion-fields form').trigger('submit'); await flushPromises();
+  expect(wrapper.get('#building-suggestion-fields [role="alert"]').text()).toBe('Request failed');
+  expect(wrapper.get<HTMLTextAreaElement>('#building-suggestion-fields textarea').element.value).toBe('New annex');
+});
+it('ignores an old suggestion after the user switches away from and back to a site', async () => {
+  let finish!: (value: { id: number; siteId: number; status: string }) => void;
+  vi.mocked(api.requestSubsiteAddition).mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  await mountForm();
+  await wrapper.get('button[aria-controls="building-suggestion"]').trigger('click');
+  await wrapper.get('#building-suggestion-fields textarea').setValue('Old suggestion');
+  await wrapper.get('#building-suggestion-fields form').trigger('submit');
+  const data = useMaintenanceStore();
+  data.selectedSiteId = 8; await flushPromises();
+  data.selectedSiteId = 7; await flushPromises();
+  finish({ id: 8, siteId: 7, status: 'pending' }); await flushPromises();
+  await wrapper.get('button[aria-controls="building-suggestion"]').trigger('click');
+  expect(wrapper.get('#building-suggestion-fields').text()).not.toContain('sent to the site administrator');
+});

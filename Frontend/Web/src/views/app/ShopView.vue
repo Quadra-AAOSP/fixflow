@@ -326,9 +326,9 @@ onMounted(async () => {
         <template v-if="auth.isAuthenticated">
           <div v-if="quote" class="shop-cart-total"><span>{{ t("Shipping") }}</span><strong>{{ money(quote.shippingMinor, quote.currency, quote.minorUnitDigits) }}</strong></div>
           <div v-if="quote" class="shop-cart-total"><span>{{ t("Order total") }}</span><strong>{{ money(quote.totalMinor, quote.currency, quote.minorUnitDigits) }}</strong></div>
-          <label class="shop-field">{{ t("Full name") }}<input v-model="shippingName" type="text" autocomplete="name" /></label>
-          <label class="shop-field">{{ t("Phone (optional)") }}<input v-model="shippingPhone" type="tel" autocomplete="tel" /></label>
-          <label class="shop-field">{{ t("Shipping address") }}<textarea v-model="shippingAddress" rows="3" autocomplete="street-address" /></label>
+          <label class="shop-field">{{ t("Full name") }}<input v-model="shippingName" maxlength="255" type="text" autocomplete="name" /></label>
+          <label class="shop-field">{{ t("Phone (optional)") }}<input v-model="shippingPhone" maxlength="64" type="tel" autocomplete="tel" /></label>
+          <label class="shop-field">{{ t("Shipping address") }}<textarea v-model="shippingAddress" maxlength="512" rows="3" autocomplete="street-address" /></label>
           <p v-if="checkoutError" role="alert">{{ t(checkoutError) }}</p>
           <button class="shop-primary" type="button" :disabled="checkoutBusy || !ready" @click="placeOrder">
             {{ t(checkoutBusy ? 'Placing order…' : 'Checkout') }}

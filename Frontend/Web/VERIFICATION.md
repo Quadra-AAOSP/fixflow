@@ -72,7 +72,7 @@ account response rather than the submitted role.
 
 ## Open acceptance work
 
-- Desktop/other viewport checks, contrast review and a wider assistive-technology audit.
+- Wider workspace viewport checks, remaining text contrast and assistive-technology audit.
 - Live photo storage previews/downloads and enabled AI-provider processing; the local
   verification server uses memory photo storage and disabled external AI features.
 - Full live role/application/contract/terms mutation acceptance, beyond component tests.
@@ -80,3 +80,44 @@ account response rather than the submitted role.
 - Backend-dependent assigned/claimable technician queues, start/resolve/history,
   triage/escalation/urgency override, ratings, linked reports and admin review.
   Do not replace these missing contracts with invented data or local success states.
+
+## Registration reflow and targeted contrast review
+
+The live registration role screen fits without document-level horizontal scrolling
+at 320 CSS pixels in English and Simplified Chinese. At 1280 CSS pixels the
+Chinese page uses its two-column layout without overflow. Temporary viewport
+overrides were reset after testing. This check does not cover every workspace page.
+
+Secondary authentication text now uses a darker neutral; the measured foreground/
+background ratio is 5.48:1 on the auth surface and 5.16:1 on the managed-access
+notice. Coral heading text uses a darker shade (4.97:1); brand background colors
+remain unchanged. Urgency chips use separate pale backgrounds and dark foregrounds,
+with inverse pairs for dark mode. Sky, amber and red light pairs measure 8.24:1,
+6.37:1 and 6.80:1; their dark pairs measure above 10:1. These are mathematical
+checks of the selected sRGB pairs, not a claim of whole-application conformance.
+Contrast reference: https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html
+
+Shipping inputs now mirror the published order DTO maximums: name 255, phone 64,
+address 512. The backend remains responsible for authoritative validation.
+Validation after this batch: all 40 test files / 228 tests passed; production
+build and whitespace checks passed.
+
+## Role-specific screens and building suggestions (2 November)
+
+Reporter accounts now land on /reporter, showing reports created or joined using
+server participant policy. Management statistics and assignment queues are absent.
+Menu filtering and direct-route guards use the same role matrix; operational
+dashboard/assignment routes are staff/admin/super-admin only. Technicians retain
+authorized report details but cannot create reports or enter site administration.
+
+A live disposable reporter session landed on My reports. Direct navigation to
+/assignments returned to /reporter, and the mobile menu contained only My reports,
+Reports, Sites and Shop. The report form's building suggestion action focused its
+note field and preserved the report description. Submitting a synthetic suggestion
+showed success; an independent admin GET /api/sites/1/subsite-requests returned
+the same note as pending. This was performed only in fixflow_web_verify_1793370073.
+No real report was submitted or building automatically approved.
+
+Endpoint source review is recorded in ENDPOINT_AUDIT.md, including unconnected
+product administration, assistant and destructive administration routes. This
+batch does not establish that every backend endpoint is connected.

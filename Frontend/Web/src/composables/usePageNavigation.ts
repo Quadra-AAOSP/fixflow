@@ -3,7 +3,7 @@ import { useRoute } from 'vue-router';
 import { useLocale } from '@/i18n';
 
 const pageTitles: Record<string, string> = {
-  home: 'Dashboard', reports: 'Reports', 'new-report': 'New report', 'report-detail': 'Report details',
+  home: 'Dashboard', 'reporter-home': 'My reports', reports: 'Reports', 'new-report': 'New report', 'report-detail': 'Report details',
   sites: 'Sites', subsites: 'Buildings & locations', assignments: 'Assignments', technician: 'My workspace',
   'technician-invitations': 'Site invitations', 'team-access': 'Team access', contracts: 'Site contracts',
   profile: 'Profile', 'admin-application': 'Your application', login: 'Sign in', register: 'Create an account',

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useLocale } from '@/i18n';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, ArrowRight } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
@@ -26,6 +26,13 @@ const subsites = ref<Subsite[]>([]);
 const locationsLoading = ref(false);
 const locationsError = ref('');
 const requestNote = ref('');
+const showSuggestion = ref(false);
+const suggestionInput = ref<HTMLTextAreaElement>();
+async function openSuggestion() {
+  showSuggestion.value = true;
+  await nextTick();
+  suggestionInput.value?.focus();
+}
 const requestBusy = ref(false);
 const requestError = ref('');
 const requestSent = ref(false);
@@ -54,7 +61,8 @@ const categories = computed(() => [...new Set(data.rules.map(rule => rule.catego
 const canManageBuildings = computed(() => user.value?.role === 'super_admin' || user.value?.role === 'admin');
 let disposed = false;
 let siteLoad = 0;
-onBeforeUnmount(() => { disposed = true; siteLoad++; });
+let suggestionVersion = 0;
+onBeforeUnmount(() => { disposed = true; siteLoad++; suggestionVersion++; });
 
 async function loadLocations(id: number | null) {
   const current = ++siteLoad;
@@ -71,8 +79,8 @@ async function loadLocations(id: number | null) {
   }
 }
 watch(() => data.selectedSiteId, id => {
-  clearPhotos();
-  category.value = ''; error.value = ''; requestNote.value = ''; requestError.value = ''; requestSent.value = false;
+  clearPhotos(); suggestionVersion++; requestBusy.value = false;
+  category.value = ''; error.value = ''; requestNote.value = ''; requestError.value = ''; requestSent.value = false; showSuggestion.value = false;
   void loadLocations(id);
 }, { immediate: true });
 watch(categories, values => { if (!values.includes(category.value)) category.value = ''; });
@@ -80,13 +88,14 @@ watch(categories, values => { if (!values.includes(category.value)) category.val
 async function requestLocation() {
   const siteId = data.selectedSiteId;
   if (!siteId || requestBusy.value || requestSent.value) return;
+  const version = ++suggestionVersion;
   requestError.value = '';
   requestBusy.value = true;
   try {
     await requestSubsiteAddition(siteId, requestNote.value);
-    if (!disposed && data.selectedSiteId === siteId) { requestSent.value = true; requestNote.value = ''; }
-  } catch (err) { if (!disposed && data.selectedSiteId === siteId) requestError.value = errorMessage(err); }
-  finally { requestBusy.value = false; }
+    if (!disposed && version === suggestionVersion && data.selectedSiteId === siteId) { requestSent.value = true; requestNote.value = ''; }
+  } catch (err) { if (!disposed && version === suggestionVersion && data.selectedSiteId === siteId) requestError.value = errorMessage(err); }
+  finally { if (version === suggestionVersion) requestBusy.value = false; }
 }
 
 async function submit() {
@@ -139,7 +148,7 @@ async function submit() {
         <fieldset :disabled="submitting" class="report-fields">
           <label>{{ t("What happened?") }}<textarea v-model="description" required maxlength="10000" rows="5" :placeholder="t('Describe the issue and what you noticed.')" /></label>
           <div class="form-two-columns">
-            <label>{{ t("Building or location") }}<select v-model.number="subsiteId" required><option :value="null" disabled>{{ t("Choose a building") }}</option><option v-for="item in subsites" :key="item.id" :value="item.id">{{ item.label }} · {{ item.name }}</option></select></label>
+            <div><label>{{ t("Building or location") }}<select v-model.number="subsiteId" required><option :value="null" disabled>{{ t("Choose a building") }}</option><option v-for="item in subsites" :key="item.id" :value="item.id">{{ item.label }} · {{ item.name }}</option></select></label><button type="button" class="text-action" aria-controls="building-suggestion" :aria-expanded="showSuggestion" @click="openSuggestion">{{ t("Can’t find your building?") }}</button></div>
             <label>{{ t("Room or exact spot (optional)") }}<input v-model="address" maxlength="512" :placeholder="t('Floor, room, or nearby landmark')" /></label>
           </div>
           <div class="form-two-columns">
@@ -155,14 +164,17 @@ async function submit() {
           <button class="report-issue-button" type="submit" :disabled="submitting || !!photoError">{{ t(submitting ? 'Submitting…' : 'Submit report') }}<ArrowRight :size="18" /></button>
         </fieldset>
       </form>
-      <section class="missing-location">
-        <h2>{{ t("Can’t find your building?") }}</h2>
+      <section id="building-suggestion" class="missing-location">
+        <h2><button type="button" :aria-expanded="showSuggestion" aria-controls="building-suggestion-fields" @click="showSuggestion ? showSuggestion = false : openSuggestion()">{{ t("Suggest a missing building") }}</button></h2>
+        <p>{{ t("Suggestions are reviewed by your site administrator. Choose an approved building before submitting your report.") }}</p>
+        <div v-if="showSuggestion" id="building-suggestion-fields">
         <p v-if="requestSent" role="status">{{ t("Your request was sent to the site administrator.") }}</p>
         <form v-else class="draft-form" @submit.prevent="requestLocation">
           <p v-if="requestError" class="live-error" role="alert">{{ t(requestError) }}</p>
-          <label>{{ t("Describe the missing location") }}<textarea v-model="requestNote" required maxlength="1000" rows="2" :placeholder="t('Building name or how to find it')" /></label>
+          <label>{{ t("Describe the missing location") }}<textarea ref="suggestionInput" v-model="requestNote" required maxlength="1000" rows="2" :placeholder="t('Building name or how to find it')" /></label>
           <button class="text-action" type="submit" :disabled="requestBusy">{{ t(requestBusy ? 'Sending…' : 'Request a new building →') }}</button>
         </form>
+        </div>
       </section>
     </template>
   </section>

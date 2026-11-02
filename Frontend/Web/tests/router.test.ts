@@ -82,3 +82,27 @@ it.each([true, false])('uses reduced-motion preference %s for anchor navigation'
     expect(result).toEqual({ el: '#main-content', behavior: reduced ? 'auto' : 'smooth' });
   } finally { vi.unstubAllGlobals(); }
 });
+
+it.each(['/', '/assignments', '/team-access', '/contracts', '/technician'])
+('keeps reporters out of management and technician pages: %s', async path => {
+  await signIn('reporter');
+  const router = createAppRouter(createMemoryHistory());
+  await router.push(path);
+  expect(router.currentRoute.value.name).toBe('reporter-home');
+});
+it.each(['staff', 'admin', 'super_admin'] as UserRole[])
+('keeps %s on the operational dashboard and assignments', async role => {
+  await signIn(role);
+  const router = createAppRouter(createMemoryHistory());
+  await router.push('/'); expect(router.currentRoute.value.name).toBe('home');
+  await router.push('/assignments'); expect(router.currentRoute.value.name).toBe('assignments');
+  await router.push('/reporter'); expect(router.currentRoute.value.name).toBe('home');
+});
+it('keeps technicians out of report creation and site administration', async () => {
+  await signIn('technician');
+  const router = createAppRouter(createMemoryHistory());
+  for (const path of ['/reports/new', '/sites', '/assignments']) {
+    await router.push(path); expect(router.currentRoute.value.name).toBe('technician');
+  }
+  await router.push('/reports/91'); expect(router.currentRoute.value.name).toBe('report-detail');
+});

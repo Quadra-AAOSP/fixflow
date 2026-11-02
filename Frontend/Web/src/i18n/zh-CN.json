@@ -793,5 +793,11 @@
   "Registration policy is unavailable. Reload and try again.": "注册规则暂不可用，请重新加载后重试。",
   "Use a password that meets the displayed length requirements.": "请使用符合页面所示长度要求的密码。",
   "Use between {min} and {max} characters. A long, unique passphrase works well.": "请使用 {min} 至 {max} 个字符，建议使用较长且独特的密码短语。",
-  "Self-registration for this role is unavailable. Ask an administrator about approved access.": "此角色暂不开放自行注册，请联系管理员申请经批准的权限。"
+  "Self-registration for this role is unavailable. Ask an administrator about approved access.": "此角色暂不开放自行注册，请联系管理员申请经批准的权限。",
+  "My reports": "我的报修",
+  "Follow issues you reported or joined.": "跟进您提交或加入的报修。",
+  "Browse your community’s reports to find an existing issue before creating another.": "提交新报修前，先查看社区中是否已有相同问题。",
+  "You have not reported or joined any issues at this site yet.": "您尚未在此场地提交或加入任何报修。",
+  "Suggest a missing building": "建议添加缺少的建筑",
+  "Suggestions are reviewed by your site administrator. Choose an approved building before submitting your report.": "您的建议将由场地管理员审核。提交报修前，请选择已获批准的建筑。"
 }
