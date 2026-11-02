@@ -57,6 +57,10 @@ describe('endpoint registry', () => {
         'contractRequests.create',
         'contractRequests.list',
       ],
+      '/api/technician-contracts': [
+        'technicianContracts.create',
+        'technicianContracts.list',
+      ],
     };
 
     const duplicates = [...byPath.entries()]

@@ -27,14 +27,25 @@ describe('isTabVisible', () => {
     expect(isTabVisible('technician', 'profile')).toBe(true);
   });
 
-  it('shows every non-technician role Home/Reports and hides Workspace/Assignments', () => {
-    for (const role of NON_TECHNICIAN_ROLES) {
+  it('shows staff only the Staff Dashboard and Profile', () => {
+    expect(isTabVisible('staff', 'index')).toBe(false);
+    expect(isTabVisible('staff', 'reports')).toBe(false);
+    expect(isTabVisible('staff', 'workspace')).toBe(false);
+    expect(isTabVisible('staff', 'assignments')).toBe(false);
+    expect(isTabVisible('staff', 'more')).toBe(false);
+    expect(isTabVisible('staff', 'profile')).toBe(true);
+    expect(isTabVisible('staff', 'staff-dashboard')).toBe(true);
+  });
+
+  it('shows every non-technician, non-staff role Home/Reports and hides Workspace/Assignments', () => {
+    for (const role of NON_TECHNICIAN_ROLES.filter((candidate) => candidate !== 'staff')) {
       expect(isTabVisible(role, 'index'), role).toBe(true);
       expect(isTabVisible(role, 'reports'), role).toBe(true);
       expect(isTabVisible(role, 'workspace'), role).toBe(false);
       expect(isTabVisible(role, 'assignments'), role).toBe(false);
       expect(isTabVisible(role, 'more'), role).toBe(true);
       expect(isTabVisible(role, 'profile'), role).toBe(true);
+      expect(isTabVisible(role, 'staff-dashboard'), role).toBe(false);
     }
   });
 
