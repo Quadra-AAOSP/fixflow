@@ -271,3 +271,16 @@ Readability audit identified additional small workspace text below a 4.5:1 ratio
 including selected teal navigation on pale mint, coral status text, muted chart
 labels and footer metadata. These remain targeted follow-up work; this audit does
 not establish whole-application accessibility conformance.
+
+## Workspace readability follow-up
+
+ACCESSIBILITY_REVIEW.md records the measured text pairs, source methodology and
+viewport observations. Muted metadata, selected navigation and status labels now
+use darker foregrounds on the existing brand backgrounds. The observed pairs
+exceed 5:1. Live computed styles confirmed the selected navigation, Open/Assigned
+status text, site metadata and footer values.
+Sites fit at 320px in English/Chinese and at 1280px in Chinese. Reporter home
+fit at 320px in both languages, with the report table scrolling within its region.
+The body minimum-width overflow and unwrapped site-card actions were corrected.
+The browser viewport override was reset after testing. These changes do not
+establish full accessibility acceptance for all roles and workflows.
