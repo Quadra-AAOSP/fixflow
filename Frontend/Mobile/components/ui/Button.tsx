@@ -1,14 +1,17 @@
+import { type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   Text,
+  View,
   type PressableProps,
 } from 'react-native';
 
 import { colors } from '@/constants/theme';
 
 type ButtonProps = Omit<PressableProps, 'children'> & {
-  label: string;
+  label?: string;
+  children?: ReactNode;
   /**
    * - `cta`     → mint primary CTA, matches the web's
    *               `.report-issue-button` (`#79e2cd` bg, `#65d8c1`
@@ -31,6 +34,7 @@ type ButtonProps = Omit<PressableProps, 'children'> & {
  */
 export function Button({
   label,
+  children,
   variant = 'cta',
   loading = false,
   disabled,
@@ -96,12 +100,18 @@ export function Button({
           className="mr-2"
         />
       ) : null}
-      <Text
-        className={`text-[15px] font-semibold tracking-[-0.1px]`}
-        style={{ color: textColor }}
-      >
-        {label}
-      </Text>
+      {typeof (children ?? label) === 'string' ? (
+        <Text
+          className={`text-[15px] font-semibold tracking-[-0.1px]`}
+          style={{ color: textColor }}
+        >
+          {children ?? label}
+        </Text>
+      ) : (
+        <View className="flex-row items-center justify-center">
+          {children ?? label}
+        </View>
+      )}
     </Pressable>
   );
 }

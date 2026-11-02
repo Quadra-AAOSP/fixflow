@@ -65,14 +65,11 @@ export function TextField({
             : showRing
               ? 'border-[1.5px] border-dashboard-cta-bg bg-dashboard-cta-icon-bg'
               : 'border-[1.5px] border-border'
-        }`
-        disabledTextColor={colors.subtitle}
+        }`}
         placeholderClassName="text-[11px] text-subtitle"
         textAlignVertical="center"
         editable={props.editable !== false}
-        keyboardShouldPersistTaps="handled"
         importantForAccessibility="yes"
-      />}
         {...props}
       />
       {error ? (
