@@ -4,7 +4,10 @@ import { workspaceRoles } from '@/utils/workspaceAccess';
 import { accountHome } from '@/utils/navigation';
 
 const routes: RouteRecordRaw[] = [
-  { path: '/shop', component: () => import('@/layouts/ShopLayout.vue'), children: [{ path: '', name: 'shop', component: () => import('@/views/app/ShopView.vue') }] },
+  { path: '/shop', component: () => import('@/layouts/ShopLayout.vue'), children: [
+    { path: '', name: 'shop', component: () => import('@/views/app/ShopView.vue') },
+    { path: 'manage', name: 'shop-management', meta: { requiresAuth: true, roles: ['shop_manager', 'super_admin'] }, component: () => import('@/views/app/ShopManagementView.vue') },
+  ] },
   { path: '/preview', redirect: '/' },
   { path: '/access-policy', component: () => import('@/layouts/AuthLayout.vue'), children: [{ path: '', name: 'access-policy', component: () => import('@/views/auth/AccessPolicyView.vue') }] },
   { path: '/login', component: () => import('@/layouts/AuthLayout.vue'), meta: { guest: true }, children: [
@@ -40,7 +43,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     await auth.hydrate();
     if (to.meta.requiresAuth && !auth.isAuthenticated) return { name: 'login', query: { redirect: to.fullPath } };
     if (to.meta.guest && auth.isAuthenticated) return accountHome(auth.user);
-    if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && to.name !== 'profile') return '/shop';
+    if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && !['profile', 'shop-management'].includes(String(to.name))) return '/shop';
     if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.user?.role)) return accountHome(auth.user);
     if (to.name === 'home' && auth.user?.role === 'technician') return { name: 'technician' };
     return true;

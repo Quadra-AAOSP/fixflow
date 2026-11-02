@@ -118,8 +118,9 @@ showed success; an independent admin GET /api/sites/1/subsite-requests returned
 the same note as pending. This was performed only in fixflow_web_verify_1793370073.
 No real report was submitted or building automatically approved.
 
-Endpoint source review is recorded in ENDPOINT_AUDIT.md, including unconnected
-product administration, assistant and destructive administration routes. This
+Endpoint source review is recorded in ENDPOINT_AUDIT.md, including the remaining
+administrative endpoint gaps. Product administration and assistant integration
+are covered by the later entries below. This
 batch does not establish that every backend endpoint is connected.
 
 ## Report assistant integration
@@ -133,3 +134,25 @@ conversation state on report/account/access changes. Late responses after cleari
 are ignored. Component/service tests cover consent, private-state invalidation,
 fallback, unsafe markup, role restrictions and the exact POST body. Live provider
 answers have not been verified; the disposable server has AI disabled.
+
+## Product administration (2 November)
+
+/shop/manage is restricted to shop_manager and super_admin in route guards, shop
+header and workspace navigation. The screen connects all five product-admin
+mappings: list, detail, create, update and DELETE (backend soft deactivation).
+Create/update use distinct DTOs without server timestamps; price/stock use Java
+integer limits, images require HTTPS, fields mirror DTO maximum lengths. Prices
+are explicitly labelled in minor units rather than guessing a currency scale.
+Deactivation requires a separate, focused confirmation; inactive items can be
+reactivated through edit. Server failures keep entered values and existing cards.
+
+Live browser evidence in fixflow_web_verify_1793370073: the super admin loaded
+the catalogue, created web-verification-tool-20261102 as inactive at priceMinor
+1890 / stock 3, read its detail, updated stock to 4 / active true, then deactivated
+it. The final UI showed Inactive. No existing product or order was changed.
+Component/service tests verify denied roles, exact payload fields, validation,
+failed saves/deactivation, server-response rendering and load failure distinction.
+All 45 test files / 274 tests passed before the editor-focus adjustment.
+The final focus check and product tests passed afterward; production build passed.
+The live shop-management header also fits at the observed 417 CSS-pixel width
+without document-level horizontal scrolling after adding the management link.

@@ -106,3 +106,17 @@ it('keeps technicians out of report creation and site administration', async () 
   }
   await router.push('/reports/91'); expect(router.currentRoute.value.name).toBe('report-detail');
 });
+it.each(['reporter', 'staff', 'admin', 'technician'] as UserRole[])('denies product management to %s', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory());
+  await router.push('/shop/manage'); expect(router.currentRoute.value.name).not.toBe('shop-management');
+});
+it.each(['super_admin', 'shop_manager'] as UserRole[])('allows product management for %s', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory());
+  await router.push('/shop/manage'); expect(router.currentRoute.value.name).toBe('shop-management');
+});
+it('requires sign-in for product management while keeping browsing public', async () => {
+  const router = createAppRouter(createMemoryHistory());
+  await router.push('/shop/manage'); expect(router.currentRoute.value.name).toBe('login');
+  expect(router.currentRoute.value.query.redirect).toBe('/shop/manage');
+  await router.push('/shop'); expect(router.currentRoute.value.name).toBe('shop');
+});

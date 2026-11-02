@@ -4,17 +4,17 @@ Reviewed 2 November 2026 against every mapping in Backend/src/main/java/com/exam
 
 ## Current role policy
 
-Reporter: own/participating report home, site report browse/detail/create, site/building information, own application when present, profile and shop. Staff: operational dashboard, reports, assignments and site information. Site/super admins add team access and contracts. Technician: own workspace, invitations, contracts and authorized report details; no report creation or management dashboard. Shop manager: shop and profile; product administration is a remaining integration gap. Route guards accompany menu filtering; the server still authorizes each request.
+Reporter: own/participating report home, site report browse/detail/create, site/building information, own application when present, profile and shop. Staff: operational dashboard, reports, assignments and site information. Site/super admins add team access and contracts. Technician: own workspace, invitations, contracts and authorized report details; no report creation or management dashboard. Shop manager: shop, product administration and profile. Route guards accompany menu filtering; the server still authorizes each request.
 
 ## Controller mapping inventory
 
 | Controller | Method and path | Integration |
 | --- | --- | --- |
-| AdminShopProductController | `GET /api/admin/shop/products` | Not connected: role-restricted catalogue administration still needs its screen. |
-| AdminShopProductController | `GET /api/admin/shop/products/{id}` | Not connected: role-restricted catalogue administration still needs its screen. |
-| AdminShopProductController | `POST /api/admin/shop/products` | Not connected: role-restricted catalogue administration still needs its screen. |
-| AdminShopProductController | `PUT /api/admin/shop/products/{id}` | Not connected: role-restricted catalogue administration still needs its screen. |
-| AdminShopProductController | `DELETE /api/admin/shop/products/{id}` | Not connected: role-restricted catalogue administration still needs its screen. |
+| AdminShopProductController | `GET /api/admin/shop/products` | Connected: /shop/manage list/detail/create/update/deactivate screen for shop_manager and super_admin; browser CRUD checked with a disposable product. |
+| AdminShopProductController | `GET /api/admin/shop/products/{id}` | Connected: /shop/manage list/detail/create/update/deactivate screen for shop_manager and super_admin; browser CRUD checked with a disposable product. |
+| AdminShopProductController | `POST /api/admin/shop/products` | Connected: /shop/manage list/detail/create/update/deactivate screen for shop_manager and super_admin; browser CRUD checked with a disposable product. |
+| AdminShopProductController | `PUT /api/admin/shop/products/{id}` | Connected: /shop/manage list/detail/create/update/deactivate screen for shop_manager and super_admin; browser CRUD checked with a disposable product. |
+| AdminShopProductController | `DELETE /api/admin/shop/products/{id}` | Connected: /shop/manage list/detail/create/update/deactivate screen for shop_manager and super_admin; browser CRUD checked with a disposable product. |
 | AdminUserController | `POST /api/admin/users` | Connected: Team access (site admin/super admin). |
 | AuthController | `GET /api/auth/csrf` | Connected: api/auth/accountPolicy services; login, registration and session flows. |
 | AuthController | `POST /api/auth/register` | Connected: api/auth/accountPolicy services; login, registration and session flows. |
@@ -89,7 +89,7 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 
 ## Remaining integration work
 
-- Implement super-admin/shop-manager product administration.
+- Product administration is connected; wider role and production acceptance remain separate.
 - Connect dedicated site reporting-setup/taxonomy/pool reads where they replace broad reads; retain schema/permission checks.
 - Add intentional, reviewed site/rule/contract deletion workflows rather than exposing destructive buttons on every role’s screen.
 - Verify role flows and mutations in the live browser against disposable fixtures. Unit coverage alone is insufficient.

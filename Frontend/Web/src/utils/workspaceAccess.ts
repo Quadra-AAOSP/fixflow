@@ -20,6 +20,7 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
   const links: { to: string; label: string; icon: string }[] = [];
   if (role === 'shop_manager') return [
     { to: '/shop', label: 'Shop', icon: 'shop' },
+    { to: '/shop/manage', label: 'Product management', icon: 'shop' },
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ];
   if (role === 'reporter') links.push({ to: '/reporter', label: 'My reports', icon: 'home' });
@@ -32,6 +33,7 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
   if (role === 'technician') links.push({ to: '/technician/invitations', label: 'Invitations', icon: 'invitations' });
   if (workspaceRoles.team.some(value => value === role)) links.push({ to: '/team-access', label: 'Team access', icon: 'team' });
   if (role === 'reporter' && user.adminApplication) links.push({ to: '/admin-application', label: 'My application', icon: 'team' });
+  if (role === 'super_admin') links.push({ to: '/shop/manage', label: 'Product management', icon: 'shop' });
   links.push({ to: '/shop', label: 'Shop', icon: 'shop' });
   return links;
 }

@@ -7,7 +7,7 @@ const pageTitles: Record<string, string> = {
   sites: 'Sites', subsites: 'Buildings & locations', assignments: 'Assignments', technician: 'My workspace',
   'technician-invitations': 'Site invitations', 'team-access': 'Team access', contracts: 'Site contracts',
   profile: 'Profile', 'admin-application': 'Your application', login: 'Sign in', register: 'Create an account',
-  'access-policy': 'Access requirements', shop: 'Shop',
+  'access-policy': 'Access requirements', shop: 'Shop', 'shop-management': 'Product management',
 };
 
 export function usePageNavigation() {
