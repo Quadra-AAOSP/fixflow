@@ -75,22 +75,22 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 | SubsiteController | `POST /api/sites/{siteId}/subsite-requests/{id}/resolve` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
 | TechnicianAvailabilityController | `GET /api/technicians/me/availability` | Connected: technician workspace availability. |
 | TechnicianAvailabilityController | `PUT /api/technicians/me/availability` | Connected: technician workspace availability. |
-| TechnicianContractController | `GET /api/technician-contracts` | GET/POST connected in Contracts. DELETE termination is not connected. |
-| TechnicianContractController | `POST /api/technician-contracts` | GET/POST connected in Contracts. DELETE termination is not connected. |
-| TechnicianContractController | `DELETE /api/technician-contracts/{id}` | GET/POST connected in Contracts. DELETE termination is not connected. |
+| TechnicianContractController | `GET /api/technician-contracts` | GET/POST/DELETE connected in Contracts. Removal is explicitly a permanent database relationship removal, not legal termination or an audited lifecycle. |
+| TechnicianContractController | `POST /api/technician-contracts` | GET/POST/DELETE connected in Contracts. Removal is explicitly a permanent database relationship removal, not legal termination or an audited lifecycle. |
+| TechnicianContractController | `DELETE /api/technician-contracts/{id}` | GET/POST/DELETE connected in Contracts. Removal is explicitly a permanent database relationship removal, not legal termination or an audited lifecycle. |
 | TechnicianController | `GET /api/technicians` | Connected: assignment directory. |
 | TechnicianInvitationController | `POST /api/reports/{id}/technician-invitations` | Connected: technician inbox and administrative invitation panel. |
 | TechnicianInvitationController | `GET /api/technician-invitations` | Connected: technician inbox and administrative invitation panel. |
 | TechnicianRankingController | `POST /api/reports/{id}/technician-ranking` | Connected: eligible candidates and ranking panel. |
 | TechnicianSkillController | `POST /api/technician-skills` | Connected: technician skill profile. |
-| TechnicianTermsController | `GET /api/technician-terms/me` | Own terms and acceptance connected. Administrative technician-specific read is not connected. |
-| TechnicianTermsController | `GET /api/technician-terms/{technicianId}` | Own terms and acceptance connected. Administrative technician-specific read is not connected. |
-| TechnicianTermsController | `POST /api/technician-terms/accept` | Own terms and acceptance connected. Administrative technician-specific read is not connected. |
+| TechnicianTermsController | `GET /api/technician-terms/me` | Own terms/acceptance and administrative technician-specific terms read are connected; administrators do not accept terms on behalf of technicians. |
+| TechnicianTermsController | `GET /api/technician-terms/{technicianId}` | Own terms/acceptance and administrative technician-specific terms read are connected; administrators do not accept terms on behalf of technicians. |
+| TechnicianTermsController | `POST /api/technician-terms/accept` | Own terms/acceptance and administrative technician-specific terms read are connected; administrators do not accept terms on behalf of technicians. |
 
 ## Remaining integration work
 
 - Product administration is connected; wider role and production acceptance remain separate.
 - Connect dedicated site reporting-setup/taxonomy/pool reads where they replace broad reads; retain schema/permission checks.
-- Add intentional, reviewed site/rule/contract deletion workflows rather than exposing destructive buttons on every role’s screen.
+- Site deletion still needs its super-admin workflow. Rule and contract removal controls now have explicit permanent-delete confirmation and role/scope guards.
 - Verify role flows and mutations in the live browser against disposable fixtures. Unit coverage alone is insufficient.
 - No lifecycle endpoints exist for assigned-to-me/claim/start/resolve/history/triage/escalation/urgency override/rating/linked reports/admin review; do not invent successful client states.

@@ -853,5 +853,22 @@
   "Enter a category and valid whole-number rule values.": "请输入类别和有效的整数规则值。",
   "Choose a valid rule.": "请选择有效规则。",
   "Rule saved. Reporting categories will refresh.": "规则已保存，报修类别将刷新。",
-  "Rule deleted. Reporting categories will refresh.": "规则已删除，报修类别将刷新。"
+  "Rule deleted. Reporting categories will refresh.": "规则已删除，报修类别将刷新。",
+  "Choose a valid contract.": "请选择有效合同。",
+  "Choose a valid technician.": "请选择有效技术人员。",
+  "The terms response did not match the technician.": "条款响应与技术人员不匹配。",
+  "Recorded relationship removed.": "已移除场地关系记录。",
+  "Remove recorded relationship": "移除场地关系记录",
+  "Remove relationship permanently": "永久移除关系记录",
+  "Remove relationship": "移除关系记录",
+  "View terms status": "查看条款状态",
+  "Technician terms status": "技术人员条款状态",
+  "Terms for technician #{id}": "技术人员 #{id} 的条款",
+  "Current version": "当前版本",
+  "Current terms accepted": "已接受当前条款",
+  "Current terms not accepted": "尚未接受当前条款",
+  "Terms acceptance is required.": "必须接受条款。",
+  "Terms acceptance is not enforced by the server.": "服务器未强制要求接受条款。",
+  "This action removes a database record; it does not cancel a legal agreement or create a contract termination history.": "此操作会移除数据库记录，不会取消法律协议，也不会创建合同终止历史。",
+  "Permanently remove contract #{id} for technician #{technician}? This removes the recorded site relationship and affects future eligibility. Existing report assignments are unchanged.": "要永久移除技术人员 #{technician} 的合同记录 #{id} 吗？这会移除其场地关系记录并影响后续资格。现有报修分配不变。"
 }

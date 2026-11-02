@@ -166,3 +166,20 @@ and only confirmed server responses update the list. Permanent deletion has a
 separate confirmation; no live rule deletion was executed. Component tests cover
 editing, failure retention, denied roles, loading errors and request payloads.
 The full suite passed 47 files / 287 tests; the production build passed.
+
+## Recorded contract removal and terms inspection
+
+The site-scoped contract directory connects DELETE /api/technician-contracts/{id}
+and GET /api/technician-terms/{technicianId} for authorized site/super admins.
+Removal has a focused permanent-delete confirmation and distinguishes database
+relationship removal from legal termination or audited history. Failed deletion
+retains the record; scope changes clear action state and reject late responses.
+Terms inspection shows the server version, acceptance state, enforcement flag and
+recorded acceptance dates; it never accepts terms for a technician.
+
+Live read: super admin inspected technician #4's terms; the disposable server
+returned no configured version and enforcement disabled. No contract was deleted.
+The rule UI also created and updated only synthetic web_verification_category
+(urgency weight 1 then 2, sort order 99) in the disposable schema. Existing rules
+were unchanged, and permanent rule deletion was not executed through the browser.
+Full regression evidence: 48 files / 292 tests passed; build passed.
