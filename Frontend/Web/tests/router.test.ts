@@ -120,3 +120,11 @@ it('requires sign-in for product management while keeping browsing public', asyn
   expect(router.currentRoute.value.query.redirect).toBe('/shop/manage');
   await router.push('/shop'); expect(router.currentRoute.value.name).toBe('shop');
 });
+it.each(['reporter', 'staff', 'technician', 'shop_manager'] as UserRole[])('denies rule management to %s', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory());
+  await router.push('/site-rules'); expect(router.currentRoute.value.name).not.toBe('site-rules');
+});
+it.each(['admin', 'super_admin'] as UserRole[])('allows rule management for %s', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory());
+  await router.push('/site-rules'); expect(router.currentRoute.value.name).toBe('site-rules');
+});

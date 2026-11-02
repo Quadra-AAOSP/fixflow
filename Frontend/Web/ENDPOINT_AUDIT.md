@@ -61,10 +61,10 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 | SiteController | `POST /api/sites` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
 | SiteController | `PUT /api/sites/{id}` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
 | SiteController | `DELETE /api/sites/{id}` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
-| SiteRuleController | `GET /api/site-rules` | GET connected for taxonomy by site type. POST/PUT/DELETE administration is not connected. |
-| SiteRuleController | `POST /api/site-rules` | GET connected for taxonomy by site type. POST/PUT/DELETE administration is not connected. |
-| SiteRuleController | `PUT /api/site-rules/{id}` | GET connected for taxonomy by site type. POST/PUT/DELETE administration is not connected. |
-| SiteRuleController | `DELETE /api/site-rules/{id}` | GET connected for taxonomy by site type. POST/PUT/DELETE administration is not connected. |
+| SiteRuleController | `GET /api/site-rules` | GET connected for taxonomy and rule listing. POST/PUT/DELETE connected in /site-rules for admin/super_admin with explicit type-wide scope and delete confirmation. |
+| SiteRuleController | `POST /api/site-rules` | GET connected for taxonomy and rule listing. POST/PUT/DELETE connected in /site-rules for admin/super_admin with explicit type-wide scope and delete confirmation. |
+| SiteRuleController | `PUT /api/site-rules/{id}` | GET connected for taxonomy and rule listing. POST/PUT/DELETE connected in /site-rules for admin/super_admin with explicit type-wide scope and delete confirmation. |
+| SiteRuleController | `DELETE /api/site-rules/{id}` | GET connected for taxonomy and rule listing. POST/PUT/DELETE connected in /site-rules for admin/super_admin with explicit type-wide scope and delete confirmation. |
 | SubsiteController | `GET /api/sites/{siteId}/reporting-setup` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
 | SubsiteController | `GET /api/sites/{siteId}/subsites` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
 | SubsiteController | `POST /api/sites/{siteId}/subsites` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |

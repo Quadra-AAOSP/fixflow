@@ -156,3 +156,13 @@ All 45 test files / 274 tests passed before the editor-focus adjustment.
 The final focus check and product tests passed afterward; production build passed.
 The live shop-management header also fits at the observed 417 CSS-pixel width
 without document-level horizontal scrolling after adding the management link.
+
+## Type-wide site rules
+
+/site-rules connects list/create/update/delete for site rules, limited to admin
+and super_admin in both navigation and route guards. The view states that rules
+affect every site of the chosen type. DTO integer/category limits are checked
+and only confirmed server responses update the list. Permanent deletion has a
+separate confirmation; no live rule deletion was executed. Component tests cover
+editing, failure retention, denied roles, loading errors and request payloads.
+The full suite passed 47 files / 287 tests; the production build passed.
