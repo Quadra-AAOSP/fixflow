@@ -1,15 +1,17 @@
 import { Stack, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, View, Pressable } from 'react-native';
+import { ScrollView, Text, View, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Plus, Check, X } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
 import { ActivityIndicator } from 'react-native';
 import { Card } from '@/components/ui/Card';
+import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
 import { dashboardColors, themeColors } from '@/constants/theme';
+import { canDecideContracts } from '@/constants/access';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import {
@@ -17,50 +19,22 @@ import {
   decideTechnicianContractRequest,
   getTechnicianContractRequests,
 } from '@/services/technicians';
+import { listSites } from '@/services/sites';
+import type { Site } from '@/types';
 import type { TechnicianContractRequest, TechnicianContractRequestStatus } from '@/types/technician';
 
 /**
  * Technician contract requests screen.
  */
-// Translations for Technician Contract Requests
-// Add these to your i18n common.json file
-// {
-//   "technician": {
-//     "contractRequests": {
-//       "title": "Contract Requests",
-//       "loading": "Loading contract requests...",
-//       "existing": "Existing Requests",
-//       "noRequests": "No contract requests found.",
-//       "new": "New Request",
-//       "newSiteId": "Site ID",
-//       "enterSiteId": "Enter site ID",
-//       "submit": "Submit Request",
-//       "cancel": "Cancel",
-//       "createdAt": "Created at {{date}}",
-//       "status": {
-//         "pending": "Pending",
-//         "approved": "Approved",
-//         "rejected": "Rejected",
-//         "failed": "Failed"
-//       },
-//       "approve": "Approve",
-//       "reject": "Reject",
-//       "errors": {
-//         "couldNotLoad": "Failed to load contract requests.",
-//         "couldNotSubmit": "Failed to submit contract request.",
-//         "couldNotDecide": "Failed to decide on contract request."
-//       }
-//     }
-//   }
-// }
-
 export default function TechnicianContractRequestsScreen() {
   const { t } = useTranslation('common');
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
+  const canDecide = canDecideContracts(user);
 
   const [requests, setRequests] = useState<TechnicianContractRequest[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newRequestSiteId, setNewRequestSiteId] = useState<number | null>(null);
@@ -70,8 +44,12 @@ export default function TechnicianContractRequestsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const requests = await getTechnicianContractRequests();
+      const [requests, sites] = await Promise.all([
+        getTechnicianContractRequests(),
+        listSites(),
+      ]);
       setRequests(requests);
+      setSites(sites);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t('technician.contractRequests.errors.couldNotLoad'),
@@ -125,7 +103,6 @@ export default function TechnicianContractRequestsScreen() {
       case 'pending': return t('technician.contractRequests.status.pending');
       case 'approved': return t('technician.contractRequests.status.approved');
       case 'rejected': return t('technician.contractRequests.status.rejected');
-      case 'failed': return t('technician.contractRequests.status.failed');
       default: return status;
     }
   }, [t]);
@@ -179,7 +156,8 @@ export default function TechnicianContractRequestsScreen() {
                   >
                     <View className="flex-row items-center justify-between">
                       <Text className="text-[12px] text-ink">
-                        {request.siteName}
+                        {sites.find((site) => site.id === request.siteId)?.name ??
+                          t('technician.contractRequests.siteFallback', { id: request.siteId })}
                       </Text>
                       <Text
                         className={`text-[10px] font-medium`}
@@ -191,7 +169,7 @@ export default function TechnicianContractRequestsScreen() {
                     <Text className="mt-1 text-[10px] text-dashboard-subtitle">
                       {t('technician.contractRequests.createdAt', { date: request.createdAt })}
                     </Text>
-                    {request.status === 'pending' && (
+                    {canDecide && request.status === 'pending' && (
                       <View className="mt-2 flex-row justify-end gap-2">
                         <Button
                           variant="secondary"
@@ -242,16 +220,15 @@ export default function TechnicianContractRequestsScreen() {
 
             <Card padded={false} className="mb-4">
               <View className="px-4 py-3">
-                <Text className="mb-2 text-[12px] text-ink">
-                  {t('technician.contractRequests.newSiteId')}
-                </Text>
-                <TextInput
-                  placeholder={t('technician.contractRequests.enterSiteId')}
-                  placeholderTextColor={dashboardColors.subtitle}
-                  className="rounded-lg border border-dashboard-card-line bg-card px-3 py-2 text-[12px] text-ink"
-                  value={newRequestSiteId ? String(newRequestSiteId) : ''}
-                  onChangeText={(text: string) => setNewRequestSiteId(text ? Number(text) : null)}
-                  keyboardType="numeric"
+                <Picker
+                  label={t('technician.contractRequests.newSite')}
+                  value={newRequestSiteId !== null ? String(newRequestSiteId) : null}
+                  onChange={(value) => setNewRequestSiteId(value ? Number(value) : null)}
+                  options={sites.map((site) => ({
+                    value: String(site.id),
+                    label: site.name,
+                  }))}
+                  placeholder={t('technician.contractRequests.chooseSite')}
                 />
                 <View className="mt-3 flex-row justify-end gap-2">
                   <Button
