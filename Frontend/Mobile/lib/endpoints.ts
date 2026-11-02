@@ -46,6 +46,9 @@ export const endpoints = {
       `/api/sites/${siteId}/subsite-requests`,
     resolveSubsiteRequest: (siteId: number | string, id: number | string) =>
       `/api/sites/${siteId}/subsite-requests/${id}/resolve`,
+    /** GET — eligible contracted technicians for a site. */
+    technicianPool: (siteId: number | string) =>
+      `/api/sites/${siteId}/technician-pool`,
   },
 
   siteRules: {
@@ -67,6 +70,19 @@ export const endpoints = {
     searchNl: '/api/reports/search/nl',
     confirm: '/api/reports/{id}/confirm',
     reopen: '/api/reports/{id}/reopen',
+    /** POST — manual AI classification (site admins / super admins only). */
+    classify: (id: number | string) => `/api/reports/${id}/classify`,
+    /** POST — consent-based background image processing. */
+    vision: (reportId: number | string) => `/api/reports/${reportId}/vision`,
+    /** GET — poll processing status. */
+    visionJob: (reportId: number | string, jobId: string) =>
+      `/api/reports/${reportId}/vision/${jobId}`,
+    /** POST — invite eligible technicians to a report. */
+    technicianInvitations: (id: number | string) =>
+      `/api/reports/${id}/technician-invitations`,
+    /** POST — ranked candidates and active-case counts. */
+    technicianRanking: (id: number | string) =>
+      `/api/reports/${id}/technician-ranking`,
     photos: {
       list: '/api/reports/{id}/photos',
       upload: '/api/reports/{id}/photos',
@@ -80,7 +96,20 @@ export const endpoints = {
   },
 
   technicianContracts: {
+    list: '/api/technician-contracts',
     create: '/api/technician-contracts',
+    byId: (id: number | string) => `/api/technician-contracts/${id}`,
+  },
+
+  technicianTerms: {
+    me: '/api/technician-terms/me',
+    byTechnician: (technicianId: number | string) =>
+      `/api/technician-terms/${technicianId}`,
+    accept: '/api/technician-terms/accept',
+  },
+
+  technicianInvitations: {
+    list: '/api/technician-invitations',
   },
 
   technicians: {

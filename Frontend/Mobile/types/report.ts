@@ -38,6 +38,28 @@ export type ReportPhoto = {
   createdAt: string;
 };
 
+/**
+ * The AI-generated assessment, separate from the human report. Reporters and
+ * technicians only ever see `urgency`; authorized staff/admins receive the
+ * full assessment. The backend masks the rest for unauthorized viewers.
+ */
+export type AiReport = {
+  urgency: Urgency | null;
+  description: string | null;
+  category: string | null;
+  specialty: string | null;
+  confidence: number | null;
+};
+
+/** Background vision-processing job state. */
+export type VisionJob = {
+  id: string;
+  reportId: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Report = {
   id: number;
   siteId: number | null;
@@ -62,6 +84,7 @@ export type Report = {
   reopenReason: string | null;
   visibility: ReportVisibility;
   photos: ReportPhoto[];
+  aiReport?: AiReport;
   createdAt: string;
   updatedAt: string;
   policy: {

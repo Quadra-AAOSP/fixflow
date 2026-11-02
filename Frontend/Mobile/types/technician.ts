@@ -1,4 +1,4 @@
-import type { Report, Site, User } from './user';
+import type { User } from './user';
 
 /** Status of a technician contract request */
 export type TechnicianContractRequestStatus = 
@@ -55,4 +55,63 @@ export type TechnicianTerm = {
   status: 'accepted' | 'pending';
   acceptedAt: string | null;
   content: string;
+};
+
+/** A trade skill declared on a technician's profile. */
+export type TechnicianSkill = {
+  id: number;
+  technicianId: number;
+  category: string;
+  specialty: string | null;
+  proficiency: number;
+};
+
+export type TechnicianSkillPayload = {
+  technicianId?: number;
+  category: string;
+  specialty?: string;
+  proficiency: number;
+};
+
+/** Payload for creating a technician ↔ site contract. */
+export type TechnicianContractPayload = {
+  siteId: number;
+  technicianId: number;
+};
+
+/** The signed-in technician's availability status. */
+export type TechnicianAvailabilityResponse = {
+  available: boolean;
+  status?: 'available' | 'unavailable';
+};
+
+export type TechnicianAvailability = 'available' | 'unavailable';
+
+/** A contract row rendered on the technician directory card. */
+export type TechnicianContractSummary = {
+  siteId: number;
+  siteName: string;
+  createdAt: string;
+};
+
+/** Directory entry returned by `GET /api/technicians`. */
+export type TechnicianSummary = User & {
+  availabilityStatus: TechnicianAvailability;
+  skills: TechnicianSkill[];
+  contracts: TechnicianContractSummary[];
+};
+
+/** Alias used by screens written against the older name. */
+export type Technician = TechnicianSummary;
+
+/** A technician's request to be contracted at a site. */
+export type TechnicianContractRequestPayload = {
+  siteId: number;
+  message?: string;
+};
+
+/** Decision payload for a contract request (admin review). */
+export type ContractDecisionPayload = {
+  decision: TechnicianContractRequestDecision;
+  note?: string;
 };

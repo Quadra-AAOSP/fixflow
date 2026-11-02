@@ -1,14 +1,15 @@
 import { api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
-  ContractApplication,
-  ContractApplicationPayload,
   ContractDecisionPayload,
   TechnicianAvailabilityResponse,
   TechnicianContract,
   TechnicianContractPayload,
+  TechnicianContractRequest,
+  TechnicianContractRequestPayload,
   TechnicianSkill,
   TechnicianSkillPayload,
+  TechnicianTerm,
 } from '@/types';
 
 /** Max lengths enforced by the backend (`TechnicianSkillRequest` validation). */
@@ -37,40 +38,62 @@ export function createTechnicianContract(
   );
 }
 
+/**
+ * Lists the technician contracts the caller is authorized to see. Admins see
+ * contracts for their site; technicians see their own.
+ */
+export function listTechnicianContracts(): Promise<TechnicianContract[]> {
+  return api.get<TechnicianContract[]>(endpoints.technicianContracts.list);
+}
+
+/** Removes an authorized technician contract. */
+export function deleteTechnicianContract(id: number): Promise<void> {
+  return api.del<void>(endpoints.technicianContracts.byId(id));
+}
+
 /** A technician asks to be contracted at a site. */
-export function applyForContract(
-  payload: ContractApplicationPayload,
-): Promise<ContractApplication> {
-  return api.post<ContractApplication>(
+export function createTechnicianContractRequest(
+  payload: TechnicianContractRequestPayload,
+): Promise<TechnicianContractRequest> {
+  return api.post<TechnicianContractRequest>(
     endpoints.contractRequests.create,
     payload,
   );
 }
 
 /**
- * Lists contract applications. Passing `siteId` scopes the list to one site,
- * which is how the admin review queue is built; omitting it returns every
- * application the caller may see.
+ * Lists contract requests. Passing `siteId` scopes the list to one site
+ * (the admin review queue); omitting it returns the caller's own requests.
  */
-export function listContractApplications(
+export function listTechnicianContractRequests(
   siteId?: number,
-): Promise<ContractApplication[]> {
-  return api.get<ContractApplication[]>(
+): Promise<TechnicianContractRequest[]> {
+  return api.get<TechnicianContractRequest[]>(
     siteId === undefined
       ? endpoints.contractRequests.list
       : endpoints.contractRequests.bySite(siteId),
   );
 }
 
-/** Approve or reject a pending application (`admin` / `super_admin`). */
-export function decideContractApplication(
+/** Approve or reject a pending contract request (`admin` / `super_admin`). */
+export function decideTechnicianContractRequest(
   id: number,
-  payload: ContractDecisionPayload,
-): Promise<ContractApplication> {
-  return api.post<ContractApplication>(
+  decision: ContractDecisionPayload,
+): Promise<TechnicianContractRequest> {
+  return api.post<TechnicianContractRequest>(
     endpoints.contractRequests.decide(id),
-    payload,
+    decision,
   );
+}
+
+/** The signed-in technician's current terms status. */
+export function getTechnicianTerms(): Promise<TechnicianTerm> {
+  return api.get<TechnicianTerm>(endpoints.technicianTerms.me);
+}
+
+/** Accepts the current technician terms. */
+export function acceptTechnicianTerms(): Promise<TechnicianTerm> {
+  return api.post<TechnicianTerm>(endpoints.technicianTerms.accept);
 }
 
 /** Server-side availability of the signed-in technician (`GET`). */
@@ -86,6 +109,6 @@ export function updateMyAvailability(
 ): Promise<TechnicianAvailabilityResponse> {
   return api.put<TechnicianAvailabilityResponse>(
     endpoints.technicians.myAvailability,
-    { status: available ? 'available' : 'unavailable' },
+    { available },
   );
 }
