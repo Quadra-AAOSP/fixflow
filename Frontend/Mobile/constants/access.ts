@@ -41,15 +41,12 @@ export const canTriggerManualAIClassification = (user: User | null | undefined):
   user?.role === 'admin' || user?.role === 'super_admin';
 
 /**
- * Shop management. Shop managers can always manage the shop; site admins
- * must NOT be granted shop management locally — the backend's `manageShop`
- * capability is the sole decider for everyone else.
+ * Shop management follows the backend capability exclusively. Shop managers
+ * retain access as a fallback for older payloads, but no role — including
+ * site admins — is granted shop access locally.
  */
-export const canManageShop = (user: User | null | undefined): boolean => {
-  if (user?.role === 'shop_manager') return true;
-  if (user?.role === 'admin') return false;
-  return user?.capabilities?.manageShop ?? false;
-};
+export const canManageShop = (user: User | null | undefined): boolean =>
+  user?.capabilities?.manageShop ?? user?.role === 'shop_manager';
 
 /** True for the admin of a site (site-bound accounts only). */
 export const canManageSubsites = (user: User | null | undefined): boolean =>
