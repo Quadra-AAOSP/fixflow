@@ -42,7 +42,7 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 | ReportPhotoController | `GET /api/reports/{id}/photos/{photoId}` | Connected: ReportPhotosPanel; live storage acceptance remains open. |
 | ReportVisionController | `POST /api/reports/{reportId}/vision` | Connected: ReportVisionPanel consent/upload/status; live provider acceptance remains open. |
 | ReportVisionController | `GET /api/reports/{reportId}/vision/{jobId}` | Connected: ReportVisionPanel consent/upload/status; live provider acceptance remains open. |
-| ShopCatalogController | `GET /api/shop/catalog` | Connected: Shop via configured VITE_SHOP_CATALOG_PATH; configuration must be /api/shop/catalog. |
+| ShopCatalogController | `GET /api/shop/catalog` | Connected: Shop defaults to /api/shop/catalog; VITE_SHOP_CATALOG_PATH is an optional API-path override. |
 | ShopOrderController | `POST /api/shop/checkout/quote` | Connected: Shop quote/create/history plus /shop/orders/:orderId detail, refresh and confirmed pending-order cancellation. Return links perform reads, not automatic development payment completion. |
 | ShopOrderController | `POST /api/shop/orders` | Connected: Shop quote/create/history plus /shop/orders/:orderId detail, refresh and confirmed pending-order cancellation. Return links perform reads, not automatic development payment completion. |
 | ShopOrderController | `GET /api/shop/orders` | Connected: Shop quote/create/history plus /shop/orders/:orderId detail, refresh and confirmed pending-order cancellation. Return links perform reads, not automatic development payment completion. |

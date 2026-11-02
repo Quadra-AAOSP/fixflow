@@ -9,8 +9,8 @@ import type {
   ShopQuote,
 } from '@/types/shop';
 
-// Opt-in until the backend implements the contract in SHOP_API.md.
-export const catalogPath = (import.meta.env.VITE_SHOP_CATALOG_PATH as string | undefined)?.trim() || '';
+// The published backend catalogue is the default; deployments may override its path.
+export const catalogPath = (import.meta.env.VITE_SHOP_CATALOG_PATH as string | undefined)?.trim() || '/api/shop/catalog';
 
 export function safeImageUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;

@@ -1,6 +1,6 @@
 # Vue web verification
 
-Verified on 31 October 2026 in the current `feature/web` checkout. This records
+Evidence recorded from 31 October through 2 November 2026 in `feature/web`. This records
 frontend evidence; it does not certify the backend or mark the maintenance MVP complete.
 
 ## Automated checks
@@ -33,8 +33,8 @@ The browser was a narrow in-app-browser viewport, with Simplified Chinese select
 | Server logout | Use the profile's sign-out action, then make a fresh direct visit to the protected report URL. | The application stays signed out and returns to login with the report return path. Private content does not reappear. |
 
 The idle-expiry case exercises the web response to an expired server session.
-It does not measure the configured absolute session lifetime or test browser
-back/forward-cache behavior, which require separate checks.
+It did not measure the absolute session lifetime. A separate absolute-expiry
+case is recorded below; browser back/forward-cache behavior remains unverified.
 
 ## Regression coverage
 
@@ -284,3 +284,27 @@ fit at 320px in both languages, with the report table scrolling within its regio
 The body minimum-width overflow and unwrapped site-card actions were corrected.
 The browser viewport override was reset after testing. These changes do not
 establish full accessibility acceptance for all roles and workflows.
+
+## Absolute-expiry verification and acceptance audit
+
+On 2 November, the real peer browser session opened report #3 and showed the
+synthetic room/reason markers. The disposable database had exactly one peer
+authentication timestamp. Only that timestamp was replaced with a standard Java
+serialized Instant 24 hours in the past; the session idle deadline was separately
+kept 30 minutes in the future. The default absolute limit is 12 hours.
+After the backend's live socket/session check, the page redirected without a
+reload to /login?redirect=/reports/3. Description, room and reason markers were
+absent from the rendered DOM. Credential fields were cleared before capturing
+the result screenshot. Re-login was then checked using the disposable account.
+This tests the absolute authentication clock independently from idle expiry; it
+does not measure a real 12-hour wall-clock session or all browser cache behavior.
+
+MEMBER3_ACCEPTANCE.md maps the original checklist to current evidence and retains
+the missing API/provider/storage/review gates. Fresh audit verification passed
+55 test files / 346 tests and the production build after the catalogue-default fix.
+Backend source was unchanged.
+
+The final endpoint audit removed the stale opt-in catalogue gate: an unset
+VITE_SHOP_CATALOG_PATH now uses the published /api/shop/catalog route. A valid
+deployment override still works; a non-API override is rejected before fetch.
+Three new configuration tests verify these cases with no invented product data.
