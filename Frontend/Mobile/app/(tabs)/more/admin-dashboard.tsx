@@ -15,6 +15,7 @@ import { useCurrentSite } from '@/stores/site';
 import {
   listSubsites,
 } from '@/services/sites';
+import type { Subsite } from '@/types';
 
 /**
  * Admin dashboard for site setup and management.
@@ -26,7 +27,7 @@ export default function AdminDashboardScreen() {
   const { user } = useAuth();
   const { site, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
 
-  const [subsites, setSubsites] = useState([]);
+  const [subsites, setSubsites] = useState<Subsite[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +51,7 @@ export default function AdminDashboardScreen() {
     void loadSubsites();
   }, [loadSubsites]);
 
-  const hasActiveSubsites = subsites.some(subsite => !subsite.archived);
+  const hasActiveSubsites = subsites.some(subsite => !subsite.archivedAt);
 
   return (
     <Screen>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -80,11 +80,14 @@ export default function ContractsScreen() {
   }, [loadData]);
 
   const handleSubmitRequest = useCallback(async () => {
-    if (!selectedSiteId) return;
+    if (!selectedSiteId || !user) return;
     setSubmitting(true);
     setError(null);
     try {
-      await createTechnicianContract(selectedSiteId);
+      await createTechnicianContract({
+        siteId: selectedSiteId,
+        technicianId: user.id,
+      });
       await loadData();
       setSelectedSiteId(null);
     } catch (err) {
@@ -100,7 +103,7 @@ export default function ContractsScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await decideTechnicianContractRequest(requestId, decision);
+      await decideTechnicianContractRequest(requestId, { decision });
       await loadData();
     } catch (err) {
       setError(

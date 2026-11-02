@@ -22,19 +22,19 @@ import {
   getReportingSetup,
   createSubsiteAlert,
   listSubsiteAlerts,
-  resolveSubsiteAlert,
+  resolveSubsiteAlert as resolveSubsiteRequest,
 } from '@/services/sites';
-import type { Subsite, ReportingSetup } from '@/types';
+import type { Subsite, ReportingSetup, SubsiteAlert } from '@/types';
+import { useToast } from '@/components/ui/useToastContext';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
 export default function SiteSetupScreen() {
   const { t } = useTranslation('common');
+  const { showToast } = useToast();
   const router = useRouter();
   const { user } = useAuth();
   const { site, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
-
-  const hasActiveSubsites = subsites.some(subsite => !subsite.archived);
 
   const navigateToSetup = useCallback(() => {
     if (!site) return;
@@ -43,8 +43,8 @@ export default function SiteSetupScreen() {
 
   const canManage = canManageSubsites(user);
 
-  const [subsites, setSubsites] = useState<Subsite[]>([]);
-  const [subsiteAlerts, setSubsiteAlerts] = useState<SubsiteAlert[]>([]);
+  const [subsites, setSubsites] = useState<Subsite[] | null>(null);
+  const [subsiteAlerts, setSubsiteAlerts] = useState<SubsiteAlert[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,25 +115,13 @@ export default function SiteSetupScreen() {
     setBusy(true);
 
     try {
-      if (creating) {
-        await createSubsite(site.id, {
-          label: label.trim(),
-          name: name.trim(),
-          description: description.trim(),
-        });
-      } else if (editingId !== null) {
-        await updateSubsite(site.id, editingId, {
-          label: label.trim(),
-          name: name.trim(),
-          description: description.trim(),
-        });
-      }
-      await load();
+      await handleSubsiteAction();
+      showToast(t('siteSetup.successSave'), 'success');
       cancelForm();
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSave'),
-      );
+      const errorMessage = err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSave');
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setBusy(false);
     }
@@ -167,10 +155,11 @@ export default function SiteSetupScreen() {
       // Refresh alerts after suggestion
       const alerts = await listSubsiteAlerts(site.id);
       setSubsiteAlerts(alerts);
+      showToast(t('siteSetup.successSuggest'), 'success');
     } catch (err) {
-      setSuggestionError(
-        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSuggest'),
-      );
+      const errorMessage = err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSuggest');
+      setSuggestionError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setBusy(false);
     }
@@ -181,15 +170,15 @@ export default function SiteSetupScreen() {
     setBusy(true);
     setError(null);
     try {
-      await resolveSubsiteAlert(site.id, alertId);
+      await resolveSubsiteRequest(site.id, alertId);
       // Refresh alerts after resolution
       const alerts = await listSubsiteAlerts(site.id);
       setSubsiteAlerts(alerts);
       setSuggestionSuccess(true);
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotResolve'),
-      );
+      const errorMessage = err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotResolve');
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setBusy(false);
     }
@@ -206,30 +195,21 @@ export default function SiteSetupScreen() {
     setMissingBuildingName('');
     setMissingBuildingDescription('');
   }
-    try {
-      if (creating) {
-        await createSubsite(site.id, {
-          label: label.trim(),
-          name: name.trim(),
-          description: description.trim() || undefined,
-        });
-      } else if (editingId !== null) {
-        await updateSubsite(site.id, editingId, {
-          label: label.trim(),
-          name: name.trim(),
-          description: description.trim() || undefined,
-        });
-      }
-      cancelForm();
-      await load();
-    } catch (err) {
-      Alert.alert(
-        t('siteSetup.errors.couldNotSave'),
-        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotSave'),
-      );
-    } finally {
-      setBusy(false);
+  async function handleSubsiteAction() {
+    if (creating) {
+      await createSubsite(site!.id, {
+        label: label.trim(),
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
+    } else if (editingId !== null) {
+      await updateSubsite(site!.id, editingId, {
+        label: label.trim(),
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
     }
+    await load();
   }
 
   async function confirmArchive(row: Subsite) {
@@ -245,11 +225,11 @@ export default function SiteSetupScreen() {
             try {
               await archiveSubsite(site!.id, row.id);
               await load();
+              showToast(t('siteSetup.successArchive'), 'success');
             } catch (err) {
-              Alert.alert(
-                t('siteSetup.errors.couldNotArchive'),
-                err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotArchive'),
-              );
+              const errorMessage = err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotArchive');
+              setError(errorMessage);
+              showToast(errorMessage, 'error');
             }
           },
         },
@@ -306,10 +286,10 @@ export default function SiteSetupScreen() {
     );
   }
 
-  const active = (subsites ?? []).filter((s) => s.archivedAt === null);
-  const archived = (subsites ?? []).filter((s) => s.archivedAt !== null);
+  const active = (subsites ?? []).filter((s: Subsite) => s.archivedAt === null);
+  const archived = (subsites ?? []).filter((s: Subsite) => s.archivedAt !== null);
 
-  const editingRow = editingId !== null ? subsites?.find((r) => r.id === editingId) : null;
+  const editingRow = editingId !== null ? subsites?.find((r: Subsite) => r.id === editingId) : null;
 
   return (
     <Screen>
@@ -356,7 +336,13 @@ export default function SiteSetupScreen() {
                   onChangeName={setName}
                   onChangeDescription={setDescription}
                   onCancel={cancelForm}
-                  onSave={saveForm}
+                  onSave={async () => {
+                    try {
+                      await saveForm();
+                    } catch (err) {
+                      console.error('Error in saveForm:', err);
+                    }
+                  }}
                   busy={busy}
                 />
               ) : null}
@@ -386,13 +372,18 @@ export default function SiteSetupScreen() {
             {subsites !== null && (
               <Text className="mt-0.5 text-[10px] text-dashboard-subtitle">
                 {subsites.length} {t('siteSetup.buildingsCount', { count: subsites.length, plural: subsites.length === 1 ? '' : 's' })}
+                {' · '}
+                {t('siteSetup.activeCount', { count: active.length })}
+                {archived.length > 0
+                  ? ` · ${t('siteSetup.archivedCount', { count: archived.length })}`
+                  : ''}
               </Text>
             )}
 
-            <Text className="mb-2 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+            <Text className="mb-2 mt-3 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
               {t('siteSetup.missingBuildings')}
             </Text>
-            {subsiteAlerts.length > 0 ? (
+            {subsiteAlerts !== null && subsiteAlerts.length > 0 ? (
               <Card padded={false} className="mb-4">
                 {subsiteAlerts.map((alert) => (
                   <View
@@ -404,7 +395,16 @@ export default function SiteSetupScreen() {
                         {alert.note}
                       </Text>
                       <Pressable
-                        onPress={() => resolveSubsiteAlert(alert.id)}
+                        onPress={async () => {
+                          try {
+                            await resolveSubsiteAlert(alert.id);
+                            showToast(t('siteSetup.successResolve'), 'success');
+                          } catch (err) {
+                            const errorMessage = err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotResolve');
+                            setError(errorMessage);
+                            showToast(errorMessage, 'error');
+                          }
+                        }}
                         accessibilityRole="button"
                         className="flex-row items-center gap-1 active:opacity-70"
                       >
@@ -425,12 +425,6 @@ export default function SiteSetupScreen() {
                   {t('siteSetup.noMissingBuildings')}
                 </Text>
               </Card>
-            )}
-                {t('siteSetup.activeCount', { count: active.length })}
-                {archived.length > 0
-                  ? ` · ${t('siteSetup.archivedCount', { count: archived.length })}`
-                  : ''}
-              </Text>
             )}
           </View>
           {subsites === null || loading ? null : active.length === 0 && archived.length === 0 ? (
@@ -467,7 +461,17 @@ export default function SiteSetupScreen() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={t('siteSetup.archiveConfirmTitle', { label: entry.row.label })}
-                      onPress={() => confirmArchive(entry.row)}
+                      onPress={async () => {
+                        try {
+                          await archiveSubsite(site!.id, entry.row.id);
+                          await load();
+                          showToast(t('siteSetup.successArchive'), 'success');
+                        } catch (err) {
+                          const errorMessage = err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotArchive');
+                          setError(errorMessage);
+                          showToast(errorMessage, 'error');
+                        }
+                      }}
                       className="h-7 w-7 items-center justify-center rounded-full active:opacity-70"
                     >
                       <X color={dashboardColors.statCoralDeep} size={14} />
@@ -587,7 +591,13 @@ function EditForm({
         </Pressable>
         <Button
           label={creating ? t('siteSetup.addBuildingButton') : t('siteSetup.saveChanges')}
-          onPress={onSave}
+          onPress={async () => {
+            try {
+              await onSave();
+            } catch (err) {
+              console.error('Error in saveForm:', err);
+            }
+          }}
           loading={busy}
           disabled={!valid || busy}
           className="flex-1"

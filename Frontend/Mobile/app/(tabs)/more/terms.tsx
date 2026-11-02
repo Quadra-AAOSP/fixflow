@@ -18,7 +18,7 @@ import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { getTechnicianTerms, acceptTechnicianTerms } from '@/services/technician';
-import type { TechnicianTerms } from '@/types';
+import type { TechnicianTerm } from '@/types';
 
 /**
  * Technician terms and conditions. Mirrors `TermsView.vue`.
@@ -33,7 +33,7 @@ export default function TermsScreen() {
   const router = useRouter();
   const palette = themeColors();
 
-  const [terms, setTerms] = useState<TechnicianTerms | null>(null);
+  const [terms, setTerms] = useState<TechnicianTerm | null>(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export default function TermsScreen() {
     setAccepting(true);
     setError(null);
     try {
-      await acceptTechnicianTerms(terms.version);
+      await acceptTechnicianTerms();
       setSuccess(true);
     } catch (err) {
       setError(
@@ -103,7 +103,7 @@ export default function TermsScreen() {
     return (
       <Screen>
         <StateView
-          variant="success"
+          variant="empty"
           title={t('terms.acceptedTitle')}
           description={t('terms.acceptedDesc')}
           actionLabel={t('terms.continue')}
@@ -134,7 +134,7 @@ export default function TermsScreen() {
         {terms?.acceptedAt ? (
           <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Check color={palette.statMintDeep} size={20} />
+              <Check color={dashboardColors.statMintDeep} size={20} />
               <Text style={{ fontSize: 14, color: palette.ink }}>
                 {t('terms.acceptedOn', { date: new Date(terms.acceptedAt).toLocaleDateString() })}
               </Text>
