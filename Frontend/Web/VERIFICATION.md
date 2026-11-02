@@ -228,3 +228,29 @@ Live browser flow in fixflow_web_verify_1793370073:
 This verifies the create/detail/join/peer privacy acceptance slice; it does not
 prove every form's limits or the unpublished resolution lifecycle. All 51 test
 files / 318 tests and the production build passed.
+
+## Owned order detail and checkout request ordering
+
+/shop/orders/:orderId connects the existing owned-order read, with returned line
+prices, subtotal/shipping/tax/total, currency precision, delivery fields and payment
+state. The history dialog links to this page. Cancellation requires review and a
+separate confirmation; failed cancellation preserves the server-returned order.
+Account/route changes clear shipping data and reject late detail responses.
+
+Shop quote/history loads now reject obsolete responses. Checkout prevents duplicate
+in-flight submission and reuses an idempotency key for an unchanged retry after a
+network failure. Basket quantities and shipping inputs are disabled during submit.
+A return URL containing orderId/devPay now opens the read-only order page; it cannot
+trigger the development payment endpoint on mount. Component tests exercise old
+quotes resolving last, unchanged retries, provider-return links, private-state
+cleanup and cancellation errors.
+
+Live read in the disposable schema: peer account viewed fixture order
+00aaaf34-d3be-4446-bf02-337264e410c5, initially pending_payment/requires_action.
+Fixture setup used only the local API, with a deterministic idempotency key and
+synthetic delivery data. No payment was completed. The setup script cancelled this
+fixture afterward to release its stock reservation; browser Refresh then showed
+cancelled and removed the cancellation action. No existing order was modified.
+
+Full suite: 53 test files / 325 tests passed; production build passed. Two additional
+direct-order route checks passed afterward (51 router checks total).

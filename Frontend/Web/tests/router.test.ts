@@ -136,3 +136,11 @@ it.each(['technician', 'shop_manager'] as UserRole[])('keeps site detail out of 
   await signIn(role); const router = createAppRouter(createMemoryHistory()); await router.push('/sites/7');
   expect(router.currentRoute.value.name).not.toBe('site-detail');
 });
+it('requires sign-in to open a direct order detail URL', async () => {
+  const router = createAppRouter(createMemoryHistory()); await router.push('/shop/orders/order-a');
+  expect(router.currentRoute.value.name).toBe('login'); expect(router.currentRoute.value.query.redirect).toBe('/shop/orders/order-a');
+});
+it('allows a shop manager to open their order detail page', async () => {
+  await signIn('shop_manager'); const router = createAppRouter(createMemoryHistory()); await router.push('/shop/orders/order-a');
+  expect(router.currentRoute.value.name).toBe('shop-order');
+});

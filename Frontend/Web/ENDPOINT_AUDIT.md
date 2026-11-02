@@ -43,11 +43,11 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 | ReportVisionController | `POST /api/reports/{reportId}/vision` | Connected: ReportVisionPanel consent/upload/status; live provider acceptance remains open. |
 | ReportVisionController | `GET /api/reports/{reportId}/vision/{jobId}` | Connected: ReportVisionPanel consent/upload/status; live provider acceptance remains open. |
 | ShopCatalogController | `GET /api/shop/catalog` | Connected: Shop via configured VITE_SHOP_CATALOG_PATH; configuration must be /api/shop/catalog. |
-| ShopOrderController | `POST /api/shop/checkout/quote` | Connected: Shop quote/order/history/cancel; single-order service exists, history drives current UI. |
-| ShopOrderController | `POST /api/shop/orders` | Connected: Shop quote/order/history/cancel; single-order service exists, history drives current UI. |
-| ShopOrderController | `GET /api/shop/orders` | Connected: Shop quote/order/history/cancel; single-order service exists, history drives current UI. |
-| ShopOrderController | `GET /api/shop/orders/{publicId}` | Connected: Shop quote/order/history/cancel; single-order service exists, history drives current UI. |
-| ShopOrderController | `POST /api/shop/orders/{publicId}/cancel` | Connected: Shop quote/order/history/cancel; single-order service exists, history drives current UI. |
+| ShopOrderController | `POST /api/shop/checkout/quote` | Connected: Shop quote/create/history plus /shop/orders/:orderId detail, refresh and confirmed pending-order cancellation. Return links perform reads, not automatic development payment completion. |
+| ShopOrderController | `POST /api/shop/orders` | Connected: Shop quote/create/history plus /shop/orders/:orderId detail, refresh and confirmed pending-order cancellation. Return links perform reads, not automatic development payment completion. |
+| ShopOrderController | `GET /api/shop/orders` | Connected: Shop quote/create/history plus /shop/orders/:orderId detail, refresh and confirmed pending-order cancellation. Return links perform reads, not automatic development payment completion. |
+| ShopOrderController | `GET /api/shop/orders/{publicId}` | Connected: Shop quote/create/history plus /shop/orders/:orderId detail, refresh and confirmed pending-order cancellation. Return links perform reads, not automatic development payment completion. |
+| ShopOrderController | `POST /api/shop/orders/{publicId}/cancel` | Connected: Shop quote/create/history plus /shop/orders/:orderId detail, refresh and confirmed pending-order cancellation. Return links perform reads, not automatic development payment completion. |
 | ShopPaymentWebhookController | `POST /api/shop/payments/webhook` | Webhook is provider-to-server, never a browser action. Dev completion is development-only checkout. |
 | ShopPaymentWebhookController | `POST /api/shop/payments/dev/complete/{publicId}` | Webhook is provider-to-server, never a browser action. Dev completion is development-only checkout. |
 | SiteAdminApplicationController | `GET /api/auth/site-admin-application` | Connected: applicant status and super-admin Team access decisions. |

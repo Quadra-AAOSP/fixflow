@@ -900,5 +900,20 @@
   "Public within your site": "场地内公开",
   "Private report": "私密报修",
   "Private reports are restricted to the creator, attached reporters, authorized staff and admins, and the assigned technician.": "私密报修仅限创建者、已加入的报修人、有权访问的工作人员和管理员，以及被指派的技术人员查看。",
-  "Other reporters at your site can browse and join this report. Your identity and exact address stay masked until they join.": "同一场地的其他报修人可以浏览并加入此报修。加入前，他们无法查看您的身份和具体地址。"
+  "Other reporters at your site can browse and join this report. Your identity and exact address stay masked until they join.": "同一场地的其他报修人可以浏览并加入此报修。加入前，他们无法查看您的身份和具体地址。",
+  "Order details": "订单详情",
+  "View order details": "查看订单详情",
+  "Back to shop": "返回商店",
+  "Refresh order": "刷新订单",
+  "Loading order…": "正在加载订单…",
+  "Payment status": "支付状态",
+  "Order items": "订单商品",
+  "{quantity} × {price}": "{quantity} × {price}",
+  "Delivery details": "配送信息",
+  "Confirm order cancellation": "确认取消订单",
+  "Keep order": "保留订单",
+  "Cancelling…": "正在取消…",
+  "Cancel this unpaid order? Its stock reservation will be released. You will need a new order to purchase these items later.": "要取消此未支付订单吗？预留库存将被释放，之后购买这些商品需要重新下单。",
+  "The order response did not match the requested order.": "订单响应与请求的订单不匹配。",
+  "Review cancellation": "查看取消确认"
 }
