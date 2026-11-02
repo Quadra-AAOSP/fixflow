@@ -325,7 +325,7 @@ export default function NewReportScreen() {
         }
       }
 
-      showToast(t('reports.list.newReport'), 'success');
+      showToast(t('reports.new.submitted'), 'success');
       if (router.canGoBack()) {
         router.back();
       } else {

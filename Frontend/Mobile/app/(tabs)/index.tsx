@@ -446,6 +446,17 @@ export default function HomeScreen() {
           />
         }
       >
+        <View className="mb-1 flex-row justify-end px-1">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('home.notifications.accessibilityLabel')}
+            onPress={() => router.push('/more/notifications')}
+            className="active:opacity-70"
+          >
+            <Bell color={dashboardColors.subtitle} size={18} strokeWidth={1.9} />
+          </Pressable>
+        </View>
+
         <WelcomeBanner
           t={t}
           greeting={greeting}
@@ -455,18 +466,6 @@ export default function HomeScreen() {
           taglineKey={isOps ? 'home.bannerTaglineOps' : 'home.bannerTagline'}
           onPressCta={isOps ? () => gotoReports('open') : gotoNewReport}
         />
-
-        <View className="flex-row justify-end mb-3 px-1">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('home.notifications.accessibilityLabel')}
-            onPress={() => router.push('/more/notifications')}
-            className="active:opacity-70"
-          >
-            <Bell color={dashboardColors.subtitle} size={16} strokeWidth={1.9} />
-          </Pressable>
-        </View>
-
 
 
         {applicationStatus === 'pending' || applicationStatus === 'approved' ? (
@@ -604,26 +603,6 @@ export default function HomeScreen() {
           )
         ) : null}
       </ScrollView>
-
-      {/* Floating create — reporters only; ops roles file through the quick
-          actions and spend their time in the triage queues. */}
-      {canFile && !isOps ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('home.reportIssue')}
-          onPress={gotoNewReport}
-          className="absolute bottom-6 right-5 h-[52px] w-[52px] items-center justify-center rounded-full bg-dashboard-fab-bg active:opacity-90"
-          style={{
-            shadowColor: dashboardColors.fabShadow,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 6,
-          }}
-        >
-          <Plus color={dashboardColors.fabText} size={26} strokeWidth={2.2} />
-        </Pressable>
-      ) : null}
 
       {fileDisabledReason ? (
         <Text className="absolute bottom-2 left-5 right-5 text-center text-[11px] text-dashboard-caption">

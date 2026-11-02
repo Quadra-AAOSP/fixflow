@@ -33,7 +33,7 @@ export default function ShopStackLayout() {
         name="index"
         options={{
           title: t('more.menu.shopTitle'),
-          headerLeft: () => <HeaderBackButton color={palette.ink} to="/more" />,
+          headerLeft: () => <HeaderBackButton color={palette.ink} popTo="/more" />,
         }}
       />
       <Stack.Screen
@@ -41,7 +41,7 @@ export default function ShopStackLayout() {
         options={{
           title: t('more.shop.orderScreenTitle'),
           headerLeft: () => (
-            <HeaderBackButton color={palette.ink} to="/more/shop" />
+            <HeaderBackButton color={palette.ink} popTo="/more/shop" />
           ),
         }}
       />

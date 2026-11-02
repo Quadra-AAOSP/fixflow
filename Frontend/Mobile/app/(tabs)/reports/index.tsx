@@ -297,7 +297,7 @@ export default function ReportsScreen() {
               <ReportsHeader
                 t={t}
                 siteName={site?.name ?? ''}
-                contractStatus={site?.contractStatus ?? null}
+                contractStatus={isOps ? site?.contractStatus ?? null : null}
                 canCreate={canCreate}
                 onCreate={() => router.push('/reports/new')}
                 query={query}

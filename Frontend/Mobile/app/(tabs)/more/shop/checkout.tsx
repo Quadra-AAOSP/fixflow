@@ -68,7 +68,7 @@ export default function ShopCheckoutScreen() {
   // Validate basket before checkout
   const validateBasket = useCallback(() => {
     if (!basket || basket.length === 0) {
-      setBasketError(t('shop.emptyCheckout'));
+      setBasketError(t('more.shop.emptyCheckout'));
       return false;
     }
     return true;
@@ -83,7 +83,7 @@ export default function ShopCheckoutScreen() {
       setQuote(quote);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : t('shop.checkout.errors.refreshQuote'),
+        err instanceof ApiError ? err.message : t('more.shop.errors.refreshQuote'),
       );
     } finally {
       setLoading(false);
@@ -98,7 +98,7 @@ export default function ShopCheckoutScreen() {
       if (!validateBasket()) return;
       // Validate shipping information
       if (!shippingName.trim() || !shippingPhone.trim() || !shippingAddress.trim()) {
-        setError(t('shop.checkout.errors.shippingName'));
+        setError(t('more.shop.errors.shippingName'));
         return;
       }
 
@@ -113,14 +113,14 @@ export default function ShopCheckoutScreen() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) {
-          setError(t('shop.checkout.errors.signInCheckout'));
+          setError(t('more.shop.errors.signInCheckout'));
         } else if (err.status === 403) {
-          setError(t('shop.checkout.errors.signInCheckout'));
+          setError(t('more.shop.errors.signInCheckout'));
         } else {
           setError(err.message);
         }
       } else {
-        setError(t('shop.checkout.errors.placeOrder'));
+        setError(t('more.shop.errors.placeOrder'));
       }
     } finally {
       setSubmitting(false);
@@ -133,7 +133,7 @@ export default function ShopCheckoutScreen() {
     try {
       await Linking.openURL(order.checkoutUrl);
     } catch {
-      setError(t('shop.checkout.errors.devPayment'));
+      setError(t('more.shop.errors.devPayment'));
     }
   }, [order, t]);
 
@@ -160,9 +160,9 @@ export default function ShopCheckoutScreen() {
       <Screen>
         <StateView
           variant="error"
-          title={t('shop.checkout.errorTitle')}
+          title={t('more.shop.errorTitle')}
           description={error}
-          actionLabel={t('shop.retry')}
+          actionLabel={t('more.shop.retry')}
           onAction={() => {
             setError(null);
             if (basket) {
@@ -184,10 +184,10 @@ export default function ShopCheckoutScreen() {
             <View style={{ alignItems: 'center', gap: 8 }}>
               <Check size={48} color={shopPalette.mint} />
               <Text style={{ fontSize: 20, fontWeight: '600', color: palette.ink }}>
-                {t('shop.checkout.orderSuccess', { id: order.orderId })}
+                {t('more.shop.orderSuccess', { id: order.orderId })}
               </Text>
               <Text style={{ fontSize: 14, color: palette.subtitle, textAlign: 'center' }}>
-                {t('shop.checkout.orderNumber', { id: order.orderId })}
+                {t('more.shop.orderNumber', { id: order.orderId })}
               </Text>
             </View>
           </Card>
@@ -195,7 +195,7 @@ export default function ShopCheckoutScreen() {
           <Card>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
               <Text style={{ fontSize: 14, color: palette.subtitle }}>
-                {t('shop.checkout.total')}
+                {t('more.shop.total')}
               </Text>
               <Text style={{ fontSize: 16, fontWeight: '600', color: palette.primary }}>
                 {formatMoney(
@@ -207,17 +207,17 @@ export default function ShopCheckoutScreen() {
             </View>
             {order.checkoutUrl ? (
               <Button variant="primary" onPress={handlePaymentConfirmation}>
-                {t('shop.checkout.payNow')}
+                {t('more.shop.payNow')}
               </Button>
             ) : (
               <Text style={{ fontSize: 12, color: palette.subtitle }}>
-                {t('shop.checkout.devPaymentNote')}
+                {t('more.shop.devPaymentNote')}
               </Text>
             )}
           </Card>
 
           <Button variant="secondary" onPress={() => router.replace('/more/shop')}>
-            {t('shop.backToShop')}
+            {t('more.shop.backToShop')}
           </Button>
         </ScrollView>
       </Screen>
@@ -229,9 +229,9 @@ export default function ShopCheckoutScreen() {
       <Screen>
         <StateView
           variant="empty"
-          title={t('shop.emptyBasketTitle')}
-          description={t('shop.emptyBasketDesc')}
-          actionLabel={t('shop.backToShop')}
+          title={t('more.shop.emptyBasketTitle')}
+          description={t('more.shop.emptyBasketDesc')}
+          actionLabel={t('more.shop.backToShop')}
           onAction={() => router.push('/more/shop')}
         />
       </Screen>
@@ -243,7 +243,7 @@ export default function ShopCheckoutScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
         <Card>
           <Text style={{ fontSize: 16, fontWeight: '600', color: palette.ink, marginBottom: 8 }}>
-            {t('shop.orderSummary')}
+            {t('more.shop.orderSummary')}
           </Text>
           <View style={{ gap: 8 }}>
             {quote.lines.map((line) => (
@@ -264,38 +264,38 @@ export default function ShopCheckoutScreen() {
 
         <Card>
           <Text style={{ fontSize: 16, fontWeight: '600', color: palette.ink, marginBottom: 8 }}>
-            {t('shop.shipping')}
+            {t('more.shop.shipping')}
           </Text>
           <TextField
-            label={t('shop.checkout.shippingNameLabel')}
+            label={t('more.shop.shippingNameLabel')}
             value={shippingName}
             onChangeText={setShippingName}
-            placeholder={t('shop.checkout.fullNamePlaceholder')}
+            placeholder={t('more.shop.fullNamePlaceholder')}
           />
           <TextField
-            label={t('shop.checkout.phoneLabel')}
+            label={t('more.shop.phoneLabel')}
             value={shippingPhone}
             onChangeText={setShippingPhone}
-            placeholder={t('shop.checkout.phoneLabel')}
+            placeholder={t('more.shop.phoneLabel')}
             keyboardType="phone-pad"
           />
           <TextField
-            label={t('shop.checkout.shippingAddressLabel')}
+            label={t('more.shop.shippingAddressLabel')}
             value={shippingAddress}
             onChangeText={setShippingAddress}
-            placeholder={t('shop.checkout.addressPlaceholder')}
+            placeholder={t('more.shop.addressPlaceholder')}
             multiline
           />
         </Card>
 
         <Card>
           <Text style={{ fontSize: 16, fontWeight: '600', color: palette.ink, marginBottom: 8 }}>
-            {t('shop.checkout.orderSummary')}
+            {t('more.shop.orderSummary')}
           </Text>
           <View style={{ gap: 8 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 14, color: palette.subtitle }}>
-                {t('shop.checkout.subtotal')}
+                {t('more.shop.subtotal')}
               </Text>
               <Text style={{ fontSize: 14, color: palette.ink }}>
                 {formatMoney(quote.subtotalMinor, quote.minorUnitDigits, quote.currency)}
@@ -303,7 +303,7 @@ export default function ShopCheckoutScreen() {
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 14, color: palette.subtitle }}>
-                {t('shop.checkout.tax')}
+                {t('more.shop.tax')}
               </Text>
               <Text style={{ fontSize: 14, color: palette.ink }}>
                 {formatMoney(quote.taxMinor, quote.minorUnitDigits, quote.currency)}
@@ -311,7 +311,7 @@ export default function ShopCheckoutScreen() {
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: palette.border }}>
               <Text style={{ fontSize: 14, color: palette.subtitle }}>
-                {t('shop.checkout.total')}
+                {t('more.shop.total')}
               </Text>
               <Text style={{ fontSize: 16, fontWeight: '600', color: palette.primary }}>
                 {formatMoney(quote.totalMinor, quote.minorUnitDigits, quote.currency)}
@@ -332,7 +332,7 @@ export default function ShopCheckoutScreen() {
           {submitting ? (
             <ActivityIndicator color={palette.card} />
           ) : (
-            t('shop.checkout.placeOrder')
+            t('more.shop.placeOrder')
           )}
         </Button>
       </ScrollView>
