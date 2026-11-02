@@ -51,6 +51,18 @@ export function deletePhoto(reportId: number, photoId: number): Promise<void> {
   );
 }
 
+/**
+ * Renews a signed URL for one photo. Signed URLs expire, so the gallery calls
+ * this when an image fails to load and swaps in the fresh URL.
+ */
+export function getPhotoSignedUrl(reportId: number, photoId: number): Promise<ReportPhoto> {
+  return api.get<ReportPhoto>(
+    endpoints.reports.photos.getUrl
+      .replace('{id}', String(reportId))
+      .replace('{photoId}', String(photoId)),
+  );
+}
+
 /** Max file size the server accepts (5 MB). */
 export const MAX_PHOTO_SIZE_BYTES = BASE;
 

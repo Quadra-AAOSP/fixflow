@@ -1,6 +1,8 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -50,23 +52,35 @@ import {
 // DELETE /api/reports/{id}/reporters/{reporterId}
 // Authorization: Only the reporter themselves or a site admin/super admin
 // Expected behavior: Removes the reporter from the report's reporter list
-
-// NOTE: The backend does not currently have a dedicated 'leaveReport' endpoint.
-// Required backend operation:
-// DELETE /api/reports/{id}/reporters/{reporterId}
-// Authorization: Only the reporter themselves or a site admin/super admin
-// Expected behavior: Removes the reporter from the report's reporter list
-
-// NOTE: The backend does not currently have a dedicated 'leaveReport' endpoint.
-// Required backend operation:
-// DELETE /api/reports/{id}/reporters/{reporterId}
-// Authorization: Only the reporter themselves or a site admin/super admin
-// Expected behavior: Removes the reporter from the report's reporter list
 // If implemented, add a leaveReport function to the reports service and implement the UI for it.
 import { useCurrentSite } from '@/stores/site';
-import type { Report, ReportReporter, Urgency } from '@/types';
+import { getPhotoSignedUrl } from '@/services/photos';
+import {
+  inviteTechniciansToReport,
+  listTechnicians,
+  rankTechniciansForReport,
+} from '@/services/technicians';
+import type {
+  RankingMode,
+  Report,
+  ReportPhoto,
+  ReportReporter,
+  TechnicianInvitationsSent,
+  TechnicianRanking,
+  TechnicianSummary,
+  Urgency,
+  VisionJob,
+} from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
+
+/** A selectable assignment candidate (server ranking or directory-derived). */
+type AssignmentCandidate = {
+  technicianId: number;
+  proficiency: number;
+  specialtyMatch: boolean;
+  activeCases: number | null;
+};
 
 /**
  * Report detail. Mirrors `ReportDetailView.vue`:
@@ -91,13 +105,28 @@ export default function ReportDetailScreen() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [assigning, setAssigning] = useState(false);
-  const [technicianId, setTechnicianId] = useState('');
+  const [ranking, setRanking] = useState<TechnicianRanking | null>(null);
+  const [rankingMode, setRankingMode] = useState<RankingMode>('STANDARD');
+  const [rankingLoading, setRankingLoading] = useState(false);
+  const [rankingError, setRankingError] = useState<string | null>(null);
+  const [directory, setDirectory] = useState<TechnicianSummary[]>([]);
+  const [directoryError, setDirectoryError] = useState<string | null>(null);
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState<number | null>(null);
+  const [inviteReason, setInviteReason] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [inviteSent, setInviteSent] = useState<TechnicianInvitationsSent | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [reopenModalVisible, setReopenModalVisible] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
   const [reopenError, setReopenError] = useState<string | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  // Signed photo URLs expire; keep refreshed replacements keyed by photo id.
+  const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
+  const [visionJob, setVisionJob] = useState<VisionJob | null>(null);
+  const [visionLoading, setVisionLoading] = useState(false);
+  const [visionError, setVisionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!Number.isInteger(reportId) || reportId <= 0) {
@@ -111,6 +140,10 @@ export default function ReportDetailScreen() {
     try {
       const next = await getReport(reportId);
       setReport(next);
+      setSelectedTechnicianId(null);
+      setPhotoUrls({});
+      setVisionJob(null);
+      setVisionError(null);
 
       if (next.policy.canSeeSensitive) {
         const photos = await getReportPhotos(reportId);
@@ -156,11 +189,208 @@ export default function ReportDetailScreen() {
     }
   }, [report, reportId, aiLoading, t]);
 
+  const renewPhotoUrl = useCallback(
+    async (photo: ReportPhoto) => {
+      try {
+        const fresh = await getPhotoSignedUrl(reportId, photo.id);
+        setPhotoUrls((previous) => ({ ...previous, [photo.id]: fresh.url }));
+      } catch {
+        // Keep the existing URL; the thumbnail simply stays unavailable.
+      }
+    },
+    [reportId],
+  );
+
+  const analyzePhotos = useCallback(async () => {
+    if (visionLoading) return;
+    setVisionLoading(true);
+    setVisionError(null);
+    try {
+      let job = await triggerVisionProcessing(reportId);
+      setVisionJob(job);
+      // Poll until the background job settles, then refresh the report so the
+      // new AI assessment replaces the masked one.
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        if (job.status === 'completed' || job.status === 'failed') break;
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        job = await getVisionJobStatus(reportId, job.id);
+        setVisionJob(job);
+      }
+      if (job.status === 'completed') {
+        await load();
+      } else {
+        setVisionError(t('reports.detail.vision.failed'));
+      }
+    } catch (err) {
+      setVisionError(
+        err instanceof ApiError ? err.message : t('reports.detail.vision.failed'),
+      );
+    } finally {
+      setVisionLoading(false);
+    }
+  }, [reportId, visionLoading, load, t]);
+
+  const confirmAnalyzePhotos = useCallback(() => {
+    if (visionLoading) return;
+    Alert.alert(
+      t('reports.detail.vision.consentTitle'),
+      t('reports.detail.vision.consentMessage'),
+      [
+        { text: t('reports.detail.vision.cancel'), style: 'cancel' },
+        {
+          text: t('reports.detail.vision.continue'),
+          onPress: () => {
+            void analyzePhotos();
+          },
+        },
+      ],
+    );
+  }, [analyzePhotos, visionLoading, t]);
+
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
+
+  const isReportManager =
+    user?.role === 'admin' || user?.role === 'super_admin';
+
+  /**
+   * Admins/super admins rank through the backend (STANDARD or AI/OpenRouter);
+   * staff fall back to the directory filters the web uses. Ranking is only
+   * permitted for admins, so never call it for staff.
+   */
+  const loadCandidates = useCallback(
+    async (mode: RankingMode) => {
+      if (!report || !report.policy.canAssign) return;
+      setRankingLoading(true);
+      setRankingError(null);
+      setDirectoryError(null);
+      const results = await Promise.allSettled([
+        listTechnicians(),
+        isReportManager
+          ? rankTechniciansForReport(report.id, mode)
+          : Promise.resolve(null),
+      ]);
+      if (results[0].status === 'fulfilled') {
+        setDirectory(results[0].value);
+      } else {
+        setDirectoryError(
+          toErrorMessage(results[0].reason, {
+            fallback: t('reports.detail.assignDirectoryError'),
+          }),
+        );
+      }
+      if (results[1].status === 'fulfilled') {
+        setRanking(results[1].value);
+      } else if (isReportManager) {
+        setRankingError(
+          toErrorMessage(results[1].reason, {
+            fallback: t('reports.detail.assignRankingError'),
+          }),
+        );
+      }
+      setRankingLoading(false);
+    },
+    [report, isReportManager, t],
+  );
+
+  useEffect(() => {
+    if (!report) return;
+    void loadCandidates(rankingMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    report?.id,
+    report?.siteId,
+    report?.category,
+    report?.specialty,
+    report?.policy.canAssign,
+    rankingMode,
+  ]);
+
+  const assignmentCandidates = useMemo<AssignmentCandidate[]>(() => {
+    if (!report) return [];
+    if (isReportManager) {
+      return (ranking?.candidates ?? []).map((candidate) => ({
+        technicianId: candidate.technicianId,
+        proficiency: candidate.proficiency,
+        specialtyMatch: candidate.specialtyMatch,
+        activeCases: candidate.activeCases,
+      }));
+    }
+    if (!report.siteId) return [];
+    const category = report.category.toLowerCase();
+    const specialty = report.specialty?.toLowerCase() ?? null;
+    return directory
+      .filter(
+        (person) =>
+          person.availabilityStatus === 'available' &&
+          person.contracts.some((contract) => contract.siteId === report.siteId),
+      )
+      .flatMap((person) => {
+        const matches = person.skills.filter(
+          (skill) =>
+            skill.proficiency >= 1 &&
+            skill.proficiency <= 5 &&
+            skill.category.toLowerCase() === category &&
+            (!specialty || skill.specialty?.toLowerCase() === specialty),
+        );
+        if (!matches.length) return [];
+        return [
+          {
+            technicianId: person.id,
+            proficiency: Math.max(...matches.map((skill) => skill.proficiency)),
+            specialtyMatch: specialty !== null,
+            activeCases: null,
+          },
+        ];
+      });
+  }, [report, isReportManager, ranking, directory]);
+
+  const technicianName = useCallback(
+    (id: number) => {
+      const person = directory.find((row) => row.id === id);
+      return person
+        ? `${person.firstName} ${person.lastName}`.trim()
+        : t('reports.detail.assignAccount', { id });
+    },
+    [directory, t],
+  );
+
+  async function onInviteTechnicians() {
+    const reason = inviteReason.trim();
+    if (reason.length === 0) {
+      setInviteError(t('reports.detail.inviteReasonRequired'));
+      return;
+    }
+    if (reason.length > 1000) {
+      setInviteError(t('reports.detail.inviteReasonTooLong'));
+      return;
+    }
+    setInviting(true);
+    setInviteError(null);
+    try {
+      const result = await inviteTechniciansToReport(
+        reportId,
+        reason,
+        inviteSent ? inviteSent.page + 1 : 0,
+      );
+      setInviteSent(result);
+    } catch (err) {
+      setInviteError(
+        toErrorMessage(err, { fallback: t('reports.detail.inviteError') }),
+      );
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  function resetInvitePass() {
+    setInviteSent(null);
+    setInviteReason('');
+    setInviteError(null);
+  }
 
   async function onJoin() {
     setActionError(null);
@@ -187,20 +417,24 @@ export default function ReportDetailScreen() {
   async function onAssign() {
     setActionError(null);
     setActionMessage(null);
-    const parsed = Number(technicianId.trim());
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      setActionError(t('reports.detail.assignEnterValid'));
+    if (selectedTechnicianId === null) {
+      setActionError(t('reports.detail.assignSelectFirst'));
+      return;
+    }
+    if (!assignmentCandidates.some((row) => row.technicianId === selectedTechnicianId)) {
+      setActionError(t('reports.detail.assignSelectFirst'));
       return;
     }
 
     setAssigning(true);
     try {
       const updated = await assignTechnician(reportId, {
-        technicianId: parsed,
+        technicianId: selectedTechnicianId,
       });
       setReport(updated);
-      setTechnicianId('');
+      setSelectedTechnicianId(null);
       setActionMessage(t('reports.detail.assignSaved'));
+      void loadCandidates(rankingMode);
     } catch (err) {
       setActionError(
         toErrorMessage(err, { fallback: t('reports.detail.couldNotAssign') }),
@@ -448,6 +682,12 @@ export default function ReportDetailScreen() {
                   {report.aiReport.description}
                 </Text>
               )}
+              {canSeeSensitive && report.aiReport.confidence != null && (
+                <Text className="mt-1 text-[11px] text-dashboard-caption">
+                  {t('reports.detail.aiAssessment.confidence')}:{' '}
+                  {Math.round(report.aiReport.confidence * 100)}%
+                </Text>
+              )}
             </View>
           </Card>
         )}
@@ -462,26 +702,59 @@ export default function ReportDetailScreen() {
           </Text>
           {report.photos && report.photos.length > 0 ? (
             <View className="flex-row flex-wrap gap-2">
-              {report.photos.map((photo) => (
-                <Pressable
-                  key={photo.id}
-                  accessibilityRole="image"
-                  accessibilityLabel={`Photo ${photo.id}`}
-                  onPress={() => setPreviewPhoto(photo.url)}
-                  className="active:opacity-80"
-                >
-                  <Image
-                    source={{ uri: photo.url }}
-                    className="h-24 w-24 rounded-md"
-                  />
-                </Pressable>
-              ))}
+              {report.photos.map((photo) => {
+                const uri = photoUrls[photo.id] ?? photo.url;
+                return (
+                  <Pressable
+                    key={photo.id}
+                    accessibilityRole="image"
+                    accessibilityLabel={`Photo ${photo.id}`}
+                    onPress={() => setPreviewPhoto(uri)}
+                    className="active:opacity-80"
+                  >
+                    <Image
+                      source={{ uri }}
+                      className="h-24 w-24 rounded-md"
+                      onError={() => {
+                        void renewPhotoUrl(photo);
+                      }}
+                    />
+                  </Pressable>
+                );
+              })}
             </View>
           ) : (
             <Text className="text-[12px] text-dashboard-subtitle">
               {t('reports.detail.photos.noPhotos')}
             </Text>
           )}
+          {canSeeSensitive && report.photos && report.photos.length > 0 ? (
+            <View className="mt-3">
+              <Pressable
+                onPress={confirmAnalyzePhotos}
+                disabled={visionLoading}
+                accessibilityRole="button"
+                className="flex-row items-center gap-1 self-start active:opacity-70"
+              >
+                <Sparkles color={dashboardColors.teal} size={15} />
+                <Text className="text-[11px] font-medium text-dashboard-teal">
+                  {visionLoading
+                    ? t('reports.detail.vision.running')
+                    : t('reports.detail.vision.analyze')}
+                </Text>
+              </Pressable>
+              {visionJob ? (
+                <Text className="mt-1 text-[10px] text-dashboard-caption">
+                  {humanize(visionJob.status)}
+                </Text>
+              ) : null}
+              {visionError ? (
+                <Text className="mt-1 text-[10px] text-tone-danger">
+                  {visionError}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </Card>
 
         {/* Assistant chat — replaces the Phase 5 analysis placeholder.
@@ -704,30 +977,256 @@ export default function ReportDetailScreen() {
             <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
               {t('reports.detail.assignBody')}
             </Text>
-            <TextField
-              label={t('reports.detail.assignLabel')}
-              value={technicianId}
-              onChangeText={setTechnicianId}
-              keyboardType="number-pad"
-              placeholder={
-                report.assignedTechnicianId !== null
-                  ? t('reports.detail.assignPlaceholderCurrent', { id: report.assignedTechnicianId })
-                  : t('reports.detail.assignPlaceholderExample')
-              }
-            />
-            <Text className="-mt-2 mb-3 text-[10px] leading-[1.7] text-dashboard-caption">
-              {t('reports.detail.assignHelper')}
+            {isReportManager ? (
+              <View className="mb-3">
+                <Text className="mb-1 text-[10px] font-semibold uppercase tracking-[1px] text-dashboard-caption">
+                  {t('reports.detail.assignCandidatesTitle')}
+                </Text>
+                <View className="flex-row gap-2">
+                  {(['STANDARD', 'AI'] as RankingMode[]).map((mode) => {
+                    const active = rankingMode === mode;
+                    return (
+                      <Pressable
+                        key={mode}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: active }}
+                        onPress={() => setRankingMode(mode)}
+                        className="flex-row items-center gap-1 rounded-full border px-3 py-1.5 active:opacity-80"
+                        style={{
+                          backgroundColor: active
+                            ? dashboardColors.statMintSoft
+                            : dashboardColors.cardBg,
+                          borderColor: active
+                            ? dashboardColors.statMintDeep
+                            : dashboardColors.cardLine,
+                        }}
+                      >
+                        {mode === 'AI' ? (
+                          <Sparkles
+                            color={
+                              active
+                                ? dashboardColors.statMintDeep
+                                : dashboardColors.subtitle
+                            }
+                            size={12}
+                          />
+                        ) : null}
+                        <Text
+                          className="text-[11px] font-semibold"
+                          style={{
+                            color: active
+                              ? dashboardColors.statMintDeep
+                              : dashboardColors.subtitle,
+                          }}
+                        >
+                          {t(
+                            mode === 'AI'
+                              ? 'reports.detail.assignModeAI'
+                              : 'reports.detail.assignModeStandard',
+                          )}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
+            {isReportManager && ranking ? (
+              <Text className="mb-2 text-[10px] leading-[1.7] text-dashboard-caption">
+                {t('reports.detail.assignRankingUsed', {
+                  mode: humanize(ranking.methodUsed),
+                })}
+                {ranking.fallbackReason
+                  ? ` · ${t('reports.detail.assignRankingFallback', {
+                      reason: ranking.fallbackReason,
+                    })}`
+                  : ''}
+              </Text>
+            ) : null}
+
+            {rankingLoading ? (
+              <View className="mb-3 flex-row items-center gap-2">
+                <ActivityIndicator color={dashboardColors.teal} size="small" />
+                <Text className="text-[11px] text-dashboard-subtitle">
+                  {t('reports.detail.assignLoadingCandidates')}
+                </Text>
+              </View>
+            ) : null}
+
+            {rankingError ? (
+              <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
+                {rankingError}
+              </Text>
+            ) : null}
+            {directoryError ? (
+              <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
+                {directoryError}
+              </Text>
+            ) : null}
+
+            {assignmentCandidates.length > 0 ? (
+              <View className="mb-3 overflow-hidden rounded-md border border-dashboard-card-line">
+                {assignmentCandidates.map((candidate, index) => {
+                  const active =
+                    selectedTechnicianId === candidate.technicianId;
+                  return (
+                    <Pressable
+                      key={candidate.technicianId}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      onPress={() =>
+                        setSelectedTechnicianId(candidate.technicianId)
+                      }
+                      className={`px-3 py-2 active:opacity-80 ${
+                        index > 0 ? 'border-t border-dashboard-card-line' : ''
+                      }`}
+                      style={{
+                        backgroundColor: active
+                          ? dashboardColors.statMintSoft
+                          : 'transparent',
+                      }}
+                    >
+                      <Text className="text-[12px] font-medium text-ink">
+                        {technicianName(candidate.technicianId)}
+                      </Text>
+                      <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                        {t('reports.detail.assignProficiency', {
+                          level: candidate.proficiency,
+                        })}
+                        {' · '}
+                        {t(
+                          candidate.specialtyMatch
+                            ? 'reports.detail.assignSpecialtyMatch'
+                            : 'reports.detail.assignSpecialtyMismatch',
+                        )}
+                        {candidate.activeCases !== null
+                          ? ` · ${t('reports.detail.assignActiveCases', {
+                              count: candidate.activeCases,
+                            })}`
+                          : ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : !rankingLoading ? (
+              <Text className="mb-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
+                {t('reports.detail.assignNoCandidates')}
+              </Text>
+            ) : null}
+            <View className="flex-row items-center gap-2">
+              <Button
+                label={
+                  report.assignedTechnicianId !== null
+                    ? t('reports.detail.assignReassign')
+                    : t('reports.detail.assignSave')
+                }
+                variant="secondary"
+                onPress={onAssign}
+                loading={assigning}
+                disabled={selectedTechnicianId === null || rankingLoading}
+                className="flex-1"
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('reports.detail.assignRefresh')}
+                disabled={rankingLoading}
+                onPress={() => {
+                  void loadCandidates(rankingMode);
+                }}
+                className="h-11 w-11 items-center justify-center rounded-md active:opacity-70"
+                style={{ opacity: rankingLoading ? 0.4 : 1 }}
+              >
+                <RefreshCw color={dashboardColors.subtitle} size={15} />
+              </Pressable>
+            </View>
+          </Card>
+        ) : null}
+
+        {isReportManager ? (
+          <Card className="mb-4">
+            <View className="mb-2 flex-row items-center gap-2">
+              <UserPlus color={dashboardColors.teal} size={18} />
+              <Text
+                className="text-[15px] font-semibold text-ink"
+                style={{ letterSpacing: -0.3 }}
+              >
+                {t('reports.detail.inviteTitle')}
+              </Text>
+            </View>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              {t('reports.detail.inviteBody')}
             </Text>
-            <Button
-              label={
-                report.assignedTechnicianId !== null
-                  ? t('reports.detail.assignReassign')
-                  : t('reports.detail.assignSave')
-              }
-              variant="secondary"
-              onPress={onAssign}
-              loading={assigning}
+            <TextField
+              label={t('reports.detail.inviteReasonLabel')}
+              value={inviteReason}
+              onChangeText={(text) => {
+                setInviteReason(text);
+                if (inviteError) setInviteError(null);
+              }}
+              placeholder={t('reports.detail.inviteReasonPlaceholder')}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              editable={!inviting}
+              maxLength={1000}
             />
+            {inviteError ? (
+              <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
+                {inviteError}
+              </Text>
+            ) : null}
+            {inviteSent ? (
+              <View className="mb-3">
+                <Text
+                  className="text-[11px] font-medium"
+                  style={{ color: dashboardColors.statMintDeep }}
+                >
+                  {t('reports.detail.inviteCreated', {
+                    count: inviteSent.created,
+                    page: inviteSent.page + 1,
+                  })}
+                </Text>
+                <Text className="mt-0.5 text-[10px] leading-[1.7] text-dashboard-caption">
+                  {inviteSent.hasNext
+                    ? t('reports.detail.inviteMoreBatches')
+                    : t('reports.detail.inviteNoMoreBatches')}
+                </Text>
+              </View>
+            ) : null}
+            <View className="flex-row items-center gap-2">
+              <Button
+                label={
+                  inviting
+                    ? t('reports.detail.inviteSending')
+                    : inviteSent?.hasNext
+                      ? t('reports.detail.inviteNextBatch')
+                      : t('reports.detail.inviteSend')
+                }
+                variant="secondary"
+                onPress={onInviteTechnicians}
+                loading={inviting}
+                disabled={
+                  inviting || (inviteSent !== null && !inviteSent.hasNext)
+                }
+                className="flex-1"
+              />
+              {inviteSent ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('reports.detail.inviteNewPass')}
+                  disabled={inviting}
+                  onPress={resetInvitePass}
+                  className="h-11 items-center justify-center rounded-md px-3 active:opacity-70"
+                  style={{ opacity: inviting ? 0.4 : 1 }}
+                >
+                  <Text className="text-[11px] font-semibold text-dashboard-subtitle">
+                    {t('reports.detail.inviteNewPass')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
           </Card>
         ) : null}
 
