@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
+
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View, Pressable, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -9,14 +9,11 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { dashboardColors, themeColors } from '@/constants/theme';
-import { useAuth } from '@/hooks/useAuth';
 import { canAssignTechnician, canConfirmReport, canReopenReport } from '@/constants/access';
+import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import {
   assignTechnicianToReport,
-  canAssignTechnician,
-  canConfirmReport,
-  canReopenReport,
   confirmReport,
   listReports,
   reopenReport,
@@ -72,7 +69,7 @@ export default function StaffReportsScreen() {
   const [reason, setReason] = useState('');
 
   const loadReports = useCallback(async () => {
-    if (!user) return;
+    if (!user?.siteId) return;
     setLoading(true);
     setError(null);
     try {
@@ -92,7 +89,9 @@ export default function StaffReportsScreen() {
     setLoading(true);
     setError(null);
     try {
-      await assignTechnicianToReport(selectedReportId, technicianId);
+      await assignTechnicianToReport(selectedReportId, {
+        technicianId,
+      });
       await loadReports();
       setSelectedReportId(null);
       setTechnicianId(null);
@@ -208,7 +207,7 @@ export default function StaffReportsScreen() {
                   >
                     <View className="flex-row items-center justify-between">
                       <Text className="text-[12px] text-ink">
-                        {report.title} - {report.status}
+                        {report.description} - {report.status}
                       </Text>
                       {selectedReportId === report.id ? (
                         <Check color={dashboardColors.statMintDeep} size={16} />

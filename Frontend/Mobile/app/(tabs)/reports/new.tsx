@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -10,12 +11,24 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ArrowLeft, ArrowRight, Building2, Camera, House, ImagePlus, Mic, Plus, Sparkles, Square, X } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Building2,
+  Camera,
+  House,
+  ImagePlus,
+  Mic,
+  Plus,
+  Sparkles,
+  Square,
+  X,
+} from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { TriageChat } from '@/components/chat/TriageChat';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
 import {
@@ -27,12 +40,11 @@ import { TextField } from '@/components/ui/TextField';
 import { canManageSubsites } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { useToast } from '@/components/ui/useToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { MAX_PHOTO_COUNT, MAX_PHOTO_SIZE_BYTES, uploadPhoto } from '@/services/photos';
 import { createReport } from '@/services/reports';
-import { useToast } from '@/components/ui/Toast';
-import { useNavigation } from '@react-navigation/native';
 import { listSiteRules } from '@/services/siteRules';
 import { listSubsites, createSubsiteAlert } from '@/services/sites';
 import type {
@@ -48,519 +60,392 @@ import { useCurrentSite } from '@/stores/site';
 import { humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
 
-/** Shape of a locally-picked image before it becomes a ReportPhoto. */
-type PickedImage = {
+type PickedPhoto = {
   uri: string;
-  name: string;
+  fileName: string;
   mimeType: string;
-  fileSizeBytes: number | null;
+  fileSize: number;
 };
 
-/**
- * "Report an issue" form. Mirrors `ReportFormView.vue`:
- */
+const URGENCY_OPTIONS: SegmentedOption<Urgency>[] = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'critical', label: 'Critical' },
+];
+
+const VISIBILITY_OPTIONS: SegmentedOption<ReportVisibility>[] = [
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
+];
+
+function extFromUri(uri: string): string {
+  const match = uri.split('?')[0].match(/\.([a-zA-Z0-9]+)$/);
+  return match ? match[1].toLowerCase() : 'jpg';
+}
+
+function mimeForUri(uri: string, fallback?: string): string {
+  if (fallback) return fallback;
+  const ext = extFromUri(uri);
+  if (ext === 'png') return 'image/png';
+  if (ext === 'heic' || ext === 'heif') return 'image/heic';
+  if (ext === 'webp') return 'image/webp';
+  return 'image/jpeg';
+}
+
 export default function NewReportScreen() {
   const { t } = useTranslation('common');
   const router = useRouter();
   const { user } = useAuth();
-  const {
-    site,
-    loading: siteLoading,
-    error: siteError,
-    refresh: refreshSite,
-  } = useCurrentSite();
+  const { site, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
+  const { showToast } = useToast();
+  const recorder = useAudioRecorder();
 
-  const [rules, setRules] = useState<SiteRule[]>([]);
-  const [rulesLoading, setRulesLoading] = useState(false);
-  const [rulesError, setRulesError] = useState<string | null>(null);
+  const canCreate = user?.capabilities.createReport ?? false;
 
-  // The site's buildings/areas. Reports are pinned to one (`subsiteId`) —
-  // a site with zero active subsites cannot accept reports at all.
-  const [subsites, setSubsites] = useState<Subsite[] | null>(null);
-  const [subsitesLoading, setSubsitesLoading] = useState(false);
-  const [subsitesError, setSubsitesError] = useState<string | null>(null);
-  const [subsiteId, setSubsiteId] = useState<number | null>(null);
-  // Defaults to public; private hides the report from other reporters at the
-  // site (staff/admin and the assigned technician still see it).
-  const [visibility, setVisibility] = useState<ReportVisibility>('public');
-
+  // Form state
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
   const [category, setCategory] = useState<string | null>(null);
-  // Starts empty so an explicit choice is required — the web form refuses
-  // to submit without one (`ReportFormView.vue`).
+  const [subsiteId, setSubsiteId] = useState<string | null>(null);
   const [urgency, setUrgency] = useState<Urgency | null>(null);
-  const [reason, setReason] = useState('');
+  const [urgencyReason, setUrgencyReason] = useState('');
+  const [visibility, setVisibility] = useState<ReportVisibility>('public');
 
-  // Per-field inline errors (keyed by field name), plus a top-level server
-  // error for ApiError messages from the backend.
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [serverError, setServerError] = useState<string | null>(null);
+  // Lookup data
+  const [subsites, setSubsites] = useState<Subsite[]>([]);
+  const [rules, setRules] = useState<SiteRule[]>([]);
+  const [loadingSubsites, setLoadingSubsites] = useState(false);
+  const [loadingRules, setLoadingRules] = useState(false);
+  const [subsiteError, setSubsiteError] = useState<string | null>(null);
+  const [ruleError, setRuleError] = useState<string | null>(null);
+
+  // Photos
+  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+
+  // Submission
   const [submitting, setSubmitting] = useState(false);
-    const toast = useToast();
-    const navigation = useNavigation();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-    const handleSubmit = async () => {
-      if (!site?.id || !user?.id || !subsiteId || !description || !urgency) {
-        toast.show(t('reports.new.missingFields'), { type: 'error' });
-        return;
-      }
-
-      setSubmitting(true);
-      setServerError(null);
-
-      try {
-        const report = await createReport({
-          siteId: site.id,
-          subsiteId,
-          description,
-          urgency,
-          visibility,
-          address,
-          category,
-          reason,
-        });
-
-        // Upload photos if any
-        if (pickedPhotos.length > 0) {
-          for (const photo of pickedPhotos) {
-            await uploadPhoto(report.id, photo);
-          }
-        }
-
-        toast.show(t('reports.new.success'), { type: 'success' });
-        navigation.goBack();
-      } catch (err) {
-        setServerError(
-          err instanceof ApiError
-            ? err.message
-            : t('reports.new.submitFail'),
-        );
-        toast.show(t('reports.new.submitFail'), { type: 'error' });
-      } finally {
-        setSubmitting(false);
-      }
-    };
-
-  // Photos — picked locally before report creation, uploaded in a batch
-  // immediately after the report is created. We upload post-create because
-  // the photos endpoint lives under /api/reports/{id}/photos and needs the id.
-  const [pickedPhotos, setPickedPhotos] = useState<PickedImage[]>([]);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  // A2 triage assistant + A4 voice-to-text on the description field.
+  // Triage
   const [triageOpen, setTriageOpen] = useState(false);
-  const descRecorder = useAudioRecorder();
 
-  // Missing-building suggestion — reporters can flag that a building is
-  // missing when the site has no active subsites.
-  const [suggestionNote, setSuggestionNote] = useState('');
-  const [suggestionSubmitting, setSuggestionSubmitting] = useState(false);
-  const [suggestionSuccess, setSuggestionSuccess] = useState(false);
-  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  // Missing-building suggestion
+  const [suggestionOpen, setSuggestionOpen] = useState(false);
+  const [suggestionText, setSuggestionText] = useState('');
+  const [suggestionBusy, setSuggestionBusy] = useState(false);
 
-  // Mirrors the web's `canCreate` (reporter/staff/admin/super_admin only):
-  // technicians resolve reports rather than file them.
-  const canCreate = (user?.capabilities.createReport ?? false);
+  const activeSubsites = useMemo(
+    () => subsites.filter((s) => s.archivedAt == null),
+    [subsites],
+  );
 
-  // Load the category / urgency taxonomy for this site's site type. We
-  // re-load on site change so the picker stays in sync if the user swaps
-  // sites (Phase 9 super_admin switcher) or logs in as a different actor.
+  const loadSubsites = useCallback(async (siteId: number) => {
+    setLoadingSubsites(true);
+    setSubsiteError(null);
+    try {
+      const result = await listSubsites(siteId);
+      setSubsites(result);
+    } catch (err) {
+      setSubsiteError(
+        err instanceof ApiError ? err.message : t('reports.new.buildingLoadFail'),
+      );
+    } finally {
+      setLoadingSubsites(false);
+    }
+  }, [t]);
+
   const loadRules = useCallback(async (siteType: SiteType) => {
-    setRulesLoading(true);
-    setRulesError(null);
-    setRules([]);
-    setCategory(null);
+    setLoadingRules(true);
+    setRuleError(null);
     try {
       const result = await listSiteRules(siteType);
       setRules(result);
     } catch (err) {
-      setRulesError(
-        err instanceof ApiError
-          ? err.message
-          : t('reports.new.categoryLoadFail'),
+      setRuleError(
+        err instanceof ApiError ? err.message : t('reports.new.categoryLoadFail'),
       );
     } finally {
-      setRulesLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    const siteType = site?.type;
-    if (!siteType) return;
-    void loadRules(siteType);
-  }, [site?.type, site?.id, loadRules]);
-
-  // Load the building list alongside the rules, re-running on site change.
-  const loadSubsites = useCallback(async (siteId: number) => {
-    setSubsitesLoading(true);
-    setSubsitesError(null);
-    setSubsites(null);
-    setSubsiteId(null);
-    try {
-      setSubsites(await listSubsites(siteId));
-    } catch (err) {
-      setSubsitesError(
-        err instanceof ApiError
-          ? err.message
-          : t('reports.new.buildingLoadFail'),
-      );
-    } finally {
-      setSubsitesLoading(false);
+      setLoadingRules(false);
     }
   }, [t]);
 
   useEffect(() => {
     if (!site) return;
     void loadSubsites(site.id);
-  }, [site?.id, loadSubsites]);
+    void loadRules(site.type);
+  }, [site?.id, site?.type, loadSubsites, loadRules]);
 
-  function validateForm(): Record<string, string> {
-    const next: Record<string, string> = {};
-    const trimmedDescription = description.trim();
-    if (!trimmedDescription) next.description = t('reports.new.descErrors.required');
-    else if (trimmedDescription.length < 10)
-      next.description = t('reports.new.descErrors.tooShort');
-    else if (trimmedDescription.length > 10_000)
-      next.description = t('reports.new.descErrors.tooLong');
+  const categoryOptions = useMemo(
+    () => rules.map((r) => ({ value: r.category, label: humanize(r.category) })),
+    [rules],
+  );
 
-    if (!category) next.category = t('reports.new.categoryError');
-    if (!urgency) next.urgency = t('reports.new.urgencyError');
+  const subsiteOptions = useMemo(
+    () =>
+      activeSubsites.map((s) => ({
+        value: String(s.id),
+        label: s.label ? `${s.label} — ${s.name}` : s.name,
+      })),
+    [activeSubsites],
+  );
 
-    if (activeSubsites.length > 0 && subsiteId === null)
-      next.subsiteId = t('reports.new.buildingError');
-
-    if (address.trim().length > 512)
-      next.address = t('reports.new.addressTooLong');
-
-    return next;
-  }
-
-  async function requestGalleryPermission(): Promise<boolean> {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      return false;
-    }
-    return true;
-  }
-
-  async function requestCameraPermission(): Promise<boolean> {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      return false;
-    }
-    return true;
-  }
-
-  function handlePickedAsset(asset: ImagePicker.ImagePickerAsset) {
-    if (pickedPhotos.length >= MAX_PHOTO_COUNT) return;
-    const fileSize = asset.fileSize ?? null;
-    if (fileSize !== null && fileSize > MAX_PHOTO_SIZE_BYTES) {
-      setUploadError(t('reports.new.photos.tooLarge', { size: '5' }));
-      return;
-    }
-    setUploadError(null);
-    const filename = asset.uri.split('/').pop() || 'photo.jpg';
-    const mimeType = asset.mimeType || 'image/jpeg';
-    setPickedPhotos((prev) => [
-      ...prev,
-      { uri: asset.uri, name: filename, mimeType, fileSizeBytes: fileSize },
-    ]);
-  }
-
-  async function pickFromGallery() {
-    if (pickedPhotos.length >= MAX_PHOTO_COUNT) return;
-    const allowed = await requestGalleryPermission();
-    if (!allowed) {
-      setUploadError(t('reports.new.photos.permissionDenied'));
-      return;
-    }
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        allowsMultipleSelection: false,
-        quality: 0.8,
-      });
-      if (result.canceled) return;
-      const asset = result.assets?.[0];
-      if (asset) handlePickedAsset(asset);
-    } catch {
-      // User denied or picker threw — silently ignore.
-    }
-  }
-
-  async function takePhoto() {
-    if (pickedPhotos.length >= MAX_PHOTO_COUNT) return;
-    const allowed = await requestCameraPermission();
-    if (!allowed) {
-      setUploadError(t('reports.new.photos.permissionDenied'));
-      return;
-    }
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.8,
-      });
-      if (result.canceled) return;
-      const asset = result.assets?.[0];
-      if (asset) handlePickedAsset(asset);
-    } catch {
-      // User denied or picker threw — silently ignore.
-    }
-  }
-
-  function removePickedPhoto(index: number) {
-    setPickedPhotos((prev) => prev.filter((_, i) => i !== index));
-    setUploadError(null);
-  }
-
-  /**
-   * Apply the triage assistant's suggestions, but only to fields the reporter
-   * has not already filled in — never silently overwrite user-entered values.
-   */
-  function applySuggested(fields: TriageSuggestedFields) {
+  function applyTriage(fields: TriageSuggestedFields) {
+    if (fields.category && !category) setCategory(fields.category);
+    if (fields.urgency && !urgency) setUrgency(fields.urgency);
     if (fields.descriptionDraft && !description.trim()) {
       setDescription(fields.descriptionDraft);
-      setErrors((e) => { const c = { ...e }; delete c.description; return c; });
-    }
-    if (fields.category && !category) {
-      setCategory(fields.category);
-      setErrors((e) => { const c = { ...e }; delete c.category; return c; });
-    }
-    if (fields.urgency && !urgency) {
-      setUrgency(fields.urgency);
-      setErrors((e) => { const c = { ...e }; delete c.urgency; return c; });
     }
   }
 
-  async function onDescMic() {
-    if (descRecorder.isRecording) {
-      const text = await descRecorder.stop();
-      if (text) setDescription((prev) => (prev ? `${prev} ${text}` : text));
-    } else {
-      await descRecorder.start();
+  async function pickPhotos(source: 'gallery' | 'camera') {
+    if (photos.length >= MAX_PHOTO_COUNT) {
+      showToast(t('reports.new.photos.limitReached', { max: MAX_PHOTO_COUNT }), 'info');
+      return;
+    }
+
+    const permissionResult =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      showToast(t('reports.new.photos.permissionDenied'), 'error');
+      return;
+    }
+
+    const opts: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ['images'],
+      allowsMultipleSelection: source === 'gallery',
+      selectionLimit: MAX_PHOTO_COUNT - photos.length,
+      quality: 0.7,
+    };
+
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync(opts);
+
+    if (result.canceled || !result.assets?.length) return;
+
+    const accepted: PickedPhoto[] = [];
+    for (const asset of result.assets) {
+      if (accepted.length + photos.length >= MAX_PHOTO_COUNT) break;
+      if (asset.fileSize && asset.fileSize > MAX_PHOTO_SIZE_BYTES) {
+        showToast(
+          t('reports.new.photos.tooLarge', { size: (MAX_PHOTO_SIZE_BYTES / (1024 * 1024)).toFixed(1) }),
+          'error',
+        );
+        continue;
+      }
+      accepted.push({
+        uri: asset.uri,
+        fileName: asset.fileName ?? `photo.${extFromUri(asset.uri)}`,
+        mimeType: mimeForUri(asset.uri, asset.mimeType),
+        fileSize: asset.fileSize ?? 0,
+      });
+    }
+
+    if (accepted.length) {
+      setPhotos((prev) => [...prev, ...accepted]);
     }
   }
 
-  async function onSubmit() {
-    const all = validateForm();
-    setErrors(all);
-    setServerError(null);
-    if (Object.keys(all).length > 0) return;
+  function removePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
 
+  function validate(): string | null {
+    if (!description.trim()) return t('reports.new.descErrors.required');
+    if (description.trim().length < 10) return t('reports.new.descErrors.tooShort');
+    if (description.length > 10000) return t('reports.new.descErrors.tooLong');
+    if (address.length > 512) return t('reports.new.addressTooLong');
+    if (!category) return t('reports.new.categoryError');
+    if (activeSubsites.length > 0 && !subsiteId) return t('reports.new.buildingError');
+    if (!urgency) return t('reports.new.urgencyError');
+    return null;
+  }
+
+  async function handleSubmit() {
     if (!site) {
-      setServerError(t('reports.new.siteNotLoaded'));
+      setSubmitError(t('reports.new.noSiteTitle'));
+      return;
+    }
+    const validationError = validate();
+    if (validationError) {
+      setSubmitError(validationError);
+      showToast(validationError, 'error');
       return;
     }
 
     setSubmitting(true);
-    setUploadError(null);
+    setSubmitError(null);
+
+    // validate() guarantees category and urgency are non-null at this point.
+    if (!category || !urgency) {
+      setSubmitError(t('reports.new.categoryError'));
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      const report = await createReport({
+      const payload = {
         description: description.trim(),
         address: address.trim() || undefined,
-        category: category!,
-        reporterUrgency: urgency!,
-        reporterReason: reason.trim() || undefined,
-        siteId: site.id,
-        subsiteId: subsiteId ?? undefined,
+        category,
+        reporterUrgency: urgency,
+        reporterReason: urgencyReason.trim() || undefined,
+        subsiteId: subsiteId ? Number(subsiteId) : undefined,
         visibility,
-      });
+        siteId: site.id,
+      };
 
-      // Batch-upload photos after creation — the endpoint needs the report id.
-      if (pickedPhotos.length > 0) {
-        const uploadResults = await Promise.allSettled(
-          pickedPhotos.map((p) =>
-            uploadPhoto(report.id, p.uri, p.name, p.mimeType),
-          ),
-        );
-        const failed = uploadResults.some((r) => r.status === 'rejected');
-        if (failed) {
-          setUploadError(t('reports.new.photos.uploadFailed'));
+      const report = await createReport(payload);
+
+      // Upload photos after the report exists.
+      if (photos.length > 0) {
+        setUploadingPhotos(true);
+        const uploaded: ReportPhoto[] = [];
+        for (const photo of photos) {
+          try {
+            const result = await uploadPhoto(
+              report.id,
+              photo.uri,
+              photo.fileName,
+              photo.mimeType,
+            );
+            uploaded.push(result);
+          } catch {
+            // Individual photo failure should not lose the report.
+          }
+        }
+        if (uploaded.length < photos.length) {
+          showToast(t('reports.new.photos.uploadFailed'), 'error');
         }
       }
 
-      router.replace(`/reports/${report.id}`);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        // auth logout pattern — let the auth hook handle it
-        setServerError(t('errors.unauthorized'));
-      } else if (err instanceof ApiError) {
-        setServerError(err.message);
+      showToast(t('reports.list.newReport'), 'success');
+      if (router.canGoBack()) {
+        router.back();
       } else {
-        setServerError(t('reports.new.noConnection'));
+        router.replace('/reports');
       }
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : t('reports.new.noConnection');
+      setSubmitError(message);
+      showToast(message, 'error');
+      // Draft is preserved in state — only clear on success.
     } finally {
       setSubmitting(false);
+      setUploadingPhotos(false);
     }
   }
 
-  // Home gates this route behind a linked site, but a deep link or a stale
-  // selection can still land here — handle all three states rather than
-  // rendering a form that cannot submit.
+  async function handleSuggestMissing() {
+    if (!site || !suggestionText.trim() || suggestionBusy) return;
+    setSuggestionBusy(true);
+    try {
+      await createSubsiteAlert(site.id, suggestionText.trim());
+      showToast(t('reports.new.suggestionSuccess'), 'success');
+      setSuggestionText('');
+      setSuggestionOpen(false);
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : t('reports.new.suggestionFailed');
+      showToast(message, 'error');
+    } finally {
+      setSuggestionBusy(false);
+    }
+  }
+
+  async function onMicDescription() {
+    if (recorder.isRecording) {
+      const text = await recorder.stop();
+      if (text) setDescription((prev) => (prev ? `${prev} ${text}` : text));
+    } else {
+      await recorder.start();
+    }
+  }
+
+  const requiresBuilding = activeSubsites.length > 0;
+
+  // --- Permission / setup gate states ---
   if (!canCreate) {
     return (
       <Screen>
-        <StateView
-          variant="empty"
-          icon={House}
-          title={t('reports.new.permissionsTitle')}
-          description={t('reports.new.permissionsDesc')}
-        />
+        <View className="flex-1 items-center justify-center px-6">
+          <StateView
+            variant="empty"
+            icon={House}
+            title={t('reports.new.permissionsTitle')}
+            description={t('reports.new.permissionsDesc')}
+          />
+        </View>
       </Screen>
     );
   }
-  if (!site) {
-    if (siteLoading) {
-      return (
-        <Screen>
+
+  if (siteLoading) {
+    return (
+      <Screen>
+        <View className="flex-1 items-center justify-center">
           <StateView variant="loading" title={t('reports.new.loadingSite')} />
-        </Screen>
-      );
-    }
-    if (siteError) {
-      return (
-        <Screen>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!site || siteError) {
+    return (
+      <Screen>
+        <View className="flex-1 items-center justify-center px-6">
           <StateView
             variant="error"
-            title={t('reports.new.couldNotLoadSite')}
-            description={siteError.message}
+            title={t('reports.new.noSiteTitle')}
+            description={siteError?.message ?? t('reports.new.noSiteDesc')}
             actionLabel={t('reports.new.retry')}
-            onAction={() => {
-              void refreshSite();
-            }}
+            onAction={() => { void refreshSite(); }}
           />
-        </Screen>
-      );
-    }
-    return (
-      <Screen>
-        <StateView
-          variant="empty"
-          icon={House}
-          title={t('reports.new.noSiteTitle')}
-          description={t('reports.new.noSiteDesc')}
-        />
+        </View>
       </Screen>
     );
   }
 
-  // Reporting is blocked while the site has no active building — the backend
-  // rejects the report under the default reporting configuration, so the form
-  // is replaced rather than allowed to fail on submit.
-  const activeSubsites = (subsites ?? []).filter((s) => s.archivedAt === null);
-  if (subsites !== null && !subsitesLoading && activeSubsites.length === 0) {
-    const manage = canManageSubsites(user);
-
-    async function onSubmitSuggestion() {
-      if (!site || !suggestionNote.trim() || suggestionSubmitting) return;
-      setSuggestionSubmitting(true);
-      setSuggestionError(null);
-      try {
-        await createSubsiteAlert(site.id, suggestionNote.trim());
-        setSuggestionSuccess(true);
-        setSuggestionNote('');
-      } catch (err) {
-        setSuggestionError(
-          err instanceof ApiError ? err.message : t('reports.new.suggestionFailed'),
-        );
-      } finally {
-        setSuggestionSubmitting(false);
-      }
-    }
-
+  // No active buildings — reporters get guidance; admins can open setup.
+  if (activeSubsites.length === 0 && !subsiteError) {
+    const isAdmin = canManageSubsites(user);
     return (
       <Screen>
-        <ScrollView contentContainerClassName="px-5 pb-6 pt-4">
+        <View className="flex-1 items-center justify-center px-6">
           <StateView
             variant="empty"
             icon={Building2}
             title={t('reports.new.noBuildingsTitle')}
             description={
-              manage
+              isAdmin
                 ? t('reports.new.noBuildingsDescAdmin')
                 : t('reports.new.noBuildingsDescReporter')
             }
-            actionLabel={manage ? t('reports.new.openSiteSetup') : undefined}
+            actionLabel={isAdmin ? t('reports.new.openSiteSetup') : undefined}
             onAction={
-              manage ? () => router.push('/more/site-setup') : undefined
+              isAdmin ? () => router.push('/more/site-setup') : undefined
             }
           />
-          {!manage ? (
-            <Card className="mt-4">
-              <Text
-                className="mb-2 text-[15px] font-semibold text-ink"
-                style={{ letterSpacing: -0.3 }}
-              >
-                {t('reports.new.suggestionTitle')}
-              </Text>
-              <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-                {t('reports.new.suggestionBody')}
-              </Text>
-              {suggestionSuccess ? (
-                <View className="rounded-md px-3 py-2" style={{ backgroundColor: dashboardColors.statMintSoft }}>
-                  <Text className="text-[11px] font-medium" style={{ color: dashboardColors.statMintDeep }}>
-                    {t('reports.new.suggestionSuccess')}
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <TextField
-                    label={t('reports.new.suggestionLabel')}
-                    value={suggestionNote}
-                    onChangeText={(v) => {
-                      setSuggestionNote(v);
-                      if (suggestionError) setSuggestionError(null);
-                    }}
-                    multiline
-                    numberOfLines={3}
-                    placeholder={t('reports.new.suggestionPlaceholder')}
-                    error={suggestionError ?? undefined}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t('reports.new.suggestionSubmit')}
-                    disabled={suggestionSubmitting || !suggestionNote.trim()}
-                    onPress={onSubmitSuggestion}
-                    className="flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
-                    style={{
-                      backgroundColor: dashboardColors.ctaBg,
-                      borderColor: dashboardColors.ctaBorder,
-                      opacity: suggestionSubmitting || !suggestionNote.trim() ? 0.55 : 1,
-                    }}
-                  >
-                    <Text
-                      className="text-[13px] font-semibold"
-                      style={{ color: dashboardColors.ctaText }}
-                    >
-                      {suggestionSubmitting ? t('reports.new.suggestionSubmitting') : t('reports.new.suggestionSubmit')}
-                    </Text>
-                  </Pressable>
-                </>
-              )}
-            </Card>
-          ) : null}
-        </ScrollView>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setSuggestionOpen(true)}
+            className="mt-4 active:opacity-80"
+          >
+            <Text className="text-[12px] font-semibold text-dashboard-teal underline">
+              {t('reports.new.suggestionTitle')}
+            </Text>
+          </Pressable>
+        </View>
       </Screen>
     );
   }
-
-  const categoryOptions = rules.map((r) => ({
-    value: r.category,
-    label: humanize(r.category),
-  }));
-
-  const VISIBILITY_OPTIONS: SegmentedOption<ReportVisibility>[] = [
-    { value: 'public', label: t('reports.new.visibilityPublic') },
-    { value: 'private', label: t('reports.new.visibilityPrivate') },
-  ];
-
-  // Resolved at render so the labels follow the active locale.
-  const urgencyOptions: SegmentedOption<Urgency>[] = (
-    Object.keys(urgencyLabels) as Urgency[]
-  ).map((value) => ({ value, label: t(urgencyLabels[value]) }));
 
   return (
     <Screen>
@@ -569,273 +454,206 @@ export default function NewReportScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerClassName="px-5 pb-6 pt-4"
+          className="flex-1"
+          contentContainerClassName="p-4 pb-8"
           keyboardShouldPersistTaps="handled"
         >
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={t('reports.new.allReports')}
-            onPress={() => router.replace('/reports')}
-            className="mb-2 flex-row items-center gap-1 self-start active:opacity-70"
-          >
-            <ArrowLeft color={dashboardColors.teal} size={15} />
+          <Card className="mb-4">
             <Text
-              className="text-[11px] font-semibold"
-              style={{ color: dashboardColors.teal }}
+              className="text-[22px] font-semibold text-ink"
+              style={{ letterSpacing: -0.7 }}
             >
-              {t('reports.new.allReports')}
+              {t('reports.new.title')}
             </Text>
-          </Pressable>
-
-          <View className="mb-1 flex-row items-center gap-3">
-            <View
-              className="rounded-xl p-3"
-              style={{ backgroundColor: dashboardColors.statMintSoft }}
-            >
-              <Plus color={dashboardColors.statMintDeep} size={26} strokeWidth={2.2} />
-            </View>
-            <View className="flex-1">
-              <Text
-                className="text-2xl font-bold text-ink"
-                style={{ letterSpacing: -0.5 }}
-              >
-                {t('reports.new.title')}
-              </Text>
-              <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-                {t('reports.new.intro', { site: site.name })}
-              </Text>
-            </View>
-          </View>
-
-          <Text className="mb-4 text-[12px] leading-[1.8] text-dashboard-subtitle">
-            {t('reports.new.savedNotice')}
-          </Text>
+            <Text className="mt-1 text-[12px] text-dashboard-subtitle">
+              {t('reports.new.intro', { site: site.name })}
+            </Text>
+            <Text className="mt-2 text-[11px] leading-[1.6] text-dashboard-caption">
+              {t('reports.new.savedNotice')}
+            </Text>
+          </Card>
 
           <Card className="mb-4">
-            <TextField
-              label={t('reports.new.descLabel')}
-              value={description}
-              onChangeText={(v) => {
-                setDescription(v);
-                if (errors.description)
-                  setErrors((e) => { const c = { ...e }; delete c.description; return c; });
-              }}
-              multiline
-              numberOfLines={5}
-              placeholder={t('reports.new.descPlaceholder')}
-              error={errors.description}
-            />
-            <View className="mb-3 flex-row flex-wrap items-center gap-2">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('reports.new.triage.open')}
-                onPress={() => setTriageOpen(true)}
-                className="flex-row items-center gap-1.5 rounded-[9px] border px-3 py-1.5 active:opacity-80"
-                style={{ borderColor: dashboardColors.statMintDeep }}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setTriageOpen(true)}
+              className="flex-row items-center gap-2 rounded-[10px] px-3 py-2.5 active:opacity-80"
+              style={{ backgroundColor: dashboardColors.statMintSoft }}
+            >
+              <Sparkles color={dashboardColors.statMintDeep} size={15} />
+              <Text
+                className="text-[12px] font-semibold"
+                style={{ color: dashboardColors.statMintDeep }}
               >
-                <Sparkles color={dashboardColors.statMintDeep} size={13} />
-                <Text
-                  className="text-[11px] font-semibold"
-                  style={{ color: dashboardColors.statMintDeep }}
-                >
-                  {t('reports.new.triage.open')}
-                </Text>
-              </Pressable>
+                {t('reports.new.triage.open')}
+              </Text>
+            </Pressable>
+          </Card>
+
+          <Card className="mb-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="mb-1.5 text-[12px] font-medium text-ink">
+                {t('reports.new.descLabel')}
+              </Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={
-                  descRecorder.isRecording
+                  recorder.isRecording
                     ? t('reports.new.voice.stop')
                     : t('reports.new.voice.start')
                 }
-                onPress={onDescMic}
-                className="flex-row items-center gap-1.5 rounded-[9px] border px-3 py-1.5 active:opacity-80"
+                onPress={onMicDescription}
+                className="h-8 w-8 items-center justify-center rounded-full"
                 style={{
-                  borderColor: descRecorder.isRecording
-                    ? dashboardColors.statCoralDeep
+                  backgroundColor: recorder.isRecording
+                    ? dashboardColors.statCoralSoft
                     : dashboardColors.cardLine,
                 }}
               >
-                {descRecorder.isRecording ? (
+                {recorder.isRecording ? (
                   <Square color={dashboardColors.statCoralDeep} size={12} fill={dashboardColors.statCoralDeep} />
                 ) : (
-                  <Mic color={dashboardColors.teal} size={13} />
+                  <Mic
+                    color={recorder.transcribing ? dashboardColors.subtitle : dashboardColors.teal}
+                    size={15}
+                  />
                 )}
-                <Text className="text-[11px] font-medium text-ink">
-                  {descRecorder.isRecording
-                    ? t('reports.new.voice.stop')
-                    : t('reports.new.voice.start')}
-                </Text>
               </Pressable>
-              {descRecorder.transcribing ? (
-                <Text className="text-[11px] italic text-dashboard-subtitle">
-                  {t('reports.new.voice.transcribing')}
-                </Text>
-              ) : null}
             </View>
-            {descRecorder.error ? (
-              <Text className="-mt-1 mb-2 text-[11px] leading-[1.6] text-tone-danger">
-                {descRecorder.error}
+            <TextField
+              label=""
+              value={description}
+              onChangeText={setDescription}
+              placeholder={t('reports.new.descPlaceholder')}
+              multiline
+              numberOfLines={5}
+              maxLength={10000}
+              className="mb-0"
+            />
+            {recorder.transcribing ? (
+              <Text className="mt-1 text-[10px] italic text-dashboard-subtitle">
+                {t('reports.new.voice.transcribing')}
               </Text>
             ) : null}
+            {recorder.error ? (
+              <Text className="mt-1 text-[11px] text-tone-danger">{recorder.error}</Text>
+            ) : null}
+
             <TextField
               label={t('reports.new.addressLabel')}
               value={address}
-              onChangeText={(v) => {
-                setAddress(v);
-                if (errors.address)
-                  setErrors((e) => { const c = { ...e }; delete c.address; return c; });
-              }}
-              maxLength={512}
+              onChangeText={setAddress}
               placeholder={t('reports.new.addressPlaceholder')}
-              error={errors.address}
+              maxLength={512}
+              className="mt-3"
             />
-            <Picker
-              label={t('reports.new.buildingLabel')}
-              value={subsiteId !== null ? String(subsiteId) : null}
-              options={activeSubsites.map((s) => ({
-                value: String(s.id),
-                label: `${s.label} — ${s.name}`,
-              }))}
-              onChange={(value) => {
-                setSubsiteId(Number(value));
-                if (errors.subsiteId)
-                  setErrors((e) => { const c = { ...e }; delete c.subsiteId; return c; });
-              }}
-              placeholder={
-                subsitesLoading ? t('reports.new.buildingPlaceholderLoading') : t('reports.new.buildingPlaceholderChoose')
-              }
-              emptyMessage={
-                subsitesError ?? t('reports.new.buildingLoadError')
-              }
-              disabled={subsitesLoading || activeSubsites.length === 0}
-            />
-            {errors.subsiteId ? (
-              <Text className="-mt-2 mb-3 text-[11px] text-tone-danger">
-                {errors.subsiteId}
-              </Text>
-            ) : null}
-            {subsitesError ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('reports.new.retryLoadingBuildings')}
-                onPress={() => {
-                  if (site) void loadSubsites(site.id);
-                }}
-                className="mb-3 mt-1 self-start active:opacity-70"
-              >
-                <Text className="text-[10px] font-medium text-tone-danger">
-                  {subsitesError}{' '}
-                  <Text className="font-semibold underline">{t('reports.new.retry')}</Text>
-                </Text>
-              </Pressable>
-            ) : null}
-            <Picker
-              label={t('reports.new.categoryLabel')}
-              value={category}
-              options={categoryOptions}
-              onChange={setCategory}
-              placeholder={
-                rulesLoading ? t('reports.new.categoryPlaceholderLoading') : t('reports.new.categoryPlaceholderChoose')
-              }
-              emptyMessage={
-                rulesError ??
-                t('reports.new.categoryLoadError')
-              }
-              disabled={rulesLoading || rules.length === 0}
-            />
-            {rulesError ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('reports.new.retryLoadingCategories')}
-                onPress={() => {
-                  if (site?.type) void loadRules(site.type);
-                }}
-                className="mb-3 mt-1 self-start active:opacity-70"
-              >
-                <Text className="text-[10px] font-medium text-tone-danger">
-                  {rulesError}{' '}
-                  <Text className="font-semibold underline">{t('reports.new.retry')}</Text>
-                </Text>
-              </Pressable>
-            ) : null}
+          </Card>
 
-            <Text className="mb-2 text-sm font-medium text-ink">{t('reports.new.urgencyLabel')}</Text>
+          <Card className="mb-4">
+            {subsiteError ? (
+              <StateView
+                variant="error"
+                description={subsiteError}
+                actionLabel={t('reports.new.retryLoadingBuildings')}
+                onAction={() => site && void loadSubsites(site.id)}
+              />
+            ) : (
+              <Picker
+                label={t('reports.new.buildingLabel')}
+                value={subsiteId}
+                options={subsiteOptions}
+                onChange={setSubsiteId}
+                placeholder={
+                  loadingSubsites
+                    ? t('reports.new.buildingPlaceholderLoading')
+                    : t('reports.new.buildingPlaceholderChoose')
+                }
+                emptyMessage={t('reports.new.buildingLoadError')}
+                disabled={loadingSubsites || activeSubsites.length === 0}
+              />
+            )}
+
+            {ruleError ? (
+              <StateView
+                variant="error"
+                description={ruleError}
+                actionLabel={t('reports.new.retryLoadingCategories')}
+                onAction={() => void loadRules(site.type)}
+              />
+            ) : (
+              <Picker
+                label={t('reports.new.categoryLabel')}
+                value={category}
+                options={categoryOptions}
+                onChange={setCategory}
+                placeholder={
+                  loadingRules
+                    ? t('reports.new.categoryPlaceholderLoading')
+                    : t('reports.new.categoryPlaceholderChoose')
+                }
+                emptyMessage={t('reports.new.categoryLoadError')}
+                disabled={loadingRules || rules.length === 0}
+              />
+            )}
+          </Card>
+
+          <Card className="mb-4">
+            <Text className="mb-2 text-[12px] font-medium text-ink">
+              {t('reports.new.urgencyLabel')}
+            </Text>
             <SegmentedControl
-              options={urgencyOptions}
+              options={URGENCY_OPTIONS}
               value={urgency}
               onChange={setUrgency}
-              className="mb-4"
+              className="mb-3"
             />
-
+            {urgency ? (
+              <Text className="mb-2 text-[11px] text-dashboard-subtitle">
+                {t(urgencyLabels[urgency])}
+              </Text>
+            ) : null}
             <TextField
               label={t('reports.new.urgencyReasonLabel')}
-              value={reason}
-              onChangeText={setReason}
-              multiline
-              numberOfLines={3}
+              value={urgencyReason}
+              onChangeText={setUrgencyReason}
               placeholder={t('reports.new.urgencyReasonPlaceholder')}
+              multiline
+              numberOfLines={2}
+              className="mt-2"
             />
+          </Card>
 
-            <Text className="mb-2 text-sm font-medium text-ink">{t('reports.new.visibilityLabel')}</Text>
+          <Card className="mb-4">
+            <Text className="mb-2 text-[12px] font-medium text-ink">
+              {t('reports.new.visibilityLabel')}
+            </Text>
             <SegmentedControl
               options={VISIBILITY_OPTIONS}
               value={visibility}
               onChange={setVisibility}
+              className="mb-2"
             />
-            <Text className="mb-4 mt-1.5 text-[10px] leading-[1.65] text-dashboard-subtitle">
+            <Text className="text-[11px] leading-[1.6] text-dashboard-subtitle">
               {visibility === 'private'
                 ? t('reports.new.visibilityPrivateHint')
                 : t('reports.new.visibilityPublicHint')}
             </Text>
+          </Card>
 
-            <Text className="mb-2 text-sm font-medium text-ink">{t('reports.new.photos.label')}</Text>
-            <View className="mb-2 flex-row gap-2">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('reports.new.photos.gallery')}
-                disabled={submitting || pickedPhotos.length >= MAX_PHOTO_COUNT}
-                onPress={pickFromGallery}
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-md border px-3 py-2 active:opacity-80"
-                style={{
-                  borderColor: dashboardColors.cardLine,
-                  opacity: pickedPhotos.length >= MAX_PHOTO_COUNT ? 0.5 : 1,
-                }}
-              >
-                <ImagePlus color={dashboardColors.teal} size={14} />
-                <Text className="text-[12px] font-medium text-ink">
-                  {t('reports.new.photos.gallery')}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('reports.new.photos.camera')}
-                disabled={submitting || pickedPhotos.length >= MAX_PHOTO_COUNT}
-                onPress={takePhoto}
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-md border px-3 py-2 active:opacity-80"
-                style={{
-                  borderColor: dashboardColors.cardLine,
-                  opacity: pickedPhotos.length >= MAX_PHOTO_COUNT ? 0.5 : 1,
-                }}
-              >
-                <Camera color={dashboardColors.teal} size={14} />
-                <Text className="text-[12px] font-medium text-ink">
-                  {t('reports.new.photos.camera')}
-                </Text>
-              </Pressable>
+          <Card className="mb-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-[12px] font-medium text-ink">
+                {t('reports.new.photos.label')}
+              </Text>
+              <Text className="text-[11px] text-dashboard-subtitle">
+                {t('reports.new.photos.count', { count: photos.length, max: MAX_PHOTO_COUNT })}
+              </Text>
             </View>
-            <Text className="mb-2 text-[10px] text-dashboard-caption">
-              {pickedPhotos.length >= MAX_PHOTO_COUNT
-                ? t('reports.new.photos.limitReached', { max: MAX_PHOTO_COUNT })
-                : t('reports.new.photos.count', { count: pickedPhotos.length, max: MAX_PHOTO_COUNT })}
-            </Text>
-            {pickedPhotos.length > 0 ? (
-              <View className="mb-3 flex-row flex-wrap gap-2">
-                {pickedPhotos.map((photo, index) => (
-                  <View
-                    key={`${photo.uri}-${index}`}
-                    className="relative"
-                  >
+
+            {photos.length > 0 ? (
+              <View className="mt-3 flex-row flex-wrap gap-2">
+                {photos.map((photo, index) => (
+                  <View key={index} className="relative">
                     <Image
                       source={{ uri: photo.uri }}
                       className="h-20 w-20 rounded-md"
@@ -843,65 +661,114 @@ export default function NewReportScreen() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={t('reports.new.photos.remove')}
-                      onPress={() => removePickedPhoto(index)}
-                      className="absolute -right-1.5 -top-1.5 h-5 w-5 items-center justify-center rounded-full"
-                      style={{ backgroundColor: dashboardColors.ctaBg }}
+                      onPress={() => removePhoto(index)}
+                      className="absolute -right-2 -top-2 h-5 w-5 items-center justify-center rounded-full bg-tone-danger"
                     >
-                      <X color={dashboardColors.ctaText} size={11} strokeWidth={2.5} />
+                      <X color="#fff" size={12} strokeWidth={2.5} />
                     </Pressable>
                   </View>
                 ))}
               </View>
             ) : null}
 
-            {uploadError ? (
-              <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
-                <Text className="text-[10px] leading-[1.7] text-dashboard-error-text">
-                  {uploadError}
-                </Text>
-              </View>
-            ) : null}
-
-            {serverError ? (
-              <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
-                <Text className="text-[10px] leading-[1.7] text-dashboard-error-text">
-                  {serverError}
-                </Text>
-              </View>
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('reports.new.submit')}
-              accessibilityState={{ disabled: submitting, busy: submitting }}
-              disabled={submitting}
-              onPress={onSubmit}
-              className="mt-1 flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
-              style={{
-                backgroundColor: dashboardColors.ctaBg,
-                borderColor: dashboardColors.ctaBorder,
-                opacity: submitting ? 0.55 : 1,
-              }}
-            >
-              <Text
-                className="text-[14px] font-semibold"
-                style={{ color: dashboardColors.ctaText }}
+            <View className="mt-3 flex-row gap-2">
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => pickPhotos('gallery')}
+                disabled={photos.length >= MAX_PHOTO_COUNT}
+                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-2.5 active:opacity-80"
               >
-                {submitting ? t('reports.new.submitting') : t('reports.new.submit')}
-              </Text>
-              <ArrowRight color={dashboardColors.ctaText} size={17} strokeWidth={2.2} />
-            </Pressable>
+                <ImagePlus color={dashboardColors.subtitle} size={15} />
+                <Text className="text-[12px] font-medium text-ink">
+                  {t('reports.new.photos.gallery')}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => pickPhotos('camera')}
+                disabled={photos.length >= MAX_PHOTO_COUNT}
+                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-2.5 active:opacity-80"
+              >
+                <Camera color={dashboardColors.subtitle} size={15} />
+                <Text className="text-[12px] font-medium text-ink">
+                  {t('reports.new.photos.camera')}
+                </Text>
+              </Pressable>
+            </View>
           </Card>
 
-          <View className="h-12" />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setSuggestionOpen(true)}
+            className="mb-4 self-start active:opacity-80"
+          >
+            <Text className="text-[12px] font-semibold text-dashboard-teal underline">
+              {t('reports.new.suggestionTitle')}
+            </Text>
+          </Pressable>
+
+          {submitError ? (
+            <StateView variant="error" description={submitError} className="mb-4" />
+          ) : null}
+
+          <Button
+            label={submitting ? t('reports.new.submitting') : t('reports.new.submit')}
+            loading={submitting || uploadingPhotos}
+            disabled={submitting || uploadingPhotos}
+            onPress={handleSubmit}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
+
       <TriageChat
         visible={triageOpen}
-        siteId={site?.id ?? 0}
+        siteId={site.id}
         onClose={() => setTriageOpen(false)}
-        onApply={applySuggested}
+        onApply={applyTriage}
       />
+
+      {suggestionOpen ? (
+        <View className="absolute inset-0 items-center justify-center bg-black/40 px-6">
+          <View className="w-full rounded-[14px] bg-card p-4">
+            <Text className="text-[15px] font-semibold text-ink">
+              {t('reports.new.suggestionTitle')}
+            </Text>
+            <Text className="mt-1 text-[11px] leading-[1.6] text-dashboard-subtitle">
+              {t('reports.new.suggestionBody')}
+            </Text>
+            <TextField
+              label={t('reports.new.suggestionLabel')}
+              value={suggestionText}
+              onChangeText={setSuggestionText}
+              placeholder={t('reports.new.suggestionPlaceholder')}
+              className="mt-3"
+            />
+            <View className="mt-3 flex-row justify-end gap-2">
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => { setSuggestionOpen(false); setSuggestionText(''); }}
+                className="rounded-[9px] px-3 py-2 active:opacity-80"
+              >
+                <Text className="text-[12px] font-medium text-ink">Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleSuggestMissing}
+                disabled={suggestionBusy || !suggestionText.trim()}
+                className="rounded-[9px] px-3 py-2 active:opacity-80"
+                style={{ backgroundColor: dashboardColors.ctaBg }}
+              >
+                <Text
+                  className="text-[12px] font-semibold"
+                  style={{ color: dashboardColors.ctaText }}
+                >
+                  {suggestionBusy ? t('reports.new.suggestionSubmitting') : t('reports.new.suggestionSubmit')}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </Screen>
   );
 }

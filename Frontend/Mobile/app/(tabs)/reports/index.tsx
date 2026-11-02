@@ -77,76 +77,6 @@ export default function ReportsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-
-  const loadReports = useCallback(async (reset = false, pageNumber?: number) => {
-    if (!site) {
-      setError(t('reports.list.errors.noSiteSelected'));
-      return;
-    }
-    
-    const targetPage = reset ? 1 : pageNumber || page;
-    setPage(targetPage);
-    
-    try {
-      const result = await listReportsPage({
-        siteId: site.id,
-        page: targetPage,
-        size: PAGE_SIZE,
-      });
-      
-      if (result.content.length === 0 && targetPage > 1) {
-        setHasMore(false);
-      } else {
-        setHasMore(result.content.length === PAGE_SIZE && targetPage < result.totalPages);
-      }
-      
-      if (reset) {
-        setReports(result.content);
-        setTotalPages(result.totalPages);
-      } else {
-        setReports(prev => [...prev, ...result.content]);
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 401) {
-          setError(t('reports.list.errors.unauthorized'));
-        } else if (err.status === 403) {
-          setError(t('reports.list.errors.forbidden'));
-        } else if (err.status === 404) {
-          setError(t('reports.list.errors.notFound'));
-        } else {
-          setError(err.message);
-        }
-      } else {
-        setError(t('reports.list.loadFail'));
-      }
-    } finally {
-      if (reset) {
-        setRefreshing(false);
-      } else {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    }
-  }, [site, page, t]);
-
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadReports(true);
-  }, [loadReports]);
-
-  const handleLoadMore = useCallback(() => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    setPage(prev => prev + 1);
-  }, [loadingMore, hasMore]);
   const {
     site,
     loading: siteLoading,
@@ -228,17 +158,17 @@ export default function ReportsScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await loadReports(true);
+      await load(true);
     } finally {
       setRefreshing(false);
     }
-  }, [loadReports]);
+  }, [load]);
 
   const onLoadMore = useCallback(async () => {
     if (loadingMore || loading || refreshing || page + 1 >= totalPages) return;
     setLoadingMore(true);
-    await loadReports(false, page + 1);
-  }, [loadingMore, loading, refreshing, page, totalPages, loadReports]);
+    await load(false);
+  }, [loadingMore, loading, refreshing, page, totalPages, load]);
 
   const siteName = useCallback(
     (id: number | null) =>
@@ -577,7 +507,7 @@ type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 type ReportsHeaderProps = {
   t: TranslateFn;
   siteName: string;
-  siteContractStatus?: 'contracted' | 'uncontracted' | null;
+  contractStatus?: 'contracted' | 'uncontracted' | null;
   canCreate: boolean;
   onCreate: () => void;
   query: string;

@@ -1,7 +1,7 @@
 import { Stack, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, View, Pressable } from 'react-native';
+import { ScrollView, Text, TextInput, View, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Plus, Check, X } from 'lucide-react-native';
 
@@ -88,7 +88,6 @@ export default function TechnicianContractRequestsScreen() {
     try {
       await createTechnicianContractRequest({
         siteId: newRequestSiteId,
-        status: 'pending',
       });
       await loadRequests();
       setNewRequestSiteId(null);
@@ -106,7 +105,7 @@ export default function TechnicianContractRequestsScreen() {
     setLoading(true);
     setError(null);
     try {
-      await decideTechnicianContractRequest(requestId, decision);
+      await decideTechnicianContractRequest(requestId, { decision });
       await loadRequests();
     } catch (err) {
       setError(
@@ -202,7 +201,7 @@ export default function TechnicianContractRequestsScreen() {
                           disabled={loading}
                         >
                           {loading ? (
-                            <ActivityIndicator color={dashboardColors.ink} />
+                            <ActivityIndicator color={palette.ink} />
                           ) : (
                             <Text className="text-[11px] font-medium">
                               {t('technician.contractRequests.reject')}
@@ -217,7 +216,7 @@ export default function TechnicianContractRequestsScreen() {
                           disabled={loading}
                         >
                           {loading ? (
-                            <ActivityIndicator color={dashboardColors.card} />
+                            <ActivityIndicator color={palette.card} />
                           ) : (
                             <Text className="text-[11px] font-medium">
                               {t('technician.contractRequests.approve')}
@@ -251,7 +250,7 @@ export default function TechnicianContractRequestsScreen() {
                   placeholderTextColor={dashboardColors.subtitle}
                   className="rounded-lg border border-dashboard-card-line bg-card px-3 py-2 text-[12px] text-ink"
                   value={newRequestSiteId ? String(newRequestSiteId) : ''}
-                  onChangeText={(text) => setNewRequestSiteId(text ? Number(text) : null)}
+                  onChangeText={(text: string) => setNewRequestSiteId(text ? Number(text) : null)}
                   keyboardType="numeric"
                 />
                 <View className="mt-3 flex-row justify-end gap-2">

@@ -22,12 +22,11 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listTechnicianInvitations, listTechnicianContracts } from '@/services/technicians';
-import { listReports } from '@/services/reports';
+import { getReport } from '@/services/reports';
 import type { Report, TechnicianContract, TechnicianInvitation } from '@/types';
 
 /**
@@ -56,14 +55,20 @@ export default function TechnicianDashboardScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [invitations, contracts, reports] = await Promise.all([
+      const [invitations, contracts] = await Promise.all([
         listTechnicianInvitations(),
         listTechnicianContracts(),
-        listReports({ status: 'assigned', assignedTo: user?.id }),
       ]);
       setInvitations(invitations);
       setContracts(contracts);
-      setActiveReports(reports);
+      // Technicians without an account site cannot use the site-scoped report
+      // list, so active work is resolved from their invitations instead.
+      const reports = await Promise.all(
+        invitations.map((invitation) =>
+          getReport(invitation.reportId).catch(() => null),
+        ),
+      );
+      setActiveReports(reports.filter((report): report is Report => report !== null));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t('technicianDashboard.loadFail'),
@@ -130,7 +135,7 @@ export default function TechnicianDashboardScreen() {
                       {invitation.reportTitle}
                     </Text>
                     <Text style={{ fontSize: 12, color: palette.subtitle, marginTop: 4 }}>
-                      {invitation.siteName}
+                      {invitation.status}
                     </Text>
                   </View>
                   <ArrowRight color={palette.subtitle} size={16} />
@@ -172,7 +177,6 @@ export default function TechnicianDashboardScreen() {
                       {t('technicianDashboard.contractStatus', { status: contract.status })}
                     </Text>
                   </View>
-                  <StatusBadge status={contract.status} />
                 </View>
               ))}
             </View>
@@ -206,10 +210,10 @@ export default function TechnicianDashboardScreen() {
                 >
                   <View>
                     <Text style={{ fontSize: 14, fontWeight: '500', color: palette.ink }}>
-                      {report.title}
+                      {report.description}
                     </Text>
                     <Text style={{ fontSize: 12, color: palette.subtitle, marginTop: 4 }}>
-                      {report.siteName}
+                      {report.category}
                     </Text>
                   </View>
                   <ArrowRight color={palette.subtitle} size={16} />

@@ -29,6 +29,7 @@ import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { TextField } from '@/components/ui/TextField';
 import { dashboardColors } from '@/constants/theme';
+import { canTriggerManualAIClassification } from '@/constants/access';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError, toErrorMessage } from '@/lib/apiClient';
 import {
@@ -112,31 +113,30 @@ export default function ReportDetailScreen() {
       setReport(next);
 
       if (next.policy.canSeeSensitive) {
-        try {
-          const report = await getReport(reportId);
-          const photos = await getReportPhotos(reportId);
-          setReport({ ...report, photos });
-          if (user) {
-            setReporters(await listReporters(reportId));
-          } else {
-            setReporters(null);
-          }
-        } catch (err) {
-          if (err instanceof ApiError && err.status === 401) {
-            await logout().catch(() => {});
-            return;
-          } else if (err instanceof ApiError && err.status === 403) {
-            setLoadError(t('reports.detail.noAccess'));
-          } else if (err instanceof ApiError && err.status === 404) {
-            setLoadError(t('reports.detail.gone'));
-          } else {
-            setLoadError(
-              toErrorMessage(err, { fallback: t('reports.detail.couldNotLoad') }),
-            );
-          }
-        } finally {
-          setLoading(false);
+        const photos = await getReportPhotos(reportId);
+        setReport({ ...next, photos });
+        if (user) {
+          setReporters(await listReporters(reportId));
+        } else {
+          setReporters(null);
         }
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      } else if (err instanceof ApiError && err.status === 403) {
+        setLoadError(t('reports.detail.noAccess'));
+      } else if (err instanceof ApiError && err.status === 404) {
+        setLoadError(t('reports.detail.gone'));
+      } else {
+        setLoadError(
+          toErrorMessage(err, { fallback: t('reports.detail.couldNotLoad') }),
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [reportId, t]);
 
   const triggerAiAssessment = useCallback(async () => {
@@ -441,7 +441,7 @@ export default function ReportDetailScreen() {
             )}
             <View className="mt-2">
               <Text className="text-[12px] text-dashboard-subtitle">
-                {t('reports.detail.aiAssessment.urgency')}: {urgencyLabels[report.aiReport.urgency]}
+                {t('reports.detail.aiAssessment.urgency')}: {report.aiReport.urgency ? urgencyLabels[report.aiReport.urgency] : '—'}
               </Text>
               {report.aiReport.description && (
                 <Text className="mt-1 text-[12px] text-ink">
@@ -452,7 +452,7 @@ export default function ReportDetailScreen() {
           </Card>
         )}
 
-        {/* Photos gallery — fullscreen preview via Modal */
+        {/* Photos gallery — fullscreen preview via Modal */}
         <Card className="mb-4">
           <Text
             className="mb-2 text-[15px] font-semibold text-ink"

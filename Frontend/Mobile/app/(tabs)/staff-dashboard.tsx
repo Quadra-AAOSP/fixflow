@@ -20,7 +20,6 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
@@ -59,8 +58,8 @@ export default function StaffDashboardScreen() {
     setError(null);
     try {
       const [reports, technicians] = await Promise.all([
-        listReports({ siteId: site.id, status: 'open' }),
-        listTechnicians({ siteId: site.id }),
+        listReports({ siteId: site.id }),
+        listTechnicians(),
       ]);
       setReports(reports);
       setTechnicians(technicians);
@@ -145,10 +144,10 @@ export default function StaffDashboardScreen() {
                 >
                   <View>
                     <Text style={{ fontSize: 14, fontWeight: '500', color: palette.ink }}>
-                      {report.title}
+                      {report.description}
                     </Text>
                     <Text style={{ fontSize: 12, color: palette.subtitle, marginTop: 4 }}>
-                      {report.subsiteName}
+                      {report.category}
                     </Text>
                   </View>
                   <ArrowRight color={palette.subtitle} size={16} />
@@ -194,13 +193,12 @@ export default function StaffDashboardScreen() {
                 >
                   <View>
                     <Text style={{ fontSize: 14, fontWeight: '500', color: palette.ink }}>
-                      {technician.name}
+                      {[technician.firstName, technician.lastName].filter(Boolean).join(' ')}
                     </Text>
                     <Text style={{ fontSize: 12, color: palette.subtitle, marginTop: 4 }}>
-                      {technician.trade}
+                      {technician.availabilityStatus}
                     </Text>
                   </View>
-                  <StatusBadge status={technician.contractStatus} />
                 </View>
               ))}
               {technicians.length > 3 && (
