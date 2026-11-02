@@ -54,25 +54,25 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 | SiteAdminApplicationController | `GET /api/admin/site-admin-applications` | Connected: applicant status and super-admin Team access decisions. |
 | SiteAdminApplicationController | `POST /api/admin/site-admin-applications/{id}/approve` | Connected: applicant status and super-admin Team access decisions. |
 | SiteAdminApplicationController | `POST /api/admin/site-admin-applications/{id}/reject` | Connected: applicant status and super-admin Team access decisions. |
-| SiteController | `GET /api/sites` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
-| SiteController | `GET /api/sites/{id}` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
-| SiteController | `GET /api/sites/{id}/taxonomy` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
-| SiteController | `GET /api/sites/{id}/technician-pool` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
-| SiteController | `POST /api/sites` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
-| SiteController | `PUT /api/sites/{id}` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
-| SiteController | `DELETE /api/sites/{id}` | List/create/update connected in Sites. Detail and taxonomy have list/type-rule alternatives; technician-pool and DELETE not connected. |
+| SiteController | `GET /api/sites` | List/create/update connected in Sites. /sites/:siteId connects detail, taxonomy and authorized technician-pool reads plus super-admin permanent deletion review. |
+| SiteController | `GET /api/sites/{id}` | List/create/update connected in Sites. /sites/:siteId connects detail, taxonomy and authorized technician-pool reads plus super-admin permanent deletion review. |
+| SiteController | `GET /api/sites/{id}/taxonomy` | List/create/update connected in Sites. /sites/:siteId connects detail, taxonomy and authorized technician-pool reads plus super-admin permanent deletion review. |
+| SiteController | `GET /api/sites/{id}/technician-pool` | List/create/update connected in Sites. /sites/:siteId connects detail, taxonomy and authorized technician-pool reads plus super-admin permanent deletion review. |
+| SiteController | `POST /api/sites` | List/create/update connected in Sites. /sites/:siteId connects detail, taxonomy and authorized technician-pool reads plus super-admin permanent deletion review. |
+| SiteController | `PUT /api/sites/{id}` | List/create/update connected in Sites. /sites/:siteId connects detail, taxonomy and authorized technician-pool reads plus super-admin permanent deletion review. |
+| SiteController | `DELETE /api/sites/{id}` | List/create/update connected in Sites. /sites/:siteId connects detail, taxonomy and authorized technician-pool reads plus super-admin permanent deletion review. |
 | SiteRuleController | `GET /api/site-rules` | GET connected for taxonomy and rule listing. POST/PUT/DELETE connected in /site-rules for admin/super_admin with explicit type-wide scope and delete confirmation. |
 | SiteRuleController | `POST /api/site-rules` | GET connected for taxonomy and rule listing. POST/PUT/DELETE connected in /site-rules for admin/super_admin with explicit type-wide scope and delete confirmation. |
 | SiteRuleController | `PUT /api/site-rules/{id}` | GET connected for taxonomy and rule listing. POST/PUT/DELETE connected in /site-rules for admin/super_admin with explicit type-wide scope and delete confirmation. |
 | SiteRuleController | `DELETE /api/site-rules/{id}` | GET connected for taxonomy and rule listing. POST/PUT/DELETE connected in /site-rules for admin/super_admin with explicit type-wide scope and delete confirmation. |
-| SubsiteController | `GET /api/sites/{siteId}/reporting-setup` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
-| SubsiteController | `GET /api/sites/{siteId}/subsites` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
-| SubsiteController | `POST /api/sites/{siteId}/subsites` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
-| SubsiteController | `POST /api/sites/{siteId}/subsite-requests` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
-| SubsiteController | `PUT /api/sites/{siteId}/subsites/{id}` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
-| SubsiteController | `POST /api/sites/{siteId}/subsites/{id}/archive` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
-| SubsiteController | `GET /api/sites/{siteId}/subsite-requests` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
-| SubsiteController | `POST /api/sites/{siteId}/subsite-requests/{id}/resolve` | Subsite CRUD/archive and suggestion/list/resolve connected. reporting-setup read is not connected; auth onboarding metadata currently drives guidance. |
+| SubsiteController | `GET /api/sites/{siteId}/reporting-setup` | Subsite CRUD/archive and suggestion/list/resolve connected. Dedicated reporting-setup read is connected in Site details; auth onboarding metadata also drives initial guidance. |
+| SubsiteController | `GET /api/sites/{siteId}/subsites` | Subsite CRUD/archive and suggestion/list/resolve connected. Dedicated reporting-setup read is connected in Site details; auth onboarding metadata also drives initial guidance. |
+| SubsiteController | `POST /api/sites/{siteId}/subsites` | Subsite CRUD/archive and suggestion/list/resolve connected. Dedicated reporting-setup read is connected in Site details; auth onboarding metadata also drives initial guidance. |
+| SubsiteController | `POST /api/sites/{siteId}/subsite-requests` | Subsite CRUD/archive and suggestion/list/resolve connected. Dedicated reporting-setup read is connected in Site details; auth onboarding metadata also drives initial guidance. |
+| SubsiteController | `PUT /api/sites/{siteId}/subsites/{id}` | Subsite CRUD/archive and suggestion/list/resolve connected. Dedicated reporting-setup read is connected in Site details; auth onboarding metadata also drives initial guidance. |
+| SubsiteController | `POST /api/sites/{siteId}/subsites/{id}/archive` | Subsite CRUD/archive and suggestion/list/resolve connected. Dedicated reporting-setup read is connected in Site details; auth onboarding metadata also drives initial guidance. |
+| SubsiteController | `GET /api/sites/{siteId}/subsite-requests` | Subsite CRUD/archive and suggestion/list/resolve connected. Dedicated reporting-setup read is connected in Site details; auth onboarding metadata also drives initial guidance. |
+| SubsiteController | `POST /api/sites/{siteId}/subsite-requests/{id}/resolve` | Subsite CRUD/archive and suggestion/list/resolve connected. Dedicated reporting-setup read is connected in Site details; auth onboarding metadata also drives initial guidance. |
 | TechnicianAvailabilityController | `GET /api/technicians/me/availability` | Connected: technician workspace availability. |
 | TechnicianAvailabilityController | `PUT /api/technicians/me/availability` | Connected: technician workspace availability. |
 | TechnicianContractController | `GET /api/technician-contracts` | GET/POST/DELETE connected in Contracts. Removal is explicitly a permanent database relationship removal, not legal termination or an audited lifecycle. |
@@ -90,7 +90,7 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 ## Remaining integration work
 
 - Product administration is connected; wider role and production acceptance remain separate.
-- Connect dedicated site reporting-setup/taxonomy/pool reads where they replace broad reads; retain schema/permission checks.
-- Site deletion still needs its super-admin workflow. Rule and contract removal controls now have explicit permanent-delete confirmation and role/scope guards.
+- Site detail/setup/taxonomy/pool reads are connected; verify wider live role acceptance and production behavior.
+- Site, rule and contract removal controls are connected with explicit permanent-delete confirmation and role/scope guards. Destructive live acceptance remains unexecuted.
 - Verify role flows and mutations in the live browser against disposable fixtures. Unit coverage alone is insufficient.
 - No lifecycle endpoints exist for assigned-to-me/claim/start/resolve/history/triage/escalation/urgency override/rating/linked reports/admin review; do not invent successful client states.

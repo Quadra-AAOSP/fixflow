@@ -128,3 +128,11 @@ it.each(['admin', 'super_admin'] as UserRole[])('allows rule management for %s',
   await signIn(role); const router = createAppRouter(createMemoryHistory());
   await router.push('/site-rules'); expect(router.currentRoute.value.name).toBe('site-rules');
 });
+it('protects direct site detail URLs for signed-out users', async () => {
+  const router = createAppRouter(createMemoryHistory()); await router.push('/sites/7');
+  expect(router.currentRoute.value.name).toBe('login'); expect(router.currentRoute.value.query.redirect).toBe('/sites/7');
+});
+it.each(['technician', 'shop_manager'] as UserRole[])('keeps site detail out of the %s workspace', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory()); await router.push('/sites/7');
+  expect(router.currentRoute.value.name).not.toBe('site-detail');
+});

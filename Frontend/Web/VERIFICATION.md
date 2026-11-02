@@ -183,3 +183,19 @@ The rule UI also created and updated only synthetic web_verification_category
 (urgency weight 1 then 2, sort order 99) in the disposable schema. Existing rules
 were unchanged, and permanent rule deletion was not executed through the browser.
 Full regression evidence: 48 files / 292 tests passed; build passed.
+
+## Site detail, setup and pool endpoints
+
+/sites/:siteId connects the dedicated site GET, reporting-setup, taxonomy and
+technician-pool APIs. Each resource has independent error handling; failed reads
+are not displayed as successful empty data. Only staff/admin/super admins request
+the pool/contact data. Ordinary users are restricted to their own site, and old
+site/account responses are ignored after navigation. Super-admin permanent site
+deletion requires exact-name confirmation and retains details/server errors on
+refusal. The feature does not invent cascading deletion or bypass related records.
+
+Live read against disposable site #1 returned its name, one active building,
+configured school categories and two available contracted technicians. No site
+was deleted. Component/service tests cover routes, DTO paths, pool privacy,
+late responses, independent failures and refused deletion. Full regression:
+50 test files / 302 tests and production build passed.
