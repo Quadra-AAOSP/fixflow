@@ -1,11 +1,9 @@
 import { api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
-  TechnicianContract,
-  TechnicianInvitation,
-  TechnicianPool,
+  RankingMode,
+  TechnicianPoolMember,
   TechnicianSummary,
-  User,
 } from '@/types';
 
 /**
@@ -17,21 +15,6 @@ export function listTechnicians(): Promise<TechnicianSummary[]> {
 }
 
 /**
- * Fetches the technician's current invitations (reports they've been
- * invited to join).
- */
-export function listTechnicianInvitations(): Promise<TechnicianInvitation[]> {
-  return api.get<TechnicianInvitation[]>(endpoints.technicianInvitations.list);
-}
-
-/**
- * Fetches the technician's current contracts. Re-exported here for screens
- * that import from the technicians service; the canonical implementation
- * lives in `services/technician`.
- */
-export { listTechnicianContracts } from './technician';
-
-/**
  * Backwards-compatible aliases. Screens written against older service names
  * import these from `services/technicians`; the canonical definitions live in
  * `services/technician`.
@@ -41,29 +24,29 @@ export {
   createTechnicianContractRequest,
   decideTechnicianContractRequest,
   getTechnicianTerms,
+  getTechnicianTermsFor,
+  inviteTechniciansToReport,
+  listTechnicianContractRequests as getTechnicianContractRequests,
+  listTechnicianContracts as getTechnicianContracts,
+  listTechnicianInvitations as getTechnicianInvitations,
+  rankTechniciansForReport,
 } from './technician';
-export { listTechnicianContractRequests as getTechnicianContractRequests } from './technician';
-export { listTechnicianContracts as getTechnicianContracts } from './technician';
+export { listTechnicianContracts } from './technician';
 
 /**
- * Fetches the eligible contracted technician pool for a site.
+ * Alias used by screens written against the older name.
  */
-export function listTechnicianPool(siteId: number): Promise<TechnicianPool> {
-  return api.get<TechnicianPool>(endpoints.sites.technicianPool(siteId));
+export { listTechnicianInvitations } from './technician';
+
+/** Alias kept for screens that import the singular ranking name. */
+export { rankTechniciansForReport as rankTechnicianForReport } from './technician';
+
+/** Fetches the eligible contracted technician pool for a site. */
+export function listTechnicianPool(
+  siteId: number,
+): Promise<TechnicianPoolMember[]> {
+  return api.get<TechnicianPoolMember[]>(endpoints.sites.technicianPool(siteId));
 }
 
-/**
- * Ranks technicians for a report (returns ranked candidates and active-case
- * counts).
- */
-export function rankTechniciansForReport(
-  reportId: number,
-): Promise<unknown> {
-  return api.post<unknown>(endpoints.reports.technicianRanking(reportId), {});
-}
-
-/** Alias used by some screens. */
-export const rankTechnicianForReport = rankTechniciansForReport;
-
-/** Alias used by screens written against the older name. */
-export const getTechnicianInvitations = listTechnicianInvitations;
+/** Resolves a rank mode for callers that need a typed helper. */
+export type TechnicianRankingMode = RankingMode;
