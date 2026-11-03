@@ -26,7 +26,7 @@ export function ProductCard({
   minorUnitDigits,
   onPress = () => {},
   onAddToBasket,
-}: ProductCardProps) { {
+}: ProductCardProps) {
   const { t } = useTranslation('common');
   const imageUri = safeImageUrl(product.imageUrl);
   const outOfStock = product.stock <= 0;

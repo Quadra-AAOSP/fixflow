@@ -1,3 +1,31 @@
+// Translations for Reports Screen
+// Add these to your i18n common.json file
+// {
+//   "reports": {
+//     "list": {
+//       "allReports": "All Reports",
+//       "loading": "Loading reports...",
+//       "noReportsTitle": "No reports found.",
+//       "noReportsDesc": "There are no reports for this site.",
+//       "noMatchesTitle": "No matches found.",
+//       "noMatchesDesc": "No reports match your search criteria.",
+//       "loadingMore": "Loading more...",
+//       "scrollForMore": "Scroll to load more",
+//       "loadingSite": "Loading site...",
+//       "noSiteTitle": "No site selected.",
+//       "noSiteDesc": "Please select a site to view reports.",
+//       "errors": {
+//         "couldNotLoad": "Failed to load reports.",
+//         "retry": "Retry",
+//         "noSiteSelected": "No site selected.",
+//         "unauthorized": "You are not authorized to access this site.",
+//         "forbidden": "Access denied.",
+//         "notFound": "Reports not found."
+//       }
+//     }
+//   }
+// }
+
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
@@ -49,51 +77,6 @@ export default function ReportsScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-
-  const loadReports = useCallback(async (reset = false) => {
-    if (reset) {
-      setPage(1);
-      setReports([]);
-      setHasMore(true);
-    }
-
-    try {
-      const result = await listReportsPage(reset ? 1 : page, PAGE_SIZE);
-      if (reset) {
-        setReports(result.reports);
-      } else {
-        setReports(prev => [...prev, ...result.reports]);
-      }
-      setHasMore(result.reports.length === PAGE_SIZE);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('reports.list.loadFail'));
-    } finally {
-      if (reset) {
-        setRefreshing(false);
-      } else {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    }
-  }, [page, t]);
-
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadReports(true);
-  }, [loadReports]);
-
-  const handleLoadMore = useCallback(() => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    setPage(prev => prev + 1);
-  }, [loadingMore, hasMore]);
   const {
     site,
     loading: siteLoading,
@@ -172,21 +155,20 @@ export default function ReportsScreen() {
     }, [load]),
   );
 
-  async function onRefresh() {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await load(true);
     } finally {
       setRefreshing(false);
     }
-  }
+  }, [load]);
 
-  function onLoadMore() {
-    if (loadingMore || loading || refreshing) return;
-    if (page + 1 >= totalPages) return;
-    setPage((p) => p + 1);
-    void load(false);
-  }
+  const onLoadMore = useCallback(async () => {
+    if (loadingMore || loading || refreshing || page + 1 >= totalPages) return;
+    setLoadingMore(true);
+    await load(false);
+  }, [loadingMore, loading, refreshing, page, totalPages, load]);
 
   const siteName = useCallback(
     (id: number | null) =>
@@ -315,7 +297,7 @@ export default function ReportsScreen() {
               <ReportsHeader
                 t={t}
                 siteName={site?.name ?? ''}
-                contractStatus={site?.contractStatus ?? null}
+                contractStatus={isOps ? site?.contractStatus ?? null : null}
                 canCreate={canCreate}
                 onCreate={() => router.push('/reports/new')}
                 query={query}
@@ -525,7 +507,7 @@ type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 type ReportsHeaderProps = {
   t: TranslateFn;
   siteName: string;
-  siteContractStatus?: 'contracted' | 'uncontracted' | null;
+  contractStatus?: 'contracted' | 'uncontracted' | null;
   canCreate: boolean;
   onCreate: () => void;
   query: string;

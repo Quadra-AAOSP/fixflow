@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   Text,
@@ -16,9 +17,10 @@ import { StateView } from '@/components/ui/StateView';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listTechnicians } from '@/services/technicians';
+import { listTechnicians, getTechnicianTermsFor } from '@/services/technicians';
 import { useCurrentSite } from '@/stores/site';
 import type { TechnicianAvailability, TechnicianSummary } from '@/types';
+import type { TechnicianTermsStatus } from '@/types/technician';
 import { formatDate, fullName } from '@/utils/format';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
@@ -63,6 +65,8 @@ export default function TechniciansScreen() {
     user?.role === 'staff' ||
     user?.role === 'admin' ||
     user?.role === 'super_admin';
+  const canViewTerms =
+    user?.role === 'admin' || user?.role === 'super_admin';
 
   const [technicians, setTechnicians] = useState<TechnicianSummary[] | null>(
     null,
@@ -244,6 +248,7 @@ export default function TechniciansScreen() {
                       key={technician.id}
                       t={t}
                       technician={technician}
+                      canViewTerms={canViewTerms}
                     />
                   ))
                 )}
@@ -258,6 +263,7 @@ export default function TechniciansScreen() {
                         key={technician.id}
                         t={t}
                         technician={technician}
+                        canViewTerms={canViewTerms}
                       />
                     ))}
                   </>
@@ -269,6 +275,7 @@ export default function TechniciansScreen() {
                   key={technician.id}
                   t={t}
                   technician={technician}
+                  canViewTerms={canViewTerms}
                 />
               ))
             )}
@@ -311,10 +318,33 @@ function AvailabilityChip({
 function TechnicianRow({
   t,
   technician,
+  canViewTerms,
 }: {
   t: TranslateFn;
   technician: TechnicianSummary;
+  canViewTerms: boolean;
 }) {
+  const [terms, setTerms] = useState<TechnicianTermsStatus | null>(null);
+  const [termsLoading, setTermsLoading] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
+
+  const loadTerms = useCallback(async () => {
+    if (termsLoading) return;
+    setTermsLoading(true);
+    setTermsError(null);
+    try {
+      setTerms(await getTechnicianTermsFor(technician.id));
+    } catch (err) {
+      setTermsError(
+        err instanceof ApiError
+          ? err.message
+          : t('more.technicians.termsLoadFailed'),
+      );
+    } finally {
+      setTermsLoading(false);
+    }
+  }, [technician.id, termsLoading, t]);
+
   const name = fullName(technician.firstName, technician.lastName);
   const contact = technician.phone
     ? `${technician.email} · ${technician.phone}`
@@ -384,6 +414,71 @@ function TechnicianRow({
           ))
         )}
       </View>
+
+      {canViewTerms ? (
+        <View className="mt-3">
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              if (terms) {
+                setTerms(null);
+                setTermsError(null);
+              } else {
+                void loadTerms();
+              }
+            }}
+            className="flex-row items-center gap-1 self-start active:opacity-70"
+          >
+            <Text
+              className="text-[11px] font-semibold"
+              style={{ color: dashboardColors.teal }}
+            >
+              {terms
+                ? t('more.technicians.hideTerms')
+                : t('more.technicians.viewTerms')}
+            </Text>
+          </Pressable>
+          {termsLoading ? (
+            <Text className="mt-1 text-[10px] text-dashboard-caption">
+              {t('technician.terms.loading')}
+            </Text>
+          ) : null}
+          {termsError ? (
+            <Text className="mt-1 text-[10px] leading-[1.7] text-tone-danger">
+              {termsError}
+            </Text>
+          ) : null}
+          {terms ? (
+            terms.currentVersion ? (
+              <View className="mt-1">
+                <Text className="text-[11px] text-ink">
+                  {t('technician.terms.version', {
+                    version: terms.currentVersion,
+                  })}
+                </Text>
+                <Text
+                  className="mt-0.5 text-[10px] font-semibold"
+                  style={{
+                    color: terms.acceptedCurrentVersion
+                      ? dashboardColors.statMintDeep
+                      : dashboardColors.statCitronDeep,
+                  }}
+                >
+                  {t(
+                    terms.acceptedCurrentVersion
+                      ? 'technician.terms.accepted'
+                      : 'technician.terms.notAccepted',
+                  )}
+                </Text>
+              </View>
+            ) : (
+              <Text className="mt-1 text-[10px] text-dashboard-caption">
+                {t('technician.terms.noTerms')}
+              </Text>
+            )
+          ) : null}
+        </View>
+      ) : null}
     </Card>
   );
 }

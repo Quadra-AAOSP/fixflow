@@ -11,61 +11,51 @@ export const roleLabels: Record<UserRole, string> = {
   shop_manager: 'labels.role.shop_manager',
 };
 
-
+/** Backend capability checks — these map 1:1 to `User.capabilities`. */
 export const canProvision = (user: User | null | undefined): boolean => user?.capabilities?.provision ?? false;
 export const canDecideContracts = (user: User | null | undefined): boolean => user?.capabilities?.decideContracts ?? false;
 export const canCreateSite = (user: User | null | undefined): boolean => user?.capabilities?.createSite ?? false;
 export const canEditSite = (user: User | null | undefined): boolean => user?.capabilities?.editSite ?? false;
 export const canAssignTechnician = (user: User | null | undefined): boolean => user?.capabilities?.assignTechnician ?? false;
-export const canConfirmReport = (user: User | null | undefined): boolean => user?.capabilities?.confirmReport ?? false;
-export const canReopenReport = (user: User | null | undefined): boolean => user?.capabilities?.reopenReport ?? false;
 export const canCreateReport = (user: User | null | undefined): boolean => user?.capabilities?.createReport ?? false;
 export const provisionableRoles = (user: User | null | undefined): UserRole[] => user?.capabilities?.provisionableRoles ?? [];
-export const canManageShop = (user: User | null | undefined): boolean => {
-  // Shop managers can manage the shop
-  if (user?.role === 'shop_manager') {
-    return true;
-  }
-  // Site admins cannot manage the shop
-  if (user?.role === 'admin') {
-    return false;
-  }
-  // Fall back to the backend capability
-  return user?.capabilities?.manageShop ?? false;
-};
+
+/**
+ * Confirm / reopen are gated by the report's `policy` (canConfirmReport etc.)
+ * server-side. The role-based check below is only a coarse pre-filter so
+ * unauthorized roles never see the affordance; the backend is the source of
+ * truth for whether a specific report can be confirmed or reopened.
+ */
+export const canConfirmReport = (user: User | null | undefined): boolean =>
+  user?.role === 'staff' || user?.role === 'admin' || user?.role === 'super_admin';
+
+export const canReopenReport = (user: User | null | undefined): boolean =>
+  user?.role === 'staff' || user?.role === 'admin' || user?.role === 'super_admin';
+
+/** Full AI assessment is visible to staff, admins, and super admins. */
+export const canViewFullAIAssessment = (user: User | null | undefined): boolean =>
+  user?.role === 'staff' || user?.role === 'admin' || user?.role === 'super_admin';
+
+/** Manual AI classification is restricted to site admins and super admins. */
+export const canTriggerManualAIClassification = (user: User | null | undefined): boolean =>
+  user?.role === 'admin' || user?.role === 'super_admin';
+
+/**
+ * Shop management follows the backend capability exclusively. Shop managers
+ * retain access as a fallback for older payloads, but no role — including
+ * site admins — is granted shop access locally.
+ */
+export const canManageShop = (user: User | null | undefined): boolean =>
+  user?.capabilities?.manageShop ?? user?.role === 'shop_manager';
 
 /** True for the admin of a site (site-bound accounts only). */
-export const canManageSubsites = (user: User | null | undefined): boolean => user?.siteOnboarding?.canManageSubsites ?? false;
+export const canManageSubsites = (user: User | null | undefined): boolean =>
+  user?.siteOnboarding?.canManageSubsites ?? false;
 
-/** True for users who can access the shop */
+/** Technicians, super admins, and shop managers can access the shop. */
 export const canAccessShop = (user: User | null | undefined): boolean => {
-  // Technicians and super admins can access the shop
-  if (user?.role === 'technician' || user?.role === 'super_admin') {
+  if (user?.role === 'technician' || user?.role === 'super_admin' || user?.role === 'shop_manager') {
     return true;
   }
-  // Shop managers can access the shop
-  if (user?.role === 'shop_manager') {
-    return true;
-  }
-  // Fall back to the backend capability
   return user?.capabilities?.manageShop ?? false;
-};
-
-/** True for users who can assign technicians */
-export const canAssignTechnician = (user: User | null | undefined): boolean => user?.capabilities?.assignTechnician ?? false;
-
-/** True for users who can confirm reports */
-export const canConfirmReport = (user: User | null | undefined): boolean => user?.capabilities?.confirmReport ?? false;
-
-/** True for users who can reopen reports */
-export const canReopenReport = (user: User | null | undefined): boolean => user?.capabilities?.reopenReport ?? false;
-
-/** True for users who can view the full AI assessment */
-export const canViewFullAIAssessment = (user: User | null | undefined): boolean => {
-  return user?.role === 'staff' || user?.role === 'admin' || user?.role === 'super_admin' || user?.capabilities?.viewFullAIAssessment ?? false;
-};
-
-/** True for users who can trigger manual AI classification */
-export const canTriggerManualAIClassification = (user: User | null | undefined): boolean => {
-  return user?.role === 'admin' || user?.role === 'super_admin' || user?.capabilities?.triggerManualAIClassification ?? false;
 };

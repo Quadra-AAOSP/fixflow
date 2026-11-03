@@ -27,6 +27,7 @@ import { useConnectivity } from '@/hooks/useConnectivity';
 import { AuthProvider } from '@/stores/auth';
 import { TechnicianAvailabilityProvider } from '@/stores/availability';
 import { ThemeModeProvider, useThemeMode } from '@/stores/theme';
+import { ToastProvider } from '@/components/ui/useToastContext';
 import { useTranslation } from 'react-i18next';
 
 export { ErrorBoundary } from 'expo-router';
@@ -68,7 +69,9 @@ export default function RootLayout() {
     <ThemeModeProvider>
       <AuthProvider>
         <TechnicianAvailabilityProvider>
-          <RootLayoutNav />
+          <ToastProvider>
+            <RootLayoutNav />
+          </ToastProvider>
         </TechnicianAvailabilityProvider>
       </AuthProvider>
     </ThemeModeProvider>

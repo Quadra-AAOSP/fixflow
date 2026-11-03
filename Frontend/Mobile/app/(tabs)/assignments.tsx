@@ -22,9 +22,10 @@ import { UrgencyChip } from '@/components/ui/UrgencyChip';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listReports, listTechnicianInvitations, listTechnicianPool, rankTechnicianForReport } from '@/services/reports';
+import { listReports } from '@/services/reports';
+import { listTechnicianContracts } from '@/services/technician';
 import { useCurrentSite } from '@/stores/site';
-import type { Report, Urgency, TechnicianInvitation, TechnicianPoolMember } from '@/types';
+import type { Report, Urgency } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import {
   REPORT_FILTERS,
@@ -53,65 +54,10 @@ export default function AssignmentsScreen() {
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
-  const { site, sites } = useCurrentSite();
 
-  const [invitations, setInvitations] = useState<TechnicianInvitation[]>([]);
-  const [technicianPool, setTechnicianPool] = useState<TechnicianPoolMember[]>([]);
-  const [loadingInvitations, setLoadingInvitations] = useState(true);
-  const [loadingPool, setLoadingPool] = useState(true);
-  const [invitationError, setInvitationError] = useState<string | null>(null);
-  const [poolError, setPoolError] = useState<string | null>(null);
+  const { site: currentSite, sites, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
 
-  const loadInvitations = useCallback(async () => {
-    if (!user?.id) return;
-    setLoadingInvitations(true);
-    setInvitationError(null);
-    try {
-      const invitations = await listTechnicianInvitations();
-      setInvitations(invitations);
-    } catch (err) {
-      setInvitationError(
-        err instanceof ApiError ? err.message : t('assignments.invitationLoadFail'),
-      );
-    } finally {
-      setLoadingInvitations(false);
-    }
-  }, [user?.id, t]);
-
-  const loadTechnicianPool = useCallback(async () => {
-    if (!site?.id) return;
-    setLoadingPool(true);
-    setPoolError(null);
-    try {
-      const pool = await listTechnicianPool(site.id);
-      setTechnicianPool(pool);
-    } catch (err) {
-      setPoolError(
-        err instanceof ApiError ? err.message : t('assignments.poolLoadFail'),
-      );
-    } finally {
-      setLoadingPool(false);
-    }
-  }, [site?.id, t]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadInvitations();
-      void loadTechnicianPool();
-    }, [loadInvitations, loadTechnicianPool]),
-  );
-
-  const handleRankTechnician = useCallback(async (reportId: number, technicianId: number) => {
-    try {
-      await rankTechnicianForReport(reportId, technicianId);
-      // Refresh data after ranking
-      await loadInvitations();
-      await loadTechnicianPool();
-    } catch (err) {
-      // Handle error appropriately
-    }
-  }, [loadInvitations, loadTechnicianPool]);
-  const { site, sites, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
+  const isTechnician = user?.role === 'technician';
 
   const [reports, setReports] = useState<Report[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -121,12 +67,27 @@ export default function AssignmentsScreen() {
   const [filter, setFilter] = useState<ReportFilter>('all');
 
   const load = useCallback(async () => {
-    if (!site || !user) return;
+    if (!user) return;
+    if (!isTechnician && !currentSite) return;
     setError(null);
     if (reports === null) setLoading(true);
     try {
-      const result = await listReports({ siteId: site.id });
-      setReports(result);
+      if (isTechnician) {
+        // Technicians may be contracted without an account site. Their
+        // contracts — not the account site — define which reports are reachable,
+        // so fan out over every contract site and merge by report id.
+        const contracts = await listTechnicianContracts();
+        const siteIds = Array.from(new Set(contracts.map((contract) => contract.siteId)));
+        const pages = await Promise.all(
+          siteIds.map((siteId) => listReports({ siteId }).catch(() => [])),
+        );
+        const merged = new Map<number, Report>();
+        for (const report of pages.flat()) merged.set(report.id, report);
+        setReports(Array.from(merged.values()));
+      } else if (currentSite) {
+        const result = await listReports({ siteId: currentSite.id });
+        setReports(result);
+      }
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t('assignments.errors.couldNotLoad'),
@@ -135,7 +96,7 @@ export default function AssignmentsScreen() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site?.id, user?.id]);
+  }, [currentSite?.id, user?.id, isTechnician]);
 
   useFocusEffect(
     useCallback(() => {
@@ -153,7 +114,6 @@ export default function AssignmentsScreen() {
     }
   }
 
-  const isTechnician = user?.role === 'technician';
   const canAssign = user?.capabilities.assignTechnician ?? false;
 
   // Scope by role: technicians see ONLY their own queue items; staff/admin see
@@ -190,8 +150,9 @@ export default function AssignmentsScreen() {
   }, [reports, isTechnician, user?.id]);
 
   const siteName = useCallback(
-    (id: number | null) => (id !== null && site && id === site.id ? site.name : ''),
-    [site],
+    (id: number | null) =>
+      id !== null && currentSite && id === currentSite.id ? currentSite.name : '',
+    [currentSite],
   );
 
   const filtered = useMemo(
@@ -215,7 +176,7 @@ export default function AssignmentsScreen() {
     count: scoped.filter((report) => matchesFilter(report, option.value)).length,
   }));
 
-  if (!site) {
+  if (!currentSite && !isTechnician) {
     if (siteLoading) {
       return (
         <Screen>
@@ -297,7 +258,7 @@ export default function AssignmentsScreen() {
                 {t('assignments.myAssignmentsTitle')}
               </Text>
               <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-                {site.name}
+                {currentSite?.name ?? ''}
                 {reports !== null
                   ? ` · ${t('assignments.assignedCount', { count: assignedToMe.length })}${
                       availableToClaim.length > 0
@@ -368,7 +329,7 @@ export default function AssignmentsScreen() {
                   {t('assignments.currentAssignmentsTitle')}
                 </Text>
                 <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-                  {site.name}
+                  {currentSite?.name ?? ''}
                   {reports !== null
                     ? ` · ${t('assignments.activeReportCount', {
                         count: scoped.length,

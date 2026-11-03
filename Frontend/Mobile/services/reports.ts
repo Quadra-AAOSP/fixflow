@@ -5,6 +5,7 @@ import type {
   CreateReportPayload,
   Report,
   ReportPage,
+  ReportPhoto,
   ReportReporter,
   VisionJob,
 } from '@/types';
@@ -82,7 +83,7 @@ export function reopenReport(id: number, reason: string): Promise<Report> {
  * Triggers AI classification for a report.
  */
 export function classifyReport(id: number): Promise<Report> {
-  return api.post<Report>(endpoints.reports.classify.replace('{id}', String(id)));
+  return api.post<Report>(endpoints.reports.classify(id));
 }
 
 /**
@@ -97,6 +98,15 @@ export function triggerVisionProcessing(reportId: number): Promise<VisionJob> {
  */
 export function getVisionJobStatus(reportId: number, jobId: string): Promise<VisionJob> {
   return api.get<VisionJob>(endpoints.reports.visionJob(reportId, jobId));
+}
+
+/**
+ * Fetches photos for a report.
+ */
+export function getReportPhotos(reportId: number): Promise<ReportPhoto[]> {
+  return api.get<ReportPhoto[]>(
+    endpoints.reports.photos.list.replace('{id}', String(reportId)),
+  );
 }
 
 /*

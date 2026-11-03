@@ -30,7 +30,7 @@ export default function MoreStackLayout() {
         headerTitleStyle: { fontWeight: '600', fontSize: 16 },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: palette.surface },
-        headerLeft: () => <HeaderBackButton color={palette.ink} to="/more" />,
+        headerLeft: () => <HeaderBackButton color={palette.ink} popTo="/more" />,
       }}
     >
       {/* The menu screen renders its own heading, so suppress the stack
@@ -66,6 +66,10 @@ export default function MoreStackLayout() {
         options={{ title: t('more.menu.siteContractsTitle') }}
       />
       <Stack.Screen name="shop" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="admin-dashboard"
+        options={{ title: t('more.menu.adminDashboardTitle') }}
+      />
     </Stack>
   );
 }

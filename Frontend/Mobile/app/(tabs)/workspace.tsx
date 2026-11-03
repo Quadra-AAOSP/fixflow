@@ -265,18 +265,15 @@ export default function WorkspaceScreen() {
         <Card padded={false} className="mb-6">
           <Pressable
             accessibilityRole="link"
-            onPress={() => router.push('/assignments')}
+            onPress={() => router.push('/technician/terms')}
             className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
           >
             <View className="flex-1 pr-3">
               <Text className="text-[13px] font-semibold text-ink">
-                {t('workspace.myAssignments')}
+                {t('workspace.terms')}
               </Text>
               <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
-                {t('workspace.openReports', {
-                  count: myAssignments.length,
-                  plural: myAssignments.length === 1 ? '' : 's',
-                })}
+                {t('workspace.termsHint')}
               </Text>
             </View>
             <ArrowRight color={dashboardColors.subtitle} size={16} />
@@ -284,15 +281,15 @@ export default function WorkspaceScreen() {
           <View className="mx-4 border-t border-dashboard-card-line" />
           <Pressable
             accessibilityRole="link"
-            onPress={() => router.push('/more/contracts')}
+            onPress={() => router.push('/technician/invitations')}
             className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
           >
             <View className="flex-1 pr-3">
               <Text className="text-[13px] font-semibold text-ink">
-                {t('workspace.siteContracts')}
+                {t('workspace.invitations')}
               </Text>
               <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
-                {t('workspace.contractsHint')}
+                {t('workspace.invitationsHint')}
               </Text>
             </View>
             <ArrowRight color={dashboardColors.subtitle} size={16} />
