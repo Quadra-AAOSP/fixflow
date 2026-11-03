@@ -29,6 +29,7 @@ onBeforeUnmount(() => mobileQuery?.removeEventListener('change', adaptNavigation
 watch(() => route.fullPath, closeNavigation);
 const search = ref(String(route.query.q || ''));
 const notificationDialog = ref<HTMLDialogElement>();
+const canBrowseReports = computed(() => !!user.value && user.value.role !== 'shop_manager' && (user.value.role !== 'technician' || !!data.selectedSite));
 const name = computed(() => [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' '));
 watch(() => route.query.q, value => { search.value = String(value || ''); });
 onMounted(() => data.refresh());
@@ -47,8 +48,8 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
     </dialog>
     <div class="dashboard-workspace">
       <header class="dashboard-topbar"><button class="mobile-menu icon-button" :aria-label="t('Open navigation')" aria-controls="mobile-navigation" :aria-expanded="mobileOpen" @click="openNavigation"><Menu :size="22" /></button>
-        <form class="dashboard-search" role="search" @submit.prevent="runSearch"><Search :size="19" /><input v-model="search" :aria-label="t('Search reports')" :placeholder="t('Search reports')" /><kbd>↵</kbd></form>
-        <div class="topbar-account"><button class="icon-button" :aria-label="t('Notification availability')" @click="notificationDialog?.showModal()"><Bell :size="23" /></button><span class="topbar-divider" /><RouterLink to="/profile" :aria-label="t('{name}: view profile', { name })" class="account-link"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></RouterLink></div>
+        <form v-if="canBrowseReports" class="dashboard-search" role="search" @submit.prevent="runSearch"><Search :size="19" /><input v-model="search" :aria-label="t('Search reports')" :placeholder="t('Search reports')" /><kbd>↵</kbd></form>
+        <div class="topbar-account"><button v-if="canBrowseReports" class="icon-button" :aria-label="t('Notification availability')" @click="notificationDialog?.showModal()"><Bell :size="23" /></button><span class="topbar-divider" /><RouterLink to="/profile" :aria-label="t('{name}: view profile', { name })" class="account-link"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></RouterLink></div>
       </header>
       <main id="main-content" tabindex="-1" class="dashboard-main">
         <div class="workspace-language"><LanguageSelector /></div>

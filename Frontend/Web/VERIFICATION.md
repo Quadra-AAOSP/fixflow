@@ -308,3 +308,19 @@ The final endpoint audit removed the stale opt-in catalogue gate: an unset
 VITE_SHOP_CATALOG_PATH now uses the published /api/shop/catalog route. A valid
 deployment override still works; a non-API override is rejected before fetch.
 Three new configuration tests verify these cases with no invented product data.
+
+## Technician request and scoped admin inbox (3 November)
+
+LIVE_ROLE_CHECKS.md records the latest real-browser availability/request/inbox
+flow. Technician #4 changed availability and restored it, then submitted a
+nonbinding request for disposable site #2. Its site admin saw request #1 pending
+while the recorded-contract list remained empty. No approval/rejection, terms
+acceptance or real agreement was submitted. The first technician login crossed
+an overnight idle gap; a fresh sign-in succeeded before these checks.
+
+Review also corrected a technician link to manager-only assignments and hid
+unavailable maintenance search controls from unrelated workspaces. The shared
+shop-manager route rule now applies to both initial routing and later role changes.
+Full validation after the corrections: 56 test files / 349 tests and build passed.
+The attempted local storage health check received no HTTP response; actual storage
+preview/download acceptance remains unverified.

@@ -920,5 +920,6 @@
   "Choose products with valid whole-number quantities.": "请选择商品并输入有效的整数数量。",
   "Enter a name and shipping address within the displayed limits.": "请在显示的限制内输入姓名和配送地址。",
   "Use a note or reason of 1,000 characters or fewer.": "备注或原因不得超过 1,000 字符。",
-  "Choose a valid request.": "请选择有效申请。"
+  "Choose a valid request.": "请选择有效申请。",
+  "View assigned reports →": "查看已分配报修 →"
 }

@@ -38,3 +38,8 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
   links.push({ to: '/shop', label: 'Shop', icon: 'shop' });
   return links;
 }
+
+/** Shared by initial routing and subsequent authenticated role changes. */
+export function shopManagerRouteAllowed(name: unknown) {
+  return ['profile', 'shop-management', 'shop-order'].includes(String(name));
+}

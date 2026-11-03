@@ -56,11 +56,11 @@ acceptance are separate columns; a source file or passing helper is not release 
 | Independent workspace and trade/specialty/proficiency | TechnicianView; TradeProfile; tradeProfile/technician tests | Implemented; null-site technician sign-in observed |
 | Direct agreed contracts | ContractsView; access service; directory tests | Implemented; agreement not fabricated |
 | Assignment/reassignment | TechnicianAssignmentPanel; ranking tests; assign service | Implemented; live reassignment revocation observed |
-| Contract request/decision and current terms | ContractApplicationsPanel; terms/application tests | Implemented; wider live mutation acceptance open |
+| Contract request/decision and current terms | ContractApplicationsPanel; terms/application tests; LIVE_ROLE_CHECKS.md | Live technician request and target-admin pending read observed; decision/terms acceptance remains open |
 | Recorded contract list | ContractDirectoryPanel; directory tests | Live super-admin list observed |
 | Terms review/acceptance/version change | TechnicianTermsPanel and terms tests | Implemented; real policy/legal approval remains external |
 | Eligible candidates/workload/ranking/fallback | ranking/assignment panels and tests | Implemented; no invented AI ranking result |
-| Invitations and availability | invitation/availability panels and tests | Implemented; wider live-role acceptance remains open |
+| Invitations and availability | invitation/availability panels and tests; LIVE_ROLE_CHECKS.md | Live availability update/restoration observed; invitation acceptance remains open |
 | Assigned/claimable queues, claims, triage/escalation/urgency override | Current backend mapping scan | Unavailable: required APIs are not published |
 | Reporter/admin confirmation and reopen | ReportReviewPanel; reportReview tests | Implemented; full live lifecycle cannot be exercised yet |
 | Work start/resolution/history | Current backend mapping scan | Unavailable: required APIs are not published |

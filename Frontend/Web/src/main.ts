@@ -8,6 +8,7 @@ import { useMaintenanceStore } from './stores/maintenance';
 import { useRealtimeStore } from './stores/realtime';
 import { setUnauthorizedHandler } from './services/api';
 import './styles/global.css';
+import { shopManagerRouteAllowed } from '@/utils/workspaceAccess';
 import { i18n } from './i18n';
 
 const app = createApp(App);
@@ -29,7 +30,7 @@ watch([() => auth.user?.id, () => auth.user?.role, () => auth.user?.siteId], () 
   if (auth.user) realtime.start(expireSession);
   const route = router.currentRoute.value;
   if (auth.user && (Array.isArray(route.meta.roles) && !route.meta.roles.includes(auth.user.role))) void router.replace('/');
-  if (auth.user?.role === 'shop_manager' && route.meta.requiresAuth && route.name !== 'profile') void router.replace('/shop');
+  if (auth.user?.role === 'shop_manager' && route.meta.requiresAuth && !shopManagerRouteAllowed(route.name)) void router.replace('/shop');
 }, { flush: 'sync' });
 watch(() => maintenance.selectedSiteId, id => realtime.setSite(id), { flush: 'sync' });
 setUnauthorizedHandler(expireSession);
