@@ -348,3 +348,24 @@ tests and the production build pass after the fix. Live regression verified
 logout, fresh sign-in and a successful building creation at disposable site #2.
 Building B / Contract fixture annex persisted; the setup-required banner cleared.
 No account approval, contract approval or external provider action was performed.
+
+## Checkout-response destination validation (3 November)
+
+createOrder now validates the returned order ID, non-negative integer total,
+provider and nullable checkout URL before returning data to the UI. Provider
+redirects require HTTPS; explicit development-provider links may use HTTP.
+Executable/data schemes, relative destinations and URL-embedded credentials are
+rejected. Missing response metadata is reported separately from an invalid link.
+This checks URL shape/scheme, not provider identity or production payment approval.
+
+On rejection the UI directs the user to Orders because a backend order may already
+exist. The basket remains and unchanged retries retain their idempotency key; the
+client does not claim that the server transaction was rolled back. The actual
+service + component integration test confirms this behavior without navigation
+or a real payment. Development-provider URLs cannot bypass scheme checks.
+
+The full suite passed 58 files / 368 tests after the response guard, with build
+passing. A later focused run passed all 17 checkout/response component tests,
+including the added invalid-link basket/idempotency regression.
+The missing lifecycle API, storage/provider and team-review gates remain open;
+these are backend/team inputs rather than frontend package installations.

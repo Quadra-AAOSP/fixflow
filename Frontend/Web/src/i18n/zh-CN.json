@@ -921,5 +921,7 @@
   "Enter a name and shipping address within the displayed limits.": "请在显示的限制内输入姓名和配送地址。",
   "Use a note or reason of 1,000 characters or fewer.": "备注或原因不得超过 1,000 字符。",
   "Choose a valid request.": "请选择有效申请。",
-  "View assigned reports →": "查看已分配报修 →"
+  "View assigned reports →": "查看已分配报修 →",
+  "The order response is incomplete. Open Orders to check its status.": "订单响应不完整，请打开订单列表查看状态。",
+  "The payment link is invalid. Open Orders to check the order status.": "支付链接无效，请打开订单列表查看订单状态。"
 }

@@ -8,6 +8,7 @@ import { useShopStore } from '../src/stores/shop';
 import { useAuthStore } from '../src/stores/auth';
 import { setLocale } from '../src/i18n';
 import * as api from '../src/services/shop';
+import { stubApiFetch } from './csrfFetch';
 import type { ShopQuote } from '../src/types/shop';
 vi.mock('../src/services/shop', async original => ({ ...await original<typeof api>(), quoteCheckout: vi.fn(), listOrders: vi.fn(), createOrder: vi.fn(), completeDevPayment: vi.fn() }));
 let wrapper: VueWrapper;
@@ -23,7 +24,7 @@ beforeEach(() => {
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
   Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value(this: HTMLDialogElement) { this.removeAttribute('open'); } });
 });
-afterEach(() => { wrapper?.unmount(); vi.restoreAllMocks(); });
+afterEach(() => { wrapper?.unmount(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 async function render(query = '') {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/shop', component: { template: '<div />' } }, { path: '/shop/orders/:orderId', name: 'shop-order', component: { template: '<div />' } }] });
   await router.push('/shop' + query); wrapper = mount(ShopView, { global: { plugins: [router] } }); await flushPromises(); return router;
@@ -48,4 +49,21 @@ it('does not let a return URL trigger a development payment', async () => {
   const router = await render('?orderId=order-a&devPay=1');
   expect(api.completeDevPayment).not.toHaveBeenCalled(); expect(api.createOrder).not.toHaveBeenCalled();
   expect(router.currentRoute.value.name).toBe('shop-order');
+});
+
+it('keeps the basket and retry key when the real service rejects an invalid payment response', async () => {
+  const actual = await vi.importActual<typeof api>('../src/services/shop');
+  vi.mocked(api.createOrder).mockImplementation(actual.createOrder);
+  const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({
+    orderId: 'created-fixture', totalMinor: 1000, paymentProvider: 'provider', checkoutUrl: 'javascript:alert(1)',
+  }))));
+  stubApiFetch(fetch);
+  await render(); useShopStore().setQuantity('tool', 1); await flushPromises();
+  const checkout = wrapper.findAll('.shop-primary').find(b => b.text() === 'Checkout')!;
+  await checkout.trigger('click'); await flushPromises();
+  expect(wrapper.text()).toContain('Open Orders to check the order status');
+  expect(useShopStore().count).toBe(1);
+  await checkout.trigger('click'); await flushPromises();
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(fetch.mock.calls[0]![1].headers.get('Idempotency-Key')).toBe(fetch.mock.calls[1]![1].headers.get('Idempotency-Key'));
 });
