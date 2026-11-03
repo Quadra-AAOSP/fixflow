@@ -324,3 +324,27 @@ shop-manager route rule now applies to both initial routing and later role chang
 Full validation after the corrections: 56 test files / 349 tests and build passed.
 The attempted local storage health check received no HTTP response; actual storage
 preview/download acceptance remains unverified.
+
+## Request/session boundary regression (3 November)
+
+Two transport/store regressions were reproduced before the fix: a delayed old
+protected-request 401 cleared a newly signed-in user, and an old POST waiting for
+CSRF could be dispatched after another account signed in. Request-session tests
+now bind requests to their originating authentication scope. Sign-in, session
+clearing and accepted role/site changes advance the request revision and abort
+old controllers. Late responses are rejected before use or unauthorized handling.
+A role/site change also invalidates overlapping older account-refresh results.
+
+CSRF bootstrap remains shared within one session, but a cancelled consumer no
+longer cancels another waiting writer. Old bootstrap completion cannot clear a
+new session's bootstrap. Existing timeouts and current-session 401 clearing remain
+covered. Client cancellation is not a server rollback; already dispatched writes
+still depend on backend authorization, transactions and idempotency.
+
+Actual auth store + stubbed fetch tests cover old 401, old waiting write, late
+success, current 401, shared-token cancellation and overlapping role refresh.
+The first two tests failed on the previous implementation. All 57 files / 355
+tests and the production build pass after the fix. Live regression verified
+logout, fresh sign-in and a successful building creation at disposable site #2.
+Building B / Contract fixture annex persisted; the setup-required banner cleared.
+No account approval, contract approval or external provider action was performed.

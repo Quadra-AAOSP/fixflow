@@ -13,7 +13,7 @@ acceptance are separate columns; a source file or passing helper is not release 
 | Authenticated/guest and role navigation | router/index.ts; utils/workspaceAccess.ts; router.test.ts; workspaceRoles.component.test.ts | Implemented; live reporter management denial observed |
 | Login and reporter/technician registration | auth views; services/auth.ts; authLocale and registrationPolicy tests | Implemented; live sign-in/session checks recorded |
 | Restoration and credentialed requests | stores/auth.ts; services/api.ts; auth/api tests | Implemented; live cookie reload observed |
-| Errors, timeouts, 401 clearing and failed-logout retention | api/auth tests; auth store | Automated evidence; live expiry/logout observed |
+| Errors, timeouts, 401 clearing and failed-logout retention | api/auth/requestSession tests; auth store | Automated evidence; live expiry/logout observed |
 | Registration payload validation | utils/registration.ts; registration.test.ts | Automated evidence; DTO/policy limits reviewed |
 | Real component/router interactions | tests/*.component.test.ts and router.test.ts | Present; do not substitute for every live role mutation |
 | Site-admin applications and decisions | AdminApplicationView; TeamAccessView; teamAccess tests | Implemented; wider live decision acceptance remains open |
@@ -30,7 +30,7 @@ acceptance are separate columns; a source file or passing helper is not release 
 | Site browse/search/status filters | ReportsView; maintenance utilities; workspaceLocale tests | Implemented; live Chinese search observed |
 | Status/category/specialty/assignee/timestamps and separate urgencies | ReportDetailView; classification panel | Implemented; live detail observed |
 | Masked identity/address, participants and joining | ReportDetailView; privacy tests | Live peer masking before join and disclosure after join observed |
-| Scope cleanup and stale-response rejection | maintenance/realtime/auth stores; privacy/store tests | Automated coverage plus live reassignment/expiry cases |
+| Scope cleanup and stale-response rejection | maintenance/realtime/auth stores; privacy/store/requestSession tests | Automated coverage plus live reassignment/expiry cases |
 | Building selection/subsite persistence | ReportFormView; reportForm tests | Actual building used in live creation |
 | Site-not-ready setup guidance | report form/subsite views and tests | Implemented; empty-building tests present |
 | Photo upload/download controls | ReportPhotosPanel; reportPhotos tests | Implemented; real object-storage preview/download unverified |
