@@ -94,3 +94,11 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 - Site, rule and contract removal controls are connected with explicit permanent-delete confirmation and role/scope guards. Destructive live acceptance remains unexecuted.
 - Verify role flows and mutations in the live browser against disposable fixtures. Unit coverage alone is insufficient.
 - No lifecycle endpoints exist for assigned-to-me/claim/start/resolve/history/triage/escalation/urgency override/rating/linked reports/admin review; do not invent successful client states.
+
+## 3 November follow-up: agreement and photo deployment
+
+Rechecked the current backend controller mapping inventory against this table. No new controller family was found. Browser-relevant mappings retain the destinations above; provider webhooks are intentionally not browser buttons. Missing lifecycle mappings listed above remain backend gaps, not client-side successes.
+
+The public `/agreements/technician/draft-2026-11-03` route contains the authored English/Chinese participation agreement for review. Technician terms links to it separately from the API-configured active document. Opening the draft performs no acceptance request. Publishing requires owner review of the named unresolved commercial/legal details, then configuration of the backend version and document URL; do not activate a URL labelled draft. Existing GET status/history and POST acceptance still use only the server's active version.
+
+See `PHOTO_STORAGE.md` for native MinIO and Docker MinIO configuration, exact web endpoints and the outstanding live persistence checks. Backend source and storage configuration have not been changed by this web batch.

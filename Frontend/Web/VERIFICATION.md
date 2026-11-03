@@ -369,3 +369,11 @@ passing. A later focused run passed all 17 checkout/response component tests,
 including the added invalid-link basket/idempotency regression.
 The missing lifecycle API, storage/provider and team-review gates remain open;
 these are backend/team inputs rather than frontend package installations.
+
+## 3 November 2026 — agreement draft and dual photo deployment
+
+- Rechecked backend controller inventory against `ENDPOINT_AUDIT.md`. Existing web mappings remain connected; provider callbacks are server-to-server and absent lifecycle APIs remain explicit gaps.
+- Added a public, versioned participation agreement draft in English and Simplified Chinese. Native browser inspection verified all nine sections in both languages and the draft notice. Opening it does not offer or submit acceptance. The existing terms panel retains backend-configured version/URL/history and links to the draft separately.
+- Privacy drafting reference: OECD privacy principles (https://www.oecd.org/en/topics/privacy-principles.html); this is general design guidance, not a jurisdiction-specific legal approval.
+- Documented native MinIO and Docker MinIO deployment in `PHOTO_STORAGE.md`. No Docker or native MinIO executable is available on PATH here; actual persistent storage acceptance is pending. In-memory URLs now receive an explicit explanatory message; credential-bearing photo URLs are rejected.
+- Full Vitest run: 58 files, 369 tests passed. Production build passed. Browser screenshot: `/private/tmp/fixflow-technician-agreement.png` (English, narrow layout). No backend sources, active agreement configuration, real contract acceptance or payment actions changed.

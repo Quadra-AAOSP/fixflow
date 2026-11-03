@@ -91,6 +91,7 @@ async function refreshUrl(item: ReportPhoto) {
     <p v-else-if="!error && !photos.length">{{ t("No photos attached.") }}</p>
     <ul class="report-photo-grid"><li v-for="(item, index) in photos" :key="item.id">
       <img v-if="safePhotoUrl(item.url) && !failedImages.includes(item.id)" :src="safePhotoUrl(item.url)" :alt="t('Report photo {number}', { number: index + 1 })" loading="lazy" referrerpolicy="no-referrer" @error="failedImages.push(item.id)" />
+      <p v-else-if="item.url?.startsWith('memory://')" role="status">{{ t("This photo is in temporary server memory. Browser previews require persistent photo storage to be enabled by the platform owner.") }}</p>
       <p v-else>{{ t("Photo preview unavailable. Try refreshing its link.") }}</p>
       <a v-if="safePhotoUrl(item.url)" :href="safePhotoUrl(item.url)" target="_blank" rel="noopener noreferrer" class="text-action">{{ t('View or download photo {number} ↗', { number: index + 1 }) }}</a>
       <button type="button" class="text-action" :disabled="busy" @click="refreshUrl(item)">{{ t('Refresh photo {number} link', { number: index + 1 }) }}</button>

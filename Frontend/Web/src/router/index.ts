@@ -4,6 +4,7 @@ import { shopManagerRouteAllowed, workspaceRoles } from '@/utils/workspaceAccess
 import { accountHome } from '@/utils/navigation';
 
 const routes: RouteRecordRaw[] = [
+  { path: '/agreements/technician/draft-2026-11-03', name: 'technician-agreement-draft', component: () => import('@/views/auth/TechnicianAgreementView.vue') },
   { path: '/shop', component: () => import('@/layouts/ShopLayout.vue'), children: [
     { path: '', name: 'shop', component: () => import('@/views/app/ShopView.vue') },
     { path: 'orders/:orderId', name: 'shop-order', meta: { requiresAuth: true }, component: () => import('@/views/app/ShopOrderView.vue') },
