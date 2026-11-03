@@ -73,7 +73,7 @@ acceptance are separate columns; a source file or passing helper is not release 
 | Socket subscription/dedup/reconnect/logout/REST authorization | reportRealtime/realtime store and tests | Implemented; selected live revocation/expiry cases recorded |
 | No private retention after reassignment/expiry | reportDetailPrivacy tests; live observations | Verified in scoped cases; not every browser lifecycle |
 | Shop catalogue/basket/checkout/orders/profile | shop views/stores/services; shop tests | Implemented; local fixtures used; no production payment acceptance |
-| Tests and production build | Current audit commands | Both pass; see VERIFICATION.md for counts |
+| Tests and production build | Current audit commands; opt-in tests/live/backendConnections.test.ts | Default suite 373 passed / 7 live skipped; separate live run 7 passed; production build passes |
 | Full role-to-confirmation delivery | Backend lifecycle gaps plus remaining live matrix | Not achieved |
 | Keyboard/responsive/accessibility | ACCESSIBILITY_REVIEW.md; navigationAccessibility tests | Targeted evidence only; wider assistive-technology work remains |
 | English/Chinese localization | i18n catalog; locale component tests | Implemented; selected live language checks recorded |

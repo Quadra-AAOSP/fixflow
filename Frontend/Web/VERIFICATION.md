@@ -397,3 +397,16 @@ The component suite additionally verifies saved-confirmation focus and all exist
 building management regressions: 8 tests passed. Full web suite: 58 files / 373
 tests passed. Production build passed. No backend
 mutation was made during this focus inspection. See ACCESSIBILITY_REVIEW.md.
+
+## 3 November 2026 — repeatable live service connections
+
+Added `npm run test:live` and `tests/live/backendConnections.test.ts`. The explicit
+loopback/disposable reporter configuration is described in LIVE_CONNECTION_CHECKS.md.
+Seven real-network checks passed against the isolated :8082 backend, invoking the
+production web services through a Node-only cookie bridge (not mocked responses).
+Checks cover authentication/CSRF/session/logout, policy, site scope, buildings,
+report paging/detail, photo metadata, 403 administration denial without losing the
+session, catalogue and own-order reads. No domain records or provider calls changed.
+The default suite passes 373 tests and explicitly skips these seven live checks
+(58 passed files / 1 skipped file). This does not close browser regression, storage
+persistence, other role mutations or the missing maintenance lifecycle contracts.
