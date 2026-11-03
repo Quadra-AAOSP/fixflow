@@ -560,3 +560,37 @@ SET @fixflow_ai_column_sql = IF((SELECT COUNT(*) FROM information_schema.columns
 PREPARE fixflow_ai_column_statement FROM @fixflow_ai_column_sql;
 EXECUTE fixflow_ai_column_statement;
 DEALLOCATE PREPARE fixflow_ai_column_statement;
+CREATE TABLE IF NOT EXISTS report_resolutions (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ report_id BIGINT UNSIGNED NOT NULL,
+ technician_id BIGINT UNSIGNED NOT NULL,
+ description VARCHAR(10000) NOT NULL,
+ created_at TIMESTAMP(6) NOT NULL,
+ CONSTRAINT fk_resolution_report FOREIGN KEY (report_id) REFERENCES reports(id),
+ CONSTRAINT fk_resolution_technician FOREIGN KEY (technician_id) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS report_ratings (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ resolution_id BIGINT UNSIGNED NOT NULL,
+ rated_by_id BIGINT UNSIGNED NOT NULL,
+ score INT NOT NULL,
+ feedback VARCHAR(2000) NULL,
+ created_at TIMESTAMP(6) NOT NULL,
+ CONSTRAINT uq_resolution_rater UNIQUE(resolution_id,rated_by_id),
+ CONSTRAINT ck_rating_score CHECK(score BETWEEN 1 AND 5),
+ CONSTRAINT fk_rating_resolution FOREIGN KEY (resolution_id) REFERENCES report_resolutions(id),
+ CONSTRAINT fk_rating_user FOREIGN KEY (rated_by_id) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS report_links (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ report_id BIGINT UNSIGNED NOT NULL,
+ linked_report_id BIGINT UNSIGNED NOT NULL,
+ created_by_id BIGINT UNSIGNED NOT NULL,
+ reason VARCHAR(2000) NOT NULL,
+ created_at TIMESTAMP(6) NOT NULL,
+ CONSTRAINT uq_report_link UNIQUE(report_id,linked_report_id),
+ CONSTRAINT ck_report_link_self CHECK(report_id <> linked_report_id),
+ CONSTRAINT fk_link_source FOREIGN KEY (report_id) REFERENCES reports(id),
+ CONSTRAINT fk_link_target FOREIGN KEY (linked_report_id) REFERENCES reports(id),
+ CONSTRAINT fk_link_author FOREIGN KEY (created_by_id) REFERENCES users(id)
+);
