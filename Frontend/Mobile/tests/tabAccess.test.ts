@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { UserRole } from '../types';
 import {
+  homeRouteForRole,
   isTabVisible,
   isTechnicianForbiddenRoute,
+  landingRedirectForRoute,
   type TabName,
 } from '../lib/tabAccess';
 
@@ -73,5 +75,47 @@ describe('isTechnicianForbiddenRoute', () => {
   it('never bounces unauthenticated or non-technician users', () => {
     expect(isTechnicianForbiddenRoute(null, '/')).toBe(false);
     expect(isTechnicianForbiddenRoute('admin', '/reports/1')).toBe(false);
+  });
+});
+
+describe('homeRouteForRole', () => {
+  it('routes each role to its own dashboard', () => {
+    expect(homeRouteForRole('technician')).toBe('/(tabs)/workspace');
+    expect(homeRouteForRole('staff')).toBe('/(tabs)/staff-dashboard');
+    expect(homeRouteForRole('reporter')).toBe('/(tabs)');
+    expect(homeRouteForRole('admin')).toBe('/(tabs)');
+    expect(homeRouteForRole('super_admin')).toBe('/(tabs)');
+  });
+});
+
+describe('landingRedirectForRoute', () => {
+  it('sends staff to the staff dashboard when landing on Home', () => {
+    expect(landingRedirectForRoute('staff', '/')).toBe('/(tabs)/staff-dashboard');
+  });
+
+  it('sends technicians to Workspace when landing on Home', () => {
+    expect(landingRedirectForRoute('technician', '/')).toBe('/(tabs)/workspace');
+  });
+
+  it('leaves reporters and admins on Home', () => {
+    expect(landingRedirectForRoute('reporter', '/')).toBeNull();
+    expect(landingRedirectForRoute('admin', '/')).toBeNull();
+  });
+
+  it('bounces a role off a tab route it cannot see', () => {
+    expect(landingRedirectForRoute('reporter', '/workspace')).toBe('/(tabs)');
+    expect(landingRedirectForRoute('staff', '/reports/5')).toBe('/(tabs)/staff-dashboard');
+    expect(landingRedirectForRoute('staff', '/more')).toBe('/(tabs)/staff-dashboard');
+  });
+
+  it('allows a role on its own routes', () => {
+    expect(landingRedirectForRoute('technician', '/workspace')).toBeNull();
+    expect(landingRedirectForRoute('staff', '/staff-dashboard')).toBeNull();
+    expect(landingRedirectForRoute('reporter', '/reports')).toBeNull();
+    expect(landingRedirectForRoute('reporter', '/profile')).toBeNull();
+  });
+
+  it('ignores unauthenticated users', () => {
+    expect(landingRedirectForRoute(null, '/workspace')).toBeNull();
   });
 });

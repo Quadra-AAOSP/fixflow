@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
-import { Settings } from 'lucide-react-native';
+import { ArrowRight, Settings } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Screen } from '@/components/ui/Screen';
@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
 import { ApiError } from '@/lib/apiClient';
-import { humanize } from '@/utils/format';
+import { fullName } from '@/utils/format';
 import { logout } from '@/services/auth';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
@@ -60,26 +60,19 @@ export default function ProfileScreen() {
   const roleLabel = t(roleLabels[user.role]);
   const siteName =
     user.siteId !== null && site ? site.name : t('profile.dash');
+  const displayName = fullName(user.firstName, user.lastName).trim();
+  const initials =
+    `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() ||
+    user.email[0]?.toUpperCase() ||
+    '?';
 
   return (
     <Screen>
       <ScrollView contentContainerClassName="px-5 pb-10 pt-4">
-        <View className="mb-2 flex-row items-center justify-between">
-          <View>
-            <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
-              {t('profile.heroKicker')}
-            </Text>
-            <Text
-              className="text-[24px] font-bold text-ink"
-              style={{ letterSpacing: -0.7 }}
-            >
-              {t('profile.profileTitle')}
-              <Text className="text-coral-decay">.</Text>
-            </Text>
-            <Text className="mt-0.5 text-[11px] text-dashboard-caption">
-              {user.email}
-            </Text>
-          </View>
+        <View className="mb-5 flex-row items-center justify-between">
+          <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+            {t('profile.heroKicker')}
+          </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('profile.openSettings')}
@@ -93,6 +86,42 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
+        {/* Avatar hero — mirrors the web ProfileView: centered medallion,
+            full name, email, and a role pill. */}
+        <View className="mb-6 items-center">
+          <View
+            className="mb-3 h-20 w-20 items-center justify-center rounded-full"
+            style={{ backgroundColor: dashboardColors.statMintSoft }}
+          >
+            <Text
+              className="text-[26px] font-bold"
+              style={{ color: dashboardColors.statMintDeep }}
+            >
+              {initials}
+            </Text>
+          </View>
+          <Text
+            className="text-[20px] font-bold text-ink"
+            style={{ letterSpacing: -0.4 }}
+          >
+            {displayName || user.email}
+          </Text>
+          <Text className="mt-1 text-[12px] text-dashboard-caption">
+            {user.email}
+          </Text>
+          <View
+            className="mt-2 rounded-full px-3 py-1"
+            style={{ backgroundColor: dashboardColors.pillBg }}
+          >
+            <Text
+              className="text-[10px] font-semibold uppercase tracking-[1px]"
+              style={{ color: dashboardColors.teal }}
+            >
+              {roleLabel}
+            </Text>
+          </View>
+        </View>
+
         {/* Account details card */}
         <Card padded={false} className="mb-4">
           <View className="border-b border-dashboard-card-line px-4 py-3">
@@ -101,6 +130,11 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <Definition t={t} label={t('profile.labels.role')} value={roleLabel} />
+          <Definition
+            t={t}
+            label={t('profile.labels.accountId')}
+            value={String(user.id)}
+          />
           <Definition
             t={t}
             label={t('profile.labels.phone')}
@@ -113,6 +147,37 @@ export default function ProfileScreen() {
           />
           <Definition t={t} label={t('profile.workingSite')} value={siteName} />
         </Card>
+
+        {/* Technician contracts — mirrors the web ProfileView card. */}
+        {user.role === 'technician' ? (
+          <Card className="mb-4">
+            <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+              {t('profile.contracts.kicker')}
+            </Text>
+            <Text
+              className="mt-1 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('profile.contracts.title')}
+            </Text>
+            <Text className="mt-1 text-[11px] leading-[1.7] text-dashboard-subtitle">
+              {t('profile.contracts.body', { id: user.id })}
+            </Text>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => router.push('/more/contracts')}
+              className="mt-2 flex-row items-center gap-1 self-start active:opacity-70"
+            >
+              <Text
+                className="text-[12px] font-semibold"
+                style={{ color: dashboardColors.teal }}
+              >
+                {t('profile.contracts.link')}
+              </Text>
+              <ArrowRight color={dashboardColors.teal} size={13} />
+            </Pressable>
+          </Card>
+        ) : null}
 
         {/* Session card — sign-out only (User has no session field on mobile) */}
         <Card padded={false} className="mb-4">

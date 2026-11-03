@@ -12,7 +12,7 @@ import { SiteProvider } from '@/stores/site';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
-import { isTabVisible, isTechnicianForbiddenRoute } from '@/lib/tabAccess';
+import { isTabVisible, landingRedirectForRoute } from '@/lib/tabAccess';
 
 /**
  * Role-aware bottom tabs. Mirrors the web sidebar navigation:
@@ -41,14 +41,14 @@ export default function TabLayout() {
     );
   }
 
-  // Technician accounts have no Home/Reports tab slots. Only bounce them when
-  // they are actually sitting on one of those routes (deep link, stale
-  // navigation state) — an unconditional <Redirect> would fight the tab
-  // navigator on every remount and block Assignments/More/Profile.
-  const technicianOnForbiddenRoute = isTechnicianForbiddenRoute(user.role, pathname);
+  // Each role lands on its own dashboard. When the current route is not part
+  // of the role's tab set (initial `/`, deep link, stale navigation state),
+  // send them to their home. The guard returns null for valid routes so the
+  // navigator is never fought on a legal screen.
+  const landingRedirect = landingRedirectForRoute(user.role, pathname);
 
-  if (technicianOnForbiddenRoute) {
-    return <Redirect href="/(tabs)/workspace" />;
+  if (landingRedirect) {
+    return <Redirect href={landingRedirect} />;
   }
 
   return (
