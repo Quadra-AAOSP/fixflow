@@ -5,7 +5,6 @@ export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'more'
 /** Routes visible in the tab bar for a given role. */
 export function isTabVisible(role: UserRole, tab: TabName): boolean {
   const isTechnician = role === 'technician';
-  const isSuperAdmin = role === 'super_admin';
   const isStaff = role === 'staff';
   switch (tab) {
     case 'index':
@@ -15,7 +14,9 @@ export function isTabVisible(role: UserRole, tab: TabName): boolean {
     case 'assignments':
       return isTechnician;
     case 'more':
-      return !isTechnician && !isSuperAdmin && !isStaff;
+      // For technicians and super admins this slot is relabeled "Shop" and
+      // deep-links into the shop catalog; staff use the Staff Dashboard tab.
+      return !isStaff;
     case 'profile':
       return true;
     case 'staff-dashboard':

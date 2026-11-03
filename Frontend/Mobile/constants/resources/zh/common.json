@@ -231,6 +231,7 @@
       "technician": "技师账户负责处理报修，而非提交。"
     },
     "loadingDashboard": "正在加载面板",
+    "loading": "正在加载报修…",
     "errors": {
       "couldNotLoad": "无法加载报修列表。",
       "couldNotRefresh": "无法刷新：{detail}",
@@ -285,6 +286,7 @@
     "new": {
       "allReports": "全部报修",
       "title": "提交问题",
+      "submitted": "报修已提交。",
       "intro": "描述需要 {site} 关注的事项。",
       "savedNotice": "您的报修将被保存到维护系统并分派给技师。",
       "descLabel": "发生了什么？",
@@ -437,15 +439,42 @@
       "attachedIndicator": "您已关联到此报修",
       "assignTitleAssign": "分配技师",
       "assignTitleReassign": "重新分配技师",
-      "assignBody": "输入管理员提供的技师账户 ID。",
-      "assignLabel": "技师 ID",
-      "assignPlaceholderCurrent": "当前为 #{id}",
-      "assignPlaceholderExample": "例如 12",
-      "assignHelper": "后端目前尚未开放技师目录，因此需要输入数字用户 ID。接口上线后此处将替换为选择器。",
+      "assignBody": "从与该报修站点和类别匹配的技师中选择，然后保存分配。",
+      "assignCandidatesTitle": "候选技师",
+      "assignModeStandard": "标准排序",
+      "assignModeAI": "AI 辅助",
+      "assignRankingUsed": "排序方式：{mode}",
+      "assignRankingFallback": "回退原因：{reason}",
+      "assignLoadingCandidates": "正在加载候选技师…",
+      "assignNoCandidates": "当前没有可用的匹配技师。",
+      "assignDirectoryError": "无法加载技师目录。",
+      "assignRankingError": "无法为该报修排序技师。",
+      "assignProficiency": "熟练度 {level}/5",
+      "assignSpecialtyMatch": "专长匹配",
+      "assignSpecialtyMismatch": "专长不匹配",
+      "assignActiveCases": "{count} 个进行中工单",
+      "assignRefresh": "刷新候选技师",
+      "assignSelectFirst": "请先选择一位技师。",
+      "assignAccount": "技师 #{id}",
       "assignSave": "保存分配",
       "assignReassign": "重新分配",
-      "assignEnterValid": "请输入有效的技师 ID。",
       "assignSaved": "技师分配已保存。",
+      "inviteTitle": "邀请技师",
+      "inviteBody": "按站点和类别分批向技师发送邀请，技师会在邀请收件箱中看到。",
+      "inviteReasonLabel": "邀请原因",
+      "inviteReasonPlaceholder": "说明为什么需要这些技师。",
+      "inviteSend": "发送邀请",
+      "inviteSending": "正在发送…",
+      "inviteNextBatch": "发送下一批",
+      "inviteNewPass": "重新开始",
+      "inviteCreated": "已发送 {count} 个邀请（第 {page} 批）。",
+      "inviteMoreBatches": "仍有候选技师，可在准备好后发送下一批。",
+      "inviteNoMoreBatches": "所有候选批次均已发送邀请。",
+      "inviteError": "无法发送邀请。",
+      "inviteReasonRequired": "请填写邀请原因。",
+      "inviteReasonTooLong": "邀请原因请控制在 1000 个字符以内。",
+      "youAreJoined": "您是该报修的报修人。",
+      "leaveReportNotAvailable": "暂不支持退出报修。",
       "reloadReport": "重新加载报修",
       "confirmedSection": "确认信息",
       "confirmedBy": "确认人",
@@ -476,6 +505,23 @@
       "photos": {
         "title": "照片",
         "noPhotos": "暂无照片。"
+      },
+      "aiAssessment": {
+        "title": "AI 评估",
+        "urgency": "AI 紧急程度",
+        "confidence": "置信度",
+        "loading": "正在分类…",
+        "trigger": "重新分类"
+      },
+      "aiAssessmentError": "无法刷新 AI 评估。",
+      "vision": {
+        "analyze": "用 AI 分析照片",
+        "running": "正在分析照片…",
+        "consentTitle": "AI 照片分析",
+        "consentMessage": "这会将本报告的照片发送给 AI 视觉服务。是否继续？",
+        "cancel": "取消",
+        "continue": "继续",
+        "failed": "照片分析失败，请重试。"
       },
       "analysis": {
         "title": "AI 分析",
@@ -555,6 +601,7 @@
       "teamAccessSubtitle": "开通员工或管理员账户。",
       "techniciansTitle": "技师",
       "techniciansSubtitle": "在岗情况与站点合同。",
+      "adminDashboardTitle": "管理员工作台",
       "adminApplicationsTitle": "管理员申请",
       "adminApplicationsSubtitle": "审核站点管理员申请。",
       "siteContractsTitle": "站点合同",
@@ -713,7 +760,10 @@
       "noSpecialty": "无专长",
       "noSkills": "尚未登记技能",
       "noContracts": "无站点合同",
-      "contractLine": "{site} · 自 {date}"
+      "contractLine": "{site} · 自 {date}",
+      "viewTerms": "查看条款状态",
+      "hideTerms": "隐藏条款状态",
+      "termsLoadFailed": "无法加载该技师的条款状态。"
     },
     "contracts": {
       "title": "站点合同",
@@ -739,9 +789,26 @@
       "saving": "正在保存…",
       "recordContract": "登记已商定的合同",
       "listUnavailableNote": "此版本无法列出已有合同和待处理申请。",
+      "existingTitle": "已授权合同",
+      "existingDesc": "为您或您的站点登记的合同。",
+      "existingEmpty": "暂无已登记合同。",
+      "remove": "移除",
+      "removeTitle": "移除合同",
+      "removeMessage": "确定移除 {site} 的合同吗？此操作无法撤销。",
+      "removeCancel": "取消",
+      "removeFailed": "无法移除合同。",
+      "requestsTitle": "合同申请",
+      "requestsDesc": "来自技师的申请，最新的在前。",
+      "requestsEmpty": "暂无合同申请。",
+      "approve": "批准",
+      "reject": "拒绝",
+      "requestOnlineNote": "在线提交申请并在此跟踪状态。",
+      "onlineRequest": "在线申请合同",
       "retry": "重试",
       "errors": {
         "chooseSiteTechnicianConsent": "请选择一个可访问的站点、输入有效的技师 ID，并确认其同意。",
+        "couldNotLoad": "无法加载合同和申请。",
+        "couldNotDecide": "无法记录决定。",
         "couldNotRecord": "无法登记合同。"
       }
     },
@@ -841,6 +908,12 @@
       "completeDevPayment": "完成开发支付",
       "cancel": "取消",
       "devPaymentNote": "开发支付接口的存在是为了在没有真实支付服务商的情况下测试结算流程。",
+      "errorTitle": "无法完成结算",
+      "orderSuccess": "订单已创建",
+      "orderNumber": "订单号 #{id}",
+      "payNow": "立即支付",
+      "checkoutError": "无法打开结算页面",
+      "checkoutFailed": "支付页面无法打开，请改用浏览器重试。",
       "errors": {
         "signInToOrder": "请登录后再下单。",
         "refreshQuote": "无法刷新报价。",
@@ -885,13 +958,25 @@
     "noBuildings": "尚无建筑 — 请在上方添加第一栋。",
     "archivedSuffix": " · 已归档",
     "helper": "建筑一经添加就会出现在报修人的位置选择器中。后端无法确认真实建筑是否全部录入 — 请添加您的报修人需要的每一栋。",
+    "buildingsCount": "栋建筑",
+    "missingBuildings": "缺失建筑提醒",
+    "noMissingBuildings": "暂无缺失建筑提醒。",
+    "resolve": "处理",
+    "createdAt": "创建于 {date}",
+    "successSave": "建筑已保存。",
+    "successSuggest": "已添加建议的建筑。",
+    "successResolve": "缺失建筑提醒已处理。",
+    "successArchive": "建筑已归档。",
     "archiveConfirmTitle": "归档 {label}？",
     "archiveConfirmBody": "报修人将无法再选择此建筑。已有报修的位置信息会保留。",
     "archiveConfirmCancel": "取消",
     "archiveConfirmOk": "归档",
     "errors": {
       "couldNotLoad": "无法加载站点设置。",
+      "couldNotLoadSetup": "无法加载设置详情。",
       "couldNotSave": "无法保存建筑。",
+      "couldNotSuggest": "无法添加建议的建筑。",
+      "couldNotResolve": "无法处理该提醒。",
       "couldNotArchive": "无法归档建筑。"
     }
   },
@@ -915,6 +1000,18 @@
     "errors": {
       "couldNotLoad": "无法加载待处理申请。",
       "couldNotDecide": "无法记录此决定。"
+    }
+  },
+  "adminDashboard": {
+    "title": "管理员工作台",
+    "loading": "正在加载子站点…",
+    "noActiveSubsites": "暂无启用的子站点。",
+    "setupRequired": "需要完成站点设置",
+    "setupSite": "打开站点设置",
+    "subsites": "子站点",
+    "noSubsites": "该站点尚未配置子站点。",
+    "errors": {
+      "couldNotLoadSubsites": "无法加载子站点。"
     }
   },
   "profile": {
@@ -1000,6 +1097,8 @@
     "workspace": "工作台",
     "assignments": "派单",
     "more": "更多",
+    "shop": "商城",
+    "staffDashboard": "工作台",
     "profile": "个人资料"
   },
   "notFound": {
@@ -1037,8 +1136,109 @@
     "openReports": "{count} 条待处理报修。",
     "siteContracts": "站点合同",
     "contractsHint": "申请合同或查看选项。",
+    "terms": "技师条款",
+    "termsHint": "查看并接受当前条款。",
+    "invitations": "派单邀请",
+    "invitationsHint": "邀请您处理的报修。",
     "switchSite": "切换站点",
     "sitesLinked": "有 {count} 个站点已关联到您的账户。"
+  },
+  "staff": {
+    "dashboard": {
+      "title": "员工工作台",
+      "loading": "正在加载工作台…",
+      "reports": "报修",
+      "noReports": "该站点暂无报修。",
+      "technicians": "技师",
+      "noTechnicians": "该站点暂无签约技师。",
+      "actions": "操作",
+      "manageReports": "管理报修",
+      "errors": {
+        "couldNotLoad": "无法加载工作台。"
+      }
+    },
+    "reports": {
+      "title": "管理报修",
+      "loading": "正在加载报修…",
+      "noReports": "未找到报修。",
+      "assignTechnician": "分配技师",
+      "noCandidates": "当前没有可用的匹配技师。",
+      "proficiency": "熟练度 {level}/5",
+      "assign": "分配",
+      "cancel": "取消",
+      "confirmReport": "确认报修",
+      "confirm": "确认",
+      "reopenReport": "重开报修",
+      "enterReason": "输入原因",
+      "reopen": "重开",
+      "errors": {
+        "couldNotLoad": "无法加载报修。",
+        "selectCandidate": "请先选择一位技师。",
+        "couldNotAssign": "无法分配技师。",
+        "couldNotConfirm": "无法确认报修。",
+        "couldNotReopen": "无法重开报修。",
+        "notAuthorized": "您无权执行此操作。",
+        "endpointNotFound": "请求的接口不可用。"
+      }
+    }
+  },
+  "technician": {
+    "terms": {
+      "title": "技师条款",
+      "loading": "正在加载条款…",
+      "version": "版本 {version}",
+      "accepted": "您已接受当前版本。",
+      "notAccepted": "您尚未接受当前版本。",
+      "openDocument": "打开条款文档",
+      "history": "接受记录",
+      "acceptedOn": "已于 {date} 接受版本 {version}",
+      "accept": "接受条款",
+      "noTerms": "尚未发布条款。",
+      "errors": {
+        "couldNotLoad": "无法加载条款。",
+        "couldNotAccept": "无法接受条款。"
+      }
+    },
+    "invitations": {
+      "title": "派单邀请",
+      "intro": "邀请会按站点和类别发送。如需承接该站点的工单，请申请该站点的合同。",
+      "loading": "正在加载邀请…",
+      "createdAt": "创建于 {date}",
+      "siteFallback": "站点 #{id}",
+      "requestContract": "申请该站点的合同",
+      "previous": "上一页",
+      "page": "第 {page} 页",
+      "next": "下一页",
+      "noInvitations": "暂无邀请。",
+      "errors": {
+        "couldNotLoad": "无法加载邀请。"
+      }
+    },
+    "contractRequests": {
+      "title": "合同申请",
+      "loading": "正在加载申请…",
+      "existing": "您的申请",
+      "createdAt": "创建于 {date}",
+      "noRequests": "暂无合同申请。",
+      "new": "申请合同",
+      "newSite": "站点",
+      "chooseSite": "选择站点",
+      "siteFallback": "站点 #{id}",
+      "cancel": "取消",
+      "submit": "提交申请",
+      "approve": "批准",
+      "reject": "拒绝",
+      "status": {
+        "pending": "待处理",
+        "approved": "已批准",
+        "rejected": "已拒绝"
+      },
+      "errors": {
+        "couldNotLoad": "无法加载合同申请。",
+        "couldNotSubmit": "无法提交申请。",
+        "couldNotDecide": "无法记录决定。"
+      }
+    }
   },
   "adminApplication": {
     "title": "管理员申请",

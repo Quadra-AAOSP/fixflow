@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "serve": "vite preview",
     "lint": "eslint .",
-    "test": "vitest"
+    "test": "vitest",
+    "test:live": "vitest run tests/live/backendConnections.test.ts"
   },
   "dependencies": {
     "@lucide/vue": "^1.46.0",

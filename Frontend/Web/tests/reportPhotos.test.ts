@@ -39,6 +39,11 @@ describe('authorized report photo contract', () => {
     expect(fetch.mock.calls.map(call => call[0])).toEqual(['/api/reports/91/photos/32', '/api/reports/91/photos/32']);
     expect(fetch.mock.calls[1]?.[1].method).toBe('DELETE');
     expect(safePhotoUrl('javascript:alert(1)')).toBeUndefined();
+    expect(safePhotoUrl('memory://reports/91/photo.png?ttl=3600')).toBeUndefined();
+    expect(safePhotoUrl('http://secret:password@localhost:9000/photo')).toBeUndefined();
+    // Native and Docker public endpoints use the same API-returned URL contract.
+    expect(safePhotoUrl('http://127.0.0.1:9000/fixflow-photos/photo?X-Amz-Signature=abc')).toContain('X-Amz-Signature=abc');
+    expect(safePhotoUrl('https://photos.example.invalid/fixflow-photos/photo?X-Amz-Signature=xyz')).toContain('X-Amz-Signature=xyz');
     expect(safePhotoUrl('https://example.invalid/signed-photo')).toBe('https://example.invalid/signed-photo');
   });
 });

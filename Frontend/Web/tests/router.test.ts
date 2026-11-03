@@ -82,3 +82,65 @@ it.each([true, false])('uses reduced-motion preference %s for anchor navigation'
     expect(result).toEqual({ el: '#main-content', behavior: reduced ? 'auto' : 'smooth' });
   } finally { vi.unstubAllGlobals(); }
 });
+
+it.each(['/', '/assignments', '/team-access', '/contracts', '/technician'])
+('keeps reporters out of management and technician pages: %s', async path => {
+  await signIn('reporter');
+  const router = createAppRouter(createMemoryHistory());
+  await router.push(path);
+  expect(router.currentRoute.value.name).toBe('reporter-home');
+});
+it.each(['staff', 'admin', 'super_admin'] as UserRole[])
+('keeps %s on the operational dashboard and assignments', async role => {
+  await signIn(role);
+  const router = createAppRouter(createMemoryHistory());
+  await router.push('/'); expect(router.currentRoute.value.name).toBe('home');
+  await router.push('/assignments'); expect(router.currentRoute.value.name).toBe('assignments');
+  await router.push('/reporter'); expect(router.currentRoute.value.name).toBe('home');
+});
+it('keeps technicians out of report creation and site administration', async () => {
+  await signIn('technician');
+  const router = createAppRouter(createMemoryHistory());
+  for (const path of ['/reports/new', '/sites', '/assignments']) {
+    await router.push(path); expect(router.currentRoute.value.name).toBe('technician');
+  }
+  await router.push('/reports/91'); expect(router.currentRoute.value.name).toBe('report-detail');
+});
+it.each(['reporter', 'staff', 'admin', 'technician'] as UserRole[])('denies product management to %s', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory());
+  await router.push('/shop/manage'); expect(router.currentRoute.value.name).not.toBe('shop-management');
+});
+it.each(['super_admin', 'shop_manager'] as UserRole[])('allows product management for %s', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory());
+  await router.push('/shop/manage'); expect(router.currentRoute.value.name).toBe('shop-management');
+});
+it('requires sign-in for product management while keeping browsing public', async () => {
+  const router = createAppRouter(createMemoryHistory());
+  await router.push('/shop/manage'); expect(router.currentRoute.value.name).toBe('login');
+  expect(router.currentRoute.value.query.redirect).toBe('/shop/manage');
+  await router.push('/shop'); expect(router.currentRoute.value.name).toBe('shop');
+});
+it.each(['reporter', 'staff', 'technician', 'shop_manager'] as UserRole[])('denies rule management to %s', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory());
+  await router.push('/site-rules'); expect(router.currentRoute.value.name).not.toBe('site-rules');
+});
+it.each(['admin', 'super_admin'] as UserRole[])('allows rule management for %s', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory());
+  await router.push('/site-rules'); expect(router.currentRoute.value.name).toBe('site-rules');
+});
+it('protects direct site detail URLs for signed-out users', async () => {
+  const router = createAppRouter(createMemoryHistory()); await router.push('/sites/7');
+  expect(router.currentRoute.value.name).toBe('login'); expect(router.currentRoute.value.query.redirect).toBe('/sites/7');
+});
+it.each(['technician', 'shop_manager'] as UserRole[])('keeps site detail out of the %s workspace', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory()); await router.push('/sites/7');
+  expect(router.currentRoute.value.name).not.toBe('site-detail');
+});
+it('requires sign-in to open a direct order detail URL', async () => {
+  const router = createAppRouter(createMemoryHistory()); await router.push('/shop/orders/order-a');
+  expect(router.currentRoute.value.name).toBe('login'); expect(router.currentRoute.value.query.redirect).toBe('/shop/orders/order-a');
+});
+it('allows a shop manager to open their order detail page', async () => {
+  await signIn('shop_manager'); const router = createAppRouter(createMemoryHistory()); await router.push('/shop/orders/order-a');
+  expect(router.currentRoute.value.name).toBe('shop-order');
+});

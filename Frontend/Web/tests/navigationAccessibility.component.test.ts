@@ -84,3 +84,16 @@ describe('workspace keyboard navigation', () => {
     }
   });
 });
+it('does not offer maintenance search or report notifications on the shop-manager profile', async () => {
+  useAuthStore().user!.role = 'shop_manager'; await render();
+  expect(wrapper.find('form[role="search"]').exists()).toBe(false);
+  expect(wrapper.find('button[aria-label="Notification availability"]').exists()).toBe(false);
+});
+it('keeps independent technicians away from unavailable report searches until a site is accessible', async () => {
+  useAuthStore().user!.role = 'technician'; useAuthStore().user!.siteId = null;
+  await render(); expect(wrapper.find('form[role="search"]').exists()).toBe(false);
+  const data = useMaintenanceStore();
+  data.sites = [{ id: 7, name: 'Accessible fixture', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, createdAt: '', updatedAt: '' }];
+  data.selectedSiteId = 7; await nextTick();
+  expect(wrapper.find('form[role="search"]').exists()).toBe(true);
+});

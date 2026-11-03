@@ -1,3 +1,4 @@
+import { cartPayload, shippingPayload } from '@/utils/requestFields';
 import { request } from './api';
 import type {
   ShopCartItem,
@@ -8,8 +9,8 @@ import type {
   ShopQuote,
 } from '@/types/shop';
 
-// Opt-in until the backend implements the contract in SHOP_API.md.
-export const catalogPath = (import.meta.env.VITE_SHOP_CATALOG_PATH as string | undefined)?.trim() || '';
+// The published backend catalogue is the default; deployments may override its path.
+export const catalogPath = (import.meta.env.VITE_SHOP_CATALOG_PATH as string | undefined)?.trim() || '/api/shop/catalog';
 
 export function safeImageUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -78,8 +79,30 @@ export async function loadCatalog(): Promise<ShopCatalog> {
 export async function quoteCheckout(items: ShopCartItem[]): Promise<ShopQuote> {
   return request<ShopQuote>('/api/shop/checkout/quote', {
     method: 'POST',
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items: cartPayload(items) }),
   });
+}
+
+export function parseOrderResult(value: unknown): ShopCreateOrderResult {
+  const data = value as Partial<ShopCreateOrderResult> | null;
+  if (!data || typeof data.orderId !== 'string' || !data.orderId.trim() ||
+      !Number.isSafeInteger(data.totalMinor) || data.totalMinor! < 0 ||
+      !(data.paymentProvider === null || typeof data.paymentProvider === 'string') ||
+      !(data.checkoutUrl === null || typeof data.checkoutUrl === 'string')) {
+    throw new Error('The order response is incomplete. Open Orders to check its status.');
+  }
+  let checkoutUrl = data.checkoutUrl;
+  if (checkoutUrl !== null) {
+    try {
+      const url = new URL(checkoutUrl);
+      const permitted = url.protocol === 'https:' || data.paymentProvider === 'dev' && url.protocol === 'http:';
+      if (!permitted || url.username || url.password) throw new Error();
+      checkoutUrl = url.href;
+    } catch {
+      throw new Error('The payment link is invalid. Open Orders to check the order status.');
+    }
+  }
+  return { orderId: data.orderId, totalMinor: data.totalMinor!, checkoutUrl, paymentProvider: data.paymentProvider };
 }
 
 export async function createOrder(payload: {
@@ -89,16 +112,15 @@ export async function createOrder(payload: {
   shippingAddress: string;
   idempotencyKey: string;
 }): Promise<ShopCreateOrderResult> {
-  return request<ShopCreateOrderResult>('/api/shop/orders', {
+  const result = await request<unknown>('/api/shop/orders', {
     method: 'POST',
     headers: { 'Idempotency-Key': payload.idempotencyKey },
     body: JSON.stringify({
-      items: payload.items,
-      shippingName: payload.shippingName,
-      shippingPhone: payload.shippingPhone || null,
-      shippingAddress: payload.shippingAddress,
+      items: cartPayload(payload.items),
+      ...shippingPayload(payload),
     }),
   });
+  return parseOrderResult(result);
 }
 
 export async function listOrders(): Promise<ShopOrder[]> {

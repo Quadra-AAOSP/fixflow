@@ -37,3 +37,7 @@ export function addTechnicianSkill(technicianId: number, category: string, speci
     method: 'POST', body: JSON.stringify({ technicianId, category: category.trim(), specialty: specialty.trim() || null, proficiency: level }),
   });
 }
+export function getTechnicianTermsFor(technicianId: number): Promise<TechnicianTermsStatus> {
+  if (!Number.isSafeInteger(technicianId) || technicianId <= 0) throw new Error('Choose a valid technician.');
+  return request(`/api/technician-terms/${technicianId}`);
+}

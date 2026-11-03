@@ -446,13 +446,19 @@ export default function HomeScreen() {
           />
         }
       >
+        <View className="mb-1 flex-row justify-end px-1">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('home.notifications.accessibilityLabel')}
+            onPress={() => router.push('/more/notifications')}
+            className="active:opacity-70"
+          >
+            <Bell color={dashboardColors.subtitle} size={18} strokeWidth={1.9} />
+          </Pressable>
+        </View>
+
         <WelcomeBanner
           t={t}
-          palette={palette}
-          user={user}
-          site={site}
-          canFile={canFile}
-          fileDisabledReason={fileDisabledReason}
           greeting={greeting}
           firstName={user?.firstName}
           ctaDisabled={isOps ? !site : !canFile}
@@ -460,18 +466,6 @@ export default function HomeScreen() {
           taglineKey={isOps ? 'home.bannerTaglineOps' : 'home.bannerTagline'}
           onPressCta={isOps ? () => gotoReports('open') : gotoNewReport}
         />
-
-        <View className="flex-row justify-end mb-3 px-1">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('home.notifications.accessibilityLabel')}
-            onPress={() => router.push('/more/notifications')}
-            className="active:opacity-70"
-          >
-            <Bell color={dashboardColors.subtitle} size={16} strokeWidth={1.9} />
-          </Pressable>
-        </View>
-
 
 
         {applicationStatus === 'pending' || applicationStatus === 'approved' ? (
@@ -497,19 +491,6 @@ export default function HomeScreen() {
 
         {reports === null && loading ? <HomeSkeleton /> : null}
 
-        {error && reports === null ? (
-          {error ? (
-          <StateView
-            variant="error"
-            title={t('home.errors.couldNotLoad')}
-            description={error}
-            actionLabel={t('home.errors.retry')}
-            onAction={() => {
-              void load();
-            }}
-          />
-        ) : null}
-
         {loading && !reports && (
           <StateView variant="loading" title={t('home.loading')} />
         )}
@@ -520,13 +501,10 @@ export default function HomeScreen() {
               <EmptyHomeCard
                 t={t}
                 siteName={site.name}
-                canFile={canFile}
-                onPressCreate={gotoNewReport}
               />
               <QuickActionsCard
                 t={t}
                 flags={quickActionFlags}
-                onPressBrowse={() => gotoReports('all')}
                 onPressSites={() => router.push('/more/sites')}
                 onPressSiteSetup={() => router.push('/more/site-setup')}
                 onPressTeamAccess={() => router.push('/more/team-access')}
@@ -616,7 +594,6 @@ export default function HomeScreen() {
               <QuickActionsCard
                 t={t}
                 flags={quickActionFlags}
-                onPressBrowse={() => gotoReports('all')}
                 onPressSites={() => router.push('/more/sites')}
                 onPressSiteSetup={() => router.push('/more/site-setup')}
                 onPressTeamAccess={() => router.push('/more/team-access')}
@@ -626,26 +603,6 @@ export default function HomeScreen() {
           )
         ) : null}
       </ScrollView>
-
-      {/* Floating create — reporters only; ops roles file through the quick
-          actions and spend their time in the triage queues. */}
-      {canFile && !isOps ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('home.reportIssue')}
-          onPress={gotoNewReport}
-          className="absolute bottom-6 right-5 h-[52px] w-[52px] items-center justify-center rounded-full bg-dashboard-fab-bg active:opacity-90"
-          style={{
-            shadowColor: dashboardColors.fabShadow,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 6,
-          }}
-        >
-          <Plus color={dashboardColors.fabText} size={26} strokeWidth={2.2} />
-        </Pressable>
-      ) : null}
 
       {fileDisabledReason ? (
         <Text className="absolute bottom-2 left-5 right-5 text-center text-[11px] text-dashboard-caption">
@@ -1411,7 +1368,6 @@ type QuickActionFlags = {
 function QuickActionsCard({
   t,
   flags,
-  onPressBrowse,
   onPressSites,
   onPressSiteSetup,
   onPressTeamAccess,
@@ -1419,7 +1375,6 @@ function QuickActionsCard({
 }: {
   t: TranslateFn;
   flags: QuickActionFlags;
-  onPressBrowse: () => void;
   onPressSites: () => void;
   onPressSiteSetup: () => void;
   onPressTeamAccess: () => void;
@@ -1463,14 +1418,6 @@ function QuickActionsCard({
             onPress={onPressApplications}
           />
         ) : null}
-        <ActionTile
-          t={t}
-          icon={FileText}
-          titleKey="home.quickActions.browseReports.title"
-          subtitleKey="home.quickActions.browseReports.subtitle"
-          tone="neutral"
-          onPress={onPressBrowse}
-        />
         {flags.canManageSites ? (
           <ActionTile
             t={t}
@@ -1541,19 +1488,16 @@ function ActionTile({
 }
 
 /**
- * First-run state for a site that has never had a report filed. Replaces the
- * analytics (all of which would be zero) with the one action that matters.
+ * First-run state for a site that has never had a report filed. It explains
+ * the empty analysis; the create-report action lives in the banner CTA and the
+ * floating button, so it is not repeated here.
  */
 function EmptyHomeCard({
   t,
   siteName,
-  canFile,
-  onPressCreate,
 }: {
   t: TranslateFn;
   siteName: string;
-  canFile: boolean;
-  onPressCreate: () => void;
 }) {
   return (
     <Card className="mb-4">
@@ -1577,26 +1521,6 @@ function EmptyHomeCard({
         <Text className="mt-1 text-center text-[11px] leading-[1.7] text-dashboard-subtitle">
           {t('home.emptyHome.subtitle')}
         </Text>
-        {canFile ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('home.emptyHome.firstReport')}
-            onPress={onPressCreate}
-            className="mt-4 flex-row items-center gap-2 rounded-[11px] border px-4 py-2.5 active:opacity-90"
-            style={{
-              backgroundColor: dashboardColors.ctaBg,
-              borderColor: dashboardColors.ctaBorder,
-            }}
-          >
-            <Plus color={dashboardColors.ctaText} size={16} strokeWidth={2.4} />
-            <Text
-              className="text-[13px] font-semibold"
-              style={{ color: dashboardColors.ctaText }}
-            >
-              {t('home.emptyHome.firstReport')}
-            </Text>
-          </Pressable>
-        ) : null}
       </View>
     </Card>
   );

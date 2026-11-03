@@ -231,6 +231,7 @@
       "technician": "Technician accounts resolve reports rather than file them."
     },
     "loadingDashboard": "Loading dashboard",
+    "loading": "Loading reports…",
     "errors": {
       "couldNotLoad": "Could not load reports.",
       "couldNotRefresh": "Could not refresh: {detail}",
@@ -285,6 +286,7 @@
     "new": {
       "allReports": "All reports",
       "title": "Report an issue",
+      "submitted": "Report submitted.",
       "intro": "Describe what needs attention at {site}.",
       "savedNotice": "Your report will be saved to the maintenance system and routed to a technician.",
       "descLabel": "What happened?",
@@ -437,15 +439,42 @@
       "attachedIndicator": "You are attached to this report",
       "assignTitleAssign": "Assign a technician",
       "assignTitleReassign": "Reassign technician",
-      "assignBody": "Enter the technician's account ID supplied by your administrator.",
-      "assignLabel": "Technician ID",
-      "assignPlaceholderCurrent": "Currently #{id}",
-      "assignPlaceholderExample": "e.g. 12",
-      "assignHelper": "The technician directory is not exposed by the backend yet, so this takes a numeric user ID. A picker replaces this field once the endpoint lands.",
+      "assignBody": "Pick from technicians who match this report's site and category, then save the assignment.",
+      "assignCandidatesTitle": "Ranked candidates",
+      "assignModeStandard": "Standard",
+      "assignModeAI": "AI assisted",
+      "assignRankingUsed": "Ranked with {mode}",
+      "assignRankingFallback": "Fallback: {reason}",
+      "assignLoadingCandidates": "Loading candidates…",
+      "assignNoCandidates": "No matching technicians are available right now.",
+      "assignDirectoryError": "Could not load the technician directory.",
+      "assignRankingError": "Could not rank technicians for this report.",
+      "assignProficiency": "Proficiency {level}/5",
+      "assignSpecialtyMatch": "Specialty match",
+      "assignSpecialtyMismatch": "No specialty match",
+      "assignActiveCases": "{count} active cases",
+      "assignRefresh": "Refresh candidates",
+      "assignSelectFirst": "Select a technician first.",
+      "assignAccount": "Technician #{id}",
       "assignSave": "Save assignment",
       "assignReassign": "Reassign",
-      "assignEnterValid": "Enter a valid technician ID.",
       "assignSaved": "Technician assignment saved.",
+      "inviteTitle": "Invite technicians",
+      "inviteBody": "Send a site and category invitation to technicians in batches. They receive it in their invitations inbox.",
+      "inviteReasonLabel": "Reason for the invitation",
+      "inviteReasonPlaceholder": "Explain why these technicians are needed.",
+      "inviteSend": "Send invitations",
+      "inviteSending": "Sending…",
+      "inviteNextBatch": "Send next batch",
+      "inviteNewPass": "New pass",
+      "inviteCreated": "Sent {count} invitations (batch {page}).",
+      "inviteMoreBatches": "More candidates are available. Send the next batch when ready.",
+      "inviteNoMoreBatches": "All candidate batches have been invited.",
+      "inviteError": "Could not send invitations.",
+      "inviteReasonRequired": "Enter a reason for the invitation.",
+      "inviteReasonTooLong": "Keep the reason under 1000 characters.",
+      "youAreJoined": "You are a reporter on this report.",
+      "leaveReportNotAvailable": "Leaving is not available yet.",
       "reloadReport": "Reload report",
       "confirmedSection": "Confirmation",
       "confirmedBy": "Confirmed by",
@@ -476,6 +505,23 @@
       "photos": {
         "title": "Photos",
         "noPhotos": "No photos attached."
+      },
+      "aiAssessment": {
+        "title": "AI assessment",
+        "urgency": "AI urgency",
+        "confidence": "Confidence",
+        "loading": "Classifying…",
+        "trigger": "Run classification"
+      },
+      "aiAssessmentError": "Could not refresh the AI assessment.",
+      "vision": {
+        "analyze": "Analyze photos with AI",
+        "running": "Analyzing photos…",
+        "consentTitle": "AI photo analysis",
+        "consentMessage": "This sends this report's photos to the AI vision service. Continue?",
+        "cancel": "Cancel",
+        "continue": "Continue",
+        "failed": "Photo analysis failed. Try again."
       },
       "analysis": {
         "title": "AI Analysis",
@@ -555,6 +601,7 @@
       "teamAccessSubtitle": "Provision staff or admin accounts.",
       "techniciansTitle": "Technicians",
       "techniciansSubtitle": "Availability and site contracts.",
+      "adminDashboardTitle": "Admin dashboard",
       "adminApplicationsTitle": "Admin applications",
       "adminApplicationsSubtitle": "Review site-admin requests.",
       "siteContractsTitle": "Site contracts",
@@ -713,7 +760,10 @@
       "noSpecialty": "No specialty",
       "noSkills": "No skills recorded",
       "noContracts": "No site contracts",
-      "contractLine": "{site} · since {date}"
+      "contractLine": "{site} · since {date}",
+      "viewTerms": "View terms status",
+      "hideTerms": "Hide terms status",
+      "termsLoadFailed": "Could not load this technician's terms status."
     },
     "contracts": {
       "title": "Site contracts",
@@ -739,9 +789,26 @@
       "saving": "Saving…",
       "recordContract": "Record agreed contract",
       "listUnavailableNote": "Existing contracts and pending requests cannot be listed in this version.",
+      "existingTitle": "Authorized contracts",
+      "existingDesc": "Contracts recorded for you or your site.",
+      "existingEmpty": "No contracts recorded yet.",
+      "remove": "Remove",
+      "removeTitle": "Remove contract",
+      "removeMessage": "Remove the contract for {site}? This cannot be undone.",
+      "removeCancel": "Cancel",
+      "removeFailed": "Could not remove the contract.",
+      "requestsTitle": "Contract requests",
+      "requestsDesc": "Requests from technicians, newest first.",
+      "requestsEmpty": "No contract requests.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "requestOnlineNote": "Submit a request online and track its status here.",
+      "onlineRequest": "Request a contract online",
       "retry": "Retry",
       "errors": {
         "chooseSiteTechnicianConsent": "Choose an accessible site, enter a valid technician ID, and confirm their agreement.",
+        "couldNotLoad": "Could not load contracts and requests.",
+        "couldNotDecide": "Could not record the decision.",
         "couldNotRecord": "Could not record the contract."
       }
     },
@@ -841,6 +908,12 @@
       "completeDevPayment": "Complete dev payment",
       "cancel": "Cancel",
       "devPaymentNote": "The dev payment endpoint exists so checkout can be exercised without a real payment provider.",
+      "errorTitle": "Could not complete checkout",
+      "orderSuccess": "Order created",
+      "orderNumber": "Order #{id}",
+      "payNow": "Pay now",
+      "checkoutError": "Could not open the checkout page",
+      "checkoutFailed": "The payment page could not be opened. Try again from a browser.",
       "errors": {
         "signInToOrder": "Sign in to place an order.",
         "refreshQuote": "Could not refresh the quote.",
@@ -885,13 +958,25 @@
     "noBuildings": "No buildings yet — add the first one above.",
     "archivedSuffix": " · Archived",
     "helper": "Buildings appear in the reporter's location picker as soon as they are added. The backend cannot know whether every real building has been entered — add each one your reporters need.",
+    "buildingsCount": "building{plural}",
+    "missingBuildings": "Missing-building alerts",
+    "noMissingBuildings": "No missing-building alerts.",
+    "resolve": "Resolve",
+    "createdAt": "Created {date}",
+    "successSave": "Building saved.",
+    "successSuggest": "Suggested buildings added.",
+    "successResolve": "Missing-building alert resolved.",
+    "successArchive": "Building archived.",
     "archiveConfirmTitle": "Archive {label}?",
     "archiveConfirmBody": "Reporters will no longer be able to select this building. Existing reports keep their location.",
     "archiveConfirmCancel": "Cancel",
     "archiveConfirmOk": "Archive",
     "errors": {
       "couldNotLoad": "Could not load site setup.",
+      "couldNotLoadSetup": "Could not load the setup details.",
       "couldNotSave": "Could not save the building.",
+      "couldNotSuggest": "Could not add suggested buildings.",
+      "couldNotResolve": "Could not resolve the alert.",
       "couldNotArchive": "Could not archive the building."
     }
   },
@@ -915,6 +1000,18 @@
     "errors": {
       "couldNotLoad": "Could not load the pending applications.",
       "couldNotDecide": "Could not record the decision."
+    }
+  },
+  "adminDashboard": {
+    "title": "Admin dashboard",
+    "loading": "Loading subsites…",
+    "noActiveSubsites": "No active subsites yet.",
+    "setupRequired": "Site setup required",
+    "setupSite": "Open site setup",
+    "subsites": "Subsites",
+    "noSubsites": "No subsites are configured for this site yet.",
+    "errors": {
+      "couldNotLoadSubsites": "Could not load subsites."
     }
   },
   "profile": {
@@ -1000,6 +1097,8 @@
     "workspace": "Workspace",
     "assignments": "Assignments",
     "more": "More",
+    "shop": "Shop",
+    "staffDashboard": "Dashboard",
     "profile": "Profile"
   },
   "notFound": {
@@ -1037,8 +1136,109 @@
     "openReports": "{count} open report{plural}.",
     "siteContracts": "Site contracts",
     "contractsHint": "Apply for a contract or review options.",
+    "terms": "Technician terms",
+    "termsHint": "Review and accept the current terms.",
+    "invitations": "Assignment invitations",
+    "invitationsHint": "Reports you have been invited to work on.",
     "switchSite": "Switch site",
     "sitesLinked": "{count} sites are linked to your account."
+  },
+  "staff": {
+    "dashboard": {
+      "title": "Staff dashboard",
+      "loading": "Loading dashboard…",
+      "reports": "Reports",
+      "noReports": "No reports at this site.",
+      "technicians": "Technicians",
+      "noTechnicians": "No technicians contracted at this site.",
+      "actions": "Actions",
+      "manageReports": "Manage reports",
+      "errors": {
+        "couldNotLoad": "Could not load the dashboard."
+      }
+    },
+    "reports": {
+      "title": "Manage reports",
+      "loading": "Loading reports…",
+      "noReports": "No reports found.",
+      "assignTechnician": "Assign technician",
+      "noCandidates": "No matching technicians are available right now.",
+      "proficiency": "Proficiency {level}/5",
+      "assign": "Assign",
+      "cancel": "Cancel",
+      "confirmReport": "Confirm report",
+      "confirm": "Confirm",
+      "reopenReport": "Reopen report",
+      "enterReason": "Enter a reason",
+      "reopen": "Reopen",
+      "errors": {
+        "couldNotLoad": "Could not load reports.",
+        "selectCandidate": "Select a technician first.",
+        "couldNotAssign": "Could not assign the technician.",
+        "couldNotConfirm": "Could not confirm the report.",
+        "couldNotReopen": "Could not reopen the report.",
+        "notAuthorized": "You are not authorized to perform this action.",
+        "endpointNotFound": "The requested endpoint is not available."
+      }
+    }
+  },
+  "technician": {
+    "terms": {
+      "title": "Technician terms",
+      "loading": "Loading terms…",
+      "version": "Version {version}",
+      "accepted": "You have accepted the current version.",
+      "notAccepted": "You have not accepted the current version yet.",
+      "openDocument": "Open the terms document",
+      "history": "Acceptance history",
+      "acceptedOn": "Version {version} accepted {date}",
+      "accept": "Accept terms",
+      "noTerms": "No terms published yet.",
+      "errors": {
+        "couldNotLoad": "Could not load the terms.",
+        "couldNotAccept": "Could not accept the terms."
+      }
+    },
+    "invitations": {
+      "title": "Assignment invitations",
+      "intro": "Invitations are sent for a site and category. Request a contract for the site if you want to take on its jobs.",
+      "loading": "Loading invitations…",
+      "createdAt": "Created {date}",
+      "siteFallback": "Site #{id}",
+      "requestContract": "Request a contract for this site",
+      "previous": "Previous",
+      "page": "Page {page}",
+      "next": "Next",
+      "noInvitations": "No invitations yet.",
+      "errors": {
+        "couldNotLoad": "Could not load invitations."
+      }
+    },
+    "contractRequests": {
+      "title": "Contract requests",
+      "loading": "Loading requests…",
+      "existing": "Your requests",
+      "createdAt": "Created {date}",
+      "noRequests": "No contract requests yet.",
+      "new": "Request a contract",
+      "newSite": "Site",
+      "chooseSite": "Choose a site",
+      "siteFallback": "Site #{id}",
+      "cancel": "Cancel",
+      "submit": "Submit request",
+      "approve": "Approve",
+      "reject": "Reject",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "errors": {
+        "couldNotLoad": "Could not load contract requests.",
+        "couldNotSubmit": "Could not submit the request.",
+        "couldNotDecide": "Could not record the decision."
+      }
+    }
   },
   "adminApplication": {
     "title": "Admin application",

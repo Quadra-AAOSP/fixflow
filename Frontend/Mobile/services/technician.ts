@@ -1,14 +1,19 @@
 import { api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
-  ContractApplication,
-  ContractApplicationPayload,
   ContractDecisionPayload,
+  RankingMode,
   TechnicianAvailabilityResponse,
   TechnicianContract,
   TechnicianContractPayload,
+  TechnicianContractRequest,
+  TechnicianContractRequestPayload,
+  TechnicianInvitationInbox,
+  TechnicianInvitationsSent,
+  TechnicianRanking,
   TechnicianSkill,
   TechnicianSkillPayload,
+  TechnicianTermsStatus,
 } from '@/types';
 
 /** Max lengths enforced by the backend (`TechnicianSkillRequest` validation). */
@@ -37,39 +42,112 @@ export function createTechnicianContract(
   );
 }
 
+/**
+ * Lists the technician contracts the caller is authorized to see. Admins see
+ * contracts for their site; technicians see their own.
+ */
+export function listTechnicianContracts(): Promise<TechnicianContract[]> {
+  return api.get<TechnicianContract[]>(endpoints.technicianContracts.list);
+}
+
+/** Removes an authorized technician contract. */
+export function deleteTechnicianContract(id: number): Promise<void> {
+  return api.del<void>(endpoints.technicianContracts.byId(id));
+}
+
 /** A technician asks to be contracted at a site. */
-export function applyForContract(
-  payload: ContractApplicationPayload,
-): Promise<ContractApplication> {
-  return api.post<ContractApplication>(
+export function createTechnicianContractRequest(
+  payload: TechnicianContractRequestPayload,
+): Promise<TechnicianContractRequest> {
+  return api.post<TechnicianContractRequest>(
     endpoints.contractRequests.create,
     payload,
   );
 }
 
 /**
- * Lists contract applications. Passing `siteId` scopes the list to one site,
- * which is how the admin review queue is built; omitting it returns every
- * application the caller may see.
+ * Lists contract requests. Passing `siteId` scopes the list to one site
+ * (the admin review queue); omitting it returns the caller's own requests.
  */
-export function listContractApplications(
+export function listTechnicianContractRequests(
   siteId?: number,
-): Promise<ContractApplication[]> {
-  return api.get<ContractApplication[]>(
+): Promise<TechnicianContractRequest[]> {
+  return api.get<TechnicianContractRequest[]>(
     siteId === undefined
       ? endpoints.contractRequests.list
       : endpoints.contractRequests.bySite(siteId),
   );
 }
 
-/** Approve or reject a pending application (`admin` / `super_admin`). */
-export function decideContractApplication(
+/** Approve or reject a pending contract request (`admin` / `super_admin`). */
+export function decideTechnicianContractRequest(
   id: number,
-  payload: ContractDecisionPayload,
-): Promise<ContractApplication> {
-  return api.post<ContractApplication>(
+  decision: ContractDecisionPayload,
+): Promise<TechnicianContractRequest> {
+  return api.post<TechnicianContractRequest>(
     endpoints.contractRequests.decide(id),
-    payload,
+    decision,
+  );
+}
+
+/** The signed-in technician's current terms status. */
+export function getTechnicianTerms(): Promise<TechnicianTermsStatus> {
+  return api.get<TechnicianTermsStatus>(endpoints.technicianTerms.me);
+}
+
+/** Authorized admin lookup of another technician's terms status. */
+export function getTechnicianTermsFor(
+  technicianId: number,
+): Promise<TechnicianTermsStatus> {
+  return api.get<TechnicianTermsStatus>(
+    endpoints.technicianTerms.byTechnician(technicianId),
+  );
+}
+
+/**
+ * Accepts the current terms version. The backend requires the exact version
+ * being accepted so a stale screen cannot accept a superseded document.
+ */
+export function acceptTechnicianTerms(
+  version: string,
+): Promise<TechnicianTermsStatus> {
+  return api.post<TechnicianTermsStatus>(endpoints.technicianTerms.accept, {
+    version,
+  });
+}
+
+/** The signed-in technician's paged invitation inbox. */
+export function listTechnicianInvitations(
+  page = 0,
+): Promise<TechnicianInvitationInbox> {
+  return api.get<TechnicianInvitationInbox>(
+    `${endpoints.technicianInvitations.list}?page=${page}`,
+  );
+}
+
+/**
+ * Admins invite matching technicians who do not yet have a contract with the
+ * report's site. Each call processes the next backend batch.
+ */
+export function inviteTechniciansToReport(
+  reportId: number,
+  reason: string,
+  page = 0,
+): Promise<TechnicianInvitationsSent> {
+  return api.post<TechnicianInvitationsSent>(
+    `${endpoints.reports.technicianInvitations(reportId)}?page=${page}`,
+    { reason },
+  );
+}
+
+/** Ranked assignment candidates (`STANDARD`, or OpenRouter-backed `AI`). */
+export function rankTechniciansForReport(
+  reportId: number,
+  mode: RankingMode = 'STANDARD',
+): Promise<TechnicianRanking> {
+  return api.post<TechnicianRanking>(
+    endpoints.reports.technicianRanking(reportId),
+    { mode },
   );
 }
 
@@ -86,6 +164,6 @@ export function updateMyAvailability(
 ): Promise<TechnicianAvailabilityResponse> {
   return api.put<TechnicianAvailabilityResponse>(
     endpoints.technicians.myAvailability,
-    { status: available ? 'available' : 'unavailable' },
+    { available },
   );
 }

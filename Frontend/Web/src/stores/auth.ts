@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import { advanceRequestSession } from '@/services/api';
 import * as authApi from '@/services/auth';
 import type { LoginPayload, RegisterPayload, User } from '@/types';
 
@@ -10,7 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => user.value !== null);
   let hydration: Promise<void> | undefined;
   let sessionGeneration = 0;
-  function clearSession() { sessionGeneration++; user.value = null; initialized.value = true; isLoading.value = false; }
+  function clearSession() { advanceRequestSession(); sessionGeneration++; user.value = null; initialized.value = true; isLoading.value = false; }
   async function hydrate() {
     if (initialized.value) return;
     if (hydration) return hydration;
@@ -24,6 +25,7 @@ export const useAuthStore = defineStore('auth', () => {
     return hydration;
   }
   async function login(payload: LoginPayload) {
+    advanceRequestSession();
     const current = ++sessionGeneration;
     const result = await authApi.login(payload);
     if (current === sessionGeneration) { user.value = result; initialized.value = true; isLoading.value = false; }
@@ -33,7 +35,13 @@ export const useAuthStore = defineStore('auth', () => {
     const currentGeneration = sessionGeneration;
     if (accountId == null) return;
     const current = await authApi.getMe();
-    if (currentGeneration === sessionGeneration && user.value?.id === accountId) user.value = current;
+    if (currentGeneration === sessionGeneration && user.value?.id === accountId) {
+      if (current.id !== accountId || current.role !== user.value.role || current.siteId !== user.value.siteId) {
+        sessionGeneration++;
+        advanceRequestSession();
+      }
+      user.value = current;
+    }
   }
   async function register(payload: RegisterPayload) {
     await authApi.register(payload);

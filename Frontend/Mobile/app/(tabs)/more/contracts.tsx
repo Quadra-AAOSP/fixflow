@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -21,10 +22,10 @@ import { canDecideContracts } from '@/constants/access';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { createTechnicianContract, listTechnicianContractRequests, listTechnicianContracts, decideTechnicianContractRequest } from '@/services/technician';
+import { createTechnicianContract, deleteTechnicianContract, listTechnicianContractRequests, listTechnicianContracts, decideTechnicianContractRequest } from '@/services/technician';
 import { listSites } from '@/services/sites';
 import type { Site, TechnicianContractRequest, TechnicianContract } from '@/types';
-import { formatDate } from '@/utils/format';
+import { formatDate, humanize } from '@/utils/format';
 
 /**
  * Site contracts. Mirrors `ContractsView.vue`. Two faces:
@@ -33,12 +34,9 @@ import { formatDate } from '@/utils/format';
  *                              contract" panels (requests unavailable)
  *   - `admin | super_admin`  → record form to bind a technician to a site
  *
- * Like the web build, existing contracts and pending requests are NOT
- * listed here — the backend has no list endpoint yet.
- *
- * The technician is currently identified by numeric user ID because the
- * backend doesn't expose a public technician directory yet (see
- * `lib/endpoints.ts` trailing comment).
+ * Existing contracts and requests come from the backend list endpoints;
+ * the backend does not return site names, so they are resolved from
+ * `GET /api/sites`.
  */
 export default function ContractsScreen() {
   const { user } = useAuth();
@@ -47,7 +45,6 @@ export default function ContractsScreen() {
   const isTechnician = user?.role === 'technician';
 
   const [sites, setSites] = useState<Site[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
   const [requests, setRequests] = useState<TechnicianContractRequest[]>([]);
   const [contracts, setContracts] = useState<TechnicianContract[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,56 +57,83 @@ export default function ContractsScreen() {
     try {
       const [sites, requests, contracts] = await Promise.all([
         listSites(),
-        isTechnician ? listTechnicianContractRequests() : [],
-        isTechnician ? listTechnicianContracts() : [],
+        listTechnicianContractRequests(),
+        listTechnicianContracts(),
       ]);
       setSites(sites);
       setRequests(requests);
       setContracts(contracts);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : t('contracts.loadFail'),
+        err instanceof ApiError ? err.message : t('more.contracts.errors.couldNotLoad'),
       );
     } finally {
       setLoading(false);
     }
-  }, [isTechnician, t]);
+  }, [t]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
-  const handleSubmitRequest = useCallback(async () => {
-    if (!selectedSiteId) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await createTechnicianContract(selectedSiteId);
-      await loadData();
-      setSelectedSiteId(null);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('contracts.requestFail'),
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }, [selectedSiteId, loadData, t]);
+  // Contract/request payloads expose only `siteId`; resolve the display name
+  // from the already-loaded site list.
+  const siteNameFor = useCallback(
+    (siteId: number) =>
+      sites.find((site) => site.id === siteId)?.name ??
+      t('more.contracts.unknownSite'),
+    [sites, t],
+  );
 
   const handleDecideRequest = useCallback(async (requestId: number, decision: 'approve' | 'reject') => {
     setSubmitting(true);
     setError(null);
     try {
-      await decideTechnicianContractRequest(requestId, decision);
+      await decideTechnicianContractRequest(requestId, { decision });
       await loadData();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : t('contracts.decisionFail'),
+        err instanceof ApiError ? err.message : t('more.contracts.errors.couldNotDecide'),
       );
     } finally {
       setSubmitting(false);
     }
   }, [loadData, t]);
+
+  const handleRemoveContract = useCallback(
+    (contract: TechnicianContract) => {
+      Alert.alert(
+        t('more.contracts.removeTitle'),
+        t('more.contracts.removeMessage', { site: siteNameFor(contract.siteId) }),
+        [
+          { text: t('more.contracts.removeCancel'), style: 'cancel' },
+          {
+            text: t('more.contracts.remove'),
+            style: 'destructive',
+            onPress: () => {
+              void (async () => {
+                setSubmitting(true);
+                setError(null);
+                try {
+                  await deleteTechnicianContract(contract.id);
+                  await loadData();
+                } catch (err) {
+                  setError(
+                    err instanceof ApiError
+                      ? err.message
+                      : t('more.contracts.removeFailed'),
+                  );
+                } finally {
+                  setSubmitting(false);
+                }
+              })();
+            },
+          },
+        ],
+      );
+    },
+    [loadData, t, siteNameFor],
+  );
 
   if (!user) return null;
 
@@ -144,6 +168,113 @@ export default function ContractsScreen() {
 
         {isTechnician ? <TechnicianView userId={user.id} t={t} /> : null}
         {isAdmin ? <AdminView t={t} /> : null}
+
+        {isTechnician || isAdmin ? (
+          <>
+            <View className="border-t border-dashboard-card-line py-5">
+              <Text className="mb-1 text-[17px] font-semibold text-ink">
+                {t('more.contracts.existingTitle')}
+              </Text>
+              <Text className="mb-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
+                {t('more.contracts.existingDesc')}
+              </Text>
+              {contracts.length === 0 ? (
+                <Text className="text-[11px] text-dashboard-caption">
+                  {t('more.contracts.existingEmpty')}
+                </Text>
+              ) : (
+                contracts.map((contract) => (
+                  <View
+                    key={contract.id}
+                    className="mb-2 flex-row items-center justify-between gap-3 rounded-lg border border-dashboard-card-line bg-dashboard-card-bg p-3"
+                  >
+                    <View className="flex-1">
+                      <Text className="text-[12px] font-semibold text-ink">
+                        {siteNameFor(contract.siteId)}
+                      </Text>
+                      <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                        {formatDate(contract.createdAt, true)}
+                      </Text>
+                    </View>
+                    {isAdmin ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={submitting}
+                        onPress={() => handleRemoveContract(contract)}
+                        className="rounded-md border border-tone-danger px-2.5 py-1.5 active:opacity-70"
+                      >
+                        <Text className="text-[10px] font-semibold text-tone-danger">
+                          {t('more.contracts.remove')}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ))
+              )}
+            </View>
+
+            <View className="border-t border-dashboard-card-line py-5">
+              <Text className="mb-1 text-[17px] font-semibold text-ink">
+                {t('more.contracts.requestsTitle')}
+              </Text>
+              <Text className="mb-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
+                {t('more.contracts.requestsDesc')}
+              </Text>
+              {requests.length === 0 ? (
+                <Text className="text-[11px] text-dashboard-caption">
+                  {t('more.contracts.requestsEmpty')}
+                </Text>
+              ) : (
+                requests.map((request) => (
+                  <View
+                    key={request.id}
+                    className="mb-2 rounded-lg border border-dashboard-card-line bg-dashboard-card-bg p-3"
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-[12px] font-semibold text-ink">
+                        {siteNameFor(request.siteId)}
+                      </Text>
+                      <Text className="text-[10px] text-dashboard-caption">
+                        {humanize(request.status)}
+                      </Text>
+                    </View>
+                    <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                      {formatDate(request.createdAt, true)}
+                    </Text>
+                    {isAdmin && request.status === 'pending' ? (
+                      <View className="mt-2 flex-row gap-2">
+                        <Pressable
+                          accessibilityRole="button"
+                          disabled={submitting}
+                          onPress={() => {
+                            void handleDecideRequest(request.id, 'approve');
+                          }}
+                          className="rounded-md border border-dashboard-card-line bg-dashboard-cta-icon-bg px-3 py-1.5 active:opacity-70"
+                        >
+                          <Text className="text-[10px] font-semibold text-dashboard-teal">
+                            {t('more.contracts.approve')}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          disabled={submitting}
+                          onPress={() => {
+                            void handleDecideRequest(request.id, 'reject');
+                          }}
+                          className="rounded-md border border-tone-danger px-3 py-1.5 active:opacity-70"
+                        >
+                          <Text className="text-[10px] font-semibold text-tone-danger">
+                            {t('more.contracts.reject')}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                ))
+              )}
+            </View>
+          </>
+        ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -201,13 +332,12 @@ function TechnicianView({ userId, t }: { userId: number; t: TranslateFn }) {
           {t('more.contracts.requestBodySuffix')}
         </Text>
         <Text className="mb-3 text-[11px] leading-[1.6] text-dashboard-caption">
-          {t('more.contracts.onlineUnavailableNote')}
+          {t('more.contracts.requestOnlineNote')}
         </Text>
         <Pressable
-          disabled
           accessibilityRole="button"
-          accessibilityState={{ disabled: true }}
-          className="flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 opacity-50"
+          onPress={() => router.push('/technician/contract-requests')}
+          className="flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
           style={{
             backgroundColor: dashboardColors.ctaBg,
             borderColor: dashboardColors.ctaBorder,
@@ -217,12 +347,9 @@ function TechnicianView({ userId, t }: { userId: number; t: TranslateFn }) {
             className="text-[14px] font-semibold"
             style={{ color: dashboardColors.ctaText }}
           >
-            {t('more.contracts.onlineUnavailableButton')}
+            {t('more.contracts.onlineRequest')}
           </Text>
         </Pressable>
-        <Text className="mt-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
-          {t('more.contracts.recordNote')}
-        </Text>
       </View>
     </>
   );

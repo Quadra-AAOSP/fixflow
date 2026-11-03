@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { localeTag, useLocale } from '@/i18n';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   ArrowUpRight, ArrowRight, ShoppingBag, Search, Plus, Minus, X, Package,
@@ -9,7 +9,6 @@ import {
 import { useShopStore } from '@/stores/shop';
 import { useAuthStore } from '@/stores/auth';
 import {
-  cancelOrder,
   catalogPath,
   completeDevPayment,
   createOrder,
@@ -46,6 +45,11 @@ const quote = ref<ShopQuote | null>(null);
 const orders = ref<ShopOrder[]>([]);
 const ordersError = ref('');
 const ordersLoading = ref(false);
+let disposed = false;
+let quoteVersion = 0;
+let ordersVersion = 0;
+let checkoutAttempt: { fingerprint: string; key: string } | null = null;
+onBeforeUnmount(() => { disposed = true; quoteVersion++; ordersVersion++; });
 
 const categories = computed(() => [...new Set(shop.catalog?.products.map(p => p.category) ?? [])].sort());
 const selected = computed(() => shop.catalog?.products.find(p => p.id === detailId.value));
@@ -79,17 +83,22 @@ async function inspect(id: string) { detailId.value = id; await nextTick(); deta
 function clearFilters() { query.value = ''; category.value = ''; availableOnly.value = false; sort.value = 'name'; }
 
 async function refreshQuote() {
+  const current = ++quoteVersion;
+  const actorId = auth.user?.id;
   quote.value = null;
   checkoutError.value = '';
   if (!auth.isAuthenticated || !cartItems.value.length) return;
   try {
-    quote.value = await quoteCheckout(cartItems.value);
+    const result = await quoteCheckout(cartItems.value);
+    if (!disposed && current === quoteVersion && actorId === auth.user?.id) quote.value = result;
   } catch (err) {
-    checkoutError.value = errorMessage(err);
+    if (!disposed && current === quoteVersion && actorId === auth.user?.id) checkoutError.value = errorMessage(err);
   }
 }
 
 async function placeOrder() {
+  if (checkoutBusy.value || !cartItems.value.length) return;
+  const actorId = auth.user?.id;
   checkoutError.value = '';
   if (!auth.isAuthenticated) {
     checkoutError.value = 'Sign in to checkout.';
@@ -101,19 +110,24 @@ async function placeOrder() {
   }
   checkoutBusy.value = true;
   try {
-    const result = await createOrder({
+    const payload = {
       items: cartItems.value,
       shippingName: shippingName.value.trim(),
       shippingPhone: shippingPhone.value.trim() || undefined,
       shippingAddress: shippingAddress.value.trim(),
-      idempotencyKey: crypto.randomUUID(),
-    });
+    };
+    const fingerprint = JSON.stringify({ actorId, ...payload });
+    if (checkoutAttempt?.fingerprint !== fingerprint) checkoutAttempt = { fingerprint, key: crypto.randomUUID() };
+    const result = await createOrder({ ...payload, idempotencyKey: checkoutAttempt.key });
+    checkoutAttempt = null;
+    if (disposed || actorId !== auth.user?.id) return;
     shop.clearBasket();
     quote.value = null;
     announcement.value = { key: 'Order {id} created.', values: { id: result.orderId } };
     if (result.checkoutUrl) {
       if (result.paymentProvider === 'dev') {
         await completeDevPayment(result.orderId);
+        if (disposed || actorId !== auth.user?.id) return;
         announcement.value = { key: 'Order {id} paid (dev checkout).', values: { id: result.orderId } };
         await loadOrders();
         basket.value?.close();
@@ -123,6 +137,7 @@ async function placeOrder() {
       }
     }
   } catch (err) {
+    if (disposed || actorId !== auth.user?.id) return;
     checkoutError.value = errorMessage(err);
     await shop.refresh();
   } finally {
@@ -131,6 +146,8 @@ async function placeOrder() {
 }
 
 async function loadOrders() {
+  const current = ++ordersVersion;
+  const actorId = auth.user?.id;
   if (!auth.isAuthenticated) {
     orders.value = [];
     return;
@@ -138,22 +155,12 @@ async function loadOrders() {
   ordersLoading.value = true;
   ordersError.value = '';
   try {
-    orders.value = await listOrders();
+    const result = await listOrders();
+    if (!disposed && current === ordersVersion && actorId === auth.user?.id) orders.value = result;
   } catch (err) {
-    ordersError.value = errorMessage(err);
+    if (!disposed && current === ordersVersion && actorId === auth.user?.id) ordersError.value = errorMessage(err);
   } finally {
-    ordersLoading.value = false;
-  }
-}
-
-async function cancelPending(orderId: string) {
-  ordersError.value = '';
-  try {
-    await cancelOrder(orderId);
-    await loadOrders();
-    await shop.refresh();
-  } catch (err) {
-    ordersError.value = errorMessage(err);
+    if (!disposed && current === ordersVersion) ordersLoading.value = false;
   }
 }
 
@@ -170,7 +177,9 @@ watch(() => auth.isAuthenticated, (ok) => {
     shippingAddress.value = auth.user?.address ?? '';
     void refreshQuote();
   } else {
-    quote.value = null;
+    checkoutAttempt = null; quoteVersion++; ordersVersion++; quote.value = null; orders.value = [];
+    shippingName.value = ''; shippingPhone.value = ''; shippingAddress.value = '';
+    ordersDialog.value?.close(); basket.value?.close();
   }
 }, { immediate: true });
 
@@ -178,13 +187,8 @@ onMounted(async () => {
   await auth.hydrate();
   if (!shop.catalog) await shop.refresh();
   const orderId = typeof route.query.orderId === 'string' ? route.query.orderId : '';
-  const devPay = route.query.devPay === '1';
   if (orderId && auth.isAuthenticated) {
-    if (devPay) {
-      try { await completeDevPayment(orderId); } catch { /* already paid or unavailable */ }
-    }
-    await openOrders();
-    router.replace({ path: '/shop', hash: '#shop-catalogue' });
+    await router.replace({ name: 'shop-order', params: { orderId } });
   }
 });
 </script>
@@ -227,8 +231,8 @@ onMounted(async () => {
         <span v-if="ready" role="status">{{ t(products.length === 1 ? '{count} product' : '{count} products', { count: products.length }) }}</span>
       </div>
       <div class="shop-controls">
-        <label class="shop-search"><Search :size="19" /><input v-model="query" type="search" :placeholder="t('Search tools, parts, and supplies')" :aria-label="t('Search products')" :disabled="!ready" /></label>
-        <label class="shop-sort"><SlidersHorizontal :size="17" /><select v-model="sort" :aria-label="t('Sort products')" :disabled="!ready"><option value="name">{{ t("Name: A–Z") }}</option><option value="price-low">{{ t("Price: low to high") }}</option><option value="price-high">{{ t("Price: high to low") }}</option></select></label>
+        <label class="shop-search"><Search :size="19" /><input v-model="query" type="search" :placeholder="t('Search tools, parts, and supplies')" :aria-label="t('Search products')" :disabled="!ready || checkoutBusy" /></label>
+        <label class="shop-sort"><SlidersHorizontal :size="17" /><select v-model="sort" :aria-label="t('Sort products')" :disabled="!ready || checkoutBusy"><option value="name">{{ t("Name: A–Z") }}</option><option value="price-low">{{ t("Price: low to high") }}</option><option value="price-high">{{ t("Price: high to low") }}</option></select></label>
       </div>
       <div v-if="ready" class="shop-filters">
         <div class="shop-category-tabs" role="group" :aria-label="t('Product categories')">
@@ -314,10 +318,10 @@ onMounted(async () => {
             <h3>{{ line.product.name }}</h3>
             <p>{{ t('{price} each', { price: shop.money(line.product.priceMinor) }) }}</p>
             <div class="shop-quantity">
-              <button type="button" :disabled="!ready" :aria-label="t('Decrease {name} quantity', { name: line.product.name })" @click="shop.setQuantity(line.product.id, line.quantity - 1)"><Minus :size="14" /></button>
+              <button type="button" :disabled="!ready || checkoutBusy" :aria-label="t('Decrease {name} quantity', { name: line.product.name })" @click="shop.setQuantity(line.product.id, line.quantity - 1)"><Minus :size="14" /></button>
               <span :aria-label="t('Quantity: {count}', { count: line.quantity })">{{ line.quantity }}</span>
               <button type="button" :disabled="!ready || line.quantity >= line.product.stock" :aria-label="t('Increase {name} quantity', { name: line.product.name })" @click="shop.setQuantity(line.product.id, line.quantity + 1)"><Plus :size="14" /></button>
-              <button class="shop-remove" type="button" :disabled="!ready" @click="shop.setQuantity(line.product.id, 0)">{{ t("Remove") }}</button>
+              <button class="shop-remove" type="button" :disabled="!ready || checkoutBusy" @click="shop.setQuantity(line.product.id, 0)">{{ t("Remove") }}</button>
             </div>
           </div>
           <strong>{{ shop.money(line.product.priceMinor * line.quantity) }}</strong>
@@ -326,9 +330,9 @@ onMounted(async () => {
         <template v-if="auth.isAuthenticated">
           <div v-if="quote" class="shop-cart-total"><span>{{ t("Shipping") }}</span><strong>{{ money(quote.shippingMinor, quote.currency, quote.minorUnitDigits) }}</strong></div>
           <div v-if="quote" class="shop-cart-total"><span>{{ t("Order total") }}</span><strong>{{ money(quote.totalMinor, quote.currency, quote.minorUnitDigits) }}</strong></div>
-          <label class="shop-field">{{ t("Full name") }}<input v-model="shippingName" type="text" autocomplete="name" /></label>
-          <label class="shop-field">{{ t("Phone (optional)") }}<input v-model="shippingPhone" type="tel" autocomplete="tel" /></label>
-          <label class="shop-field">{{ t("Shipping address") }}<textarea v-model="shippingAddress" rows="3" autocomplete="street-address" /></label>
+          <label class="shop-field">{{ t("Full name") }}<input v-model="shippingName" :disabled="checkoutBusy" maxlength="255" type="text" autocomplete="name" /></label>
+          <label class="shop-field">{{ t("Phone (optional)") }}<input v-model="shippingPhone" :disabled="checkoutBusy" maxlength="64" type="tel" autocomplete="tel" /></label>
+          <label class="shop-field">{{ t("Shipping address") }}<textarea v-model="shippingAddress" :disabled="checkoutBusy" maxlength="512" rows="3" autocomplete="street-address" /></label>
           <p v-if="checkoutError" role="alert">{{ t(checkoutError) }}</p>
           <button class="shop-primary" type="button" :disabled="checkoutBusy || !ready" @click="placeOrder">
             {{ t(checkoutBusy ? 'Placing order…' : 'Checkout') }}
@@ -353,15 +357,10 @@ onMounted(async () => {
       </div>
       <article v-for="order in orders" :key="order.orderId" class="shop-cart-line shop-order-card">
         <div>
-          <h3>{{ order.orderId }}</h3>
+          <h3><RouterLink :to="{ name: 'shop-order', params: { orderId: order.orderId } }">{{ order.orderId }} · {{ t('View order details') }}</RouterLink></h3>
           <p>{{ t(order.status.replaceAll('_', ' ')) }} · {{ money(order.totalMinor, order.currency, order.minorUnitDigits) }}</p>
           <p>{{ order.items.map(i => `${i.quantity}× ${i.name}`).join(', ') }}</p>
-          <button
-            v-if="order.status === 'pending_payment'"
-            class="shop-remove"
-            type="button"
-            @click="cancelPending(order.orderId)"
-          >{{ t("Cancel order") }}</button>
+          <RouterLink v-if="order.status === 'pending_payment'" class="shop-remove" :to="{ name: 'shop-order', params: { orderId: order.orderId } }">{{ t('Review cancellation') }}</RouterLink>
         </div>
       </article>
     </dialog>

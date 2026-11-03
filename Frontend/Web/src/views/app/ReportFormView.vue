@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useLocale } from '@/i18n';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, ArrowRight } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
@@ -9,7 +9,7 @@ import { createReport, createReportWithPhotos, listSubsites, requestSubsiteAddit
 import { REPORT_PHOTO_LIMIT, REPORT_PHOTO_TYPES, validateReportPhoto } from '@/services/reportPhotos';
 import { ApiError, errorMessage } from '@/services/api';
 import { humanize, urgencyLabels } from '@/utils/maintenance';
-import type { Subsite } from '@/types/maintenance';
+import type { ReportVisibility, Subsite } from '@/types/maintenance';
 import type { Urgency } from '@/types';
 const { t } = useLocale();
 
@@ -19,6 +19,8 @@ const router = useRouter();
 const description = ref('');
 const address = ref('');
 const category = ref('');
+const specialty = ref('');
+const visibility = ref<ReportVisibility>('public');
 const urgency = ref<Urgency | ''>('');
 const reason = ref('');
 const subsiteId = ref<number | null>(null);
@@ -26,6 +28,13 @@ const subsites = ref<Subsite[]>([]);
 const locationsLoading = ref(false);
 const locationsError = ref('');
 const requestNote = ref('');
+const showSuggestion = ref(false);
+const suggestionInput = ref<HTMLTextAreaElement>();
+async function openSuggestion() {
+  showSuggestion.value = true;
+  await nextTick();
+  suggestionInput.value?.focus();
+}
 const requestBusy = ref(false);
 const requestError = ref('');
 const requestSent = ref(false);
@@ -54,7 +63,8 @@ const categories = computed(() => [...new Set(data.rules.map(rule => rule.catego
 const canManageBuildings = computed(() => user.value?.role === 'super_admin' || user.value?.role === 'admin');
 let disposed = false;
 let siteLoad = 0;
-onBeforeUnmount(() => { disposed = true; siteLoad++; });
+let suggestionVersion = 0;
+onBeforeUnmount(() => { disposed = true; siteLoad++; suggestionVersion++; });
 
 async function loadLocations(id: number | null) {
   const current = ++siteLoad;
@@ -71,8 +81,8 @@ async function loadLocations(id: number | null) {
   }
 }
 watch(() => data.selectedSiteId, id => {
-  clearPhotos();
-  category.value = ''; error.value = ''; requestNote.value = ''; requestError.value = ''; requestSent.value = false;
+  clearPhotos(); suggestionVersion++; requestBusy.value = false;
+  category.value = ''; error.value = ''; requestNote.value = ''; requestError.value = ''; requestSent.value = false; showSuggestion.value = false;
   void loadLocations(id);
 }, { immediate: true });
 watch(categories, values => { if (!values.includes(category.value)) category.value = ''; });
@@ -80,13 +90,14 @@ watch(categories, values => { if (!values.includes(category.value)) category.val
 async function requestLocation() {
   const siteId = data.selectedSiteId;
   if (!siteId || requestBusy.value || requestSent.value) return;
+  const version = ++suggestionVersion;
   requestError.value = '';
   requestBusy.value = true;
   try {
     await requestSubsiteAddition(siteId, requestNote.value);
-    if (!disposed && data.selectedSiteId === siteId) { requestSent.value = true; requestNote.value = ''; }
-  } catch (err) { if (!disposed && data.selectedSiteId === siteId) requestError.value = errorMessage(err); }
-  finally { requestBusy.value = false; }
+    if (!disposed && version === suggestionVersion && data.selectedSiteId === siteId) { requestSent.value = true; requestNote.value = ''; }
+  } catch (err) { if (!disposed && version === suggestionVersion && data.selectedSiteId === siteId) requestError.value = errorMessage(err); }
+  finally { if (version === suggestionVersion) requestBusy.value = false; }
 }
 
 async function submit() {
@@ -101,6 +112,7 @@ async function submit() {
   const payload = {
     siteId, subsiteId: subsiteId.value!, description: description.value.trim(),
     address: address.value.trim() || undefined, category: category.value,
+    specialty: specialty.value.trim() || undefined, visibility: visibility.value,
     reporterUrgency: urgency.value, reporterReason: reason.value.trim() || undefined,
   };
   const actorId = user.value?.id;
@@ -139,13 +151,16 @@ async function submit() {
         <fieldset :disabled="submitting" class="report-fields">
           <label>{{ t("What happened?") }}<textarea v-model="description" required maxlength="10000" rows="5" :placeholder="t('Describe the issue and what you noticed.')" /></label>
           <div class="form-two-columns">
-            <label>{{ t("Building or location") }}<select v-model.number="subsiteId" required><option :value="null" disabled>{{ t("Choose a building") }}</option><option v-for="item in subsites" :key="item.id" :value="item.id">{{ item.label }} · {{ item.name }}</option></select></label>
+            <div><label>{{ t("Building or location") }}<select v-model.number="subsiteId" required><option :value="null" disabled>{{ t("Choose a building") }}</option><option v-for="item in subsites" :key="item.id" :value="item.id">{{ item.label }} · {{ item.name }}</option></select></label><button type="button" class="text-action" aria-controls="building-suggestion" :aria-expanded="showSuggestion" @click="openSuggestion">{{ t("Can’t find your building?") }}</button></div>
             <label>{{ t("Room or exact spot (optional)") }}<input v-model="address" maxlength="512" :placeholder="t('Floor, room, or nearby landmark')" /></label>
           </div>
           <div class="form-two-columns">
             <label>{{ t("Category") }}<select v-model="category" required><option disabled value="">{{ t("Choose a category") }}</option><option v-for="item in categories" :key="item" :value="item">{{ t(humanize(item)) }}</option></select></label>
             <label>{{ t("Your urgency") }}<select v-model="urgency" required><option disabled value="">{{ t("Choose an urgency") }}</option><option v-for="(label, value) in urgencyLabels" :key="value" :value="value">{{ t(label) }}</option></select></label>
           </div>
+          <label>{{ t('Specialty (optional)') }}<input v-model="specialty" maxlength="128" :placeholder="t('Specific trade or equipment, if known')" /></label>
+          <label>{{ t('Report visibility') }}<select v-model="visibility" required><option value="public">{{ t('Public within your site') }}</option><option value="private">{{ t('Private report') }}</option></select></label>
+          <p class="field-hint">{{ t(visibility === 'private' ? 'Private reports are restricted to the creator, attached reporters, authorized staff and admins, and the assigned technician.' : 'Other reporters at your site can browse and join this report. Your identity and exact address stay masked until they join.') }}</p>
           <label>{{ t("Why this urgency? (optional)") }}<textarea v-model="reason" rows="3" maxlength="2000" :placeholder="t('Explain how this issue affects the space.')" /></label>
           <label>{{ t("Photos (optional)") }}<input ref="photoInput" type="file" multiple :accept="REPORT_PHOTO_TYPES.join(',')" @change="selectPhotos" /></label>
           <p class="field-hint">{{ t('Up to {limit} photos, 5 MiB each. Attached photos can be viewed by people authorized to access the report.', { limit: REPORT_PHOTO_LIMIT }) }}</p>
@@ -155,14 +170,17 @@ async function submit() {
           <button class="report-issue-button" type="submit" :disabled="submitting || !!photoError">{{ t(submitting ? 'Submitting…' : 'Submit report') }}<ArrowRight :size="18" /></button>
         </fieldset>
       </form>
-      <section class="missing-location">
-        <h2>{{ t("Can’t find your building?") }}</h2>
+      <section id="building-suggestion" class="missing-location">
+        <h2><button type="button" :aria-expanded="showSuggestion" aria-controls="building-suggestion-fields" @click="showSuggestion ? showSuggestion = false : openSuggestion()">{{ t("Suggest a missing building") }}</button></h2>
+        <p>{{ t("Suggestions are reviewed by your site administrator. Choose an approved building before submitting your report.") }}</p>
+        <div v-if="showSuggestion" id="building-suggestion-fields">
         <p v-if="requestSent" role="status">{{ t("Your request was sent to the site administrator.") }}</p>
         <form v-else class="draft-form" @submit.prevent="requestLocation">
           <p v-if="requestError" class="live-error" role="alert">{{ t(requestError) }}</p>
-          <label>{{ t("Describe the missing location") }}<textarea v-model="requestNote" required maxlength="1000" rows="2" :placeholder="t('Building name or how to find it')" /></label>
+          <label>{{ t("Describe the missing location") }}<textarea ref="suggestionInput" v-model="requestNote" required maxlength="1000" rows="2" :placeholder="t('Building name or how to find it')" /></label>
           <button class="text-action" type="submit" :disabled="requestBusy">{{ t(requestBusy ? 'Sending…' : 'Request a new building →') }}</button>
         </form>
+        </div>
       </section>
     </template>
   </section>

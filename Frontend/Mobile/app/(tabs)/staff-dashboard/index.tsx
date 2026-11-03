@@ -63,7 +63,7 @@ export default function StaffDashboardScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!user) return;
+    if (!user?.siteId) return;
     setLoading(true);
     setError(null);
     try {
@@ -125,7 +125,7 @@ export default function StaffDashboardScreen() {
                     className="border-b border-dashboard-card-line px-4 py-3"
                   >
                     <Text className="text-[12px] text-ink">
-                      {report.title} - {report.status}
+                      {report.description} - {report.status}
                     </Text>
                   </View>
                 ))}
@@ -149,7 +149,7 @@ export default function StaffDashboardScreen() {
                     className="border-b border-dashboard-card-line px-4 py-3"
                   >
                     <Text className="text-[12px] text-ink">
-                      {technician.name} - {technician.status}
+                      {[technician.firstName, technician.lastName].filter(Boolean).join(' ')} - {technician.availabilityStatus}
                     </Text>
                   </View>
                 ))}

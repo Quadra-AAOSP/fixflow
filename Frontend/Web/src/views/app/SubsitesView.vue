@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useLocale } from '@/i18n';
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Archive, ArrowLeft, Building2, Check, Pencil, Plus, RefreshCw } from '@lucide/vue';
 import { useRoute } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
@@ -28,6 +28,9 @@ const requestsError = ref('');
 const formError = ref('');
 const success = ref<{ key: string; values: Record<string, string | number> } | null>(null);
 const sessionRefreshNeeded = ref(false);
+const labelInput = ref<HTMLInputElement>();
+const savedNotice = ref<HTMLElement>();
+let editTrigger: HTMLButtonElement | null = null;
 const form = reactive({ label: '', name: '', description: '' });
 let generation = 0;
 onBeforeUnmount(() => { generation++; });
@@ -70,6 +73,8 @@ async function submit() {
     items.value = [...items.value.filter(item => item.id !== saved.id), saved].sort((a, b) => a.label.localeCompare(b.label));
     success.value = { key: '{label} · {name} saved for {site}.', values: { label: saved.label, name: saved.name, site: site.value?.name ?? '' } };
     cancelEdit();
+    await nextTick();
+    if (current === generation && siteId.value === id) savedNotice.value?.focus();
     if (user.value?.siteOnboarding?.siteId === id) {
       try { await refreshUser(); }
       catch { if (current === generation) sessionRefreshNeeded.value = true; }
@@ -80,13 +85,26 @@ async function submit() {
     saving.value = false;
   }
 }
-function edit(item: Subsite) {
+async function edit(item: Subsite, event: MouseEvent) {
+  if (!canManage.value || saving.value || actionId.value || loading.value) return;
+  const current = generation;
+  editTrigger = event.currentTarget as HTMLButtonElement;
   editingId.value = item.id;
   formError.value = ''; success.value = null; sessionRefreshNeeded.value = false;
   Object.assign(form, { label: item.label, name: item.name, description: item.description ?? '' });
+  await nextTick();
+  if (current === generation && editingId.value === item.id) labelInput.value?.focus();
+}
+async function cancelAndReturn() {
+  const trigger = editTrigger;
+  const current = generation;
+  cancelEdit();
+  await nextTick();
+  if (current === generation && trigger?.isConnected) trigger.focus();
 }
 function cancelEdit() {
   editingId.value = null;
+  editTrigger = null;
   Object.assign(form, { label: '', name: '', description: '' });
 }
 async function archive(item: Subsite) {
@@ -130,17 +148,17 @@ async function resolve(item: SubsiteAlert) {
     <p v-else-if="!site && data.loading" class="live-empty" role="status">{{ t("Loading your sites…") }}</p>
     <p v-else-if="!site" class="live-error" role="alert">{{ t("This site is not available to your account.") }} <RouterLink to="/sites">{{ t("Choose an accessible site") }}</RouterLink>.</p>
     <template v-else>
-      <p v-if="success" class="draft-notice" role="status">{{ t(success.key, success.values) }} <span v-if="sessionRefreshNeeded">{{ t('Refresh your session to update the site setup prompt.') }}</span></p>
+      <p v-if="success" ref="savedNotice" class="draft-notice" role="status" tabindex="-1">{{ t(success.key, success.values) }} <span v-if="sessionRefreshNeeded">{{ t('Refresh your session to update the site setup prompt.') }}</span></p>
       <div class="subsite-grid">
         <section class="dashboard-card"><div class="card-heading"><div><h2>{{ t("Saved buildings") }}</h2><p v-if="!loading && !loadError">{{ t(items.length === 1 ? '{count} active location' : '{count} active locations', { count: items.length }) }}</p></div><button class="icon-button" type="button" :disabled="loading || saving || !!actionId" :aria-label="t('Refresh buildings')" @click="load"><RefreshCw :size="18" /></button></div>
           <p v-if="loadError" class="live-error" role="alert">{{ t(loadError) }} <button type="button" @click="load">{{ t("Try again") }}</button></p>
           <p v-else-if="loading" class="live-empty" role="status">{{ t("Loading buildings…") }}</p>
           <p v-else-if="!items.length" class="live-empty">{{ t("No buildings are configured yet. A site admin can add the first labelled location here.") }}</p>
-          <ul v-else class="subsite-list"><li v-for="item in items" :key="item.id"><span class="subsite-code">{{ item.label }}</span><div class="subsite-row-copy"><strong>{{ item.name }}</strong><p v-if="item.description">{{ item.description }}</p></div><div v-if="canManage" class="subsite-row-actions"><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Edit {name}', { name: item.name })" @click="edit(item)"><Pencil :size="15" />{{ t("Edit") }}</button><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Archive {name}', { name: item.name })" @click="archive(item)"><Archive :size="15" />{{ t(actionId === `archive-${item.id}` ? 'Archiving…' : 'Archive') }}</button></div></li></ul>
+          <ul v-else class="subsite-list"><li v-for="item in items" :key="item.id"><span class="subsite-code">{{ item.label }}</span><div class="subsite-row-copy"><strong>{{ item.name }}</strong><p v-if="item.description">{{ item.description }}</p></div><div v-if="canManage" class="subsite-row-actions"><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Edit {name}', { name: item.name })" @click="edit(item, $event)"><Pencil :size="15" />{{ t("Edit") }}</button><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Archive {name}', { name: item.name })" @click="archive(item)"><Archive :size="15" />{{ t(actionId === `archive-${item.id}` ? 'Archiving…' : 'Archive') }}</button></div></li></ul>
         </section>
         <section v-if="canManage" class="dashboard-card"><div class="card-heading"><div><h2>{{ t(editingId == null ? 'Add a building' : 'Edit building') }}</h2><p>{{ t("Give reporters a clear location to choose when filing an issue.") }}</p></div><Plus :size="20" /></div>
           <p v-if="formError" class="live-error" role="alert">{{ t(formError) }}</p>
-          <form class="draft-form" @submit.prevent="submit"><fieldset class="report-fields" :disabled="saving || loading || !!actionId"><label>{{ t("Short label") }}<input v-model="form.label" maxlength="64" :placeholder="t('e.g. A')" required /></label><label>{{ t("Building or location name") }}<input v-model="form.name" maxlength="255" :placeholder="t('e.g. Main Building')" required /></label><label>{{ t("Description (optional)") }}<textarea v-model="form.description" maxlength="2000" rows="3" :placeholder="t('Floor, wing or wayfinding details')" /></label><div class="subsite-form-actions"><button class="report-issue-button" type="submit" :disabled="saving">{{ t(saving ? 'Saving…' : editingId == null ? 'Add building' : 'Save changes') }}</button><button v-if="editingId != null" class="text-action" type="button" @click="cancelEdit">{{ t("Cancel editing") }}</button></div></fieldset></form>
+          <form class="draft-form" @submit.prevent="submit"><fieldset class="report-fields" :disabled="saving || loading || !!actionId"><label>{{ t("Short label") }}<input ref="labelInput" v-model="form.label" maxlength="64" :placeholder="t('e.g. A')" required /></label><label>{{ t("Building or location name") }}<input v-model="form.name" maxlength="255" :placeholder="t('e.g. Main Building')" required /></label><label>{{ t("Description (optional)") }}<textarea v-model="form.description" maxlength="2000" rows="3" :placeholder="t('Floor, wing or wayfinding details')" /></label><div class="subsite-form-actions"><button class="report-issue-button" type="submit" :disabled="saving">{{ t(saving ? 'Saving…' : editingId == null ? 'Add building' : 'Save changes') }}</button><button v-if="editingId != null" class="text-action" type="button" @click="cancelAndReturn">{{ t("Cancel editing") }}</button></div></fieldset></form>
         </section>
         <section v-if="canManage" class="dashboard-card subsite-requests"><div class="card-heading"><div><h2>{{ t("Missing-building requests") }}</h2><p>{{ t("Review the location, add it above if needed, then mark the request resolved.") }}</p></div><span v-if="!loading && !requestsError" class="status-badge mint">{{ t('{count} pending', { count: requests.length }) }}</span></div>
           <p v-if="requestsError" class="live-error" role="alert">{{ t(requestsError) }} <button type="button" @click="load">{{ t("Try again") }}</button></p>
