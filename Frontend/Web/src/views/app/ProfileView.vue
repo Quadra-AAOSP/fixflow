@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useLocale } from '@/i18n';
 import { ref } from 'vue';
+import TradeProfile from '@/components/technician/TradeProfile.vue';
 import { useRouter } from 'vue-router';
 import { User } from '@lucide/vue';
 
@@ -75,6 +76,7 @@ async function onLogout() {
       <p class="dialog-intro">{{ t('Your account ID is {id}. Share it with a site administrator when arranging a contract. A site ID does not represent your contract list.', { id: user.id }) }}</p>
       <RouterLink to="/contracts" class="text-action">{{ t("View contract options →") }}</RouterLink>
     </section>
+    <details v-if="user?.role === 'technician'" class="dashboard-card mb-5"><summary>{{ t("Manage trade details") }}</summary><TradeProfile /></details>
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <Button
       label="Sign out"

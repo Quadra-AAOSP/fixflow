@@ -4,7 +4,8 @@ import { shopManagerRouteAllowed, workspaceRoles } from '@/utils/workspaceAccess
 import { accountHome } from '@/utils/navigation';
 
 const routes: RouteRecordRaw[] = [
-  { path: '/agreements/technician/draft-2026-11-03', name: 'technician-agreement-draft', component: () => import('@/views/auth/TechnicianAgreementView.vue') },
+  { path: '/agreements/technician/draft-2026-11-03', redirect: '/agreements/technician/2026-11-03' },
+  { path: '/agreements/technician/2026-11-03', name: 'technician-agreement', component: () => import('@/views/auth/TechnicianAgreementView.vue') },
   { path: '/shop', component: () => import('@/layouts/ShopLayout.vue'), children: [
     { path: '', name: 'shop', component: () => import('@/views/app/ShopView.vue') },
     { path: 'orders/:orderId', name: 'shop-order', meta: { requiresAuth: true }, component: () => import('@/views/app/ShopOrderView.vue') },
@@ -29,6 +30,8 @@ const routes: RouteRecordRaw[] = [
     { path: 'sites/:siteId/subsites', name: 'subsites', meta: { roles: [...workspaceRoles.sites] }, component: () => import('@/views/app/SubsitesView.vue') },
     { path: 'assignments', name: 'assignments', meta: { roles: [...workspaceRoles.assignments] }, component: () => import('@/views/app/AssignmentsView.vue') },
     { path: 'technician', name: 'technician', meta: { roles: ['technician'] }, component: () => import('@/views/app/TechnicianView.vue') },
+    { path: 'technician/marketplace', name: 'technician-marketplace', meta: { roles: ['technician'] }, component: () => import('@/views/app/TechnicianMarketplaceView.vue') },
+    { path: 'building-suggestions', name: 'building-suggestions', meta: { roles: ['reporter'] }, component: () => import('@/views/app/BuildingSuggestionsView.vue') },
     { path: 'technician/invitations', name: 'technician-invitations', meta: { roles: ['technician'] }, component: () => import('@/views/app/TechnicianInvitationsView.vue') },
     { path: 'site-rules', name: 'site-rules', meta: { roles: [...workspaceRoles.team] }, component: () => import('@/views/app/SiteRulesView.vue') },
     { path: 'team-access', name: 'team-access', meta: { roles: ['admin', 'super_admin'] }, component: () => import('@/views/app/TeamAccessView.vue') },
@@ -47,7 +50,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     await auth.hydrate();
     if (to.meta.requiresAuth && !auth.isAuthenticated) return { name: 'login', query: { redirect: to.fullPath } };
     if (to.meta.guest && auth.isAuthenticated) return accountHome(auth.user);
-    if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && !shopManagerRouteAllowed(to.name)) return '/shop';
+    if (auth.user?.role === 'shop_manager' && (to.name === 'shop' || (to.meta.requiresAuth && !shopManagerRouteAllowed(to.name)))) return '/shop/manage';
     if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.user?.role)) return accountHome(auth.user);
     if (to.name === 'home' && auth.user?.role === 'technician') return { name: 'technician' };
     return true;

@@ -26,6 +26,6 @@ describe('account landing screens', () => {
   });
   it('routes independent technicians and shop managers to their own area', () => {
     expect(accountHome({ ...user, siteId: null, role: 'technician' })).toBe('/technician');
-    expect(accountHome({ ...user, siteId: null, role: 'shop_manager' })).toBe('/shop');
+    expect(accountHome({ ...user, siteId: null, role: 'shop_manager' })).toBe('/shop/manage');
   });
 });

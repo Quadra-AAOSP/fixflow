@@ -410,3 +410,16 @@ session, catalogue and own-order reads. No domain records or provider calls chan
 The default suite passes 373 tests and explicitly skips these seven live checks
 (58 passed files / 1 skipped file). This does not close browser regression, storage
 persistence, other role mutations or the missing maintenance lifecycle contracts.
+
+## 3 November 2026 — requested role and workflow revisions
+
+- Human clarified that reporter requests mean missing-building suggestions and instructed web screens plus a drafted message to the backend team, preserving web-only scope. Backend source is unchanged.
+- Technician home no longer mounts the empty trade form on every visit. Trade entry is under a closed Profile details section; saved skill retrieval still needs the read endpoint documented in BACKEND_TEAM_MESSAGE.md.
+- `/technician/marketplace` exposes the functional contract-request/tracking panel and an explicit hiring-listing integration notice. No contract-status field is repurposed as a hiring flag.
+- `/building-suggestions` exposes the real POST form and current-visit server submission receipts, labelled separately from full history. It does not locally block another pending request; the existing backend restriction and absent reporter history endpoint are explicitly disclosed. No history or hiring data is fabricated.
+- Team approval recorded from the human message. The approved web document is `/agreements/technician/2026-11-03`; the old draft URL redirects there. Team approval does not accept terms on behalf of technicians or alter server enforcement configuration.
+- Shop-manager home is `/shop/manage`; customer catalogue and customer-order routes redirect to management, including direct URLs and role changes. Existing admin permissions remain unchanged. Management uses a responsive, keyboard-scrollable semantic table with live data and existing edit/deactivate controls.
+- Add-to-basket now gives visible status feedback. Development checkout displays a modal with explicit simulate-success and leave-unpaid choices; it no longer auto-completes the development payment immediately after order creation. Simulation errors keep the order available for retry. Real provider redirects retain existing validation.
+- Full suite: 59 files passed, 1 live suite skipped; 378 tests passed, 7 live tests skipped. Production build passes. Added tests cover visible feedback, explicit simulation, simulation failure, suggestion receipts/rejection, new role routes and management rows.
+- Restarted only the isolated frontend :8081 and backend :8082 against the existing verification schema. The local ignored .env pointed at a different backend, so the verification frontend runs with VITE_API_URL empty and API_PROXY_TARGET=:8082. Live browser confirmed the management table and basket feedback; no payment or product change was submitted. Screenshots: /private/tmp/fixflow-product-management-list.png and /private/tmp/fixflow-cart-feedback.png.
+- The backend handoff is drafted in BACKEND_TEAM_MESSAGE.md; it has not been sent to anyone.

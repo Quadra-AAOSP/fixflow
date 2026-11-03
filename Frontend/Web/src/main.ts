@@ -30,7 +30,7 @@ watch([() => auth.user?.id, () => auth.user?.role, () => auth.user?.siteId], () 
   if (auth.user) realtime.start(expireSession);
   const route = router.currentRoute.value;
   if (auth.user && (Array.isArray(route.meta.roles) && !route.meta.roles.includes(auth.user.role))) void router.replace('/');
-  if (auth.user?.role === 'shop_manager' && route.meta.requiresAuth && !shopManagerRouteAllowed(route.name)) void router.replace('/shop');
+  if (auth.user?.role === 'shop_manager' && (route.name === 'shop' || (route.meta.requiresAuth && !shopManagerRouteAllowed(route.name)))) void router.replace('/shop/manage');
 }, { flush: 'sync' });
 watch(() => maintenance.selectedSiteId, id => realtime.setSite(id), { flush: 'sync' });
 setUnauthorizedHandler(expireSession);

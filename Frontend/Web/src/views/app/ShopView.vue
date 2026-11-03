@@ -37,6 +37,9 @@ const ordersDialog = ref<HTMLDialogElement>();
 const announcement = ref<{ key: string; values: Record<string, string | number> } | null>(null);
 const announcementText = computed(() => announcement.value ? t(announcement.value.key, announcement.value.values) : '');
 const checkoutBusy = ref(false);
+const simulation = ref<HTMLDialogElement>();
+const simulationOrder = ref<string | null>(null);
+const simulationError = ref('');
 const checkoutError = ref('');
 const shippingName = ref('');
 const shippingPhone = ref('');
@@ -71,6 +74,7 @@ function money(amount: number, currency = shop.catalog?.currency, digits = shop.
 }
 
 function add(id: string) {
+  if (auth.user?.role === 'shop_manager') return;
   const product = shop.catalog?.products.find(item => item.id === id);
   if (!product) return;
   const before = shop.quantities[id] || 0;
@@ -78,6 +82,19 @@ function add(id: string) {
   if (shop.quantities[id] > before) {
     announcement.value = { key: '{name} added to your basket. {count} items in basket.', values: { name: product.name, count: shop.count } };
   }
+}
+async function simulatePayment() {
+  if (!simulationOrder.value || checkoutBusy.value || auth.user?.role === 'shop_manager') return;
+  const actorId = auth.user?.id; const orderId = simulationOrder.value;
+  checkoutBusy.value = true; simulationError.value = '';
+  try {
+    await completeDevPayment(orderId);
+    if (disposed || actorId !== auth.user?.id) return;
+    announcement.value = { key: 'Order {id} paid (dev checkout).', values: { id: orderId } };
+    simulation.value?.close(); simulationOrder.value = null;
+    await loadOrders(); ordersDialog.value?.showModal();
+  } catch (err) { if (!disposed && actorId === auth.user?.id) simulationError.value = errorMessage(err); }
+  finally { checkoutBusy.value = false; }
 }
 async function inspect(id: string) { detailId.value = id; await nextTick(); detail.value?.showModal(); }
 function clearFilters() { query.value = ''; category.value = ''; availableOnly.value = false; sort.value = 'name'; }
@@ -97,7 +114,7 @@ async function refreshQuote() {
 }
 
 async function placeOrder() {
-  if (checkoutBusy.value || !cartItems.value.length) return;
+  if (auth.user?.role === 'shop_manager' || checkoutBusy.value || !cartItems.value.length) return;
   const actorId = auth.user?.id;
   checkoutError.value = '';
   if (!auth.isAuthenticated) {
@@ -126,12 +143,10 @@ async function placeOrder() {
     announcement.value = { key: 'Order {id} created.', values: { id: result.orderId } };
     if (result.checkoutUrl) {
       if (result.paymentProvider === 'dev') {
-        await completeDevPayment(result.orderId);
-        if (disposed || actorId !== auth.user?.id) return;
-        announcement.value = { key: 'Order {id} paid (dev checkout).', values: { id: result.orderId } };
-        await loadOrders();
+        simulationOrder.value = result.orderId;
+        simulationError.value = '';
         basket.value?.close();
-        ordersDialog.value?.showModal();
+        simulation.value?.showModal();
       } else {
         window.location.href = result.checkoutUrl;
       }
@@ -170,6 +185,9 @@ async function openOrders() {
 }
 
 watch(cartItems, () => { void refreshQuote(); }, { deep: true });
+watch(() => auth.user?.id, () => {
+  simulation.value?.close(); simulationOrder.value = null; simulationError.value = '';
+});
 watch(() => auth.isAuthenticated, (ok) => {
   if (ok) {
     shippingName.value = [auth.user?.firstName, auth.user?.lastName].filter(Boolean).join(' ');
@@ -284,7 +302,7 @@ onMounted(async () => {
       <span class="shop-editorial-flower" aria-hidden="true">✳</span>
     </section>
     <p class="shop-photo-credit">{{ t("Workshop photography:") }} <a href="https://www.pexels.com/photo/close-up-shot-of-a-hand-drill-11398216/" target="_blank" rel="noopener noreferrer">Benjamin Lehman</a> &amp; <a href="https://www.pexels.com/photo/close-up-of-power-drills-on-a-workbench-30413428/" target="_blank" rel="noopener noreferrer">Christina &amp; Peter</a> / Pexels. {{ t('Editorial images.') }}</p>
-    <span class="sr-only" role="status" aria-live="polite">{{ announcementText }}</span>
+    <p v-if="announcementText" class="shop-feedback" role="status" aria-live="polite">{{ announcementText }}</p>
 
     <dialog ref="detail" class="shop-dialog" aria-labelledby="product-title">
       <div class="shop-dialog-top"><span class="shop-eyebrow">{{ t("A CLOSER LOOK") }}</span><button type="button" :aria-label="t('Close product details')" @click="detail?.close()"><X :size="22" /></button></div>
@@ -301,6 +319,13 @@ onMounted(async () => {
       </template>
     </dialog>
 
+    <dialog ref="simulation" class="shop-dialog" aria-labelledby="simulation-title" @cancel="simulationOrder = null">
+      <h2 id="simulation-title">{{ t('Simulated payment') }}</h2>
+      <p>{{ t('This is a development checkout. No money will be charged. Confirm below to simulate a successful payment, or leave the order unpaid.') }}</p>
+      <p v-if="simulationError" role="alert">{{ t(simulationError) }}</p>
+      <button class="shop-primary" type="button" :disabled="checkoutBusy" @click="simulatePayment">{{ t('Simulate successful payment') }}</button>
+      <button type="button" :disabled="checkoutBusy" @click="simulation?.close(); simulationOrder = null">{{ t('Leave unpaid') }}</button>
+    </dialog>
     <dialog ref="basket" class="shop-dialog shop-cart-dialog" aria-labelledby="basket-title">
       <div class="shop-dialog-top"><h2 id="basket-title">{{ t("Your basket") }} <span>({{ shop.count }})</span></h2><button type="button" :aria-label="t('Close basket')" @click="basket?.close()"><X :size="22" /></button></div>
       <div v-if="!shop.lines.length" class="shop-state">

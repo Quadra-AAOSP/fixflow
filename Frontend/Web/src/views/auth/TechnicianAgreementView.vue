@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useLocale } from '@/i18n';
 import LanguageSelector from '@/components/ui/LanguageSelector.vue';
-import { TECHNICIAN_AGREEMENT_DRAFT_VERSION, technicianAgreementSections } from '@/constants/technicianAgreement';
+import { TECHNICIAN_AGREEMENT_VERSION, technicianAgreementSections } from '@/constants/technicianAgreement';
 const { t } = useLocale();
 </script>
 <template>
@@ -9,9 +9,9 @@ const { t } = useLocale();
     <LanguageSelector />
     <RouterLink class="text-action" to="/">← {{ t('Return to workspace') }}</RouterLink>
     <article aria-labelledby="agreement-title">
-      <p class="agreement-status">{{ t('Draft for review') }} · {{ TECHNICIAN_AGREEMENT_DRAFT_VERSION }}</p>
+      <p class="agreement-status">{{ t('Team-approved agreement') }} · {{ TECHNICIAN_AGREEMENT_VERSION }}</p>
       <h1 id="agreement-title">{{ t('Technician participation agreement') }}</h1>
-      <p role="note" class="agreement-notice">{{ t('This draft is awaiting review and is not available for acceptance.') }}</p>
+      <p role="note" class="agreement-notice">{{ t('Approved by the team on 3 November 2026. Acceptance is recorded only through the current terms configured by the service.') }}</p>
       <section v-for="(section, index) in technicianAgreementSections" :key="section.title">
         <h2>{{ index + 1 }}. {{ t(section.title) }}</h2>
         <p>{{ t(section.body) }}</p>

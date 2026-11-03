@@ -77,7 +77,7 @@ acceptance are separate columns; a source file or passing helper is not release 
 | Full role-to-confirmation delivery | Backend lifecycle gaps plus remaining live matrix | Not achieved |
 | Keyboard/responsive/accessibility | ACCESSIBILITY_REVIEW.md; navigationAccessibility tests | Targeted evidence only; wider assistive-technology work remains |
 | English/Chinese localization | i18n catalog; locale component tests | Implemented; selected live language checks recorded |
-| Team contract review | No recorded approval artifact | Not achieved; cannot be supplied by an automated source check |
+| Technician agreement review | Human approval recorded in chat on 3 November 2026; /agreements/technician/2026-11-03 | Team-approved document published; backend active-version configuration remains pending |
 
 ## Additional endpoints requested by the user
 

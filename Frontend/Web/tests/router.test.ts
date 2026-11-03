@@ -58,7 +58,8 @@ describe('actual application route guards', () => {
     await signIn('shop_manager');
     const router = createAppRouter(createMemoryHistory());
     await router.push('/reports');
-    expect(router.currentRoute.value.name).toBe('shop');
+    expect(router.currentRoute.value.name).toBe('shop-management');
+    await router.push('/shop'); expect(router.currentRoute.value.name).toBe('shop-management');
     await router.push('/profile');
     expect(router.currentRoute.value.name).toBe('profile');
   });
@@ -140,7 +141,16 @@ it('requires sign-in to open a direct order detail URL', async () => {
   const router = createAppRouter(createMemoryHistory()); await router.push('/shop/orders/order-a');
   expect(router.currentRoute.value.name).toBe('login'); expect(router.currentRoute.value.query.redirect).toBe('/shop/orders/order-a');
 });
-it('allows a shop manager to open their order detail page', async () => {
+it('keeps a shop manager out of customer order detail pages', async () => {
   await signIn('shop_manager'); const router = createAppRouter(createMemoryHistory()); await router.push('/shop/orders/order-a');
-  expect(router.currentRoute.value.name).toBe('shop-order');
+  expect(router.currentRoute.value.name).toBe('shop-management');
+});
+
+it('exposes building suggestions to reporters and the hiring marketplace to technicians', async () => {
+  await signIn('reporter'); const router = createAppRouter(createMemoryHistory());
+  await router.push('/building-suggestions'); expect(router.currentRoute.value.name).toBe('building-suggestions');
+  await router.push('/technician/marketplace'); expect(router.currentRoute.value.name).not.toBe('technician-marketplace');
+  await signIn('technician');
+  await router.push('/technician/marketplace'); expect(router.currentRoute.value.name).toBe('technician-marketplace');
+  await router.push('/building-suggestions'); expect(router.currentRoute.value.name).not.toBe('building-suggestions');
 });

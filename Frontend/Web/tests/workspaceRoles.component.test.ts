@@ -14,12 +14,12 @@ const account: User = { id: 1, role: 'reporter', siteId: 7, firstName: 'Test', l
 beforeEach(() => { setActivePinia(createPinia()); setLocale('en'); });
 describe('role-specific workspace menus', () => {
   it.each([
-    ['reporter', ['/reporter', '/reports', '/sites', '/shop']],
+    ['reporter', ['/reporter', '/building-suggestions', '/reports', '/sites', '/shop']],
     ['staff', ['/', '/reports', '/sites', '/assignments', '/shop']],
     ['admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop']],
     ['super_admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop/manage', '/shop']],
-    ['technician', ['/technician', '/reports', '/contracts', '/technician/invitations', '/shop']],
-    ['shop_manager', ['/shop', '/shop/manage', '/profile']],
+    ['technician', ['/technician', '/reports', '/contracts', '/technician/marketplace', '/technician/invitations', '/shop']],
+    ['shop_manager', ['/shop/manage', '/profile']],
   ] as [UserRole, string[]][])('shows only relevant links for %s', (role, expected) => {
     expect(workspaceLinks({ ...account, role }, true).map(link => link.to)).toEqual(expected);
   });

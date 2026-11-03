@@ -8,3 +8,5 @@
 /* Keep management, language and account links usable on narrow screens. */
 .shop-shell-header{flex-wrap:wrap}.shop-wordmark{white-space:nowrap}.shop-shell-header nav{flex-wrap:wrap;min-width:0}.shop-shell-header nav a{min-height:32px;overflow-wrap:anywhere;max-width:100%}
 @media(max-width:600px){.shop-shell-header nav{flex-basis:100%;gap:10px 18px}.shop-shell-header{gap:12px}.shop-shell-header nav .language-selector{max-width:100%}}
+
+.shop-feedback{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:50;background:#183b34;color:white;padding:16px 24px;border-radius:14px;box-shadow:0 8px 28px #183b3433;max-width:calc(100% - 32px);font-size:14px}

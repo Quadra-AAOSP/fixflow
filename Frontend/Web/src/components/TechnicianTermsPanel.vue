@@ -56,7 +56,7 @@ onMounted(refresh);
 <template>
   <section class="contract-choice" aria-labelledby="technician-terms-heading">
     <div class="card-heading"><h2 id="technician-terms-heading">{{ t("Technician terms") }}</h2><button class="text-action" type="button" :disabled="loading || saving" @click="refresh">{{ t("Refresh terms") }}</button></div>
-    <RouterLink class="text-action" to="/agreements/technician/draft-2026-11-03">{{ t("Review the draft agreement") }}</RouterLink>
+    <RouterLink class="text-action" to="/agreements/technician/2026-11-03">{{ t("Read the approved agreement") }}</RouterLink>
     <p v-if="loading" role="status">{{ t("Loading current terms…") }}</p>
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <template v-if="status && !loading">
