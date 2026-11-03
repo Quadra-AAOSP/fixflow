@@ -55,3 +55,20 @@ Temporary viewport overrides were reset, and the language was restored to Englis
   chart/non-text assessment is separate from these foreground checks.
 - The full role/workflow acceptance gates remain in VERIFICATION.md.
 - This is targeted verification, not a whole-application WCAG conformance claim.
+
+## 3 November — building editor keyboard focus
+
+The inline building form previously opened without moving focus from the list's
+Edit button. Editing now focuses the populated short-label field after rendering;
+Cancel returns focus to the initiating Edit button if it remains connected in the
+same site scope. A successful save focuses the status message. Generation checks
+prevent delayed focus moves after changing sites or unmounting the view.
+
+Native browser AX observations on `/sites/1/subsites` confirmed focus on Short
+label (SCI) after Edit Science Annex and on Edit Science Annex after Cancel.
+`/private/tmp/fixflow-building-keyboard-focus.png` captures the populated focused
+form. Cancelled the inspection without changing backend data. The eight component
+tests cover cancellation, saved-confirmation focus, Chinese submission, request
+list failure, failed-update retention, stale-save focus, stale saves across site
+changes and reporter controls. Production
+build passed. This is a focused keyboard improvement, not full AT acceptance.

@@ -1,6 +1,6 @@
 # Member 3 acceptance map
 
-Reviewed 2 November 2026 against fixflow-task-prd(1)(1).md, current web sources,
+Reviewed 3 November 2026 against fixflow-task-prd(1)(1).md, current web sources,
 backend controller mappings, automated checks and recorded live observations.
 The full objective is not complete. Implementation, automated checks and live
 acceptance are separate columns; a source file or passing helper is not release proof.
@@ -45,8 +45,8 @@ acceptance are separate columns; a source file or passing helper is not release 
 | Site create/edit and accessible cards | SitesView; maintenance service; requestFields tests | Implemented; all mutations not live-accepted |
 | Super-admin site context / ordinary own-site scope | maintenance store; store/siteDetails tests | Implemented; site change/privacy guards covered |
 | Authorized account provisioning | TeamAccessView; registration builder; teamAccess tests | Implemented; broader live provisioning gate open |
-| First-login setup / subsite create/edit/archive | SubsitesView; subsites component/service tests | Implemented; live read checks recorded |
-| Missing-building suggestion/list/resolve | report form/subsite views; service/component tests | Live suggestion submission and admin pending-list read observed |
+| First-login setup / subsite create/edit/archive | SubsitesView; subsites component/service tests | Implemented; live create/edit and reload persistence observed; archive acceptance remains open |
+| Missing-building suggestion/list/resolve | report form/subsite views; service/component tests | Live suggestion → admin building creation → resolution → reload observed; reporter management denied with 403 |
 | Admin applications / shop manager | auth/team access services and views | Source and component evidence; independent human/team review remains open |
 
 ## 3.4 Technician network and workflow

@@ -377,3 +377,23 @@ these are backend/team inputs rather than frontend package installations.
 - Privacy drafting reference: OECD privacy principles (https://www.oecd.org/en/topics/privacy-principles.html); this is general design guidance, not a jurisdiction-specific legal approval.
 - Documented native MinIO and Docker MinIO deployment in `PHOTO_STORAGE.md`. No Docker or native MinIO executable is available on PATH here; actual persistent storage acceptance is pending. In-memory URLs now receive an explicit explanatory message; credential-bearing photo URLs are rejected.
 - Full Vitest run: 58 files, 369 tests passed. Production build passed. Browser screenshot: `/private/tmp/fixflow-technician-agreement.png` (English, narrow layout). No backend sources, active agreement configuration, real contract acceptance or payment actions changed.
+
+## 3 November 2026 — missing-building review completion
+
+Used only the isolated `fixflow_web_verify_1793370073` database behind web :8081 / API :8082. The previously submitted reporter request #1 on site #1 requested Science Annex and was pending before this run.
+
+- Signed in through the real web login as the disposable bootstrap administrator; opened `/sites/1/subsites`.
+- Added label `SCI`, name `Science Annex`, description `Disposable building suggestion verification, 3 November 2026.` through the web form. The API saved building #3 and the list displayed two active locations.
+- Selected `Resolve request 1` only after the requested building was saved. The web showed `Request #1 marked resolved`, zero pending, and no pending requests.
+- Reloaded the page: both Main Building and Science Annex remained visible and the pending queue stayed empty. Screenshot `/private/tmp/fixflow-building-request-resolved.png` records that persisted state.
+- Independently read the real API as the reporter: its building list includes #3 / SCI / Science Annex. The admin pending endpoint returned an empty list. A reporter POST to the resolve endpoint received HTTP 403 (`Only this site's admin can manage subsites`), proving the UI visibility is backed by server authorization in this fixture.
+- No real site data changed. The new synthetic building remains active for follow-up report-form testing. Used the saved building’s Edit control to change its description to `Disposable building suggestion verified; administrator edit persisted on 3 November 2026.`; saved through PUT, reloaded the web, and confirmed the new description independently through the reporter API. This closes the scoped live building suggestion/create/edit/resolve check, not archive, all account-provisioning decisions, or the full maintenance lifecycle.
+
+## 3 November 2026 — building editor focus follow-up
+
+Implemented and live-inspected entry/cancel focus for the inline building editor.
+Actual browser AX focus moved Edit Science Annex → Short label → Edit Science Annex.
+The component suite additionally verifies saved-confirmation focus and all existing
+building management regressions: 8 tests passed. Full web suite: 58 files / 373
+tests passed. Production build passed. No backend
+mutation was made during this focus inspection. See ACCESSIBILITY_REVIEW.md.
