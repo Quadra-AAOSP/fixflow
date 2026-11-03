@@ -18,7 +18,7 @@ describe('account landing screens', () => {
     expect(accountHome({ ...user, role: 'reporter', siteOnboarding: {
       siteId: 71, reportingReady: false, setupRequired: false,
       canManageSubsites: false, setupEndpoint: '/api/sites/71/subsites',
-    } })).toBe('/');
+    } })).toBe('/reporter');
   });
   it('shows pending applicants their status and keeps approved users in their workspace', () => {
     expect(accountHome({ ...user, role: 'reporter', adminApplication: { id: 4, status: 'pending' } })).toBe('/admin-application');

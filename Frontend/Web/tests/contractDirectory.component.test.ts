@@ -7,10 +7,12 @@ import ContractsView from '../src/views/app/ContractsView.vue';
 import { useAuthStore } from '../src/stores/auth';
 import { useMaintenanceStore } from '../src/stores/maintenance';
 import * as api from '../src/services/access';
+import * as technicianApi from '../src/services/technician';
 import { setLocale } from '../src/i18n';
 import { site } from './fixtures';
 vi.mock('vue-router', () => ({ useRoute: () => ({ query: {} }) }));
-vi.mock('../src/services/access', () => ({ listSiteContracts: vi.fn(), createTechnicianContract: vi.fn(), listContractApplications: vi.fn(), requestTechnicianContract: vi.fn(), decideContractApplication: vi.fn() }));
+vi.mock('../src/services/access', () => ({ deleteTechnicianContract: vi.fn(), listSiteContracts: vi.fn(), createTechnicianContract: vi.fn(), listContractApplications: vi.fn(), requestTechnicianContract: vi.fn(), decideContractApplication: vi.fn() }));
+vi.mock('../src/services/technician', () => ({ getTechnicianTermsFor: vi.fn() }));
 const row = { id: 99, technicianId: 54, siteId: 7, createdAt: '2026-10-30T08:00:00Z' };
 let wrapper: VueWrapper;
 beforeEach(() => {
@@ -82,4 +84,35 @@ it('does not request another site’s directory for a site administrator', async
   wrapper = mount(ContractDirectoryPanel); await flushPromises();
   expect(api.listSiteContracts).not.toHaveBeenCalled();
   expect(wrapper.text()).toContain('Choose an accessible site');
+});
+
+it('requires confirmation and retains a contract if removal fails', async () => {
+  wrapper = mount(ContractDirectoryPanel); await flushPromises();
+  await wrapper.findAll('.contract-records button')[1]!.trigger('click');
+  expect(api.deleteTechnicianContract).not.toHaveBeenCalled();
+  vi.mocked(api.deleteTechnicianContract).mockRejectedValue(new Error('Removal refused'));
+  await wrapper.get('section[aria-label="Remove recorded relationship"] button').trigger('click'); await flushPromises();
+  expect(wrapper.get('[role="alert"]').text()).toContain('Removal refused');
+  expect(wrapper.get('.contract-records').text()).toContain('Contract #99');
+  vi.mocked(api.deleteTechnicianContract).mockResolvedValue();
+  await wrapper.get('section[aria-label="Remove recorded relationship"] button').trigger('click'); await flushPromises();
+  expect(wrapper.text()).toContain('No contracts are recorded');
+});
+it('reads technician-specific terms without accepting them on the technician’s behalf', async () => {
+  vi.mocked(technicianApi.getTechnicianTermsFor).mockResolvedValue({ technicianId: 54, currentVersion: 'v2', documentUrl: null, enforcementRequired: true, acceptedCurrentVersion: false, acceptances: [] });
+  wrapper = mount(ContractDirectoryPanel); await flushPromises();
+  await wrapper.get('.contract-records button').trigger('click'); await flushPromises();
+  expect(technicianApi.getTechnicianTermsFor).toHaveBeenCalledWith(54);
+  expect(wrapper.get('section[aria-label="Technician terms status"]').text()).toContain('Current terms not accepted');
+});
+it('ignores an old terms response after the selected site changes', async () => {
+  useAuthStore().user!.role = 'super_admin';
+  let finish!: (value: any) => void;
+  vi.mocked(technicianApi.getTechnicianTermsFor).mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  wrapper = mount(ContractDirectoryPanel); await flushPromises();
+  await wrapper.get('.contract-records button').trigger('click');
+  vi.mocked(api.listSiteContracts).mockResolvedValue([]);
+  useMaintenanceStore().selectedSiteId = 8; await flushPromises();
+  finish({ technicianId: 54, currentVersion: 'private-old-version', acceptances: [] }); await flushPromises();
+  expect(wrapper.text()).not.toContain('private-old-version');
 });

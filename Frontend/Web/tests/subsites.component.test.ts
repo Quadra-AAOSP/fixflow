@@ -15,7 +15,7 @@ vi.mock('vue-router', () => ({ useRoute: () => ({ params: reactive(routing.param
 vi.mock('../src/services/maintenance', () => ({ listSubsites: vi.fn(), listPendingSubsiteRequests: vi.fn(), createSubsite: vi.fn(), updateSubsite: vi.fn(), archiveSubsite: vi.fn(), resolveSubsiteRequest: vi.fn() }));
 const building: Subsite = { id: 42, siteId: 7, label: 'A', name: 'Original Main Building', description: null, archivedAt: null };
 let wrapper: VueWrapper;
-const render = () => mount(SubsitesView, { global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } } });
+const render = () => mount(SubsitesView, { attachTo: document.body, global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } } });
 beforeEach(() => {
   setActivePinia(createPinia()); vi.resetAllMocks(); setLocale('en'); routing.params.siteId = '7';
   useAuthStore().user = { id: 1, role: 'super_admin', siteId: null, firstName: 'Test', lastName: 'Admin', email: 'admin@example.invalid', phone: null, address: null };
@@ -38,6 +38,60 @@ describe('labelled building management', () => {
     expect(wrapper.get('[role="status"]').text()).toContain('已为 Test site 7 保存 B · Original Annex');
     setLocale('en'); await nextTick();
     expect(wrapper.get('[role="status"]').text()).toContain('B · Original Annex saved for Test site 7.');
+  });
+  it('moves keyboard focus into the editor and returns to the initiating button on cancel', async () => {
+    wrapper = render(); await flushPromises();
+    const edit = wrapper.get<HTMLButtonElement>('button[aria-label="Edit Original Main Building"]');
+    edit.element.focus();
+    await edit.trigger('click'); await flushPromises();
+    expect(document.activeElement).toBe(wrapper.get('input[maxlength="64"]').element);
+    expect(wrapper.get<HTMLInputElement>('input[maxlength="64"]').element.value).toBe('A');
+    const cancel = wrapper.findAll('button').find(button => button.text() === 'Cancel editing')!;
+    await cancel.trigger('click'); await flushPromises();
+    expect(document.activeElement).toBe(edit.element);
+    expect(wrapper.get<HTMLInputElement>('input[maxlength="64"]').element.value).toBe('');
+    expect(api.updateSubsite).not.toHaveBeenCalled();
+  });
+  it('focuses the saved confirmation after updating a building', async () => {
+    let submitted: unknown;
+    vi.mocked(api.updateSubsite).mockImplementation(async (siteId, id, value) => {
+      submitted = { siteId, id, ...value };
+      return { ...building, name: 'Updated Building' };
+    });
+    wrapper = render(); await flushPromises();
+    await wrapper.get('button[aria-label="Edit Original Main Building"]').trigger('click');
+    await wrapper.get('input[maxlength="255"]').setValue('Updated Building');
+    await wrapper.get('form').trigger('submit'); await flushPromises();
+    expect(submitted).toEqual({ siteId: 7, id: 42, label: 'A', name: 'Updated Building', description: '' });
+    expect(document.activeElement).toBe(wrapper.get('[role="status"]').element);
+    expect(wrapper.get('[role="status"]').text()).toContain('Updated Building saved');
+  });
+  it('retains the editor and entered values after a rejected update', async () => {
+    vi.mocked(api.updateSubsite).mockRejectedValue(new Error('Building label already exists'));
+    wrapper = render(); await flushPromises();
+    await wrapper.get('button[aria-label="Edit Original Main Building"]').trigger('click');
+    await wrapper.get('input[maxlength="255"]').setValue('Retry Building');
+    await wrapper.get('form').trigger('submit'); await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toContain('Building label already exists');
+    expect(wrapper.get<HTMLInputElement>('input[maxlength="255"]').element.value).toBe('Retry Building');
+    expect(wrapper.get('fieldset').attributes('disabled')).toBeUndefined();
+    expect(wrapper.text()).toContain('Cancel editing');
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Original Main Building');
+  });
+  it('does not move focus when an old site save completes after switching sites', async () => {
+    let finish!: (row: Subsite) => void;
+    vi.mocked(api.updateSubsite).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    wrapper = render(); await flushPromises();
+    await wrapper.get('button[aria-label="Edit Original Main Building"]').trigger('click');
+    await wrapper.get('form').trigger('submit');
+    reactive(routing.params).siteId = '8'; await flushPromises();
+    const back = wrapper.get<HTMLAnchorElement>('a');
+    back.element.setAttribute('href', '/sites'); back.element.focus();
+    finish({ ...building, name: 'Old site result' }); await flushPromises();
+    expect(document.activeElement).toBe(back.element);
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('Old site result');
   });
   it('does not show zero pending requests after a request-list failure', async () => {
     vi.mocked(api.listPendingSubsiteRequests).mockRejectedValue(new Error('Request list unavailable'));

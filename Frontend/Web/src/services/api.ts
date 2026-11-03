@@ -13,17 +13,39 @@ export function setUnauthorizedHandler(handler: () => void) { onUnauthorized = h
 
 type CsrfToken = { headerName: string; token: string };
 let csrfFlight: Promise<CsrfToken> | undefined;
-function csrfToken(signal?: AbortSignal | null): Promise<CsrfToken> {
-  // Share concurrent bootstrap requests, but never cache across login/logout.
-  csrfFlight ??= request<CsrfToken>('/api/auth/csrf', { signal }).then(value => {
-    if (value.headerName !== 'X-CSRF-TOKEN' || !value.token) throw new Error('Invalid CSRF response');
-    return value;
-  }).finally(() => { csrfFlight = undefined; });
-  return csrfFlight;
+let sessionRevision = 0;
+const pendingControllers = new Set<AbortController>();
+export function advanceRequestSession() {
+  sessionRevision++;
+  csrfFlight = undefined;
+  for (const controller of [...pendingControllers]) controller.abort();
+}
+function csrfToken(signal: AbortSignal): Promise<CsrfToken> {
+  // One bootstrap per current session; a caller's cancellation must not cancel its peers.
+  if (!csrfFlight) {
+    const flight = request<CsrfToken>('/api/auth/csrf').then(value => {
+      if (value.headerName !== 'X-CSRF-TOKEN' || !value.token) throw new Error('Invalid CSRF response');
+      return value;
+    }).finally(() => { if (csrfFlight === flight) csrfFlight = undefined; });
+    csrfFlight = flight;
+  }
+  const flight = csrfFlight;
+  if (signal.aborted) return Promise.reject(new DOMException('Request cancelled.', 'AbortError'));
+  return new Promise((resolve, reject) => {
+    const abort = () => { reject(new DOMException('Request cancelled.', 'AbortError')); };
+    signal.addEventListener('abort', abort, { once: true });
+    flight.then(value => { signal.removeEventListener('abort', abort); resolve(value); },
+      error => { signal.removeEventListener('abort', abort); reject(error); });
+  });
 }
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const requestRevision = sessionRevision;
   const controller = new AbortController();
+  pendingControllers.add(controller);
+  const assertCurrent = () => {
+    if (requestRevision !== sessionRevision || controller.signal.aborted) throw new DOMException('Request cancelled.', 'AbortError');
+  };
   let timedOut = false;
   const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 20_000);
   const cancel = () => controller.abort();
@@ -38,26 +60,33 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
       const csrf = await csrfToken(controller.signal);
       headers.set(csrf.headerName, csrf.token);
     }
+    assertCurrent();
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init, headers, credentials: 'include', redirect: 'error', signal: controller.signal,
     });
+    assertCurrent();
     if (!response.ok) {
       let message = response.status === 401 ? 'Your session has expired. Please sign in again.' : response.statusText || 'Request failed';
       try {
         const body = await response.json() as ApiErrorBody;
         message = body.message || message;
       } catch { /* Spring security and proxies may return non-JSON errors. */ }
+      assertCurrent();
       if (response.status === 401 && !path.startsWith('/api/auth/')) onUnauthorized?.();
       throw new ApiError(response.status, message);
     }
     if (response.status === 204) return undefined as T;
-    return await response.json() as T;
+    const value = await response.json() as T;
+    assertCurrent();
+    return value;
   } catch (error) {
     if (error instanceof ApiError) throw error;
+    if (requestRevision !== sessionRevision) throw new DOMException('Request cancelled.', 'AbortError');
     if (timedOut) throw new Error('The server took too long to respond. Please try again.');
     if (init.signal?.aborted) throw new DOMException('Request cancelled.', 'AbortError');
     throw new Error('Unable to reach the server. Check your connection and try again.');
   } finally {
+    pendingControllers.delete(controller);
     clearTimeout(timeout);
     init.signal?.removeEventListener('abort', cancel);
   }
