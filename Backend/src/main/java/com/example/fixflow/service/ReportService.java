@@ -210,6 +210,19 @@ public class ReportService {
 	}
 
 	@Transactional(readOnly = true)
+	public boolean canRead(Long id, AppUserDetails actor) {
+		try {
+			get(id, actor);
+			return true;
+		} catch (ApiException ex) {
+			if (ex.getStatus() == 403 || ex.getStatus() == 404) {
+				return false;
+			}
+			throw ex;
+		}
+	}
+
+	@Transactional(readOnly = true)
 	public ReportResponse get(Long id, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
@@ -358,7 +371,7 @@ public class ReportService {
 
 	@Transactional
 	public ReportResponse confirm(Long id, AppUserDetails actor) {
-		Report report = reportRepository.findDetailedById(id)
+		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
 		assertCanSeeVisibility(actor, report);
@@ -379,7 +392,7 @@ public class ReportService {
 
 	@Transactional
 	public ReportResponse reopen(Long id, ReopenReportRequest request, AppUserDetails actor) {
-		Report report = reportRepository.findDetailedById(id)
+		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
 		assertCanSeeVisibility(actor, report);
