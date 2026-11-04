@@ -20,7 +20,25 @@
       },
       "newHere": "第一次来这里？",
       "createAccount": "创建账户",
+      "pickPath": "新用户 — 选择您能如何帮忙",
+      "superAdminCta": "平台管理员控制台",
       "tagline": "您的报修。合适的人。一点安心。"
+    },
+    "superAdminLogin": {
+      "kicker": "仅限平台所有者",
+      "title": "超级管理员",
+      "description": "平台所有者的专用控制台。站点管理员、员工、维修技师和报修人请使用上方标准登录表单。",
+      "emailLabel": "管理员邮箱（锁定）",
+      "passwordLabel": "管理员密码",
+      "passwordPlaceholder": "••••••••",
+      "submit": "进入平台控制台 →",
+      "backToSignIn": "← 返回普通登录",
+      "disclaimer": "此账户拥有全平台权限，所有操作均被记录。",
+      "errors": {
+        "passwordRequired": "请输入密码。",
+        "invalidPassword": "管理员密码错误。",
+        "notSuperAdmin": "该账户不是平台超级管理员。"
+      }
     },
     "register": {
       "kicker": "在 FixFlow 找到你的位置",

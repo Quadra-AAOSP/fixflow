@@ -20,7 +20,25 @@
       },
       "newHere": "New around here?",
       "createAccount": "Create an account",
+      "pickPath": "New here — pick how you'll help",
+      "superAdminCta": "Platform admin console",
       "tagline": "Your report. The right people. A little peace of mind."
+    },
+    "superAdminLogin": {
+      "kicker": "PLATFORM OWNER ONLY",
+      "title": "Super admin",
+      "description": "Dedicated console for the FixFlow platform owner. Site admins, staff, technicians and reporters use the standard sign-in form above.",
+      "emailLabel": "Admin email (locked)",
+      "passwordLabel": "Admin password",
+      "passwordPlaceholder": "••••••••",
+      "submit": "Enter platform console →",
+      "backToSignIn": "← Back to regular sign-in",
+      "disclaimer": "This account has platform-wide authority. Every action is logged.",
+      "errors": {
+        "passwordRequired": "Password is required.",
+        "invalidPassword": "Invalid admin password.",
+        "notSuperAdmin": "That account is not a platform super admin."
+      }
     },
     "register": {
       "kicker": "FIND YOUR PLACE IN FIXFLOW",
