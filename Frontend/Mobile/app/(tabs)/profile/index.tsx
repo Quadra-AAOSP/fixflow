@@ -7,6 +7,7 @@ import {
   LogOut,
   Mail,
   Phone,
+  Settings,
   ShieldCheck,
   UserRound,
 } from 'lucide-react-native';
@@ -26,9 +27,9 @@ import { logout as logoutBackend } from '@/services/auth';
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
 /**
- * Profile screen. Identity-first hero, grouped preference rows, and
- * sign-out that always clears the local session regardless of what the
- * backend says (network-fault tolerance).
+ * Profile screen. Identity-first hero with settings entry, grouped
+ * detail rows, preferences, and a mint-themed log out button that always
+ * clears the local session regardless of what the backend returns.
  */
 export default function ProfileScreen() {
   const { t } = useTranslation('common');
@@ -47,21 +48,17 @@ export default function ProfileScreen() {
     return <Screen>{null}</Screen>;
   }
 
-  async function doSignOut() {
+  async function doLogOut() {
     setSigningOut(true);
     let backendError: string | null = null;
     try {
       await logoutBackend();
     } catch (err) {
-      // Best-effort — the server may already have expired the token, the
-      // endpoint may be down, or the request may not even send on web. A
-      // failed backend logout never leaves the user signed in here.
       backendError =
         err instanceof ApiError
           ? err.message
           : t('profile.session.signOutFailed');
     }
-    // ALWAYS clear the local session — regardless of backend outcome.
     try {
       await clearSession();
     } catch {
@@ -69,11 +66,12 @@ export default function ProfileScreen() {
     }
     setSigningOut(false);
     if (backendError) {
-      Alert.alert(
-        t('profile.session.signOutAlertTitle'),
-        backendError,
-      );
+      Alert.alert(t('profile.session.signOutAlertTitle'), backendError);
     }
+  }
+
+  function openSettings() {
+    router.push('/profile/settings');
   }
 
   const roleLabel = t(roleLabels[user.role]);
@@ -91,30 +89,46 @@ export default function ProfileScreen() {
         contentContainerClassName="pb-12"
         showsVerticalScrollIndicator={false}
       >
-        {/* HERO — a single mint block that frames identity instead of letting
-            the avatar float. Top-left kicker, centered identity, pill
-            anchors at the bottom of the block. */}
+        {/* HERO — identity block with top-right settings. */}
         <View
           className="relative overflow-hidden border-b border-dashboard-card-line pb-6 pt-10"
           style={{ backgroundColor: dashboardColors.bannerBg }}
         >
-          {/* Decorative mint circles — radial soft accents, not noise. */}
+          {/* Soft radial accents in the brand mint, consistent with the
+              rest of the app's editorial hero treatment. */}
           <View
             className="absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-30"
             style={{ backgroundColor: dashboardColors.statMintSoft }}
           />
           <View
-            className="absolute -left-4 top-16 h-20 w-20 rounded-full opacity-25"
-            style={{ backgroundColor: dashboardColors.statCoralSoft }}
+            className="absolute -left-4 top-20 h-20 w-20 rounded-full opacity-25"
+            style={{ backgroundColor: dashboardColors.statMintSoft }}
           />
 
           <View className="relative px-5">
-            <Text
-              className="mb-4 text-[10px] font-semibold uppercase tracking-[1.4px] text-dashboard-caption"
-              style={{ letterSpacing: 1.4 }}
-            >
-              {t('profile.heroKicker')}
-            </Text>
+            {/* Top row: kicker on the left, settings on the right. */}
+            <View className="mb-5 flex-row items-center justify-between">
+              <Text
+                className="text-[10px] font-semibold uppercase tracking-[1.4px] text-dashboard-caption"
+                style={{ letterSpacing: 1.4 }}
+              >
+                {t('profile.heroKicker')}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.openSettings')}
+                onPress={openSettings}
+                className="flex-row items-center gap-1 rounded-full border border-dashboard-card-line bg-dashboard-card-bg/80 px-3 py-1.5 active:opacity-80"
+              >
+                <Settings color={dashboardColors.teal} size={13} />
+                <Text
+                  className="text-[10px] font-semibold uppercase tracking-[1px]"
+                  style={{ color: dashboardColors.teal, letterSpacing: 1 }}
+                >
+                  {t('profile.openSettings')}
+                </Text>
+              </Pressable>
+            </View>
 
             {/* Avatar + identity column. */}
             <View className="items-center">
@@ -147,8 +161,7 @@ export default function ProfileScreen() {
                 </Text>
               </View>
 
-              {/* Role pill — a visual anchor so the hero doesn't feel like
-                  just a name and email. */}
+              {/* Role pill — visual anchor. */}
               <View
                 className="mt-3 flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
                 style={{ backgroundColor: dashboardColors.pillBg }}
@@ -162,14 +175,15 @@ export default function ProfileScreen() {
                 </Text>
               </View>
 
-              {/* Site pill — second identity anchor. Not everyone has a site
-                  (some accounts are site-agnostic), so we hide it when dash. */}
+              {/* Site pill — second identity anchor, hidden when the account
+                  is site-agnostic. */}
               {user.siteId !== null ? (
-                <View
-                  className="mt-2 flex-row items-center gap-1.5 rounded-full border border-dashboard-card-line px-3 py-1.5"
-                >
+                <View className="mt-2 flex-row items-center gap-1.5 rounded-full border border-dashboard-card-line px-3 py-1.5">
                   <Building2 color={dashboardColors.subtitle} size={11} />
-                  <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-subtitle" style={{ letterSpacing: 1.2 }}>
+                  <Text
+                    className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-subtitle"
+                    style={{ letterSpacing: 1.2 }}
+                  >
                     {siteName}
                   </Text>
                 </View>
@@ -180,10 +194,13 @@ export default function ProfileScreen() {
 
         {/* MAIN CONTENT */}
         <View className="px-5 pt-6">
-          {/* Account details — polished icon rows instead of plain key/value. */}
+          {/* Account details — icon rows instead of plain key/value. */}
           <Card padded={false} className="mb-5 overflow-hidden">
             <View className="px-4 pb-2 pt-4">
-              <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption" style={{ letterSpacing: 1.2 }}>
+              <Text
+                className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption"
+                style={{ letterSpacing: 1.2 }}
+              >
                 {t('profile.accountDetails')}
               </Text>
             </View>
@@ -191,6 +208,11 @@ export default function ProfileScreen() {
               icon={UserRound}
               label={t('profile.labels.role')}
               value={roleLabel}
+            />
+            <IconRow
+              icon={Mail}
+              label={t('profile.labels.accountId')}
+              value={String(user.id)}
             />
             <IconRow
               icon={Phone}
@@ -205,11 +227,14 @@ export default function ProfileScreen() {
             />
           </Card>
 
-          {/* Technician contracts — web parity, with a proper action row. */}
+          {/* Technician contracts — web parity, proper action row. */}
           {user.role === 'technician' ? (
             <Card padded={false} className="mb-5 overflow-hidden">
               <View className="px-4 pb-2 pt-4">
-                <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption" style={{ letterSpacing: 1.2 }}>
+                <Text
+                  className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption"
+                  style={{ letterSpacing: 1.2 }}
+                >
                   {t('profile.contracts.kicker')}
                 </Text>
                 <Text
@@ -234,10 +259,14 @@ export default function ProfileScreen() {
             </Card>
           ) : null}
 
-          {/* Preferences */}
+          {/* Preferences — availability for technicians, session echo for
+              everyone else. */}
           <Card padded={false} className="mb-5 overflow-hidden">
             <View className="px-4 pb-2 pt-4">
-              <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption" style={{ letterSpacing: 1.2 }}>
+              <Text
+                className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption"
+                style={{ letterSpacing: 1.2 }}
+              >
                 {t('profile.availability.kicker')}
               </Text>
             </View>
@@ -275,11 +304,12 @@ export default function ProfileScreen() {
             )}
           </Card>
 
-          {/* SIGN OUT — destructive, always clears local session, shows
-              loading state while the backend answers. */}
+          {/* LOG OUT — mint theme so it sits with the rest of the app instead
+              of screaming coral. Loading state, always clears local session,
+              backend failure is surfaced but never blocks the sign-out. */}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t('profile.session.signOut')}
+            accessibilityLabel="Log out"
             disabled={signingOut}
             onPress={() =>
               Alert.alert(
@@ -288,29 +318,27 @@ export default function ProfileScreen() {
                 [
                   { text: t('profile.session.cancel'), style: 'cancel' },
                   {
-                    text: t('profile.session.signOut'),
-                    style: 'destructive',
-                    onPress: doSignOut,
+                    text: 'Log out',
+                    style: 'default',
+                    onPress: doLogOut,
                   },
                 ],
               )
             }
             className="mb-4 flex-row items-center justify-center gap-2 rounded-[11px] px-4 py-3 active:opacity-90"
             style={{
-              backgroundColor: dashboardColors.statCoralSoft,
+              backgroundColor: dashboardColors.statMintSoft,
               borderWidth: 1,
-              borderColor: dashboardColors.statCoralDeep,
+              borderColor: dashboardColors.statMintDeep,
               opacity: signingOut ? 0.6 : 1,
             }}
           >
-            <LogOut color={dashboardColors.statCoralDeep} size={16} />
+            <LogOut color={dashboardColors.statMintDeep} size={16} />
             <Text
               className="text-[13px] font-semibold"
-              style={{ color: dashboardColors.statCoralDeep }}
+              style={{ color: dashboardColors.statMintDeep }}
             >
-              {signingOut
-                ? t('profile.session.refreshing')
-                : t('profile.session.signOut')}
+              {signingOut ? 'Signing out…' : 'Log out'}
             </Text>
           </Pressable>
 
@@ -330,7 +358,7 @@ type IconRowProps = {
   last?: boolean;
 };
 
-/** Two-line row: tinted icon disc, label, right-aligned value. */
+/** Icon disc + label + right-aligned value, used for every detail row. */
 function IconRow({ icon: Icon, label, value, last }: IconRowProps) {
   return (
     <View
@@ -342,7 +370,10 @@ function IconRow({ icon: Icon, label, value, last }: IconRowProps) {
       >
         <Icon color={dashboardColors.statMintDeep} size={13} />
       </View>
-      <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption" style={{ letterSpacing: 1.2 }}>
+      <Text
+        className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption"
+        style={{ letterSpacing: 1.2 }}
+      >
         {label}
       </Text>
       <Text className="flex-1 text-right text-[13px] font-medium text-ink">
