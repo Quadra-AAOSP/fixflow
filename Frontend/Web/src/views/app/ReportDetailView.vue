@@ -15,6 +15,7 @@ import ReportPhotosPanel from '@/components/ReportPhotosPanel.vue';
 import TechnicianAssignmentPanel from '@/components/technician/TechnicianAssignmentPanel.vue';
 import TechnicianInvitationSender from '@/components/technician/TechnicianInvitationSender.vue';
 import ReportReviewPanel from '@/components/ReportReviewPanel.vue';
+import ReportWorkflowPanel from '@/components/ReportWorkflowPanel.vue';
 import ReportClassificationPanel from '@/components/ReportClassificationPanel.vue';
 import ReportVisionPanel from '@/components/ReportVisionPanel.vue';
 const { t } = useLocale();
@@ -35,9 +36,10 @@ const busy = ref(false);
 const assignmentBusy = ref(false);
 const invitationBusy = ref(false);
 const reviewBusy = ref(false);
+const workflowBusy = ref(false);
 const classificationBusy = ref(false);
 const visionBusy = ref(false);
-const actionInProgress = computed(() => busy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value || visionBusy.value);
+const actionInProgress = computed(() => busy.value || workflowBusy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value || visionBusy.value);
 let generation = 0;
 onBeforeUnmount(() => { generation++; realtime.setReport(null); });
 watch(report, value => realtime.setReport(value));
@@ -88,6 +90,9 @@ async function join() {
   } catch (err) { if (version === generation) actionError.value = errorMessage(err); }
   finally { busy.value = false; }
 }
+function workflowSaved(saved: Report) {
+  report.value = saved; data.upsert(saved); message.value = 'Repair workflow updated by the service.';
+}
 function assigned(saved: Report) {
   report.value = saved;
   data.upsert(saved);
@@ -120,6 +125,7 @@ async function visionFinished(id: number) {
       <div v-if="report.confirmedAt || report.reopenReason" class="detail-section"><p v-if="report.confirmedAt">{{ report.confirmedByName ? t('Confirmed {date} by {name}', { date: formatDate(report.confirmedAt, true), name: report.confirmedByName }) : t('Confirmed {date}', { date: formatDate(report.confirmedAt, true) }) }}</p><p v-if="report.reopenReason">{{ t('Reopen reason: {reason}', { reason: report.reopenReason }) }}</p></div>
       <ReportClassificationPanel :report="report" :disabled="actionInProgress" @busy="classificationBusy = $event" @saved="classified" />
       <ReportVisionPanel :report="report" :disabled="actionInProgress" @busy="visionBusy = $event" @finished="visionFinished" />
+      <ReportWorkflowPanel :report="report" :disabled="actionInProgress" @busy="workflowBusy = $event" @saved="workflowSaved" />
       <ReportReviewPanel :report="report" :disabled="actionInProgress" @busy="reviewBusy = $event" @saved="reviewed" />
       <TechnicianAssignmentPanel :report="report" :disabled="actionInProgress" @busy="assignmentBusy = $event" @saved="assigned" />
       <TechnicianInvitationSender :report="report" :disabled="actionInProgress" @busy="invitationBusy = $event" />

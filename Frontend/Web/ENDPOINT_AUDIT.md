@@ -1,10 +1,10 @@
 # Web endpoint integration audit
 
-Reviewed 2 November 2026 against every mapping in Backend/src/main/java/com/example/fixflow/web/*Controller.java and the web service/view sources. This is source wiring evidence, not proof of live acceptance for every endpoint. Backend files were not modified.
+Reviewed 4 November 2026 against every mapping in Backend/src/main/java/com/example/fixflow/web/*Controller.java and the web service/view sources. This is source wiring evidence, not proof of live acceptance for every endpoint. Backend files were not modified.
 
 ## Current role policy
 
-Reporter: own/participating report home, site report browse/detail/create, site/building information, own application when present, profile and shop. Staff: operational dashboard, reports, assignments and site information. Site/super admins add team access and contracts. Technician: own workspace, invitations, contracts and authorized report details; no report creation or management dashboard. Shop manager: shop, product administration and profile. Route guards accompany menu filtering; the server still authorizes each request.
+Reporter: own/participating report home, site report browse/detail/create, site/building information, own application when present, profile and shop. Staff: operational dashboard, reports, assignments and site information. Site/super admins add team access and contracts. Technician: own workspace, invitations, contracts and authorized report details; no report creation or management dashboard. Shop manager: product administration home and profile; customer shop/order routes redirect to management. Route guards accompany menu filtering; the server still authorizes each request.
 
 ## Controller mapping inventory
 
@@ -87,13 +87,25 @@ Reporter: own/participating report home, site report browse/detail/create, site/
 | TechnicianTermsController | `GET /api/technician-terms/{technicianId}` | Own terms/acceptance and administrative technician-specific terms read are connected; administrators do not accept terms on behalf of technicians. |
 | TechnicianTermsController | `POST /api/technician-terms/accept` | Own terms/acceptance and administrative technician-specific terms read are connected; administrators do not accept terms on behalf of technicians. |
 
+| ReportWorkflowController | `POST /api/reports/{id}/claim` | ClaimReportPanel in technician workspace; exact report ID, server contract/terms checks. |
+| ReportWorkflowController | `POST /api/reports/{id}/start` | ReportWorkflowPanel; assigned technician and allowed status. |
+| ReportWorkflowController | `POST /api/reports/{id}/resolve` | ReportWorkflowPanel; in-progress assigned technician, description up to 10,000 characters. |
+| ReportWorkflowController | `POST /api/reports/{id}/escalate` | ReportWorkflowPanel; assigned technician or site operator, reason up to 2,000 characters. |
+| ReportWorkflowController | `PATCH /api/reports/{id}/urgency` | ReportWorkflowPanel; operator only, final urgency and reason. |
+| ReportWorkflowController | `GET /api/reports/{id}/history` | ReportWorkflowPanel; server-masked note/identity retained as returned. |
+| ReportWorkflowController | `GET /api/reports/{id}/resolutions` | ReportWorkflowPanel; saved repair descriptions and IDs. |
+| ReportWorkflowController | `POST /api/reports/{id}/ratings` | ReportWorkflowPanel; confirmed repair, participant/operator, returned resolution ID. |
+| ReportWorkflowController | `GET /api/reports/{id}/ratings` | ReportWorkflowPanel; saved score and feedback. |
+| ReportWorkflowController | `POST /api/reports/{id}/links` | ReportWorkflowPanel; operator only, target ID and reason, server authorization. |
+| ReportWorkflowController | `GET /api/reports/{id}/links` | ReportWorkflowPanel; server-filtered related report links. |
+
 ## Remaining integration work
 
 - Product administration is connected; wider role and production acceptance remain separate.
 - Site detail/setup/taxonomy/pool reads are connected; verify wider live role acceptance and production behavior.
 - Site, rule and contract removal controls are connected with explicit permanent-delete confirmation and role/scope guards. Destructive live acceptance remains unexecuted.
 - Verify role flows and mutations in the live browser against disposable fixtures. Unit coverage alone is insufficient.
-- No lifecycle endpoints exist for assigned-to-me/claim/start/resolve/history/triage/escalation/urgency override/rating/linked reports/admin review; do not invent successful client states.
+- Dedicated assigned-to-me/claimable queues, triage and admin-review APIs remain absent. Claim/start/resolve/escalation/urgency/history/resolutions/ratings/links were published in 0fabdd5 and are now connected below. Technician report GET still requires the technician to be assigned, so claim is exposed by ID rather than a fabricated browsing queue.
 
 ## 3 November follow-up: agreement and photo deployment
 

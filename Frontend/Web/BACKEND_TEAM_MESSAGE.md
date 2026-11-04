@@ -26,3 +26,5 @@ The web updates are ready, and we need these backend changes to finish the reque
    - The development checkout now waits at an explicit simulation screen before calling the existing dev-complete endpoint. Please keep dev completion restricted to the current user's pending development-provider order and disabled for real payment-provider orders. No production payment is simulated in the web.
 
 Please reply with the final endpoint shapes, authorization rules and error codes. We can then replace the integration notices with live hiring listings and full reporter request history and run the complete acceptance flows.
+
+Update, 4 November 2026: the report lifecycle routes from commit 0fabdd5 are now connected on the web (claim by ID, start, resolve, escalation, urgency override, history, resolutions, ratings and links). The requests above still apply. A dedicated claimable/assigned-work queue remains needed: technician GET report currently rejects unassigned reports, and site-scoped report listing still rejects null-site technicians.

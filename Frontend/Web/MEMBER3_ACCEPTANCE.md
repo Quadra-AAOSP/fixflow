@@ -1,6 +1,6 @@
 # Member 3 acceptance map
 
-Reviewed 3 November 2026 against fixflow-task-prd(1)(1).md, current web sources,
+Reviewed 4 November 2026 against fixflow-task-prd(1)(1).md, current web sources,
 backend controller mappings, automated checks and recorded live observations.
 The full objective is not complete. Implementation, automated checks and live
 acceptance are separate columns; a source file or passing helper is not release proof.
@@ -61,10 +61,12 @@ acceptance are separate columns; a source file or passing helper is not release 
 | Terms review/acceptance/version change | TechnicianTermsPanel and terms tests | Implemented; real policy/legal approval remains external |
 | Eligible candidates/workload/ranking/fallback | ranking/assignment panels and tests | Implemented; no invented AI ranking result |
 | Invitations and availability | invitation/availability panels and tests; LIVE_ROLE_CHECKS.md | Live availability update/restoration observed; invitation acceptance remains open |
-| Assigned/claimable queues, claims, triage/escalation/urgency override | Current backend mapping scan | Unavailable: required APIs are not published |
+| Claims, escalation and urgency override | reportWorkflow service/panel; ClaimReportPanel; workflow tests | New backend routes connected; claim by ID verified through API fixture setup; wider operator UI cases pending |
+| Dedicated assigned/claimable queues and triage | Current backend mapping scan | Still unavailable; technician report GET forbids unassigned report browsing |
 | Reporter/admin confirmation and reopen | ReportReviewPanel; reportReview tests | Implemented; full live lifecycle cannot be exercised yet |
-| Work start/resolution/history | Current backend mapping scan | Unavailable: required APIs are not published |
-| Ratings/linked reports/admin review | Current backend mapping scan | Unavailable: contract not published |
+| Work start/resolution/history | ReportWorkflowPanel; new backend controller and tests | Live technician start → resolve → history observed |
+| Ratings and linked reports | ReportWorkflowPanel; workflow transport/component tests | Live reporter rating observed; linked-report browser mutation pending |
+| Admin review | Current backend mapping scan | Dedicated contract still absent |
 
 ## 3.5 Realtime, shop and delivery gates
 
@@ -73,8 +75,8 @@ acceptance are separate columns; a source file or passing helper is not release 
 | Socket subscription/dedup/reconnect/logout/REST authorization | reportRealtime/realtime store and tests | Implemented; selected live revocation/expiry cases recorded |
 | No private retention after reassignment/expiry | reportDetailPrivacy tests; live observations | Verified in scoped cases; not every browser lifecycle |
 | Shop catalogue/basket/checkout/orders/profile | shop views/stores/services; shop tests | Implemented; local fixtures used; no production payment acceptance |
-| Tests and production build | Current audit commands; opt-in tests/live/backendConnections.test.ts | Default suite 373 passed / 7 live skipped; separate live run 7 passed; production build passes |
-| Full role-to-confirmation delivery | Backend lifecycle gaps plus remaining live matrix | Not achieved |
+| Tests and production build | Current audit commands; opt-in tests/live/backendConnections.test.ts | Default suite 389 passed / 7 live skipped; prior separate live service run 7 passed; new backend workflow suite 8 passed; production build passes |
+| Role-to-confirmation delivery | 4 November live fixture entry in VERIFICATION.md | Scoped technician start/resolve → reporter confirm/rating observed; full role/privacy matrix remains open |
 | Keyboard/responsive/accessibility | ACCESSIBILITY_REVIEW.md; navigationAccessibility tests | Targeted evidence only; wider assistive-technology work remains |
 | English/Chinese localization | i18n catalog; locale component tests | Implemented; selected live language checks recorded |
 | Technician agreement review | Human approval recorded in chat on 3 November 2026; /agreements/technician/2026-11-03 | Team-approved document published; backend active-version configuration remains pending |
@@ -90,7 +92,7 @@ real records or imply that database relationship removal is legal termination.
 
 ## Conditions needed to finish
 
-1. Backend owners publish the missing maintenance lifecycle/queue contracts.
+1. Backend owners publish remaining queue/triage/admin-review contracts and the requested hiring-listing/reporter-suggestion-history APIs.
 2. A real object-storage verification target and permitted provider configuration
    are supplied for the still-unverified integrations.
 3. Remaining live role flows and wider assistive-technology/browser acceptance run.

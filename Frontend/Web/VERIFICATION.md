@@ -423,3 +423,49 @@ persistence, other role mutations or the missing maintenance lifecycle contracts
 - Full suite: 59 files passed, 1 live suite skipped; 378 tests passed, 7 live tests skipped. Production build passes. Added tests cover visible feedback, explicit simulation, simulation failure, suggestion receipts/rejection, new role routes and management rows.
 - Restarted only the isolated frontend :8081 and backend :8082 against the existing verification schema. The local ignored .env pointed at a different backend, so the verification frontend runs with VITE_API_URL empty and API_PROXY_TARGET=:8082. Live browser confirmed the management table and basket feedback; no payment or product change was submitted. Screenshots: /private/tmp/fixflow-product-management-list.png and /private/tmp/fixflow-cart-feedback.png.
 - The backend handoff is drafted in BACKEND_TEAM_MESSAGE.md; it has not been sent to anyone.
+
+## 4 November 2026 — newly published report lifecycle
+
+Fetched origin and inspected the current merge `5fcdfef`, including backend commit
+`0fabdd5`. `ReportWorkflowController` now publishes eleven mappings: claim, start,
+resolve, escalate, PATCH urgency, GET history/resolutions/ratings/links and POST
+ratings/links. Earlier entries describing these routes as absent are historical.
+No backend source was edited in this batch.
+
+Web implementation:
+- `services/reportWorkflow.ts` connects all eleven controller mappings with matching
+  payloads, CSRF/session transport and DTO length/ID/score constraints.
+- `ReportWorkflowPanel` adds role/status-scoped work actions, operator escalation,
+  urgency override and links, participant/operator rating after confirmation, and
+  saved history/resolution/rating/link lists. Masked history notes remain absent;
+  failed reads do not appear as successful empty lists. Late reads/actions are
+  rejected after report/account/access-scope changes.
+- `ClaimReportPanel` provides technician claim by an explicit site-supplied ID.
+  It opens report detail only after the service returns the assigned report.
+  A claimable listing is not fabricated: technician GET still forbids unassigned
+  reports and null-site technicians cannot use the site-scoped list API.
+- All new interface messages have English and Simplified Chinese entries.
+
+Verification:
+- Full web suite: 389 tests passed; seven opt-in live service tests skipped.
+- Backend `ReportWorkflowIntegrationTest`: eight tests passed, zero failures/errors.
+- Production web build passed.
+- Restarted only the existing isolated backend :8082 to load the new controller and
+  schema, preserving the `fixflow_web_verify_1793370073` verification database.
+- Created disposable public report #4 at site #1 / subsite #3 as reporter fixture #2.
+  Claimed it as technician fixture #4 through the authenticated API fixture helper.
+  Used the actual web UI to start work and submit resolution #1; observed assigned
+  → in_progress → resolved_pending_confirmation with the saved description/history.
+- Signed out through the UI, signed in as the creating reporter, confirmed the
+  repair and submitted rating #1 (5/5) against returned resolution #1. Reloaded the
+  page and refreshed workflow: confirmed status, resolution text, rating and all
+  five status-history entries remained. Reporter UI did not expose operator or
+  technician actions. No real record, agreement acceptance or payment was changed.
+- Screenshot `/private/tmp/fixflow-live-repair-workflow.png` shows persisted repair
+  and rating data. Browser support required the documented browser.tabs API because
+  the older cua tab wrapper reported an unavailable browser.user interface.
+
+Operator escalation/urgency/link browser mutations and the full multi-role/privacy
+matrix remain open. Hiring listings, reporter suggestion history/multiple pending
+suggestions, technician skill retrieval, persistent photo deployment and approved
+terms runtime configuration retain their previously recorded backend/setup gaps.

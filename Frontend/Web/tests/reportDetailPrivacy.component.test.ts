@@ -46,7 +46,7 @@ async function render() {
   await router.push('/reports/2');
   wrapper = mount(ReportDetailView, { global: { plugins: [router], stubs: {
     ReportPhotosPanel: true, ReportVisionPanel: true, ReportClassificationPanel: true,
-    ReportReviewPanel: true, TechnicianAssignmentPanel: true, TechnicianInvitationSender: true,
+    ReportWorkflowPanel: true, ReportReviewPanel: true, TechnicianAssignmentPanel: true, TechnicianInvitationSender: true,
   } } });
   await flushPromises(); return router;
 }
