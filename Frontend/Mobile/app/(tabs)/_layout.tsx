@@ -5,33 +5,34 @@ import {
   User,
   Wrench,
 } from 'lucide-react-native';
-import { Redirect, Tabs, usePathname } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { SiteProvider } from '@/stores/site';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
-import { isTabVisible, landingRedirectForRoute } from '@/lib/tabAccess';
+import { isTabVisible } from '@/lib/tabAccess';
 
 /**
- * Role-aware bottom tabs. Declared in a fixed order so every role sees the
- * same four visual slots — home/dashboard, reports/technician, more, profile.
- * Which file fills each slot depends on the role:
+ * Role-aware bottom tabs.
  *
- *   Position 1 (home): staff-dashboard  workspace  index
- *   Position 2 (2nd):  hidden           assignments reports
- *   Position 3 (more): hidden           more        more
- *   Position 4 (me):   profile          profile     profile
+ * Which four slots a role sees is fixed — home/dashboard → second tab → more
+ * → profile. The specific screen filling each slot depends on role. We
+ * conditionally render only the screens the role actually needs, with the
+ * first visible screen declared first — Expo Router picks the first declared
+ * tab as the default route, which gives us the correct landing without a
+ * separate redirect guard.
+ *
+ * This avoids the infinite render loop that happens when both a top-level
+ * <Redirect> and tab options with `href: null` fight to mutate the route in
+ * the same React cycle.
  */
 export default function TabLayout() {
   const palette = themeColors();
   const { user, isLoading } = useAuth();
-  const pathname = usePathname();
   const { t } = useTranslation('common');
 
-  // While auth is hydrating we don't know the role — render a neutral shell so
-  // the navigator mounts and the splash screen can hand off cleanly.
   if (isLoading || !user) {
     return (
       <SiteProvider>
@@ -40,142 +41,124 @@ export default function TabLayout() {
     );
   }
 
-  // Each role lands on its own dashboard. When the current route is not part
-  // of the role's tab set (initial `/`, deep link, stale navigation state),
-  // send them to their home. The guard returns null for valid routes so the
-  // navigator is never fought on a legal screen.
-  const landingRedirect = landingRedirectForRoute(user.role, pathname);
+  const role = user.role;
+  const hasIndex = isTabVisible(role, 'index');
+  const hasWorkspace = isTabVisible(role, 'workspace');
+  const hasStaffDashboard = isTabVisible(role, 'staff-dashboard');
+  const hasReports = isTabVisible(role, 'reports');
+  const hasAssignments = isTabVisible(role, 'assignments');
+  const hasMore = isTabVisible(role, 'more');
+  const hasProfile = isTabVisible(role, 'profile');
 
-  if (landingRedirect) {
-    return <Redirect href={landingRedirect} />;
-  }
+  // First visible tab is the role's landing route. If the user is somehow
+  // deep-linked to a route outside their set, bounce them home.
+  if (hasStaffDashboard) return renderTabs({ first: 'staff-dashboard' });
+  if (hasWorkspace) return renderTabs({ first: 'workspace' });
+  if (hasIndex) return renderTabs({ first: 'index' });
 
+  // No known home tab for this role — shouldn't happen but guard anyway.
   return (
     <SiteProvider>
-      <Tabs
-        screenOptions={{
-          tabBarActiveTintColor: palette.tabIconSelected,
-          tabBarInactiveTintColor: palette.tabIconDefault,
-          tabBarStyle: {
-            backgroundColor: palette.card,
-            borderTopColor: palette.border,
-          },
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-          headerStyle: { backgroundColor: palette.card },
-          headerTintColor: palette.ink,
-          headerTitleStyle: { fontWeight: '600', fontSize: 16 },
-          headerShadowVisible: false,
-          headerShown: useClientOnlyValue(false, true),
-        }}
-      >
-        {/* Position 1 — staff dashboard (staff only) */}
-        <Tabs.Screen
-          name="staff-dashboard"
-          options={() =>
-            isTabVisible(user.role, 'staff-dashboard')
-              ? {
-                  headerShown: false,
-                  title: t('tabs.staffDashboard'),
-                  tabBarIcon: ({ color, size }) => (
-                    <ClipboardList color={color} size={size} />
-                  ),
-                }
-              : { href: null }
-          }
-        />
-
-        {/* Position 1 — workspace (technician home) */}
-        <Tabs.Screen
-          name="workspace"
-          options={() =>
-            isTabVisible(user.role, 'workspace')
-              ? {
-                  title: t('tabs.workspace'),
-                  tabBarIcon: ({ color, size }) => (
-                    <Wrench color={color} size={size} />
-                  ),
-                }
-              : { href: null }
-          }
-        />
-
-        {/* Position 1 — index (reporter/admin/super_admin/shop_manager home) */}
-        <Tabs.Screen
-          name="index"
-          options={() =>
-            isTabVisible(user.role, 'index')
-              ? {
-                  title: t('tabs.home'),
-                  tabBarIcon: ({ color, size }) => (
-                    <House color={color} size={size} />
-                  ),
-                }
-              : { href: null }
-          }
-        />
-
-        {/* Position 2 — reports (non-technician) */}
-        <Tabs.Screen
-          name="reports"
-          options={() =>
-            isTabVisible(user.role, 'reports')
-              ? {
-                  headerShown: false,
-                  title: t('tabs.reports'),
-                  tabBarIcon: ({ color, size }) => (
-                    <ClipboardList color={color} size={size} />
-                  ),
-                }
-              : { href: null }
-          }
-        />
-
-        {/* Position 2 — assignments (technician) */}
-        <Tabs.Screen
-          name="assignments"
-          options={() =>
-            isTabVisible(user.role, 'assignments')
-              ? {
-                  headerShown: false,
-                  title: t('tabs.assignments'),
-                  tabBarIcon: ({ color, size }) => (
-                    <ClipboardList color={color} size={size} />
-                  ),
-                }
-              : { href: null }
-          }
-        />
-
-        {/* Position 3 — more / shop */}
-        <Tabs.Screen
-          name="more"
-          options={() => {
-            const visible = isTabVisible(user.role, 'more');
-            const shopMode = user.role === 'technician' || user.role === 'super_admin';
-            return visible
-              ? {
-                  headerShown: false,
-                  title: shopMode ? t('tabs.shop') : t('tabs.more'),
-                  tabBarIcon: ({ color, size }) => (
-                    <LayoutGrid color={color} size={size} />
-                  ),
-                  href: shopMode ? '/more/shop' : undefined,
-                }
-              : { href: null };
-          }}
-        />
-
-        {/* Position 4 — profile (everyone) */}
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: t('tabs.profile'),
-            tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
-            tabBarAccessibilityLabel: t('tabs.profile'),
-            headerShown: false,
-          }}
-        />
-      </Tabs>
+      <Redirect href="/(auth)/login" />
     </SiteProvider>
   );
+
+  function renderTabs({ first }: { first: string }) {
+    const screens = [
+      // Position 1 — home/dashboard (role-specific)
+      hasStaffDashboard && {
+        name: 'staff-dashboard',
+        title: t('tabs.staffDashboard'),
+        icon: ClipboardList,
+      },
+      hasWorkspace && {
+        name: 'workspace',
+        title: t('tabs.workspace'),
+        icon: Wrench,
+      },
+      hasIndex && {
+        name: 'index',
+        title: t('tabs.home'),
+        icon: House,
+      },
+      // Position 2 — reports / technician assignments
+      hasReports && {
+        name: 'reports',
+        title: t('tabs.reports'),
+        icon: ClipboardList,
+        hideHeader: true,
+      },
+      hasAssignments && {
+        name: 'assignments',
+        title: t('tabs.assignments'),
+        icon: ClipboardList,
+        hideHeader: true,
+      },
+      // Position 3 — more / shop (deep-link into shop for technician/super_admin)
+      hasMore && {
+        name: 'more',
+        title:
+          role === 'technician' || role === 'super_admin'
+            ? t('tabs.shop')
+            : t('tabs.more'),
+        icon: LayoutGrid,
+        hideHeader: true,
+        href:
+          role === 'technician' || role === 'super_admin'
+            ? '/more/shop'
+            : undefined,
+      },
+      // Position 4 — profile (everyone)
+      hasProfile && {
+        name: 'profile',
+        title: t('tabs.profile'),
+        icon: User,
+        hideHeader: true,
+      },
+    ].filter(Boolean) as Array<{
+      name: string;
+      title: string;
+      icon: typeof House;
+      hideHeader?: boolean;
+      href?: string;
+    }>;
+
+    // Bounce if the active path isn't in the role's tab set.
+    return (
+      <SiteProvider>
+        <Tabs
+          initialRouteName={first}
+          screenOptions={{
+            tabBarActiveTintColor: palette.tabIconSelected,
+            tabBarInactiveTintColor: palette.tabIconDefault,
+            tabBarStyle: {
+              backgroundColor: palette.card,
+              borderTopColor: palette.border,
+            },
+            tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+            headerStyle: { backgroundColor: palette.card },
+            headerTintColor: palette.ink,
+            headerTitleStyle: { fontWeight: '600', fontSize: 16 },
+            headerShadowVisible: false,
+            headerShown: useClientOnlyValue(false, true),
+          }}
+        >
+          {screens.map((screen) => (
+            <Tabs.Screen
+              key={screen.name}
+              name={screen.name}
+              options={{
+                ...(screen.hideHeader ? { headerShown: false } : {}),
+                ...(screen.href ? { href: screen.href } : {}),
+                title: screen.title,
+                tabBarIcon: ({ color, size }) => (
+                  <screen.icon color={color} size={size} />
+                ),
+              }}
+            />
+          ))}
+        </Tabs>
+      </SiteProvider>
+    );
+  }
 }
