@@ -37,13 +37,16 @@ describe('isTabVisible — complete 6-role matrix (backend UserRole source of tr
     expect(isTabVisible('technician', 'profile')).toBe(true);
   });
 
-  // ── Staff ───────────────────────────────────────────────────────────
-  it('staff: Staff Dashboard, Reports, More, Profile (NO index, NO workspace/assignments)', () => {
-    expect(isTabVisible('staff', 'index')).toBe(false);
+  // ── Staff (operations coordinator) ───────────────────────────────────
+  // Staff was previously routed to a broken staff-dashboard stub. Merged
+  // onto index.tsx which already has OPS_STATS (unassigned / urgent /
+  // confirmation / progress) tailored for operations roles.
+  it('staff: Home (index), Reports, More, Profile (NO workspace/assignments, NO staff-dashboard)', () => {
+    expect(isTabVisible('staff', 'index')).toBe(true);
     expect(isTabVisible('staff', 'reports')).toBe(true);
     expect(isTabVisible('staff', 'workspace')).toBe(false);
     expect(isTabVisible('staff', 'assignments')).toBe(false);
-    expect(isTabVisible('staff', 'staff-dashboard')).toBe(true);
+    expect(isTabVisible('staff', 'staff-dashboard')).toBe(false);
     expect(isTabVisible('staff', 'more')).toBe(true);
     expect(isTabVisible('staff', 'profile')).toBe(true);
   });
@@ -113,11 +116,9 @@ describe('homeRouteForRole', () => {
   it('routes technician to Workspace', () => {
     expect(homeRouteForRole('technician')).toBe('/(tabs)/workspace');
   });
-  it('routes staff to Staff Dashboard', () => {
-    expect(homeRouteForRole('staff')).toBe('/(tabs)/staff-dashboard');
-  });
-  it('routes reporter, admin, super_admin, shop_manager to Home', () => {
+  it('routes reporter, staff, admin, super_admin, shop_manager to Home', () => {
     expect(homeRouteForRole('reporter')).toBe('/(tabs)');
+    expect(homeRouteForRole('staff')).toBe('/(tabs)');
     expect(homeRouteForRole('admin')).toBe('/(tabs)');
     expect(homeRouteForRole('super_admin')).toBe('/(tabs)');
     expect(homeRouteForRole('shop_manager')).toBe('/(tabs)');
@@ -129,11 +130,9 @@ describe('landingRedirectForRoute', () => {
   it('sends technicians to Workspace when landing on Home', () => {
     expect(landingRedirectForRoute('technician', '/')).toBe('/(tabs)/workspace');
   });
-  it('sends staff to Staff Dashboard when landing on Home', () => {
-    expect(landingRedirectForRoute('staff', '/')).toBe('/(tabs)/staff-dashboard');
-  });
-  it('leaves reporter, admin, super_admin, shop_manager on Home', () => {
+  it('leaves reporter, staff, admin, super_admin, shop_manager on Home', () => {
     expect(landingRedirectForRoute('reporter', '/')).toBeNull();
+    expect(landingRedirectForRoute('staff', '/')).toBeNull();
     expect(landingRedirectForRoute('admin', '/')).toBeNull();
     expect(landingRedirectForRoute('super_admin', '/')).toBeNull();
     expect(landingRedirectForRoute('shop_manager', '/')).toBeNull();
@@ -142,9 +141,8 @@ describe('landingRedirectForRoute', () => {
   // ── Bounce off forbidden tabs ────────────────────────────────────────
   it('bounces reporter, admin, super_admin, staff, shop_manager off Workspace & Assignments', () => {
     for (const role of ['reporter', 'admin', 'super_admin', 'staff', 'shop_manager'] as UserRole[]) {
-      const expected = role === 'staff' ? '/(tabs)/staff-dashboard' : '/(tabs)';
-      expect(landingRedirectForRoute(role, '/workspace')).toBe(expected);
-      expect(landingRedirectForRoute(role, '/assignments')).toBe(expected);
+      expect(landingRedirectForRoute(role, '/workspace')).toBe('/(tabs)');
+      expect(landingRedirectForRoute(role, '/assignments')).toBe('/(tabs)');
     }
   });
 
@@ -156,8 +154,9 @@ describe('landingRedirectForRoute', () => {
     expect(landingRedirectForRoute('shop_manager', '/reports/5')).toBe('/(tabs)');
   });
 
-  it('bounces everyone except staff off staff-dashboard', () => {
-    for (const role of ['reporter', 'technician', 'admin', 'super_admin', 'shop_manager'] as UserRole[]) {
+  // staff-dashboard is now forbidden to everyone — old stub merged into index.
+  it('bounces everyone off staff-dashboard', () => {
+    for (const role of ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'] as UserRole[]) {
       const expected = role === 'technician' ? '/(tabs)/workspace' : '/(tabs)';
       expect(landingRedirectForRoute(role, '/staff-dashboard')).toBe(expected);
     }
@@ -168,7 +167,6 @@ describe('landingRedirectForRoute', () => {
     expect(landingRedirectForRoute('technician', '/workspace')).toBeNull();
     expect(landingRedirectForRoute('technician', '/assignments')).toBeNull();
     expect(landingRedirectForRoute('technician', '/more')).toBeNull();
-    expect(landingRedirectForRoute('staff', '/staff-dashboard')).toBeNull();
     expect(landingRedirectForRoute('staff', '/reports')).toBeNull();
     expect(landingRedirectForRoute('staff', '/more')).toBeNull();
     expect(landingRedirectForRoute('reporter', '/reports')).toBeNull();

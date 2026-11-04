@@ -15,24 +15,31 @@ export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'staff
  *
  *   reporter      → Home (index), Reports,            More,       Profile
  *   technician    → Workspace,    Assignments,       More(Shop), Profile
- *   staff         → Staff Dashboard, Reports,         More,       Profile
+ *   staff         → Home (index), Reports,            More,       Profile
  *   admin (site)  → Home (index), Reports,            More,       Profile
  *   super_admin   → Home (index), Reports,            More(Shop+mgmt), Profile
  *   shop_manager  → Home (index), More(Shop),        Profile      (only 3)
+ *
+ * Staff was previously routed to a broken `staff-dashboard` stub that showed
+ * raw text rows with no hero / stat cards / site switcher. We merged staff
+ * onto `index.tsx` which already has OPS_STATS (unassigned, urgent,
+ * confirmation, progress) tailored for operations roles. The old stub was
+ * deleted on 2026-11-04.
  */
 export function isTabVisible(role: UserRole, tab: TabName): boolean {
   switch (tab) {
     // ── Home tabs (one per role family) ──────────────────────────────────
     case 'index':
-      // Everyone EXCEPT technician (they have workspace) and staff (they have staff-dashboard).
-      return role !== 'technician' && role !== 'staff';
+      // Everyone EXCEPT technician (they have workspace).
+      return role !== 'technician';
 
     case 'workspace':
     case 'assignments':
       return role === 'technician';
 
+    // staff-dashboard was merged into index — nobody should hit it.
     case 'staff-dashboard':
-      return role === 'staff';
+      return false;
 
     // ── Reports tab ──────────────────────────────────────────────────────
     // Everyone who creates or reviews reports. Technician uses Assignments
@@ -61,8 +68,7 @@ export function isTechnicianForbiddenRoute(role: UserRole | null, pathname: stri
 /** The home tab route each role lands on after sign-in. */
 export function homeRouteForRole(role: UserRole): string {
   if (role === 'technician') return '/(tabs)/workspace';
-  if (role === 'staff') return '/(tabs)/staff-dashboard';
-  // reporter, admin, super_admin, shop_manager → Home at /(tabs)
+  // reporter, staff, admin, super_admin, shop_manager → Home at /(tabs)
   return '/(tabs)';
 }
 
