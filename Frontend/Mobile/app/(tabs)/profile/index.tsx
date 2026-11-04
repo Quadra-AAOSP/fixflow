@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import {
   ArrowRight,
@@ -26,8 +26,17 @@ type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
 /**
  * Profile screen. Identity-first hero with settings entry, grouped
- * detail rows, preferences, and a mint-themed log out button that always
- * clears the local session regardless of what the backend returns.
+ * detail rows, preferences, and a working Log out action.
+ *
+ * Log out flow:
+ *   1. User taps the confirm dialog → set pendingLogout = true
+ *   2. useEffect sees pendingLogout → fire logout() + router.replace('/(auth)/login')
+ *   3. Navigation changes stack first, store clears in the background
+ *
+ * This avoids two traps:
+ *   - router.replace can't escape the (tabs) stack while (tabs) is mounted
+ *   - calling router.replace during render (in the user===null early-return)
+ *     is illegal on web
  */
 export default function ProfileScreen() {
   const { t } = useTranslation('common');
@@ -41,31 +50,46 @@ export default function ProfileScreen() {
   } = useTechnicianAvailability();
 
   const [signingOut, setSigningOut] = useState(false);
+  const [pendingLogout, setPendingLogout] = useState(false);
+  const logoutInFlight = useRef(false);
+
+  // Watch the pending flag — when the user confirmed the dialog, run the
+  // navigation + store clear from a useEffect so it fires after render.
+  useEffect(() => {
+    if (!pendingLogout || logoutInFlight.current) return;
+    logoutInFlight.current = true;
+    setPendingLogout(false);
+    setSigningOut(true);
+
+    // Navigate FIRST. We're sitting inside the (tabs) stack — we MUST
+    // break out to (auth) before the store clears, otherwise the Tabs
+    // navigator may fight the route change.
+    router.replace('/(auth)/login');
+
+    // Clear the store in the background. The auth store swallows its own
+    // errors so this is safe to fire-and-forget.
+    logout();
+  }, [pendingLogout, logout, router]);
+
+  // Safety net — if we land here somehow while already signed out, get out.
+  useEffect(() => {
+    if (!user) {
+      router.replace('/(auth)/login');
+    }
+  }, [user, router]);
 
   if (!user) {
-    // Auth store already cleared — kick to the login screen.
-    router.replace('/(auth)/login');
-    return null;
+    return (
+      <Screen>
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-dashboard-caption">{t('profile.tagline')}</Text>
+        </View>
+      </Screen>
+    );
   }
 
-  async function doLogOut() {
-    setSigningOut(true);
-    try {
-      // useAuth().logout does exactly one thing: try the backend logout
-      // (best-effort, catches its own failures) then setUser(null) +
-      // clear stored credentials. It never throws, never leaves the user
-      // partially signed in. Calling the raw service separately was a
-      // double-POST that made the second call fail with a 401.
-      await logout();
-    } catch {
-      // Shouldn't happen — auth store swallows — but guard anyway.
-    }
-    // Explicit navigation after clearing the session. Don't rely on the
-    // AuthNavigator useEffect to catch the state transition; on web
-    // especially that timing can race with the Tabs navigator still
-    // mounted. router.replace fires immediately.
-    router.replace('/(auth)/login');
-    setSigningOut(false);
+  function requestLogOut() {
+    setPendingLogout(true);
   }
 
   function openSettings() {
@@ -320,7 +344,7 @@ export default function ProfileScreen() {
                   {
                     text: 'Log out',
                     style: 'default',
-                    onPress: doLogOut,
+                    onPress: requestLogOut,
                   },
                 ],
               )
