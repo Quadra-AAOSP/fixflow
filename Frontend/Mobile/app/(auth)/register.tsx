@@ -1,7 +1,9 @@
 import { Redirect, useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import {
+  CheckCircle2,
   ClipboardList,
+  Clock,
   ShieldCheck,
   Wrench,
   type LucideIcon,
@@ -16,10 +18,23 @@ import { useAuth } from '@/hooks/useAuth';
 import type { UserRole } from '@/types';
 
 /**
- * Role picker — the first step of sign-up. Navigates to one of the two
- * distinct form screens below (reporter or technician), each with its own
- * validation rules and field set. Admin applications and managed roles stay
- * informational here, matching the existing public-signup contract.
+ * Role picker — the first step of sign-up. Backend policy (AuthService):
+ *
+ *   ✅ Self-register, instant approval:
+ *     reporter   → lands as reporter immediately
+ *     technician → lands as technician immediately
+ *
+ *   ⏳ Self-register, pending super_admin approval:
+ *     admin (site admin apply) → backend creates user as reporter +
+ *                                 files a pending adminApplication.
+ *                                 Super admin approves → flips to admin.
+ *                                 Rejects → stays reporter.
+ *
+ *   🔒 Cannot self-register — created by existing admins only:
+ *     staff, shop_manager, super_admin
+ *
+ * Managed roles section explains this clearly so a user doesn't waste
+ * their time trying to pick a role that isn't open to self-signup.
  */
 export default function RegisterScreen() {
   const { t } = useTranslation('common');
@@ -34,7 +49,7 @@ export default function RegisterScreen() {
     if (role === 'reporter') router.push('/(auth)/register-reporter');
     else if (role === 'technician') router.push('/(auth)/register-technician');
     else if (role === 'admin') router.push('/(auth)/register-admin-apply');
-    // staff / super_admin — informational card, no navigation
+    // staff / shop_manager / super_admin — informational, no navigation
   }
 
   return (
@@ -46,11 +61,13 @@ export default function RegisterScreen() {
         description={t('auth.register.description')}
       />
 
+      {/* ── Self-service roles (3 tiles) ─────────────────────────────────── */}
       <View className="gap-3">
         <RoleCard
           icon={ClipboardList}
           title={t('auth.register.reporterTitle')}
           subtitle={t('auth.register.reporterSubtitle')}
+          badge={{ icon: CheckCircle2, label: t('auth.register.instantApproval') }}
           onPress={() => choose('reporter')}
         />
         <RoleCard
@@ -58,16 +75,19 @@ export default function RegisterScreen() {
           title={t('auth.register.technicianTitle')}
           subtitle={t('auth.register.technicianSubtitle')}
           technician
+          badge={{ icon: CheckCircle2, label: t('auth.register.instantApproval') }}
           onPress={() => choose('technician')}
         />
         <RoleCard
           icon={ShieldCheck}
           title={t('auth.register.adminTitle')}
           subtitle={t('auth.register.adminSubtitle')}
+          badge={{ icon: Clock, label: t('auth.register.pendingApproval') }}
           onPress={() => choose('admin')}
         />
       </View>
 
+      {/* ── Managed roles (admin-only provisioning) ─────────────────────── */}
       <View className="mt-5 border-t border-auth-divider pt-5">
         <View className="mb-2 flex-row items-center gap-2">
           <ShieldCheck color={authColors.note} size={16} />
@@ -75,8 +95,9 @@ export default function RegisterScreen() {
             {t('auth.register.joiningTeam')}
           </Text>
         </View>
-        <ManagedRoleHint role="staff" t={t} />
-        <ManagedRoleHint role="super_admin" t={t} />
+        <ManagedRole role="staff" t={t} />
+        <ManagedRole role="shop_manager" t={t} />
+        <ManagedRole role="super_admin" t={t} />
       </View>
 
       <Pressable
@@ -99,10 +120,13 @@ export default function RegisterScreen() {
   );
 }
 
+type RoleBadge = { icon: LucideIcon; label: string };
+
 function RoleCard({
-  icon: Icon, title, subtitle, technician, onPress,
+  icon: Icon, title, subtitle, badge, technician, onPress,
 }: {
   icon: LucideIcon; title: string; subtitle: string;
+  badge?: RoleBadge;
   technician?: boolean; onPress: () => void;
 }) {
   return (
@@ -123,12 +147,22 @@ function RoleCard({
         />
       </View>
       <View className="flex-1">
-        <Text
-          className="text-[13px] text-auth-ink"
-          style={{ fontFamily: fontFamilies.bodySemiBold }}
-        >
-          {title}
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Text
+            className="text-[13px] text-auth-ink"
+            style={{ fontFamily: fontFamilies.bodySemiBold }}
+          >
+            {title}
+          </Text>
+          {badge ? (
+            <View className="flex-row items-center gap-1 rounded-full bg-auth-line px-1.5 py-0.5">
+              <badge.icon />
+              <Text className="text-[9px] text-auth-note" style={{ fontFamily: fontFamilies.bodyMedium }}>
+                {badge.label}
+              </Text>
+            </View>
+          ) : null}
+        </View>
         <Text className="mt-1 text-[10px] leading-4 text-auth-body">
           {subtitle}
         </Text>
@@ -138,7 +172,7 @@ function RoleCard({
   );
 }
 
-function ManagedRoleHint({ role, t }: { role: 'staff' | 'super_admin'; t: (key: string, vars?: Record<string, unknown>) => string }) {
+function ManagedRole({ role, t }: { role: 'staff' | 'shop_manager' | 'super_admin'; t: (key: string, vars?: Record<string, unknown>) => string }) {
   return (
     <Text
       className="text-[11px] text-auth-ghost-ink"
