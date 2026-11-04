@@ -56,21 +56,28 @@ type ItemKey =
 
 /** Which roles may see which item keys. An item key is visible to a role iff
  *  that role appears in the key's allowlist, AND any additional capability
- *  check the item defines below passes. */
+ *  check the item defines below passes.
+ *
+ *  staff and shop_manager are treated as super_admin-equivalent on mobile
+ *  (super_admin IS platform owner + IS shop manager + absorbs staff work
+ *  per product decision). So every item that super_admin sees, staff and
+ *  shop_manager see too — just list them alongside super_admin here. */
+const SUPER_ADMIN_FAMILY: UserRole[] = ['super_admin', 'staff', 'shop_manager'];
+
 const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
-  notifications: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
+  notifications: ['reporter', 'technician', 'admin', ...SUPER_ADMIN_FAMILY],
   // A reporter who applied to be site admin may track the status — see the
   // "additional guard" check below for hasAdminApplication.
   myAdminApplication: ['reporter'],
-  siteSetup: ['admin', 'super_admin'],
-  sites: ['admin', 'super_admin'],
-  teamAccess: ['admin', 'super_admin'],
-  technicians: ['staff', 'admin', 'super_admin'],
-  adminApplications: ['super_admin'],
+  siteSetup: ['admin', ...SUPER_ADMIN_FAMILY],
+  sites: ['admin', ...SUPER_ADMIN_FAMILY],
+  teamAccess: ['admin', ...SUPER_ADMIN_FAMILY],
+  technicians: [...SUPER_ADMIN_FAMILY],       // platform-wide user mgmt
+  adminApplications: [...SUPER_ADMIN_FAMILY], // approve pending site admins
   contractsTechnician: ['technician'],
-  contractsAdmin: ['admin', 'super_admin'],
-  shopManagement: ['admin', 'super_admin', 'shop_manager'],
-  shopCustomer: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
+  contractsAdmin: ['admin', ...SUPER_ADMIN_FAMILY],
+  shopManagement: [...SUPER_ADMIN_FAMILY],    // super_admin IS shop manager
+  shopCustomer: ['reporter', 'technician', 'admin', ...SUPER_ADMIN_FAMILY],
 };
 
 function itemVisible(key: ItemKey, role: UserRole, guards: ItemGuards): boolean {

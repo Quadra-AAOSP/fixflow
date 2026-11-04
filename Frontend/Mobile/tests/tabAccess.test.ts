@@ -9,80 +9,72 @@ import {
   type TabName,
 } from '../lib/tabAccess';
 
-const ALL_ROLES: UserRole[] = [
-  'reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager',
-];
+/**
+ * Product roles on mobile (backend still has all 6 values — staff and
+ * shop_manager are treated identically to super_admin per product decision).
+ */
+const PRODUCT_ROLES: UserRole[] = ['reporter', 'technician', 'admin', 'super_admin'];
+// Backend values that fold into super_admin on mobile
+const SUPER_ADMIN_FOLDED: UserRole[] = ['staff', 'shop_manager'];
 
-const TABS: TabName[] = ['index', 'reports', 'workspace', 'assignments', 'more', 'profile', 'staff-dashboard'];
+const ALL_ROLES: UserRole[] = [...PRODUCT_ROLES, ...SUPER_ADMIN_FOLDED];
+
+const TABS: TabName[] = ['index', 'reports', 'workspace', 'assignments', 'more', 'profile'];
 
 describe('isTabVisible — complete role→tab matrix', () => {
-  // ── Technician ────────────────────────────────────────────────────────
-  it('technician: workspace, assignments, more, profile', () => {
-    expect(isTabVisible('technician', 'index')).toBe(false);
-    expect(isTabVisible('technician', 'reports')).toBe(false);
-    expect(isTabVisible('technician', 'workspace')).toBe(true);
-    expect(isTabVisible('technician', 'assignments')).toBe(true);
-    expect(isTabVisible('technician', 'staff-dashboard')).toBe(false);
-    expect(isTabVisible('technician', 'more')).toBe(true);
-    expect(isTabVisible('technician', 'profile')).toBe(true);
-  });
-
-  // ── Staff ─────────────────────────────────────────────────────────────
-  it('staff: staff-dashboard, more, profile (no index, no reports, no workspace/assignments)', () => {
-    expect(isTabVisible('staff', 'index')).toBe(false);
-    expect(isTabVisible('staff', 'reports')).toBe(false);
-    expect(isTabVisible('staff', 'workspace')).toBe(false);
-    expect(isTabVisible('staff', 'assignments')).toBe(false);
-    expect(isTabVisible('staff', 'staff-dashboard')).toBe(true);
-    expect(isTabVisible('staff', 'more')).toBe(true);
-    expect(isTabVisible('staff', 'profile')).toBe(true);
-  });
-
-  // ── Reporter ─────────────────────────────────────────────────────────
-  it('reporter: index (Home), reports, more, profile — NO staff/technician tabs', () => {
+  // ── Reporter ────────────────────────────────────────────────────────
+  it('reporter: Home (index), Reports, More, Profile', () => {
     expect(isTabVisible('reporter', 'index')).toBe(true);
     expect(isTabVisible('reporter', 'reports')).toBe(true);
     expect(isTabVisible('reporter', 'workspace')).toBe(false);
     expect(isTabVisible('reporter', 'assignments')).toBe(false);
-    expect(isTabVisible('reporter', 'staff-dashboard')).toBe(false);
     expect(isTabVisible('reporter', 'more')).toBe(true);
     expect(isTabVisible('reporter', 'profile')).toBe(true);
   });
 
-  // ── Admin ────────────────────────────────────────────────────────────
-  it('admin: index, reports, more, profile — NO staff/technician tabs', () => {
+  // ── Technician ───────────────────────────────────────────────────────
+  it('technician: Workspace, Assignments, More, Profile (NO index, NO reports)', () => {
+    expect(isTabVisible('technician', 'index')).toBe(false);
+    expect(isTabVisible('technician', 'reports')).toBe(false);
+    expect(isTabVisible('technician', 'workspace')).toBe(true);
+    expect(isTabVisible('technician', 'assignments')).toBe(true);
+    expect(isTabVisible('technician', 'more')).toBe(true);
+    expect(isTabVisible('technician', 'profile')).toBe(true);
+  });
+
+  // ── Site admin ───────────────────────────────────────────────────────
+  it('admin (site): Home (index), Reports, More, Profile', () => {
     expect(isTabVisible('admin', 'index')).toBe(true);
     expect(isTabVisible('admin', 'reports')).toBe(true);
     expect(isTabVisible('admin', 'workspace')).toBe(false);
     expect(isTabVisible('admin', 'assignments')).toBe(false);
-    expect(isTabVisible('admin', 'staff-dashboard')).toBe(false);
     expect(isTabVisible('admin', 'more')).toBe(true);
     expect(isTabVisible('admin', 'profile')).toBe(true);
   });
 
-  // ── Super admin ──────────────────────────────────────────────────────
-  it('super_admin: index (Platform Console), reports, more, profile — NO staff/technician tabs', () => {
+  // ── Super admin (platform owner, shop manager) ───────────────────────
+  it('super_admin: Home (index / Platform Console), Reports, More, Profile', () => {
     expect(isTabVisible('super_admin', 'index')).toBe(true);
     expect(isTabVisible('super_admin', 'reports')).toBe(true);
     expect(isTabVisible('super_admin', 'workspace')).toBe(false);
     expect(isTabVisible('super_admin', 'assignments')).toBe(false);
-    expect(isTabVisible('super_admin', 'staff-dashboard')).toBe(false);
     expect(isTabVisible('super_admin', 'more')).toBe(true);
     expect(isTabVisible('super_admin', 'profile')).toBe(true);
   });
 
-  // ── Shop manager ─────────────────────────────────────────────────────
-  it('shop_manager: index, more, profile — NO reports (shop-only role)', () => {
-    expect(isTabVisible('shop_manager', 'index')).toBe(true);
-    expect(isTabVisible('shop_manager', 'reports')).toBe(false);
-    expect(isTabVisible('shop_manager', 'workspace')).toBe(false);
-    expect(isTabVisible('shop_manager', 'assignments')).toBe(false);
-    expect(isTabVisible('shop_manager', 'staff-dashboard')).toBe(false);
-    expect(isTabVisible('shop_manager', 'more')).toBe(true);
-    expect(isTabVisible('shop_manager', 'profile')).toBe(true);
+  // ── Folded backend values (staff, shop_manager) behave like super_admin ──
+  it('staff and shop_manager fold into super_admin tab set', () => {
+    for (const folded of SUPER_ADMIN_FOLDED) {
+      expect(isTabVisible(folded, 'index')).toBe(true);
+      expect(isTabVisible(folded, 'reports')).toBe(true);
+      expect(isTabVisible(folded, 'workspace')).toBe(false);
+      expect(isTabVisible(folded, 'assignments')).toBe(false);
+      expect(isTabVisible(folded, 'more')).toBe(true);
+      expect(isTabVisible(folded, 'profile')).toBe(true);
+    }
   });
 
-  // ── Every combination returns a boolean (no undefined leaks) ──────────
+  // ── Every combination returns a boolean ───────────────────────────────
   it('returns a boolean for every role/tab combination', () => {
     for (const role of ALL_ROLES) {
       for (const tab of TABS) {
@@ -111,65 +103,57 @@ describe('isTechnicianForbiddenRoute', () => {
 });
 
 describe('homeRouteForRole', () => {
-  it('routes each role to its own dashboard', () => {
+  it('routes technician to Workspace', () => {
     expect(homeRouteForRole('technician')).toBe('/(tabs)/workspace');
-    expect(homeRouteForRole('staff')).toBe('/(tabs)/staff-dashboard');
+  });
+  it('routes everyone else to Home (index)', () => {
     expect(homeRouteForRole('reporter')).toBe('/(tabs)');
     expect(homeRouteForRole('admin')).toBe('/(tabs)');
     expect(homeRouteForRole('super_admin')).toBe('/(tabs)');
+    // folded backend values also land on Home
+    expect(homeRouteForRole('staff')).toBe('/(tabs)');
     expect(homeRouteForRole('shop_manager')).toBe('/(tabs)');
   });
 });
 
 describe('landingRedirectForRoute', () => {
   // ── Home landing ─────────────────────────────────────────────────────
-  it('sends staff to the staff dashboard when landing on Home', () => {
-    expect(landingRedirectForRoute('staff', '/')).toBe('/(tabs)/staff-dashboard');
-  });
-
   it('sends technicians to Workspace when landing on Home', () => {
     expect(landingRedirectForRoute('technician', '/')).toBe('/(tabs)/workspace');
   });
 
-  it('leaves reporters, admins, super_admins, shop_managers on Home', () => {
+  it('leaves reporter, admin, super_admin (+ staff/shop_manager folded) on Home', () => {
     expect(landingRedirectForRoute('reporter', '/')).toBeNull();
     expect(landingRedirectForRoute('admin', '/')).toBeNull();
     expect(landingRedirectForRoute('super_admin', '/')).toBeNull();
+    expect(landingRedirectForRoute('staff', '/')).toBeNull();
     expect(landingRedirectForRoute('shop_manager', '/')).toBeNull();
   });
 
   // ── Bounce off forbidden tabs ────────────────────────────────────────
-  it('bounces staff off Reports, Workspace, Assignments to Staff Dashboard', () => {
-    expect(landingRedirectForRoute('staff', '/reports/5')).toBe('/(tabs)/staff-dashboard');
-    expect(landingRedirectForRoute('staff', '/workspace')).toBe('/(tabs)/staff-dashboard');
-    expect(landingRedirectForRoute('staff', '/assignments')).toBe('/(tabs)/staff-dashboard');
+  it('bounces reporter, admin, super_admin, staff, shop_manager off Workspace & Assignments', () => {
+    for (const role of ['reporter', 'admin', 'super_admin', 'staff', 'shop_manager'] as UserRole[]) {
+      expect(landingRedirectForRoute(role, '/workspace')).toBe('/(tabs)');
+      expect(landingRedirectForRoute(role, '/assignments')).toBe('/(tabs)');
+    }
   });
 
-  it('bounces reporter off Workspace, Assignments, Staff Dashboard to Home', () => {
-    expect(landingRedirectForRoute('reporter', '/workspace')).toBe('/(tabs)');
-    expect(landingRedirectForRoute('reporter', '/assignments')).toBe('/(tabs)');
-    expect(landingRedirectForRoute('reporter', '/staff-dashboard')).toBe('/(tabs)');
-  });
-
-  it('bounces shop_manager off Reports to Home', () => {
-    expect(landingRedirectForRoute('shop_manager', '/reports/5')).toBe('/(tabs)');
+  it('bounces technicians off Reports to Workspace', () => {
+    expect(landingRedirectForRoute('technician', '/reports/5')).toBe('/(tabs)/workspace');
   });
 
   // ── Allow valid routes ───────────────────────────────────────────────
   it('allows every role on its own tabs', () => {
     expect(landingRedirectForRoute('technician', '/workspace')).toBeNull();
     expect(landingRedirectForRoute('technician', '/assignments')).toBeNull();
-    expect(landingRedirectForRoute('staff', '/staff-dashboard')).toBeNull();
-    expect(landingRedirectForRoute('staff', '/more')).toBeNull();
-    expect(landingRedirectForRoute('staff', '/profile')).toBeNull();
+    expect(landingRedirectForRoute('technician', '/more')).toBeNull();
     expect(landingRedirectForRoute('reporter', '/reports')).toBeNull();
+    expect(landingRedirectForRoute('reporter', '/more')).toBeNull();
     expect(landingRedirectForRoute('reporter', '/profile')).toBeNull();
     expect(landingRedirectForRoute('admin', '/reports')).toBeNull();
-    expect(landingRedirectForRoute('admin', '/more')).toBeNull();
     expect(landingRedirectForRoute('super_admin', '/reports')).toBeNull();
-    expect(landingRedirectForRoute('super_admin', '/more')).toBeNull();
+    expect(landingRedirectForRoute('staff', '/reports')).toBeNull();
     expect(landingRedirectForRoute('shop_manager', '/more')).toBeNull();
-    expect(landingRedirectForRoute('shop_manager', '/profile')).toBeNull();
   });
 
   it('ignores unauthenticated users', () => {

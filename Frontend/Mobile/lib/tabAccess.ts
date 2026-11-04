@@ -1,49 +1,57 @@
 import type { UserRole } from '@/types';
 
-export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'more' | 'profile' | 'staff-dashboard';
+export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'more' | 'profile';
+
+/**
+ * The actual roles defined by the backend. On mobile we treat staff and
+ * shop_manager the same as super_admin per the product decision: the super
+ * admin IS the platform owner and IS the shop manager, staff work is
+ * absorbed by super admin. These constants make that single decision easy
+ * to change later.
+ */
+const SUPER_ADMIN_LIKE: readonly UserRole[] = ['super_admin', 'staff', 'shop_manager'];
 
 /**
  * Which tab bar entries a role sees.
  *
- * Mapping (every role gets 3 or 4 tabs, no role sees more than 4):
+ * Four product roles on mobile (backend still carries all 6 values — we fold):
  *
- *   reporter    → index,    reports,       more, profile
- *   technician  → workspace, assignments,  more, profile
- *   staff       → staff-dashboard,         more, profile
- *   admin       → index,    reports,       more, profile
- *   super_admin → index,    reports,       more, profile
- *   shop_manager→ index,                   more, profile
- *
- * Site: staff, technician, reporter, admin, super_admin
- * Shop-only: shop_manager (no reports tab)
- * Platform-wide: super_admin
+ *   reporter            → Home, Reports, More, Profile
+ *                         (basic user — files issues, tracks them)
+ *   technician          → Workspace, Assignments, More (Shop), Profile
+ *                         (does the hands-on work, no admin tabs)
+ *   admin (site admin)  → Home, Reports, More (site mgmt), Profile
+ *                         (manages ONE site, not platform-wide)
+ *   super_admin         → Home (Platform Console), Reports, More (Shop +
+ *                         full mgmt), Profile
+ *                         (platform owner — staff work + shop manager absorbed
+ *                          into this role; backend still surfaces staff /
+ *                          shop_manager but we treat them identically)
  */
 export function isTabVisible(role: UserRole, tab: TabName): boolean {
+  const isSuperAdminLike = SUPER_ADMIN_LIKE.includes(role);
   switch (tab) {
-    // ── Home tabs (one per role family) ──────────────────────────────────
+    // ── Home (index) ────────────────────────────────────────────────────
+    // reporter, admin, super_admin (incl staff/shop_manager folded in)
+    // technician has its own workspace; everyone else lands on /(tabs)
     case 'index':
-      // Reporter / admin / super_admin / shop_manager → the role-specific
-      // dashboard at /(tabs). Technician has workspace, staff has staff-
-      // dashboard — neither sees index.
-      return role !== 'technician' && role !== 'staff';
+      return role !== 'technician';
+
+    // ── Reports ──────────────────────────────────────────────────────────
+    // Everyone who creates or reviews reports. Technician uses Assignments.
+    case 'reports':
+      return role === 'reporter' || role === 'admin' || isSuperAdminLike;
+
+    // ── Technician-only home/second tabs ──────────────────────────────────
     case 'workspace':
     case 'assignments':
       return role === 'technician';
-    case 'staff-dashboard':
-      return role === 'staff';
 
-    // ── Second tabs (reports vs assignments) ──────────────────────────────
-    case 'reports':
-      // Everyone who creates or reviews reports. Technicians use assignments
-      // instead. Staff also don't use this — staff manage sites, not reports
-      // directly (admins do). Shop managers are shop-only.
-      return role === 'reporter' || role === 'admin' || role === 'super_admin';
-
-    // ── Third tab — everyone gets More (Shop for technician/super_admin) ──
+    // ── More — everyone gets it, contents differ by role ───────────────────
     case 'more':
       return true;
 
-    // ── Fourth tab — Profile (everyone) ───────────────────────────────────
+    // ── Profile — everyone ───────────────────────────────────────────────
     case 'profile':
       return true;
 
@@ -60,31 +68,28 @@ export function isTechnicianForbiddenRoute(role: UserRole | null, pathname: stri
 /** The home tab route each role lands on after sign-in. */
 export function homeRouteForRole(role: UserRole): string {
   if (role === 'technician') return '/(tabs)/workspace';
-  if (role === 'staff') return '/(tabs)/staff-dashboard';
-  // reporter, admin, super_admin, shop_manager → role-specific Home at /(tabs)
+  // reporter, admin, super_admin (+ staff / shop_manager folded) → Home
   return '/(tabs)';
 }
 
 /**
  * Maps a pathname to its top-level tab so we can bounce a role off a route
- * it has no business on (e.g. staff landing on `/`, a reporter deep-linked
- * into `/workspace`). Returns the role's home route, or null when the
- * current route is valid for them.
+ * it has no business on (e.g. technician deep-linked into `/reports`, a
+ * reporter deep-linked into `/workspace`). Returns the role's home route, or
+ * null when the current route is valid for them.
  */
 export function landingRedirectForRoute(role: UserRole | null, pathname: string): string | null {
   if (!role) return null;
-  // Strip the route-group segment if present — usePathname() omits it.
   const path = pathname.replace(/^\/\(tabs\)/, '') || '/';
   const home = homeRouteForRole(role);
   const homePath = home.replace(/^\/\(tabs\)/, '') || '/';
 
-  // On the root: only roles whose home is NOT the index tab need a redirect.
   if (path === '/') {
     return homePath === '/' ? null : home;
   }
 
   const match = PATH_TO_TAB.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
-  const tab: TabName = match ? match[1] : 'index';
+  const tab = match ? match[1] : 'index';
   if (!isTabVisible(role, tab)) {
     return home;
   }
@@ -94,7 +99,6 @@ export function landingRedirectForRoute(role: UserRole | null, pathname: string)
 const PATH_TO_TAB: ReadonlyArray<readonly [string, TabName]> = [
   ['/workspace', 'workspace'],
   ['/assignments', 'assignments'],
-  ['/staff-dashboard', 'staff-dashboard'],
   ['/reports', 'reports'],
   ['/more', 'more'],
   ['/profile', 'profile'],
