@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import {
   ArrowRight,
   Building2,
@@ -45,18 +45,6 @@ export default function ProfileScreen() {
 
   if (!user) {
     return <Screen>{null}</Screen>;
-  }
-
-  // The EXACT same pattern used in admin-application.tsx:185 which works.
-  // Store clears → isAuthenticated becomes false → React re-renders →
-  // THEN router.replace from promise callback (safe, post-commit).
-  async function doLogOut() {
-    if (signingOut) return;
-    setSigningOut(true);
-    await logout().catch(() => {});
-    // Store is cleared. React has committed the re-render. Safe to navigate.
-    router.replace('/(auth)/login');
-    setSigningOut(false);
   }
 
   function openSettings() {
@@ -294,28 +282,21 @@ export default function ProfileScreen() {
             )}
           </Card>
 
-          {/* LOG OUT — uses the app's Button component so tap events aren't
-              swallowed by the web ScrollView's gesture detector or by any
-              header overlays in the navigator stack. */}
+          {/* LOG OUT — direct, no Alert. Same proven pattern as
+              admin-application.tsx:185. */}
           <Button
             variant="secondary"
             label="Log out"
             loading={signingOut}
             disabled={signingOut}
-            onPress={() =>
-              Alert.alert(
-                t('profile.session.signOutAlertTitle'),
-                t('profile.session.signOutAlertBody'),
-                [
-                  { text: t('profile.session.cancel'), style: 'cancel' },
-                  {
-                    text: 'Log out',
-                    style: 'default',
-                    onPress: doLogOut,
-                  },
-                ],
-              )
-            }
+            onPress={() => {
+              setSigningOut(true);
+              void logout().then(() => {
+                router.replace('/(auth)/login');
+              }).catch(() => {
+                router.replace('/(auth)/login');
+              });
+            }}
             className="mb-4"
           />
 
