@@ -20,9 +20,7 @@ import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
-import { ApiError } from '@/lib/apiClient';
 import { fullName } from '@/utils/format';
-import { logout as logoutBackend } from '@/services/auth';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -34,7 +32,7 @@ type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 export default function ProfileScreen() {
   const { t } = useTranslation('common');
   const router = useRouter();
-  const { user, logout: clearSession } = useAuth();
+  const { user, logout } = useAuth();
   const { site } = useCurrentSite();
   const {
     available,
@@ -45,29 +43,29 @@ export default function ProfileScreen() {
   const [signingOut, setSigningOut] = useState(false);
 
   if (!user) {
-    return <Screen>{null}</Screen>;
+    // Auth store already cleared — kick to the login screen.
+    router.replace('/(auth)/login');
+    return null;
   }
 
   async function doLogOut() {
     setSigningOut(true);
-    let backendError: string | null = null;
     try {
-      await logoutBackend();
-    } catch (err) {
-      backendError =
-        err instanceof ApiError
-          ? err.message
-          : t('profile.session.signOutFailed');
-    }
-    try {
-      await clearSession();
+      // useAuth().logout does exactly one thing: try the backend logout
+      // (best-effort, catches its own failures) then setUser(null) +
+      // clear stored credentials. It never throws, never leaves the user
+      // partially signed in. Calling the raw service separately was a
+      // double-POST that made the second call fail with a 401.
+      await logout();
     } catch {
-      // Auth store can't throw; swallow defensively.
+      // Shouldn't happen — auth store swallows — but guard anyway.
     }
+    // Explicit navigation after clearing the session. Don't rely on the
+    // AuthNavigator useEffect to catch the state transition; on web
+    // especially that timing can race with the Tabs navigator still
+    // mounted. router.replace fires immediately.
+    router.replace('/(auth)/login');
     setSigningOut(false);
-    if (backendError) {
-      Alert.alert(t('profile.session.signOutAlertTitle'), backendError);
-    }
   }
 
   function openSettings() {
