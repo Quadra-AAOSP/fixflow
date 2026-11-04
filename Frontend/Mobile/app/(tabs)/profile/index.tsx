@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import {
   ArrowRight,
@@ -25,18 +25,10 @@ import { fullName } from '@/utils/format';
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
 /**
- * Profile screen. Identity-first hero with settings entry, grouped
- * detail rows, preferences, and a working Log out action.
- *
- * Log out flow:
- *   1. User taps the confirm dialog → set pendingLogout = true
- *   2. useEffect sees pendingLogout → fire logout() + router.replace('/(auth)/login')
- *   3. Navigation changes stack first, store clears in the background
- *
- * This avoids two traps:
- *   - router.replace can't escape the (tabs) stack while (tabs) is mounted
- *   - calling router.replace during render (in the user===null early-return)
- *     is illegal on web
+ * Profile screen. Log out uses the same working pattern as
+ * admin-application.tsx: await logout() to clear the store FIRST, then
+ * router.replace('/(auth)/login') from a promise callback — never during
+ * render.
  */
 export default function ProfileScreen() {
   const { t } = useTranslation('common');
@@ -50,46 +42,21 @@ export default function ProfileScreen() {
   } = useTechnicianAvailability();
 
   const [signingOut, setSigningOut] = useState(false);
-  const [pendingLogout, setPendingLogout] = useState(false);
-  const logoutInFlight = useRef(false);
-
-  // Watch the pending flag — when the user confirmed the dialog, run the
-  // navigation + store clear from a useEffect so it fires after render.
-  useEffect(() => {
-    if (!pendingLogout || logoutInFlight.current) return;
-    logoutInFlight.current = true;
-    setPendingLogout(false);
-    setSigningOut(true);
-
-    // Navigate FIRST. We're sitting inside the (tabs) stack — we MUST
-    // break out to (auth) before the store clears, otherwise the Tabs
-    // navigator may fight the route change.
-    router.replace('/(auth)/login');
-
-    // Clear the store in the background. The auth store swallows its own
-    // errors so this is safe to fire-and-forget.
-    logout();
-  }, [pendingLogout, logout, router]);
-
-  // Safety net — if we land here somehow while already signed out, get out.
-  useEffect(() => {
-    if (!user) {
-      router.replace('/(auth)/login');
-    }
-  }, [user, router]);
 
   if (!user) {
-    return (
-      <Screen>
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-dashboard-caption">{t('profile.tagline')}</Text>
-        </View>
-      </Screen>
-    );
+    return <Screen>{null}</Screen>;
   }
 
-  function requestLogOut() {
-    setPendingLogout(true);
+  // The EXACT same pattern used in admin-application.tsx:185 which works.
+  // Store clears → isAuthenticated becomes false → React re-renders →
+  // THEN router.replace from promise callback (safe, post-commit).
+  async function doLogOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    await logout().catch(() => {});
+    // Store is cleared. React has committed the re-render. Safe to navigate.
+    router.replace('/(auth)/login');
+    setSigningOut(false);
   }
 
   function openSettings() {
@@ -344,7 +311,7 @@ export default function ProfileScreen() {
                   {
                     text: 'Log out',
                     style: 'default',
-                    onPress: requestLogOut,
+                    onPress: doLogOut,
                   },
                 ],
               )
