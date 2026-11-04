@@ -54,13 +54,25 @@ type ItemKey =
   | 'shopManagement'
   | 'shopCustomer';
 
-/** Which roles may see which item keys. Matches backend SecurityConfig:
- *   /api/admin/**       → ADMIN, SUPER_ADMIN only
- *   /api/admin/shop/**  → SUPER_ADMIN, SHOP_MANAGER only
- *   /api/**             → authenticated (everyone)
+/** Which roles may see which item keys. Matches backend source of truth:
  *
- * Anything that needs both a role match AND a capability flag (e.g. user
- * has an admin application pending) also has an ItemGuard below. */
+ *  Backend SecurityConfig:
+ *    /api/admin/**       → ADMIN, SUPER_ADMIN only
+ *    /api/admin/shop/**  → SUPER_ADMIN, SHOP_MANAGER only
+ *    /api/sites/**       → authenticated, scoped by actor's siteId
+ *
+ *  Backend SiteService:
+ *    createSite          → assertSuperAdmin   (super_admin ONLY)
+ *    editSite            → assertCanManage    (admin at that site OR super_admin)
+ *    deleteSite          → assertSuperAdmin   (super_admin ONLY)
+ *
+ *  Backend UserCapabilities.forRole():
+ *    createSite          → super_admin only
+ *    editSite            → admin + super_admin
+ *    assignTechnician    → admin + super_admin + staff
+ *
+ *  Anything that needs both a role match AND a capability flag (e.g. user
+ *  has an admin application pending) also has an ItemGuard below. */
 const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   notifications: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
 
@@ -68,20 +80,26 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   // below requires user.adminApplication !== null.
   myAdminApplication: ['reporter'],
 
-  // /api/admin/** → ADMIN, SUPER_ADMIN only — NOT staff, NOT shop_manager
-  siteSetup: ['admin', 'super_admin'],
+  // SiteSetup = CREATE site → super_admin only (SiteService.create asserts super_admin).
+  siteSetup: ['super_admin'],
+  // Sites = edit / manage existing sites → admin (theirs) + super_admin (all).
   sites: ['admin', 'super_admin'],
+
+  // TeamAccess = provision users via /api/admin/users → admin + super_admin.
+  // Admin can only provision staff at their own site (backend enforces scope).
+  // Super_admin can provision staff/admin/shop_manager/super_admin anywhere.
   teamAccess: ['admin', 'super_admin'],
 
-  // Platform-wide technician mgmt — super_admin only. Staff manage
-  // technicians at their site via teamAccess, not this page.
-  technicians: ['super_admin'],
+  // Technicians directory — staff views their site's technicians, admin +
+  // super_admin view the full directory. staff manages contracts at site level.
+  technicians: ['staff', 'admin', 'super_admin'],
 
   // Approve pending site admins — super_admin exclusive.
   adminApplications: ['super_admin'],
 
   contractsTechnician: ['technician'],
-  contractsAdmin: ['admin', 'super_admin'],
+  // Site-level contract management — staff can assign technicians at their site too.
+  contractsAdmin: ['staff', 'admin', 'super_admin'],
 
   // /api/admin/shop/** → SUPER_ADMIN, SHOP_MANAGER only.
   shopManagement: ['super_admin', 'shop_manager'],
