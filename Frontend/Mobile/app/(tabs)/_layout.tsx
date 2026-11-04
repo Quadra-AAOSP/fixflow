@@ -15,14 +15,14 @@ import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
 import { isTabVisible } from '@/lib/tabAccess';
 
 /**
- * Role-aware bottom tabs. Four product roles (backend still carries all 6 —
- * staff + shop_manager are treated as super_admin on mobile, per product):
+ * Role-aware bottom tabs. Six backend roles — one tab bar per role:
  *
- *   reporter            → Home, Reports, More, Profile
- *   technician          → Workspace, Assignments, More (Shop), Profile
- *   admin (site)        → Home, Reports, More (site mgmt), Profile
- *   super_admin (incl.  → Home (Platform Console), Reports, More (Shop + mgmt),
- *   staff, shop_manager)   Profile
+ *   reporter      → Home, Reports,            More,       Profile
+ *   technician    → Workspace,    Assignments,  More(Shop), Profile
+ *   staff         → Staff Dashboard, Reports,   More,       Profile
+ *   admin         → Home, Reports,              More,       Profile
+ *   super_admin   → Home, Reports,              More(Shop+mgmt), Profile
+ *   shop_manager  → Home, More(Shop),          Profile    (only 3)
  *
  * We conditionally render only the screens the role actually needs. First
  * visible tab declared = default route (expo-router picks that). This
@@ -45,25 +45,34 @@ export default function TabLayout() {
   const role = user.role;
   const hasIndex = isTabVisible(role, 'index');
   const hasWorkspace = isTabVisible(role, 'workspace');
+  const hasStaffDashboard = isTabVisible(role, 'staff-dashboard');
   const hasReports = isTabVisible(role, 'reports');
   const hasAssignments = isTabVisible(role, 'assignments');
   const hasMore = isTabVisible(role, 'more');
   const hasProfile = isTabVisible(role, 'profile');
 
+  // Label per role for the Home tab — tells the user what kind of home it is.
+  const homeLabel =
+    role === 'super_admin' ? t('tabs.platformConsole')
+    : role === 'shop_manager' ? t('tabs.shopConsole')
+    : t('tabs.home');
+
   // First declared tab is the role's default landing.
   const screens = [
-    // Position 1 — role-specific Home / Technician Workspace
+    // Position 1 — role-specific Home / Technician Workspace / Staff Dashboard
     hasWorkspace && {
       name: 'workspace',
       title: t('tabs.workspace'),
       icon: Wrench,
     },
+    hasStaffDashboard && {
+      name: 'staff-dashboard',
+      title: t('tabs.staffDashboard'),
+      icon: ClipboardList,
+    },
     hasIndex && {
       name: 'index',
-      title:
-        role === 'super_admin' || role === 'staff' || role === 'shop_manager'
-          ? t('tabs.platformConsole')
-          : t('tabs.home'),
+      title: homeLabel,
       icon: House,
     },
     // Position 2 — Reports or Technician Assignments
@@ -79,7 +88,7 @@ export default function TabLayout() {
       icon: ClipboardList,
       hideHeader: true,
     },
-    // Position 3 — More (labeled Shop for technician / super_admin family)
+    // Position 3 — More (labeled Shop for technician / shop_manager / super_admin)
     hasMore && {
       name: 'more',
       title:
@@ -88,9 +97,9 @@ export default function TabLayout() {
           : t('tabs.more'),
       icon: LayoutGrid,
       hideHeader: true,
-      // Technician lands straight in shop catalog; everyone else lands
-      // in the More hub and picks what they need.
-      href: role === 'technician' ? '/more/shop' : undefined,
+      // Technician + shop_manager land straight in shop catalog; everyone
+      // else lands in the More hub and picks what they need.
+      href: role === 'technician' || role === 'shop_manager' ? '/more/shop' : undefined,
     },
     // Position 4 — Profile (everyone)
     hasProfile && {

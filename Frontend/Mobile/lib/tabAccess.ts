@@ -1,53 +1,46 @@
 import type { UserRole } from '@/types';
 
-export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'more' | 'profile';
+export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'staff-dashboard' | 'more' | 'profile';
 
 /**
- * The actual roles defined by the backend. On mobile we treat staff and
- * shop_manager the same as super_admin per the product decision: the super
- * admin IS the platform owner and IS the shop manager, staff work is
- * absorbed by super admin. These constants make that single decision easy
- * to change later.
- */
-const SUPER_ADMIN_LIKE: readonly UserRole[] = ['super_admin', 'staff', 'shop_manager'];
-
-/**
- * Which tab bar entries a role sees.
+ * The six roles defined by the backend (source of truth):
+ *   reporter, technician, staff, admin, super_admin, shop_manager
  *
- * Four product roles on mobile (backend still carries all 6 values — we fold):
+ * Backend SecurityConfig permission model — this dictates EVERYTHING below:
+ *   /api/admin/**        → ADMIN, SUPER_ADMIN only (site + platform admin)
+ *   /api/admin/shop/**   → SUPER_ADMIN, SHOP_MANAGER only (shop management)
+ *   /api/**              → authenticated (everyone)
  *
- *   reporter            → Home, Reports, More, Profile
- *                         (basic user — files issues, tracks them)
- *   technician          → Workspace, Assignments, More (Shop), Profile
- *                         (does the hands-on work, no admin tabs)
- *   admin (site admin)  → Home, Reports, More (site mgmt), Profile
- *                         (manages ONE site, not platform-wide)
- *   super_admin         → Home (Platform Console), Reports, More (Shop +
- *                         full mgmt), Profile
- *                         (platform owner — staff work + shop manager absorbed
- *                          into this role; backend still surfaces staff /
- *                          shop_manager but we treat them identically)
+ * Tab bar (fixed 4-slot order — first visible tab = home):
+ *
+ *   reporter      → Home (index), Reports,            More,       Profile
+ *   technician    → Workspace,    Assignments,       More(Shop), Profile
+ *   staff         → Staff Dashboard, Reports,         More,       Profile
+ *   admin (site)  → Home (index), Reports,            More,       Profile
+ *   super_admin   → Home (index), Reports,            More(Shop+mgmt), Profile
+ *   shop_manager  → Home (index), More(Shop),        Profile      (only 3)
  */
 export function isTabVisible(role: UserRole, tab: TabName): boolean {
-  const isSuperAdminLike = SUPER_ADMIN_LIKE.includes(role);
   switch (tab) {
-    // ── Home (index) ────────────────────────────────────────────────────
-    // reporter, admin, super_admin (incl staff/shop_manager folded in)
-    // technician has its own workspace; everyone else lands on /(tabs)
+    // ── Home tabs (one per role family) ──────────────────────────────────
     case 'index':
-      return role !== 'technician';
+      // Everyone EXCEPT technician (they have workspace) and staff (they have staff-dashboard).
+      return role !== 'technician' && role !== 'staff';
 
-    // ── Reports ──────────────────────────────────────────────────────────
-    // Everyone who creates or reviews reports. Technician uses Assignments.
-    case 'reports':
-      return role === 'reporter' || role === 'admin' || isSuperAdminLike;
-
-    // ── Technician-only home/second tabs ──────────────────────────────────
     case 'workspace':
     case 'assignments':
       return role === 'technician';
 
-    // ── More — everyone gets it, contents differ by role ───────────────────
+    case 'staff-dashboard':
+      return role === 'staff';
+
+    // ── Reports tab ──────────────────────────────────────────────────────
+    // Everyone who creates or reviews reports. Technician uses Assignments
+    // instead. Shop manager is shop-only, never reports.
+    case 'reports':
+      return role === 'reporter' || role === 'staff' || role === 'admin' || role === 'super_admin';
+
+    // ── More tab — everyone gets it (contents differ by role) ─────────────
     case 'more':
       return true;
 
@@ -68,7 +61,8 @@ export function isTechnicianForbiddenRoute(role: UserRole | null, pathname: stri
 /** The home tab route each role lands on after sign-in. */
 export function homeRouteForRole(role: UserRole): string {
   if (role === 'technician') return '/(tabs)/workspace';
-  // reporter, admin, super_admin (+ staff / shop_manager folded) → Home
+  if (role === 'staff') return '/(tabs)/staff-dashboard';
+  // reporter, admin, super_admin, shop_manager → Home at /(tabs)
   return '/(tabs)';
 }
 
@@ -99,6 +93,7 @@ export function landingRedirectForRoute(role: UserRole | null, pathname: string)
 const PATH_TO_TAB: ReadonlyArray<readonly [string, TabName]> = [
   ['/workspace', 'workspace'],
   ['/assignments', 'assignments'],
+  ['/staff-dashboard', 'staff-dashboard'],
   ['/reports', 'reports'],
   ['/more', 'more'],
   ['/profile', 'profile'],
