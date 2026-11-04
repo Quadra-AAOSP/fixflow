@@ -1,40 +1,22 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import {
-  ClipboardList,
-  ShieldAlert,
-  ShieldCheck,
-  Wrench,
-  type LucideIcon,
-} from 'lucide-react-native';
+import { ClipboardList, ShieldAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { AuthButton } from '@/components/auth/AuthButton';
 import { AuthField } from '@/components/auth/AuthField';
 import { AuthHeading } from '@/components/auth/AuthHeading';
 import { AuthShell } from '@/components/auth/AuthShell';
-import { authColors, fontFamilies } from '@/constants/theme';
+import { fontFamilies } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/services/auth';
 
 /**
- * Sign-in. Two flows, one screen:
- *
- *   1. NEW USER — arrives with no account. Sees three role picker tiles
- *      first, picks how they'll help (reporter / technician / site admin),
- *      lands on the matching register form. Site admin applications are
- *      demoted by the backend and filed as pending super-admin approvals.
- *
- *   2. RETURNING USER — scrolls past the role tiles, signs in with
- *      email + password. Super admins use the gated shield footer instead.
- *
- * Role routing after login (handled by tabAccess.ts / (tabs)/_layout.tsx):
- *   reporter   → /(tabs)
- *   technician → /(tabs)/workspace + assignments
- *   admin      → /(tabs)/more (admin dashboard)
- *   super_admin → /(tabs) (platform console) — but must enter through
- *                 the dedicated gate at /(auth)/super-admin-login
+ * Sign-in. Standard functional-app pattern: form first, tiny link below
+ * to the register screen where role picker lives. Super admin entry is a
+ * subtle shield footer — not a big button, so regular users never see it
+ * by accident.
  */
 export default function LoginScreen() {
   const { t } = useTranslation('common');
@@ -87,46 +69,6 @@ export default function LoginScreen() {
         description={t('auth.login.description')}
       />
 
-      {/* ── NEW USER FLOW (on top) ────────────────────────────────────────── */}
-      <View className="gap-2">
-        <Text className="mb-1 text-[10px] font-semibold uppercase tracking-[1.2px] text-auth-note">
-          {t('auth.login.pickPath')}
-        </Text>
-
-        <RoleTile
-          icon={ClipboardList}
-          color={authColors.roseDeep}
-          bg={authColors.roseSoft}
-          title={t('auth.register.reporterTitle')}
-          subtitle={t('auth.register.reporterSubtitle')}
-          onPress={() => router.push('/(auth)/register-reporter')}
-        />
-        <RoleTile
-          icon={Wrench}
-          color={authColors.mintDeep}
-          bg={authColors.mintSoft}
-          title={t('auth.register.technicianTitle')}
-          subtitle={t('auth.register.technicianSubtitle')}
-          onPress={() => router.push('/(auth)/register-technician')}
-        />
-        <RoleTile
-          icon={ShieldCheck}
-          color={authColors.mintDeep}
-          bg={authColors.mintSoft}
-          title={t('auth.register.adminTitle')}
-          subtitle={t('auth.register.adminSubtitle')}
-          onPress={() => router.push('/(auth)/register-admin-apply')}
-        />
-      </View>
-
-      {/* Thin divider before the returning-user form. */}
-      <View className="my-5 flex-row items-center gap-2 border-t border-auth-line pt-5">
-        <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-auth-note">
-          {t('auth.login.returningHeading')}
-        </Text>
-      </View>
-
-      {/* ── RETURNING USER FLOW ──────────────────────────────────────────── */}
       <AuthField
         label={t('auth.login.emailLabel')}
         value={email}
@@ -160,16 +102,37 @@ export default function LoginScreen() {
 
       <AuthButton label={t('auth.login.submit')} loading={submitting} onPress={onSubmit} />
 
-      {/* Super admin gate — subtle footer row, intentionally easy to miss
-          unless you're looking for it. No one stumbles into super admin. */}
+      {/* Standard "New here? Create account" link — full-width row so the
+          tap target is 44pt instead of ~18pt inline text. Jumps straight
+          to /register where the role picker lives. */}
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={t('auth.login.createAccount')}
+        onPress={() => router.push('/(auth)/register')}
+        className="mt-3 min-h-[44px] items-center justify-center active:opacity-70"
+      >
+        <Text className="text-center text-[13px] text-auth-body">
+          {t('auth.login.newHere')}{' '}
+          <Text
+            className="text-coral-link"
+            style={{ fontFamily: fontFamilies.bodySemiBold }}
+          >
+            {t('auth.login.createAccount')}
+          </Text>
+        </Text>
+      </Pressable>
+
+      {/* Super admin gate — tiny footer row with a shield icon. Intentionally
+          subtle so non-super-admins never reach it unless they know it's
+          there. Routes to the dedicated locked-email screen. */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('auth.login.superAdminCta')}
         onPress={() => router.push('/(auth)/super-admin-login')}
-        className="mt-4 flex-row items-center justify-center gap-1.5 rounded-md border border-auth-line px-3 py-2 active:opacity-70"
+        className="mt-2 flex-row items-center justify-center gap-1.5 rounded-md border border-auth-line px-3 py-2 active:opacity-70"
       >
-        <ShieldAlert color={authColors.note} size={12} />
-        <Text className="text-[11px] text-auth-note">
+        <ShieldAlert color="#888" size={11} />
+        <Text className="text-[10px] text-auth-note">
           {t('auth.login.superAdminCta')}
         </Text>
       </Pressable>
@@ -178,44 +141,5 @@ export default function LoginScreen() {
         {t('auth.login.tagline')}
       </Text>
     </AuthShell>
-  );
-}
-
-type RoleTileProps = {
-  icon: LucideIcon;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-  color: string;
-  bg: string;
-};
-
-function RoleTile({ icon: Icon, title, subtitle, onPress, color, bg }: RoleTileProps) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      onPress={onPress}
-      className="w-full flex-row items-center gap-3 rounded-[10px] border border-auth-card-line bg-auth-card-bg px-3.5 py-3 active:opacity-70"
-    >
-      <View
-        className="h-[34px] w-[34px] items-center justify-center rounded-[9px]"
-        style={{ backgroundColor: bg }}
-      >
-        <Icon color={color} size={18} />
-      </View>
-      <View className="flex-1">
-        <Text
-          className="text-[12px] text-auth-ink"
-          style={{ fontFamily: fontFamilies.bodySemiBold }}
-        >
-          {title}
-        </Text>
-        <Text className="mt-0.5 text-[10px] leading-[1.4] text-auth-body">
-          {subtitle}
-        </Text>
-      </View>
-      <Text className="text-[12px] text-auth-ink">→</Text>
-    </Pressable>
   );
 }
