@@ -4,7 +4,6 @@ import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import {
   ArrowRight,
   Building2,
-  LogOut,
   Mail,
   Phone,
   Settings,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { roleLabels } from '@/constants/access';
@@ -86,6 +86,7 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerClassName="pb-12"
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* HERO — identity block with top-right settings. */}
         <View
@@ -302,12 +303,13 @@ export default function ProfileScreen() {
             )}
           </Card>
 
-          {/* LOG OUT — mint theme so it sits with the rest of the app instead
-              of screaming coral. Loading state, always clears local session,
-              backend failure is surfaced but never blocks the sign-out. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Log out"
+          {/* LOG OUT — uses the app's Button component so tap events aren't
+              swallowed by the web ScrollView's gesture detector or by any
+              header overlays in the navigator stack. */}
+          <Button
+            variant="secondary"
+            label="Log out"
+            loading={signingOut}
             disabled={signingOut}
             onPress={() =>
               Alert.alert(
@@ -323,22 +325,8 @@ export default function ProfileScreen() {
                 ],
               )
             }
-            className="mb-4 flex-row items-center justify-center gap-2 rounded-[11px] px-4 py-3 active:opacity-90"
-            style={{
-              backgroundColor: dashboardColors.statMintSoft,
-              borderWidth: 1,
-              borderColor: dashboardColors.statMintDeep,
-              opacity: signingOut ? 0.6 : 1,
-            }}
-          >
-            <LogOut color={dashboardColors.statMintDeep} size={16} />
-            <Text
-              className="text-[13px] font-semibold"
-              style={{ color: dashboardColors.statMintDeep }}
-            >
-              {signingOut ? 'Signing out…' : 'Log out'}
-            </Text>
-          </Pressable>
+            className="mb-4"
+          />
 
           <Text className="text-center text-[10px] leading-[1.6] text-dashboard-caption">
             {t('profile.tagline')}
