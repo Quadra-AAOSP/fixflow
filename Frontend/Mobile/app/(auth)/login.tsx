@@ -19,15 +19,22 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/services/auth';
 
 /**
- * Sign-in. Primary flow for every role — reporter, technician, site admin,
- * staff. Super admins land here too if they know the credentials, but we
- * offer a gated shield entry below that routes them through the dedicated
- * super-admin gate (locked email + role check before entering the dashboard).
+ * Sign-in. Two flows, one screen:
  *
- * Below the form we show three role tiles that mirror register.tsx so a
- * returning user can quickly jump into the signup path that matches them
- * — this prevents the "I logged in as a reporter but see staff content"
- * confusion that was the origin of this whole session.
+ *   1. NEW USER — arrives with no account. Sees three role picker tiles
+ *      first, picks how they'll help (reporter / technician / site admin),
+ *      lands on the matching register form. Site admin applications are
+ *      demoted by the backend and filed as pending super-admin approvals.
+ *
+ *   2. RETURNING USER — scrolls past the role tiles, signs in with
+ *      email + password. Super admins use the gated shield footer instead.
+ *
+ * Role routing after login (handled by tabAccess.ts / (tabs)/_layout.tsx):
+ *   reporter   → /(tabs)
+ *   technician → /(tabs)/workspace + assignments
+ *   admin      → /(tabs)/more (admin dashboard)
+ *   super_admin → /(tabs) (platform console) — but must enter through
+ *                 the dedicated gate at /(auth)/super-admin-login
  */
 export default function LoginScreen() {
   const { t } = useTranslation('common');
@@ -80,6 +87,46 @@ export default function LoginScreen() {
         description={t('auth.login.description')}
       />
 
+      {/* ── NEW USER FLOW (on top) ────────────────────────────────────────── */}
+      <View className="gap-2">
+        <Text className="mb-1 text-[10px] font-semibold uppercase tracking-[1.2px] text-auth-note">
+          {t('auth.login.pickPath')}
+        </Text>
+
+        <RoleTile
+          icon={ClipboardList}
+          color={authColors.roseDeep}
+          bg={authColors.roseSoft}
+          title={t('auth.register.reporterTitle')}
+          subtitle={t('auth.register.reporterSubtitle')}
+          onPress={() => router.push('/(auth)/register-reporter')}
+        />
+        <RoleTile
+          icon={Wrench}
+          color={authColors.mintDeep}
+          bg={authColors.mintSoft}
+          title={t('auth.register.technicianTitle')}
+          subtitle={t('auth.register.technicianSubtitle')}
+          onPress={() => router.push('/(auth)/register-technician')}
+        />
+        <RoleTile
+          icon={ShieldCheck}
+          color={authColors.mintDeep}
+          bg={authColors.mintSoft}
+          title={t('auth.register.adminTitle')}
+          subtitle={t('auth.register.adminSubtitle')}
+          onPress={() => router.push('/(auth)/register-admin-apply')}
+        />
+      </View>
+
+      {/* Thin divider before the returning-user form. */}
+      <View className="my-5 flex-row items-center gap-2 border-t border-auth-line pt-5">
+        <Text className="text-[10px] font-semibold uppercase tracking-[1.2px] text-auth-note">
+          {t('auth.login.returningHeading')}
+        </Text>
+      </View>
+
+      {/* ── RETURNING USER FLOW ──────────────────────────────────────────── */}
       <AuthField
         label={t('auth.login.emailLabel')}
         value={email}
@@ -113,49 +160,13 @@ export default function LoginScreen() {
 
       <AuthButton label={t('auth.login.submit')} loading={submitting} onPress={onSubmit} />
 
-      {/* Role path tiles — visible on login so users confirm their role
-          before creating an account. Each tile jumps to the matching
-          register screen. Site admin routes to the apply screen. */}
-      <View className="mt-5">
-        <Text className="mb-2 text-[10px] font-semibold uppercase tracking-[1.2px] text-auth-note">
-          {t('auth.login.pickPath')}
-        </Text>
-        <View className="gap-2">
-          <RoleTile
-            icon={ClipboardList}
-            color={authColors.roseDeep}
-            bg={authColors.roseSoft}
-            title={t('auth.register.reporterTitle')}
-            subtitle={t('auth.register.reporterSubtitle')}
-            onPress={() => router.push('/(auth)/register-reporter')}
-          />
-          <RoleTile
-            icon={Wrench}
-            color={authColors.mintDeep}
-            bg={authColors.mintSoft}
-            title={t('auth.register.technicianTitle')}
-            subtitle={t('auth.register.technicianSubtitle')}
-            onPress={() => router.push('/(auth)/register-technician')}
-          />
-          <RoleTile
-            icon={ShieldCheck}
-            color={authColors.mintDeep}
-            bg={authColors.mintSoft}
-            title={t('auth.register.adminTitle')}
-            subtitle={t('auth.register.adminSubtitle')}
-            onPress={() => router.push('/(auth)/register-admin-apply')}
-          />
-        </View>
-      </View>
-
-      {/* Super admin gate — tiny footer row, intentionally subtle. Non-super
-          admins will never reach this unless they know the admin email and
-          deliberately click it. */}
+      {/* Super admin gate — subtle footer row, intentionally easy to miss
+          unless you're looking for it. No one stumbles into super admin. */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('auth.login.superAdminCta')}
         onPress={() => router.push('/(auth)/super-admin-login')}
-        className="mt-5 flex-row items-center justify-center gap-1.5 rounded-md border border-auth-line px-3 py-2 active:opacity-70"
+        className="mt-4 flex-row items-center justify-center gap-1.5 rounded-md border border-auth-line px-3 py-2 active:opacity-70"
       >
         <ShieldAlert color={authColors.note} size={12} />
         <Text className="text-[11px] text-auth-note">
