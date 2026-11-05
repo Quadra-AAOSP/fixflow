@@ -1144,6 +1144,7 @@
     "staffDashboard": "Dashboard",
     "platformConsole": "Platform",
     "shopConsole": "Shop",
+    "technician": "Technician",
     "profile": "Profile"
   },
   "notFound": {
@@ -1260,28 +1261,25 @@
       }
     },
     "contractRequests": {
-      "title": "Contract requests",
-      "loading": "Loading requests…",
-      "existing": "Your requests",
-      "createdAt": "Created {date}",
-      "noRequests": "No contract requests yet.",
-      "new": "Request a contract",
+      "back": "Back",
+      "kicker": "TECHNICIAN",
+      "heroTitle": "Site contracts",
+      "heroBody": "A contract links you to a site so you can be assigned its reports. Request one below — the site admin approves it.",
+      "yourContracts": "Your contracts",
+      "noContracts": "No active contracts yet. Request one below to join a site.",
+      "createdAt": "Since {date}",
+      "active": "Active",
+      "requestTitle": "Request a contract",
+      "requestBody": "Pick the site you want to work with. Your request goes to that site's admin for approval.",
       "newSite": "Site",
       "chooseSite": "Choose a site",
-      "siteFallback": "Site #{id}",
-      "cancel": "Cancel",
-      "submit": "Submit request",
-      "approve": "Approve",
-      "reject": "Reject",
-      "status": {
-        "pending": "Pending",
-        "approved": "Approved",
-        "rejected": "Rejected"
-      },
+      "noSites": "You are already contracted to every site.",
+      "submit": "Send request",
+      "submitted": "Request sent to {site} for approval.",
+      "loading": "Loading contracts…",
       "errors": {
-        "couldNotLoad": "Could not load contract requests.",
-        "couldNotSubmit": "Could not submit the request.",
-        "couldNotDecide": "Could not record the decision."
+        "couldNotLoad": "Could not load your contracts.",
+        "couldNotSubmit": "Could not send the request."
       }
     }
   },

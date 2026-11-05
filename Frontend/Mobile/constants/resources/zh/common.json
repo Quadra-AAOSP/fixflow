@@ -1144,6 +1144,7 @@
     "staffDashboard": "工作台",
     "platformConsole": "平台",
     "shopConsole": "商城",
+    "technician": "技术员",
     "profile": "个人资料"
   },
   "notFound": {
@@ -1260,28 +1261,25 @@
       }
     },
     "contractRequests": {
-      "title": "合同申请",
-      "loading": "正在加载申请…",
-      "existing": "您的申请",
-      "createdAt": "创建于 {date}",
-      "noRequests": "暂无合同申请。",
-      "new": "申请合同",
+      "back": "返回",
+      "kicker": "技术员",
+      "heroTitle": "站点合同",
+      "heroBody": "合同会将你与站点绑定，从而可以接收该站点的工单。在下方提交申请，由站点管理员审核。",
+      "yourContracts": "您的合同",
+      "noContracts": "暂无有效合同。在下方提交申请以加入站点。",
+      "createdAt": "自 {date}",
+      "active": "有效",
+      "requestTitle": "申请合同",
+      "requestBody": "选择你希望合作的站点，申请会提交给该站点管理员审核。",
       "newSite": "站点",
       "chooseSite": "选择站点",
-      "siteFallback": "站点 #{id}",
-      "cancel": "取消",
-      "submit": "提交申请",
-      "approve": "批准",
-      "reject": "拒绝",
-      "status": {
-        "pending": "待处理",
-        "approved": "已批准",
-        "rejected": "已拒绝"
-      },
+      "noSites": "你已与所有站点签约。",
+      "submit": "发送申请",
+      "submitted": "申请已发送至 {site}，等待审核。",
+      "loading": "正在加载合同…",
       "errors": {
-        "couldNotLoad": "无法加载合同申请。",
-        "couldNotSubmit": "无法提交申请。",
-        "couldNotDecide": "无法记录决定。"
+        "couldNotLoad": "无法加载你的合同。",
+        "couldNotSubmit": "无法发送申请。"
       }
     }
   },

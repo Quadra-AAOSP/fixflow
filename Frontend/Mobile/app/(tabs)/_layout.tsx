@@ -14,20 +14,33 @@ import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
 import { isTabVisible } from '@/lib/tabAccess';
 
+type TabConfig = {
+  name: string;
+  visible: boolean;
+  title: string;
+  icon: typeof House;
+  hideHeader?: boolean;
+  href?: string;
+};
+
 /**
  * Role-aware bottom tabs. Six backend roles — one tab bar per role:
  *
  *   reporter      → Home, Reports,            More,       Profile
  *   technician    → Workspace,    Assignments,  More(Shop), Profile
- *   staff         → Staff Dashboard, Reports,   More,       Profile
- *   admin         → Home, Reports,              More,       Profile
- *   super_admin   → Home, Reports,              More(Shop+mgmt), Profile
- *   shop_manager  → Home, More(Shop),          Profile    (only 3)
+ *   staff         → Home, Reports,            More,       Profile
+ *   admin         → Home, Reports,            More,       Profile
+ *   super_admin   → Home, Reports,            More(Shop+mgmt), Profile
+ *   shop_manager  → Home, More(Shop),         Profile    (only 3)
  *
- * We conditionally render only the screens the role actually needs. First
- * visible tab declared = default route (expo-router picks that). This
- * avoids the infinite render loop that happens when both a top-level
- * <Redirect> and tab options with `href: null` fight to mutate the route.
+ * EVERY top-level route in this group is declared explicitly. Routes a role
+ * cannot see are declared with `href: null` instead of being omitted —
+ * expo-router auto-registers any undeclared file/directory in the group as
+ * a tab, which is what previously leaked `workspace`, `assignments` and the
+ * `technician` stack into the bar for reporters (7 tabs instead of 4).
+ *
+ * Hidden routes stay mounted so `router.push('/technician/contract-requests')`
+ * still works; they simply never occupy a tab slot.
  */
 export default function TabLayout() {
   const palette = themeColors();
@@ -43,13 +56,6 @@ export default function TabLayout() {
   }
 
   const role = user.role;
-  const hasIndex = isTabVisible(role, 'index');
-  const hasWorkspace = isTabVisible(role, 'workspace');
-  const hasStaffDashboard = isTabVisible(role, 'staff-dashboard');
-  const hasReports = isTabVisible(role, 'reports');
-  const hasAssignments = isTabVisible(role, 'assignments');
-  const hasMore = isTabVisible(role, 'more');
-  const hasProfile = isTabVisible(role, 'profile');
 
   // Label per role for the Home tab — tells the user what kind of home it is.
   const homeLabel =
@@ -57,67 +63,67 @@ export default function TabLayout() {
     : role === 'shop_manager' ? t('tabs.shopConsole')
     : t('tabs.home');
 
-  // First declared tab is the role's default landing.
-  const screens = [
-    // Position 1 — role-specific Home / Technician Workspace / Staff Dashboard
-    hasWorkspace && {
+  // Fixed slot order: home/dashboard → reports/technician → more → profile.
+  // First visible tab is the role's default landing.
+  const tabs: TabConfig[] = [
+    {
       name: 'workspace',
+      visible: isTabVisible(role, 'workspace'),
       title: t('tabs.workspace'),
       icon: Wrench,
+      hideHeader: true,
     },
-    hasStaffDashboard && {
-      name: 'staff-dashboard',
-      title: t('tabs.staffDashboard'),
-      icon: ClipboardList,
-    },
-    hasIndex && {
+    {
       name: 'index',
+      visible: isTabVisible(role, 'index'),
       title: homeLabel,
       icon: House,
     },
-    // Position 2 — Reports or Technician Assignments
-    hasReports && {
+    {
       name: 'reports',
+      visible: isTabVisible(role, 'reports'),
       title: t('tabs.reports'),
       icon: ClipboardList,
       hideHeader: true,
     },
-    hasAssignments && {
+    {
       name: 'assignments',
+      visible: isTabVisible(role, 'assignments'),
       title: t('tabs.assignments'),
       icon: ClipboardList,
       hideHeader: true,
     },
-    // Position 3 — More (labeled Shop for technician / shop_manager / super_admin)
-    hasMore && {
+    {
       name: 'more',
-      title:
-        role === 'technician'
-          ? t('tabs.shop')
-          : t('tabs.more'),
+      visible: isTabVisible(role, 'more'),
+      title: role === 'technician' ? t('tabs.shop') : t('tabs.more'),
       icon: LayoutGrid,
       hideHeader: true,
-      // Technician + shop_manager land straight in shop catalog; everyone
-      // else lands in the More hub and picks what they need.
+      // Technician + shop_manager land straight in the shop catalog;
+      // everyone else lands in the More hub.
       href: role === 'technician' || role === 'shop_manager' ? '/more/shop' : undefined,
     },
-    // Position 4 — Profile (everyone)
-    hasProfile && {
+    {
       name: 'profile',
+      visible: isTabVisible(role, 'profile'),
       title: t('tabs.profile'),
       icon: User,
       hideHeader: true,
     },
-  ].filter(Boolean) as Array<{
-    name: string;
-    title: string;
-    icon: typeof House;
-    hideHeader?: boolean;
-    href?: string;
-  }>;
+    // Nested stacks — reachable by route push, never a tab slot.
+    {
+      name: 'technician',
+      visible: false,
+      title: t('tabs.technician'),
+      icon: Wrench,
+      hideHeader: true,
+    },
+  ];
+
+  const visibleTabs = tabs.filter((tab) => tab.visible);
 
   // Defensive — if somehow the role has no visible tabs, bounce to login.
-  if (screens.length === 0) {
+  if (visibleTabs.length === 0) {
     return (
       <SiteProvider>
         <Redirect href="/(auth)/login" />
@@ -125,12 +131,10 @@ export default function TabLayout() {
     );
   }
 
-  const first = screens[0].name;
-
   return (
     <SiteProvider>
       <Tabs
-        initialRouteName={first}
+        initialRouteName={visibleTabs[0].name}
         screenOptions={{
           tabBarActiveTintColor: palette.tabIconSelected,
           tabBarInactiveTintColor: palette.tabIconDefault,
@@ -146,16 +150,17 @@ export default function TabLayout() {
           headerShown: useClientOnlyValue(false, true),
         }}
       >
-        {screens.map((screen) => (
+        {tabs.map((tab) => (
           <Tabs.Screen
-            key={screen.name}
-            name={screen.name}
+            key={tab.name}
+            name={tab.name}
             options={{
-              ...(screen.hideHeader ? { headerShown: false } : {}),
-              ...(screen.href ? { href: screen.href } : {}),
-              title: screen.title,
+              // Hidden tabs keep their route but leave the bar.
+              href: tab.visible ? tab.href ?? undefined : null,
+              ...(tab.hideHeader ? { headerShown: false } : {}),
+              title: tab.title,
               tabBarIcon: ({ color, size }) => (
-                <screen.icon color={color} size={size} />
+                <tab.icon color={color} size={size} />
               ),
             }}
           />
