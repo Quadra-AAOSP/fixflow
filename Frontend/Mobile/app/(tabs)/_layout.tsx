@@ -5,34 +5,35 @@ import {
   User,
   Wrench,
 } from 'lucide-react-native';
-import { Redirect, Tabs, usePathname } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { SiteProvider } from '@/stores/site';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
-import { isTabVisible, isTechnicianForbiddenRoute } from '@/lib/tabAccess';
+import { isTabVisible } from '@/lib/tabAccess';
 
 /**
- * Role-aware bottom tabs. Mirrors the web sidebar navigation:
- *   - `reporter | admin`                     → Home / Reports / More / Profile
- *   - `staff`                                → Staff Dashboard / Profile
- *   - `technician`                           → Workspace / Assignments / Shop / Profile
- *   - `super_admin`                          → Home / Reports / Shop / Profile
+ * Role-aware bottom tabs. Six backend roles — one tab bar per role:
  *
- * For technicians and super_admins the "More" slot is relabeled "Shop" and
- * deep-links straight into the shop catalog — settings/profile functions live
- * under the Profile tab instead.
+ *   reporter      → Home, Reports,            More,       Profile
+ *   technician    → Workspace,    Assignments,  More(Shop), Profile
+ *   staff         → Staff Dashboard, Reports,   More,       Profile
+ *   admin         → Home, Reports,              More,       Profile
+ *   super_admin   → Home, Reports,              More(Shop+mgmt), Profile
+ *   shop_manager  → Home, More(Shop),          Profile    (only 3)
+ *
+ * We conditionally render only the screens the role actually needs. First
+ * visible tab declared = default route (expo-router picks that). This
+ * avoids the infinite render loop that happens when both a top-level
+ * <Redirect> and tab options with `href: null` fight to mutate the route.
  */
 export default function TabLayout() {
   const palette = themeColors();
   const { user, isLoading } = useAuth();
-  const pathname = usePathname();
   const { t } = useTranslation('common');
 
-  // While auth is hydrating we don't know the role — render a neutral shell so
-  // the navigator mounts and the splash screen can hand off cleanly.
   if (isLoading || !user) {
     return (
       <SiteProvider>
@@ -41,19 +42,95 @@ export default function TabLayout() {
     );
   }
 
-  // Technician accounts have no Home/Reports tab slots. Only bounce them when
-  // they are actually sitting on one of those routes (deep link, stale
-  // navigation state) — an unconditional <Redirect> would fight the tab
-  // navigator on every remount and block Assignments/More/Profile.
-  const technicianOnForbiddenRoute = isTechnicianForbiddenRoute(user.role, pathname);
+  const role = user.role;
+  const hasIndex = isTabVisible(role, 'index');
+  const hasWorkspace = isTabVisible(role, 'workspace');
+  const hasStaffDashboard = isTabVisible(role, 'staff-dashboard');
+  const hasReports = isTabVisible(role, 'reports');
+  const hasAssignments = isTabVisible(role, 'assignments');
+  const hasMore = isTabVisible(role, 'more');
+  const hasProfile = isTabVisible(role, 'profile');
 
-  if (technicianOnForbiddenRoute) {
-    return <Redirect href="/(tabs)/workspace" />;
+  // Label per role for the Home tab — tells the user what kind of home it is.
+  const homeLabel =
+    role === 'super_admin' ? t('tabs.platformConsole')
+    : role === 'shop_manager' ? t('tabs.shopConsole')
+    : t('tabs.home');
+
+  // First declared tab is the role's default landing.
+  const screens = [
+    // Position 1 — role-specific Home / Technician Workspace / Staff Dashboard
+    hasWorkspace && {
+      name: 'workspace',
+      title: t('tabs.workspace'),
+      icon: Wrench,
+    },
+    hasStaffDashboard && {
+      name: 'staff-dashboard',
+      title: t('tabs.staffDashboard'),
+      icon: ClipboardList,
+    },
+    hasIndex && {
+      name: 'index',
+      title: homeLabel,
+      icon: House,
+    },
+    // Position 2 — Reports or Technician Assignments
+    hasReports && {
+      name: 'reports',
+      title: t('tabs.reports'),
+      icon: ClipboardList,
+      hideHeader: true,
+    },
+    hasAssignments && {
+      name: 'assignments',
+      title: t('tabs.assignments'),
+      icon: ClipboardList,
+      hideHeader: true,
+    },
+    // Position 3 — More (labeled Shop for technician / shop_manager / super_admin)
+    hasMore && {
+      name: 'more',
+      title:
+        role === 'technician'
+          ? t('tabs.shop')
+          : t('tabs.more'),
+      icon: LayoutGrid,
+      hideHeader: true,
+      // Technician + shop_manager land straight in shop catalog; everyone
+      // else lands in the More hub and picks what they need.
+      href: role === 'technician' || role === 'shop_manager' ? '/more/shop' : undefined,
+    },
+    // Position 4 — Profile (everyone)
+    hasProfile && {
+      name: 'profile',
+      title: t('tabs.profile'),
+      icon: User,
+      hideHeader: true,
+    },
+  ].filter(Boolean) as Array<{
+    name: string;
+    title: string;
+    icon: typeof House;
+    hideHeader?: boolean;
+    href?: string;
+  }>;
+
+  // Defensive — if somehow the role has no visible tabs, bounce to login.
+  if (screens.length === 0) {
+    return (
+      <SiteProvider>
+        <Redirect href="/(auth)/login" />
+      </SiteProvider>
+    );
   }
+
+  const first = screens[0].name;
 
   return (
     <SiteProvider>
       <Tabs
+        initialRouteName={first}
         screenOptions={{
           tabBarActiveTintColor: palette.tabIconSelected,
           tabBarInactiveTintColor: palette.tabIconDefault,
@@ -69,73 +146,20 @@ export default function TabLayout() {
           headerShown: useClientOnlyValue(false, true),
         }}
       >
-        <Tabs.Screen
-          name="index"
-          options={!isTabVisible(user.role, 'index') ? { href: null } : {
-            title: t('tabs.home'),
-            tabBarIcon: ({ color, size }) => <House color={color} size={size} />,
-          }}
-        />
-
-        <Tabs.Screen
-          name="reports"
-          options={!isTabVisible(user.role, 'reports') ? { href: null } : {
-            headerShown: false,
-            title: t('tabs.reports'),
-            tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
-          }}
-        />
-
-        <Tabs.Screen
-          name="workspace"
-          options={isTabVisible(user.role, 'workspace') ? {
-            title: t('tabs.workspace'),
-            tabBarIcon: ({ color, size }) => <Wrench color={color} size={size} />,
-          } : { href: null }}
-        />
-
-        <Tabs.Screen
-          name="assignments"
-          options={isTabVisible(user.role, 'assignments') ? {
-            title: t('tabs.assignments'),
-            tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
-          } : { href: null }}
-        />
-
-        <Tabs.Screen
-          name="more"
-          options={() => {
-            const visible = isTabVisible(user.role, 'more');
-            const shopMode = user?.role === 'technician' || user?.role === 'super_admin';
-            return {
-              headerShown: false,
-              title: shopMode ? t('tabs.shop') : t('tabs.more'),
-              tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size} />,
-              href: !visible ? null : shopMode ? '/more/shop' : undefined,
-            };
-          }}
-        />
-
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: t('tabs.profile'),
-            tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
-            tabBarAccessibilityLabel: t('tabs.profile'),
-            headerShown: false,
-          }}
-        />
-
-        <Tabs.Screen
-          name="staff-dashboard"
-          options={() => (
-            isTabVisible(user.role, 'staff-dashboard') ? {
-              headerShown: false,
-              title: t('tabs.staffDashboard'),
-              tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
-            } : { href: null }
-          )}
-        />
+        {screens.map((screen) => (
+          <Tabs.Screen
+            key={screen.name}
+            name={screen.name}
+            options={{
+              ...(screen.hideHeader ? { headerShown: false } : {}),
+              ...(screen.href ? { href: screen.href } : {}),
+              title: screen.title,
+              tabBarIcon: ({ color, size }) => (
+                <screen.icon color={color} size={size} />
+              ),
+            }}
+          />
+        ))}
       </Tabs>
     </SiteProvider>
   );

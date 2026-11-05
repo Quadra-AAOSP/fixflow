@@ -1,7 +1,7 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { Wrench } from 'lucide-react-native';
+import { ClipboardList, ShieldAlert } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { AuthButton } from '@/components/auth/AuthButton';
@@ -13,9 +13,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/services/auth';
 
 /**
- * Sign-in. Mirrors `Frontend/Web/src/views/auth/LoginView.vue` — same kicker,
- * symbol, headline, supporting line, field labels/placeholders, button copy,
- * secondary link and reassurance strip.
+ * Sign-in. Standard functional-app pattern: form first, tiny link below
+ * to the register screen where role picker lives. Super admin entry is a
+ * subtle shield footer — not a big button, so regular users never see it
+ * by accident.
  */
 export default function LoginScreen() {
   const { t } = useTranslation('common');
@@ -26,8 +27,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // Lets the keyboard's "next" key move from email straight into the password
-  // field instead of dismissing the keyboard.
   const passwordRef = useRef<TextInput>(null);
 
   if (!isLoading && isAuthenticated) {
@@ -47,7 +46,11 @@ export default function LoginScreen() {
       await login({ email: trimmedEmail, password });
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.status === 401 ? t('auth.login.errors.invalidCredentials') : err.message);
+        setError(
+          err.status === 401
+            ? t('auth.login.errors.invalidCredentials')
+            : err.message,
+        );
       } else {
         setError(t('auth.login.errors.noConnection'));
       }
@@ -60,7 +63,7 @@ export default function LoginScreen() {
     <AuthShell>
       <AuthHeading
         kicker={t('auth.login.kicker')}
-        icon={Wrench}
+        icon={ClipboardList}
         title={t('auth.login.title')}
         titleAccent="."
         description={t('auth.login.description')}
@@ -90,8 +93,6 @@ export default function LoginScreen() {
         placeholder={t('auth.login.passwordPlaceholder')}
         inputRef={passwordRef}
         returnKeyType="go"
-        // Submits from the keyboard's "go" key, so signing in never needs a
-        // tap on the button after typing.
         onSubmitEditing={onSubmit}
       />
 
@@ -101,9 +102,9 @@ export default function LoginScreen() {
 
       <AuthButton label={t('auth.login.submit')} loading={submitting} onPress={onSubmit} />
 
-      {/* A full-width row rather than a bare text link: the inline text was an
-          ~18px tap target, well under the 44pt minimum, and it sits right below
-          the CTA where a thumb expects it. */}
+      {/* Standard "New here? Create account" link — full-width row so the
+          tap target is 44pt instead of ~18pt inline text. Jumps straight
+          to /register where the role picker lives. */}
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={t('auth.login.createAccount')}
@@ -121,12 +122,24 @@ export default function LoginScreen() {
         </Text>
       </Pressable>
 
-      <View className="mt-4 flex-row items-center gap-2.5 border-t border-auth-line pt-5">
-        <Text className="text-[22px] text-auth-sage-deep">✳</Text>
-        <Text className="flex-1 text-[10px] text-auth-note">
-          {t('auth.login.tagline')}
+      {/* Super admin gate — tiny footer row with a shield icon. Intentionally
+          subtle so non-super-admins never reach it unless they know it's
+          there. Routes to the dedicated locked-email screen. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('auth.login.superAdminCta')}
+        onPress={() => router.push('/(auth)/super-admin-login')}
+        className="mt-2 flex-row items-center justify-center gap-1.5 rounded-md border border-auth-line px-3 py-2 active:opacity-70"
+      >
+        <ShieldAlert color="#888" size={11} />
+        <Text className="text-[10px] text-auth-note">
+          {t('auth.login.superAdminCta')}
         </Text>
-      </View>
+      </Pressable>
+
+      <Text className="mt-4 text-center text-[10px] leading-[1.6] text-auth-note">
+        {t('auth.login.tagline')}
+      </Text>
     </AuthShell>
   );
 }
