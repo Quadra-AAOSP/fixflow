@@ -4,6 +4,9 @@ import { shopManagerRouteAllowed, workspaceRoles } from '@/utils/workspaceAccess
 import { accountHome } from '@/utils/navigation';
 
 const routes: RouteRecordRaw[] = [
+  { path: '/request-site', name: 'request-site', component: () => import('@/views/auth/SiteApplicationView.vue') },
+  { path: '/site-application', name: 'site-application-status', component: () => import('@/views/auth/SiteApplicationView.vue') },
+  { path: '/setup-site-admin', name: 'site-admin-setup', component: () => import('@/views/auth/SiteApplicationView.vue') },
   { path: '/agreements/technician/draft-2026-11-03', name: 'technician-agreement-draft', component: () => import('@/views/auth/TechnicianAgreementView.vue') },
   { path: '/shop', component: () => import('@/layouts/ShopLayout.vue'), children: [
     { path: '', name: 'shop', component: () => import('@/views/app/ShopView.vue') },
@@ -19,6 +22,8 @@ const routes: RouteRecordRaw[] = [
     { path: '', name: 'register', component: () => import('@/views/auth/RegisterView.vue') },
   ] },
   { path: '/', component: () => import('@/layouts/AppLayout.vue'), meta: { requiresAuth: true }, children: [
+    { path: 'site-applications', name: 'site-applications', meta: { roles: ['super_admin'] }, component: () => import('@/views/app/SiteApplicationsView.vue') },
+    { path: 'technician-verifications', name: 'technician-verifications', meta: { roles: ['super_admin'] }, component: () => import('@/views/app/TechnicianVerificationReviewView.vue') },
     { path: '', name: 'home', meta: { roles: [...workspaceRoles.dashboard] }, component: () => import('@/views/app/HomeView.vue') },
     { path: 'reporter', name: 'reporter-home', meta: { roles: [...workspaceRoles.reporter] }, component: () => import('@/views/app/ReporterHomeView.vue') },
     { path: 'reports', name: 'reports', meta: { roles: [...workspaceRoles.reports] }, component: () => import('@/views/app/ReportsView.vue') },

@@ -87,8 +87,15 @@ export const useRealtimeStore = defineStore('realtime', () => {
           physicalConnection = value === 'connected';
           state.value = value === 'connected' ? 'connecting' : value;
         },
-        connected() { if (current === generation) { invalidate(); void synchronize(); } },
-        disconnected() { if (current === generation) { invalidate(); void synchronize(); } },
+        connected() { if (current === generation) void synchronize(); },
+        disconnected() {
+          if (current !== generation) return;
+          // Recheck private report access without destroying the site or report draft.
+          reportId = null; subscriptions();
+          data.reports = []; data.reportsLoaded = false;
+          accessRevision.value++;
+          void synchronize();
+        },
         revoked() { if (current === generation) { invalidate(); void synchronize(); } },
         event(event) {
           if (current !== generation) return;
@@ -98,7 +105,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
         },
       });
       client.start();
-    } catch { state.value = 'offline'; invalidate(); }
+    } catch { state.value = 'offline'; }
   }
   function stop() {
     generation++; clearTimeout(timer); timer = undefined; pendingReports.clear(); syncFlight = undefined;

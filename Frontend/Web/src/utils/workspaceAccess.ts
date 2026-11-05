@@ -35,6 +35,8 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
   if (workspaceRoles.team.some(value => value === role)) links.push({ to: '/team-access', label: 'Team access', icon: 'team' });
   if (role === 'reporter' && user.adminApplication) links.push({ to: '/admin-application', label: 'My application', icon: 'team' });
   if (role === 'super_admin') links.push({ to: '/shop/manage', label: 'Product management', icon: 'shop' });
+  if (role === 'super_admin') links.push({ to: '/site-applications', label: 'Site applications', icon: 'team' },
+    { to: '/technician-verifications', label: 'Technician verification', icon: 'team' });
   links.push({ to: '/shop', label: 'Shop', icon: 'shop' });
   return links;
 }

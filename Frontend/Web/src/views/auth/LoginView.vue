@@ -83,6 +83,9 @@ async function onSubmit() {
     </form>
 
     <p class="mt-6 text-center text-sm text-muted dark:text-muted-dark">
+      <RouterLink to="/request-site">Request a site and administrator access</RouterLink>
+    </p>
+    <p class="mt-6 text-center text-sm text-muted dark:text-muted-dark">
       {{ t("New around here?") }}
       <RouterLink
         to="/register"

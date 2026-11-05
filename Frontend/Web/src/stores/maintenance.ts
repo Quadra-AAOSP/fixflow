@@ -49,13 +49,17 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     const version = ++generation;
     scopeRequest?.abort(); scopeRequest = new AbortController();
     loading.value = true; sitesError.value = ''; reportsError.value = ''; rulesError.value = '';
-    reports.value = []; rules.value = []; reportsLoaded.value = false; lastSynced.value = null;
+    reports.value = []; reportsLoaded.value = false; lastSynced.value = null;
     try {
       const availableSites = await api.listSites();
       if (version !== generation) return;
       sites.value = availableSites;
       const preferred = auth.user?.role === 'super_admin' ? selectedSiteId.value : auth.user?.siteId;
-      selectedSiteId.value = availableSites.find(site => site.id === preferred)?.id ?? availableSites[0]?.id ?? null;
+      const nextSiteId = availableSites.find(site => site.id === preferred)?.id ?? availableSites[0]?.id ?? null;
+      if (nextSiteId !== selectedSiteId.value) {
+        reports.value = []; rules.value = []; reportsLoaded.value = false; lastSynced.value = null;
+      }
+      selectedSiteId.value = nextSiteId;
       await loadScope(version);
     } catch (error) {
       if (version !== generation) return;

@@ -65,6 +65,7 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/site-applications", "/api/site-applications/status", "/api/site-applications/information", "/api/site-applications/setup").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/policy", "/api/auth/csrf").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/shop/catalog").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()

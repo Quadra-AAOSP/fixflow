@@ -599,6 +599,59 @@ CREATE TABLE IF NOT EXISTS report_links (
  CONSTRAINT fk_link_target FOREIGN KEY (linked_report_id) REFERENCES reports(id),
  CONSTRAINT fk_link_author FOREIGN KEY (created_by_id) REFERENCES users(id)
 );
+-- Manual platform technician verification. No government identity documents stored.
+CREATE TABLE IF NOT EXISTS technician_verifications (
+ technician_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+ status VARCHAR(16) NOT NULL,
+ phone VARCHAR(128) NULL,
+ email VARCHAR(255) NULL,
+ trades VARCHAR(2000) NULL,
+ experience VARCHAR(4000) NULL,
+ qualifications VARCHAR(4000) NULL,
+ identity_checked BOOLEAN NOT NULL DEFAULT FALSE,
+ email_checked BOOLEAN NOT NULL DEFAULT FALSE,
+ phone_checked BOOLEAN NOT NULL DEFAULT FALSE,
+ trade_checked BOOLEAN NOT NULL DEFAULT FALSE,
+ reason VARCHAR(2000) NULL,
+ reviewed_by BIGINT UNSIGNED NULL,
+ updated_at TIMESTAMP(6) NULL,
+ version BIGINT NULL,
+ CONSTRAINT fk_verification_technician FOREIGN KEY (technician_id) REFERENCES users(id),
+ CONSTRAINT fk_verification_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS technician_verification_audit (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ technician_id BIGINT UNSIGNED NOT NULL,
+ actor_id BIGINT UNSIGNED NOT NULL,
+ status VARCHAR(16) NOT NULL,
+ snapshot LONGTEXT NOT NULL,
+ created_at TIMESTAMP(6) NOT NULL,
+ CONSTRAINT fk_verification_audit_technician FOREIGN KEY (technician_id) REFERENCES users(id),
+ CONSTRAINT fk_verification_audit_actor FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
+-- Site onboarding: no raw tracking or setup tokens are persisted.
+CREATE TABLE IF NOT EXISTS site_applications (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ tracking_hash VARCHAR(64) NOT NULL UNIQUE,
+ organization VARCHAR(255) NOT NULL, site_name VARCHAR(255) NOT NULL,
+ site_type VARCHAR(32) NOT NULL, address VARCHAR(512) NOT NULL,
+ contact_email VARCHAR(255) NOT NULL, contact_phone VARCHAR(64) NOT NULL,
+ relationship VARCHAR(1000) NOT NULL, admin_first_name VARCHAR(128) NOT NULL,
+ admin_last_name VARCHAR(128) NOT NULL, admin_email VARCHAR(255) NOT NULL,
+ admin_phone VARCHAR(64) NOT NULL, status VARCHAR(32) NOT NULL,
+ review_message VARCHAR(2000) NULL, reviewed_by BIGINT UNSIGNED NULL,
+ site_id BIGINT UNSIGNED NULL, admin_id BIGINT UNSIGNED NULL,
+ setup_hash VARCHAR(64) NULL UNIQUE, setup_expires_at TIMESTAMP(6) NULL,
+ setup_used_at TIMESTAMP(6) NULL, created_at TIMESTAMP(6) NOT NULL,
+ reviewed_at TIMESTAMP(6) NULL
+);
+CREATE TABLE IF NOT EXISTS site_application_audit (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ application_id BIGINT UNSIGNED NOT NULL, action VARCHAR(32) NOT NULL,
+ actor_id BIGINT UNSIGNED NULL, snapshot TEXT NOT NULL,
+ created_at TIMESTAMP(6) NOT NULL
+);
 
 
 -- Authoritative startup taxonomy. Existing rules are never overwritten.

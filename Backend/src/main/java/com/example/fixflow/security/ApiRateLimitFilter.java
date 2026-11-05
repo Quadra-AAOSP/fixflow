@@ -45,7 +45,9 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         String scope;
         int limit;
         boolean ipOnly = false;
-        if (method.equals("POST") && (path.equals("/api/auth/login") || path.equals("/api/auth/register"))) {
+        if (path.equals("/api/site-applications") || path.startsWith("/api/site-applications/")) {
+            scope = "site-onboarding"; limit = authentication; ipOnly = true;
+        } else if (method.equals("POST") && (path.equals("/api/auth/login") || path.equals("/api/auth/register"))) {
             scope = "authentication"; limit = authentication; ipOnly = true;
         } else if (method.equals("GET") && path.equals("/api/auth/csrf")) {
             scope = "token"; limit = bootstrap; ipOnly = true;
