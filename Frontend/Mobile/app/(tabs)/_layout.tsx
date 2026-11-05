@@ -12,7 +12,7 @@ import { SiteProvider } from '@/stores/site';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
-import { isTabVisible } from '@/lib/tabAccess';
+import { hiddenTabRoutes, isTabVisible } from '@/lib/tabAccess';
 
 /**
  * Role-aware bottom tabs. Six backend roles — one tab bar per role:
@@ -24,20 +24,19 @@ import { isTabVisible } from '@/lib/tabAccess';
  *   super_admin   → Home, Reports,              More(Shop+mgmt), Profile
  *   shop_manager  → Home, More(Shop),          Profile    (only 3)
  *
- * We conditionally render only the screens the role actually needs. First
- * visible tab declared = default route (expo-router picks that). This
- * avoids the infinite render loop that happens when both a top-level
- * <Redirect> and tab options with `href: null` fight to mutate the route.
+ * Visible screens are followed by explicitly hidden filesystem routes. First
+ * visible tab declared = default route (expo-router picks that).
  */
 export default function TabLayout() {
   const palette = themeColors();
   const { user, isLoading } = useAuth();
   const { t } = useTranslation('common');
+  const headerShown = useClientOnlyValue(false, true);
 
   if (isLoading || !user) {
     return (
       <SiteProvider>
-        <Tabs screenOptions={{ headerShown: false }} />
+        <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }} />
       </SiteProvider>
     );
   }
@@ -45,7 +44,6 @@ export default function TabLayout() {
   const role = user.role;
   const hasIndex = isTabVisible(role, 'index');
   const hasWorkspace = isTabVisible(role, 'workspace');
-  const hasStaffDashboard = isTabVisible(role, 'staff-dashboard');
   const hasReports = isTabVisible(role, 'reports');
   const hasAssignments = isTabVisible(role, 'assignments');
   const hasMore = isTabVisible(role, 'more');
@@ -64,11 +62,6 @@ export default function TabLayout() {
       name: 'workspace',
       title: t('tabs.workspace'),
       icon: Wrench,
-    },
-    hasStaffDashboard && {
-      name: 'staff-dashboard',
-      title: t('tabs.staffDashboard'),
-      icon: ClipboardList,
     },
     hasIndex && {
       name: 'index',
@@ -143,9 +136,12 @@ export default function TabLayout() {
           headerTintColor: palette.ink,
           headerTitleStyle: { fontWeight: '600', fontSize: 16 },
           headerShadowVisible: false,
-          headerShown: useClientOnlyValue(false, true),
+          headerShown,
         }}
       >
+        {hiddenTabRoutes(role).map(name => (
+          <Tabs.Screen key={name} name={name} options={{ href: null }} />
+        ))}
         {screens.map((screen) => (
           <Tabs.Screen
             key={screen.name}

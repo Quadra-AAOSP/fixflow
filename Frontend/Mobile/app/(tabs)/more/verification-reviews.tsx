@@ -1,0 +1,16 @@
+import { Stack } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ScrollView, Text, View, Switch } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Screen } from '@/components/ui/Screen';
+import { Action, Field } from '@/components/ReviewControls';
+import { useAuth } from '@/hooks/useAuth';
+import { listVerifications, decideVerification, verificationHistory, type Verification, type Audit } from '@/services/onboarding';
+const checks=['identityChecked','emailChecked','phoneChecked','tradeChecked'] as const;
+export default function VerificationReviews(){
+ const {t}=useTranslation('common'); const {user}=useAuth(); const [items,setItems]=useState<Verification[]>([]); const [reason,setReason]=useState<Record<number,string>>({}); const [history,setHistory]=useState<Record<number,Audit[]>>({}); const [error,setError]=useState(''); const [busy,setBusy]=useState(false);
+ async function run(fn:()=>Promise<void>){setBusy(true);setError('');try{await fn();}catch(e){setError(e instanceof Error?e.message:t('review.error'));}finally{setBusy(false);}}
+ async function load(){setItems(await listVerifications());}
+ useEffect(()=>{if(user?.role==='super_admin') void run(load);},[user?.role]);
+ return <Screen><Stack.Screen options={{title:t('review.verificationReviews')}}/><ScrollView contentContainerClassName="p-5 pb-10" keyboardShouldPersistTaps="handled">{user?.role!=='super_admin'?<Text>{t('review.denied')}</Text>:<>{error?<Text accessibilityRole="alert" className="text-red-700">{error}</Text>:null}<Action label={t('review.refresh')} disabled={busy} onPress={()=>void run(load)}/>{items.map(v=><View key={v.technicianId} className="my-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4"><Text className="text-lg font-bold text-ink">#{v.technicianId} · {v.status}</Text><Text className="my-2 text-ink">{v.email} · {v.phone}{'\n'}{v.trades}{'\n'}{v.experience}{'\n'}{v.qualifications}</Text>{checks.map(k=><View key={k} className="flex-row items-center justify-between"><Text>{t('review.'+k)}</Text><Switch accessibilityLabel={t('review.'+k)} value={v[k]} onValueChange={value=>setItems(items.map(item=>item.technicianId===v.technicianId?{...item,[k]:value}:item))}/></View>)}<Field label={t('review.reason')} value={reason[v.technicianId]??''} onChangeText={x=>setReason({...reason,[v.technicianId]:x})} multiline/>{(v.status==='pending'?['verified','rejected']:v.status==='verified'?['suspended']:['suspended','rejected'].includes(v.status)?['pending']:[]).map(status=><Action key={status} label={t('review.'+status)} disabled={busy||!reason[v.technicianId]?.trim()||(status==='verified'&&!checks.every(k=>v[k]))} onPress={()=>void run(async()=>{await decideVerification(v.technicianId,{status,version:v.version,reason:reason[v.technicianId],identityChecked:v.identityChecked,emailChecked:v.emailChecked,phoneChecked:v.phoneChecked,tradeChecked:v.tradeChecked});await load();})}/>)}<Action label={t('review.history')} disabled={busy} onPress={()=>void run(async()=>setHistory({...history,[v.technicianId]:await verificationHistory(v.technicianId)}))}/>{history[v.technicianId]?.map(h=><Text key={h.id}>{h.createdAt} · {h.snapshot}</Text>)}</View>)}</>}</ScrollView></Screen>;
+}

@@ -27,15 +27,13 @@ async function signIn(role: UserRole) {
 
 describe('actual application route guards', () => {
   it.each(['/', '/reports', '/reports/new', '/reports/91', '/sites', '/sites/71/subsites',
-    '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/profile', '/admin-application'])
-  ('sends a signed-out visit to %s to login with its return path', async path => {
+    '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/profile', '/admin-application'])('sends a signed-out visit to %s to login with its return path', async path => {
     const router = createAppRouter(createMemoryHistory());
     await router.push(path);
     expect(router.currentRoute.value.name).toBe('login');
     expect(router.currentRoute.value.query.redirect).toBe(path);
   });
-  it.each(['reporter', 'staff', 'technician', 'shop_manager'] as UserRole[])
-  ('denies team administration to %s', async role => {
+  it.each(['reporter', 'staff', 'technician', 'shop_manager'] as UserRole[])('denies team administration to %s', async role => {
     await signIn(role);
     const router = createAppRouter(createMemoryHistory());
     await router.push('/team-access');
@@ -83,15 +81,13 @@ it.each([true, false])('uses reduced-motion preference %s for anchor navigation'
   } finally { vi.unstubAllGlobals(); }
 });
 
-it.each(['/', '/assignments', '/team-access', '/contracts', '/technician'])
-('keeps reporters out of management and technician pages: %s', async path => {
+it.each(['/', '/assignments', '/team-access', '/contracts', '/technician'])('keeps reporters out of management and technician pages: %s', async path => {
   await signIn('reporter');
   const router = createAppRouter(createMemoryHistory());
   await router.push(path);
   expect(router.currentRoute.value.name).toBe('reporter-home');
 });
-it.each(['staff', 'admin', 'super_admin'] as UserRole[])
-('keeps %s on the operational dashboard and assignments', async role => {
+it.each(['staff', 'admin', 'super_admin'] as UserRole[])('keeps %s on the operational dashboard and assignments', async role => {
   await signIn(role);
   const router = createAppRouter(createMemoryHistory());
   await router.push('/'); expect(router.currentRoute.value.name).toBe('home');

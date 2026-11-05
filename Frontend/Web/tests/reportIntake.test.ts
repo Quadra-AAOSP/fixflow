@@ -10,8 +10,7 @@ it('accepts the DTO boundaries and normalizes optional blank fields', () => {
   expect(value.description).toHaveLength(10000); expect(value.specialty).toHaveLength(128);
   expect(reportIntakePayload({ ...input, address: ' ', specialty: ' ', reporterReason: ' ' })).toMatchObject({ address: undefined, specialty: undefined, reporterReason: undefined });
 });
-it.each([['description',10001], ['address',513], ['category',129], ['specialty',129], ['reporterReason',2001]] as const)
-('rejects an oversized %s before either submission transport', (field, length) => {
+it.each([['description',10001], ['address',513], ['category',129], ['specialty',129], ['reporterReason',2001]] as const)('rejects an oversized %s before either submission transport', (field, length) => {
   const value = { ...input, [field]: 'x'.repeat(length) };
   const fetch = vi.fn(); stubApiFetch(fetch);
   expect(() => createReport(value)).toThrow('field lengths'); expect(() => createReportWithPhotos(value, [])).toThrow('field lengths');

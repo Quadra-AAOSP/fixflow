@@ -9,15 +9,13 @@ it('keeps valid HTTPS provider links and explicit local development links', () =
   expect(parseOrderResult({ ...result, checkoutUrl: 'http://127.0.0.1:8081/shop?orderId=fixture', paymentProvider: 'dev' }).checkoutUrl).toBe('http://127.0.0.1:8081/shop?orderId=fixture');
   expect(parseOrderResult({ ...result, checkoutUrl: null, paymentProvider: null }).checkoutUrl).toBeNull();
 });
-it.each(['javascript:alert(1)', 'data:text/html,fixture', 'http://checkout.example.invalid/session', '/relative-payment', 'https://user:password@checkout.example.invalid/session'])
-('rejects an unsafe or ambiguous external checkout destination: %s', checkoutUrl => {
+it.each(['javascript:alert(1)', 'data:text/html,fixture', 'http://checkout.example.invalid/session', '/relative-payment', 'https://user:password@checkout.example.invalid/session'])('rejects an unsafe or ambiguous external checkout destination: %s', checkoutUrl => {
   expect(() => parseOrderResult({ ...result, checkoutUrl })).toThrow('payment link is invalid');
 });
 it('does not let a development-provider flag permit executable URLs', () => {
   expect(() => parseOrderResult({ ...result, paymentProvider: 'dev', checkoutUrl: 'javascript:alert(1)' })).toThrow('payment link is invalid');
 });
-it.each([{ orderId: '' }, { totalMinor: -1 }, { totalMinor: 1.5 }, { checkoutUrl: 42 }, { paymentProvider: undefined }])
-('rejects incomplete order metadata: %j', patch => {
+it.each([{ orderId: '' }, { totalMinor: -1 }, { totalMinor: 1.5 }, { checkoutUrl: 42 }, { paymentProvider: undefined }])('rejects incomplete order metadata: %j', patch => {
   expect(() => parseOrderResult({ ...result, ...patch })).toThrow('response is incomplete');
 });
 it('validates the actual create-order response before any caller can use its link', async () => {

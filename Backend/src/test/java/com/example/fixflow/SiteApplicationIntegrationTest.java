@@ -76,6 +76,32 @@ class SiteApplicationIntegrationTest {
   assertThrows(ApiException.class,()->service.decide(item.id(),new SiteApplicationService.Decision("approve","Reviewed"),actor));
   assertEquals(before,sites.count());assertEquals("pending",applications.findById(item.id()).orElseThrow().getStatus());
  }
+ @Test void concurrentApprovalCreatesOnlyOneSiteAndAdministrator() throws Exception {
+  var actor=operator();var input=request(Long.toString(System.nanoTime()));service.submit(input);
+  var item=service.list(actor).stream().filter(a->a.adminEmail().equals(input.adminEmail())).findFirst().orElseThrow();
+  long sitesBefore=sites.count();long usersBefore=users.count();
+  var ready=new java.util.concurrent.CountDownLatch(2);var start=new java.util.concurrent.CountDownLatch(1);
+  var executor=java.util.concurrent.Executors.newFixedThreadPool(2);
+  try {
+   java.util.concurrent.Callable<Integer> approve=()->{
+    ready.countDown();
+    if(!start.await(10,java.util.concurrent.TimeUnit.SECONDS)) throw new IllegalStateException("Approval start timed out");
+    try { service.decide(item.id(),new SiteApplicationService.Decision("approve","Authority reviewed"),actor);return 200; }
+    catch(ApiException ex){return ex.getStatus();}
+   };
+   var first=executor.submit(approve);var second=executor.submit(approve);
+   assertTrue(ready.await(10,java.util.concurrent.TimeUnit.SECONDS));start.countDown();
+   var outcomes=java.util.List.of(first.get(30,java.util.concurrent.TimeUnit.SECONDS),second.get(30,java.util.concurrent.TimeUnit.SECONDS));
+   assertEquals(1,outcomes.stream().filter(status->status==200).count());
+   assertEquals(1,outcomes.stream().filter(status->status==409).count());
+   assertEquals(sitesBefore+1,sites.count());assertEquals(usersBefore+1,users.count());
+   var approved=service.list(actor).stream().filter(a->a.id().equals(item.id())).findFirst().orElseThrow();
+   assertEquals("approved",approved.status());assertNotNull(approved.siteId());assertNotNull(approved.adminId());
+   var admin=users.findById(approved.adminId()).orElseThrow();
+   assertEquals(input.adminEmail(),admin.getEmail());assertEquals(UserRole.admin,admin.getRole());assertEquals(approved.siteId(),admin.getSite().getId());
+   assertEquals(1,service.history(item.id(),actor).stream().filter(a->a.action().equals("approve")).count());
+  } finally {start.countDown();executor.shutdownNow();}
+ }
  @Test void demotedSuperAdministratorCannotUseOldSession(){
   var actor=operator();User changed=users.findById(actor.getId()).orElseThrow();changed.setRole(UserRole.technician);users.save(changed);
   assertThrows(ApiException.class,()->service.list(actor));

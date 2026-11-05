@@ -51,7 +51,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "vitest run && node --test tests/apiClient.security.test.cjs",
+    "test": "vitest run && node --test tests/apiClient.security.test.cjs tests/onboarding.contract.test.cjs",
     "test:unit": "vitest run",
     "test:security": "node --test tests/apiClient.security.test.cjs"
   },

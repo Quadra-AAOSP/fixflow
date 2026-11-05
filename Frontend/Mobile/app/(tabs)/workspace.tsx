@@ -294,6 +294,17 @@ export default function WorkspaceScreen() {
             </View>
             <ArrowRight color={dashboardColors.subtitle} size={16} />
           </Pressable>
+          <View className="mx-4 border-t border-dashboard-card-line" />
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push('/more/my-verification')}
+            className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+          >
+            <Text className="flex-1 pr-3 text-[13px] font-semibold text-ink">
+              {t('review.myVerification')}
+            </Text>
+            <ArrowRight color={dashboardColors.subtitle} size={16} />
+          </Pressable>
         </Card>
         {/* Sites link is web-only; mirror it in the quick links so the
             page is symmetrical with the web's footer link. */}

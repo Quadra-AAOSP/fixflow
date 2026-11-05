@@ -42,6 +42,7 @@ type MenuItem = {
  * scattered role-ifs in the render path, so future additions can't leak.
  */
 type ItemKey =
+  | 'myVerification' | 'siteApplications' | 'verificationReviews'
   | 'notifications'
   | 'myAdminApplication'
   | 'siteSetup'
@@ -74,6 +75,9 @@ type ItemKey =
  *  Anything that needs both a role match AND a capability flag (e.g. user
  *  has an admin application pending) also has an ItemGuard below. */
 const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
+  myVerification: ['technician'],
+  siteApplications: ['super_admin'],
+  verificationReviews: ['super_admin'],
   notifications: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
 
   // A reporter who applied to be site admin may track the status — guard
@@ -139,6 +143,9 @@ export default function MoreScreen() {
   };
 
   const allItems: Record<ItemKey, MenuItem> = {
+    myVerification: { icon: ShieldCheck, titleKey: 'review.myVerification', subtitleKey: null, onPress: () => router.push('/more/my-verification') },
+    siteApplications: { icon: Building2, titleKey: 'review.siteReviews', subtitleKey: null, onPress: () => router.push('/more/site-applications') },
+    verificationReviews: { icon: UserCheck, titleKey: 'review.verificationReviews', subtitleKey: null, onPress: () => router.push('/more/verification-reviews') },
     notifications: {
       icon: Moon,
       titleKey: 'more.menu.notificationsTitle',
@@ -209,7 +216,7 @@ export default function MoreScreen() {
 
   // Group keys into their sections, then filter each by itemVisible.
   // Each section drops out entirely when it has zero visible items.
-  const workspaceKeys: ItemKey[] = ['notifications', 'contractsTechnician'];
+  const workspaceKeys: ItemKey[] = ['notifications', 'contractsTechnician', 'myVerification'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
     'siteSetup',
@@ -217,6 +224,8 @@ export default function MoreScreen() {
     'teamAccess',
     'technicians',
     'adminApplications',
+    'siteApplications',
+    'verificationReviews',
     'contractsAdmin',
   ];
   const shopKeys: ItemKey[] = ['shopManagement', 'shopCustomer'];

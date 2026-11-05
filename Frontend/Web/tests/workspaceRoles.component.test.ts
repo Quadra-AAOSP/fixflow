@@ -32,7 +32,7 @@ it('shows created and joined reports but excludes unrelated peer reports from th
   const data = useMaintenanceStore();
   data.reportsLoaded = true;
   data.reports = [report({ id: 11, description: 'My created issue', createdByUserId: 1 }),
-    report({ id: 12, description: 'My joined issue', createdByUserId: 2, policy: { participant: true } as any }),
+    report({ id: 12, description: 'My joined issue', createdByUserId: 2, policy: { statusGroup: 'open', effectiveUrgency: 'medium', urgent: false, inAssignmentQueue: false, participant: true, canSeeSensitive: false, canAssign: false, canJoin: false } }),
     report({ id: 13, description: 'Unrelated peer issue', createdByUserId: null })];
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }] });
   await router.push('/');
