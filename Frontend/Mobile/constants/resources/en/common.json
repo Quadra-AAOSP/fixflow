@@ -600,6 +600,7 @@
     "assignedTechnicianCount": "{count} assigned technician{plural}",
     "assignedCount": "{count} assigned",
     "claimableCount": "{count} claimable",
+    "contractSites": "{count} contracted site{plural}",
     "openA11y": "Open {description}"
   },
   "more": {

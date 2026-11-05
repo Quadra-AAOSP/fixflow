@@ -536,6 +536,18 @@ public class ReportService {
 			}
 			return siteId;
 		}
+		// Technicians are not scoped to a single site — their access comes
+		// from contracts. Let them read the queue for any site they are
+		// contracted to (the mobile Assignments tab fans out over these).
+		if (actor.getRole() == UserRole.technician) {
+			if (siteId == null) {
+				throw new ApiException(HttpStatus.BAD_REQUEST.value(), "siteId is required");
+			}
+			if (!contracts.existsByTechnician_IdAndSite_Id(actor.getId(), siteId)) {
+				throw new ApiException(HttpStatus.FORBIDDEN.value(), "Technician is not contracted to this site");
+			}
+			return siteId;
+		}
 		if (actor.getSiteId() == null) {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Account is not scoped to a site");
 		}
@@ -548,6 +560,11 @@ public class ReportService {
 	private void assertCanViewSite(AppUserDetails actor, Long siteId) {
 		if (actor.getRole() == UserRole.super_admin) {
 			return;
+		}
+		if (actor.getRole() == UserRole.technician) {
+			if (contracts.existsByTechnician_IdAndSite_Id(actor.getId(), siteId)) {
+				return;
+			}
 		}
 		if (actor.getSiteId() != null && actor.getSiteId().equals(siteId)) {
 			return;

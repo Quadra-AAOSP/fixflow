@@ -600,6 +600,7 @@
     "assignedTechnicianCount": "{count} 位已分配技师",
     "assignedCount": "{count} 条已分配",
     "claimableCount": "{count} 条可认领",
+    "contractSites": "{count} 个签约站点",
     "openA11y": "打开 {description}"
   },
   "more": {
