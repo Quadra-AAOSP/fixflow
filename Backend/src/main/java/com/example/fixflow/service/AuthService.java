@@ -64,6 +64,36 @@ public class AuthService {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(),
 					"Self-registration is only allowed for reporter, technician or site admin applications");
 		}
+
+		// ── Admin self-apply: bundle site creation with the application ──────
+		// The applicant fills out site details (name, type, address) during
+		// registration. We persist the site immediately, link it to the new
+		// reporter account, and file the admin application. On approval the
+		// reporter flips to admin and the applicant takes ownership of the
+		// site they described — no need for super_admin to pre-create sites.
+		Site autoCreatedSite = null;
+		Long effectiveSiteId = request.siteId();
+		if (request.role() == UserRole.admin) {
+			boolean hasSiteBundle = request.siteName() != null && !request.siteName().isBlank()
+					&& request.siteType() != null;
+			if (hasSiteBundle && request.siteId() != null) {
+				throw new ApiException(HttpStatus.BAD_REQUEST.value(),
+						"Provide either siteId (join existing site) OR siteName+siteType (create new site), not both");
+			}
+			if (hasSiteBundle) {
+				Site site = new Site();
+				site.setName(request.siteName().trim());
+				site.setType(request.siteType());
+				site.setAddress(request.siteAddress());
+				site.setDescription(request.siteDescription());
+				autoCreatedSite = siteRepository.save(site);
+				effectiveSiteId = autoCreatedSite.getId();
+			} else if (request.siteId() == null) {
+				throw new ApiException(HttpStatus.BAD_REQUEST.value(),
+						"Admin self-applications must include site details (name + type) or an existing siteId");
+			}
+		}
+
 		User registered = createUser(
 				request.email(),
 				request.password(),
@@ -72,7 +102,7 @@ public class AuthService {
 				request.phone(),
 				request.address(),
 				request.role() == UserRole.admin ? UserRole.reporter : request.role(),
-				request.siteId()
+				effectiveSiteId
 		);
 		if (request.role() == UserRole.admin) adminApplications.submit(registered);
 		return response(registered);
