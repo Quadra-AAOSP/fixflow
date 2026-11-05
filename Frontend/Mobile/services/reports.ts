@@ -46,6 +46,22 @@ export function getReport(id: number): Promise<Report> {
   return api.get<Report>(endpoints.reports.byId(id));
 }
 
+export type ReportResolution = { id: number; description: string; createdAt: string };
+export type ReportRating = { resolutionId: number; ratedByCurrentUser: boolean };
+
+export const listResolutions = (id: number) =>
+  api.get<ReportResolution[]>(`${endpoints.reports.byId(id)}/resolutions`);
+export const listReportRatings = (id: number) =>
+  api.get<ReportRating[]>(`${endpoints.reports.byId(id)}/ratings`);
+export const startReportWork = (id: number) =>
+  api.post<Report>(`${endpoints.reports.byId(id)}/start`);
+export const resolveReportWork = (id: number, description: string) =>
+  api.post<Report>(`${endpoints.reports.byId(id)}/resolve`, { description });
+export const escalateReportWork = (id: number, reason: string) =>
+  api.post<Report>(`${endpoints.reports.byId(id)}/escalate`, { reason });
+export const rateReportWork = (id: number, resolutionId: number, score: number, feedback: string) =>
+  api.post<ReportRating>(`${endpoints.reports.byId(id)}/ratings`, { resolutionId, score, feedback });
+
 /**
  * Idempotent join. The backend short-circuits on existing membership
  * (`existsByReportIdAndUserId`), so callers do not need a separate

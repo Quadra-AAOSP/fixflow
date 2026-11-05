@@ -14,6 +14,8 @@ import ReportAssistantPanel from '@/components/ReportAssistantPanel.vue';
 import ReportPhotosPanel from '@/components/ReportPhotosPanel.vue';
 import TechnicianAssignmentPanel from '@/components/technician/TechnicianAssignmentPanel.vue';
 import TechnicianInvitationSender from '@/components/technician/TechnicianInvitationSender.vue';
+import MarketplacePublishPanel from '@/components/technician/MarketplacePublishPanel.vue';
+import ReportWorkPanel from '@/components/ReportWorkPanel.vue';
 import ReportReviewPanel from '@/components/ReportReviewPanel.vue';
 import ReportClassificationPanel from '@/components/ReportClassificationPanel.vue';
 import ReportVisionPanel from '@/components/ReportVisionPanel.vue';
@@ -37,7 +39,9 @@ const invitationBusy = ref(false);
 const reviewBusy = ref(false);
 const classificationBusy = ref(false);
 const visionBusy = ref(false);
-const actionInProgress = computed(() => busy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value || visionBusy.value);
+const marketplaceBusy = ref(false);
+const workBusy = ref(false);
+const actionInProgress = computed(() => busy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value || visionBusy.value || marketplaceBusy.value || workBusy.value);
 let generation = 0;
 onBeforeUnmount(() => { generation++; realtime.setReport(null); });
 watch(report, value => realtime.setReport(value));
@@ -93,6 +97,11 @@ function assigned(saved: Report) {
   data.upsert(saved);
   message.value = 'Technician assignment saved.';
 }
+function workSaved(saved: Report) {
+  report.value = saved;
+  data.upsert(saved);
+  message.value = 'Work status updated.';
+}
 function reviewed(saved: Report) {
   report.value = saved; data.upsert(saved);
   message.value = saved.status === 'confirmed' ? 'The issue is confirmed as fixed.' : 'The report was reopened for further work.';
@@ -121,8 +130,10 @@ async function visionFinished(id: number) {
       <ReportClassificationPanel :report="report" :disabled="actionInProgress" @busy="classificationBusy = $event" @saved="classified" />
       <ReportVisionPanel :report="report" :disabled="actionInProgress" @busy="visionBusy = $event" @finished="visionFinished" />
       <ReportReviewPanel :report="report" :disabled="actionInProgress" @busy="reviewBusy = $event" @saved="reviewed" />
+      <ReportWorkPanel :report="report" :disabled="actionInProgress" @busy="workBusy = $event" @saved="workSaved" />
       <TechnicianAssignmentPanel :report="report" :disabled="actionInProgress" @busy="assignmentBusy = $event" @saved="assigned" />
       <TechnicianInvitationSender :report="report" :disabled="actionInProgress" @busy="invitationBusy = $event" />
+      <MarketplacePublishPanel :report="report" :disabled="actionInProgress" @busy="marketplaceBusy = $event" />
       <ReportPhotosPanel :report="report" />
       <ReportAssistantPanel :report="report" />
     </template>

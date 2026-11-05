@@ -145,6 +145,7 @@ function buildHeaders(init?: RequestInit): Record<string, string> {
 async function request<T>(
   path: string,
   init?: RequestInit,
+  decode: (response: Response) => Promise<T> = response => response.json(),
 ): Promise<T> {
   const base = await selectBase();
   const { signal, cancel } = withTimeout(init?.signal, DEFAULT_TIMEOUT_MS);
@@ -167,13 +168,15 @@ async function request<T>(
     if (response.status === 204) {
       return undefined as T;
     }
-    return (await response.json()) as T;
+    return await decode(response);
   } finally {
     cancel();
   }
 }
 
 export const api = {
+  getBlob: (path: string, signal?: AbortSignal): Promise<Blob> =>
+    request<Blob>(path, { method: 'GET', headers: { Accept: 'image/*' }, signal }, response => response.blob()),
   get: <T>(path: string, init?: RequestInit): Promise<T> =>
     request<T>(path, { ...init, method: 'GET' }),
 

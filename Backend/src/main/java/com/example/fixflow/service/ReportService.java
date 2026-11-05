@@ -226,16 +226,7 @@ public class ReportService {
 	public ReportResponse get(Long id, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		if (actor.getRole() == UserRole.technician) {
-            if (report.getAssignedTechnician() == null
-                    || !report.getAssignedTechnician().getId().equals(actor.getId())) {
-                throw new ApiException(403, "Only the currently assigned technician may view this report");
-            }
-        } else {
-            assertCanViewSite(actor, report.getSite().getId());
-			assertCanSeeVisibility(actor, report);
-
-        }
+		assertCanReadReport(actor, report);
 		return response(report, actor);
 	}
 
@@ -264,8 +255,7 @@ public class ReportService {
 	public List<ReportReporterResponse> listReporters(Long id, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		if (!canSeeSensitive(actor, report)) {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to list reporters on this report");
 		}
@@ -291,6 +281,7 @@ public class ReportService {
             throw new ApiException(409, "Technician must have a contract with the report's site before assignment");
         }
         terms.requireAcceptance(technician.getId());
+        events.publishEvent(new MarketplaceAssignmentReplaced(report.getId(), actor.getId()));
         ReportStatus previousStatus = report.getStatus();
         Long previousAssignee = report.getAssignedTechnician() == null ? null : report.getAssignedTechnician().getId();
 		report.setAssignedTechnician(technician);
@@ -329,8 +320,7 @@ public class ReportService {
 	public String photoDownloadUrl(Long reportId, Long photoId, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
 		return objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofMinutes(15));
@@ -340,8 +330,7 @@ public class ReportService {
 	public InputStream openPhotoStream(Long reportId, Long photoId, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
 		return objectStorageService.getObject(photo.getObjectKey());
@@ -351,8 +340,7 @@ public class ReportService {
 	public ReportPhoto requirePhoto(Long reportId, Long photoId, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		return reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
 	}
@@ -572,6 +560,17 @@ public class ReportService {
 		throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to view this site's reports");
 	}
 
+	private void assertCanReadReport(AppUserDetails actor, Report report) {
+		if (actor.getRole() == UserRole.technician) {
+			if (!canSeeSensitive(actor, report)) {
+				throw new ApiException(403, "Only the currently assigned technician may view this report");
+			}
+			return;
+		}
+		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
+	}
+
 	private boolean canSeeSensitive(AppUserDetails actor, Report report) {
 		return switch (actor.getRole()) {
 			case staff, admin, super_admin -> true;
@@ -600,7 +599,8 @@ public class ReportService {
 				&& report.getAssignedTechnician().getId().equals(actor.getId());
 		boolean canSee = canSeeSensitive(actor, report);
 		List<ReportPhotoResponse> photos = canSee
-				? reportPhotoService.listWithPresignedUrls(report.getId())
+				? actor.getRole() == UserRole.technician ? reportPhotoService.listWithSessionUrls(report.getId())
+                        : reportPhotoService.listWithPresignedUrls(report.getId())
 				: List.of();
 		return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
 				report, canSee, participant, canAssign,

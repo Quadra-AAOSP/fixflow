@@ -16,9 +16,9 @@ describe('role-specific workspace menus', () => {
   it.each([
     ['reporter', ['/reporter', '/reports', '/sites', '/shop']],
     ['staff', ['/', '/reports', '/sites', '/assignments', '/shop']],
-    ['admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop']],
+    ['admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/marketplace', '/site-rules', '/team-access', '/shop']],
     ['super_admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop/manage', '/site-applications', '/technician-verifications', '/shop']],
-    ['technician', ['/technician', '/reports', '/contracts', '/technician/invitations', '/shop']],
+    ['technician', ['/technician', '/reports', '/contracts', '/technician/invitations', '/marketplace', '/shop']],
     ['shop_manager', ['/shop', '/shop/manage', '/profile']],
   ] as [UserRole, string[]][])('shows only relevant links for %s', (role, expected) => {
     expect(workspaceLinks({ ...account, role }, true).map(link => link.to)).toEqual(expected);

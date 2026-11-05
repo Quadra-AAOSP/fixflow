@@ -12,9 +12,11 @@ beforeEach(() => { setActivePinia(createPinia()); setLocale('en'); useAuthStore(
 it('links accessible assigned work to reports rather than manager-only assignments', async () => {
   const data = useMaintenanceStore(); data.sites = [site(7)]; data.selectedSiteId = 7; data.reportsLoaded = true;
   data.reports = [report({ assignedTechnicianId: 4 })];
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/technician', component: { template: '<div />' } }, { path: '/reports', component: { template: '<div />' } }, { path: '/profile', component: { template: '<div />' } }, { path: '/contracts', component: { template: '<div />' } }] });
+  const router = createRouter({ history: createMemoryHistory(), routes: ['/technician', '/reports', '/profile', '/contracts', '/marketplace']
+    .map(path => ({ path, component: { template: '<div />' } })) });
   await router.push('/technician');
   const wrapper = mount(TechnicianView, { global: { plugins: [router], stubs: { TradeProfile: true, TechnicianTermsPanel: true, TechnicianAvailabilityPanel: true } } });
   expect(wrapper.find('a[href="/reports"]').text()).toBe('View assigned reports →');
+  expect(wrapper.get('a[href="/marketplace"]').text()).toBe('Open job marketplace');
   expect(wrapper.find('a[href="/assignments"]').exists()).toBe(false); wrapper.unmount();
 });

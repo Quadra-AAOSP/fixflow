@@ -1,5 +1,5 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
+import { ReportWorkActions } from '@/components/reports/ReportWorkActions';
 import { Card } from '@/components/ui/Card';
 import { ReportAssistantChat } from '@/components/chat/ReportAssistantChat';
 import { ModalSheet } from '@/components/ui/ModalSheet';
@@ -54,7 +55,7 @@ import {
 // Expected behavior: Removes the reporter from the report's reporter list
 // If implemented, add a leaveReport function to the reports service and implement the UI for it.
 import { useCurrentSite } from '@/stores/site';
-import { getPhotoSignedUrl } from '@/services/photos';
+import { getPhotoSignedUrl, protectedPhotoPath, readProtectedPhoto } from '@/services/photos';
 import {
   inviteTechniciansToReport,
   listTechnicians,
@@ -122,6 +123,30 @@ export default function ReportDetailScreen() {
   const [reopenReason, setReopenReason] = useState('');
   const [reopenError, setReopenError] = useState<string | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const protectedPhotoRequest = useRef<AbortController | null>(null);
+  const [protectedPhotoLoading, setProtectedPhotoLoading] = useState(false);
+  useEffect(() => {
+    setPreviewPhoto(null);
+    setProtectedPhotoLoading(false);
+    return () => protectedPhotoRequest.current?.abort();
+  }, [reportId, user?.id, report?.policy.canSeeSensitive]);
+
+  async function openProtectedPhoto(photoId: number) {
+    protectedPhotoRequest.current?.abort();
+    const request = new AbortController();
+    protectedPhotoRequest.current = request;
+    setProtectedPhotoLoading(true);
+    try {
+      const uri = await readProtectedPhoto(reportId, photoId, request.signal);
+      if (!request.signal.aborted) setPreviewPhoto(uri);
+    } catch {
+      if (!request.signal.aborted) Alert.alert(t('reports.detail.photos.loadError'));
+    } finally {
+      if (protectedPhotoRequest.current === request && !request.signal.aborted) {
+        setProtectedPhotoLoading(false);
+      }
+    }
+  }
   // Signed photo URLs expire; keep refreshed replacements keyed by photo id.
   const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
   const [visionJob, setVisionJob] = useState<VisionJob | null>(null);
@@ -566,6 +591,10 @@ export default function ReportDetailScreen() {
   const awaitingConfirmation = report.status === 'resolved_pending_confirmation';
   const reopenable =
     report.status === 'confirmed' || report.status === 'resolved_pending_confirmation';
+  const isAssignedTechnician = user?.role === 'technician' && report.assignedTechnicianId === user.id;
+  const canRate = report.status === 'confirmed' && user?.role !== 'technician' && canConfirmReopen;
+  const canPublishJob = user?.role === 'admin' && user.siteId === report.siteId
+    && report.assignedTechnicianId === null && ['open', 'routed', 'reopened', 'escalated'].includes(report.status);
 
   return (
     <Screen>
@@ -644,6 +673,19 @@ export default function ReportDetailScreen() {
           )}
         </View>
 
+        {canPublishJob ? (
+          <Button
+            className="mb-4"
+            label={t('marketplace.publishFromReport')}
+            onPress={() => router.push({ pathname: '/more/marketplace', params: { reportId: String(report.id) } })}
+          />
+        ) : null}
+
+        {isAssignedTechnician || canRate || (awaitingConfirmation && canConfirmReopen) ? (
+          <ReportWorkActions key={report.id} report={report} isAssignedTechnician={isAssignedTechnician}
+            canRate={canRate} onReportChanged={setReport} />
+        ) : null}
+
         {/* AI Assessment Section */}
         {report.aiReport && (
           <Card className="mb-4">
@@ -704,6 +746,16 @@ export default function ReportDetailScreen() {
             <View className="flex-row flex-wrap gap-2">
               {report.photos.map((photo) => {
                 const uri = photoUrls[photo.id] ?? photo.url;
+                if (uri === protectedPhotoPath(reportId, photo.id)) {
+                  return (
+                    <Pressable key={photo.id} accessibilityRole="button" disabled={protectedPhotoLoading}
+                      accessibilityState={{ disabled: protectedPhotoLoading }}
+                      className="rounded-md border border-dashboard-card-line px-3 py-2"
+                      onPress={() => void openProtectedPhoto(photo.id)}>
+                      <Text className="text-ink">{t('reports.detail.photos.open', { number: photo.sortOrder + 1 })}</Text>
+                    </Pressable>
+                  );
+                }
                 return (
                   <Pressable
                     key={photo.id}

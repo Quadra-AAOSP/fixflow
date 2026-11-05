@@ -204,9 +204,9 @@ export default function WorkspaceScreen() {
                 })}
               </Text>
               {myAssignments.length === 0 ? (
-                <Text className="mt-2 text-[11px] leading-[1.7] text-dashboard-caption">
-                  {t('workspace.marketplaceUnavailable')}
-                </Text>
+                <Pressable accessibilityRole="link" onPress={() => router.push('/more/marketplace')} className="mt-2">
+                  <Text className="text-[12px] font-semibold text-ink">{t('marketplace.title')}</Text>
+                </Pressable>
               ) : (
                 <View className="mt-3">
                   {myAssignments.slice(0, 3).map((report) => (

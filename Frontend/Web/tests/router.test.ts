@@ -27,7 +27,7 @@ async function signIn(role: UserRole) {
 
 describe('actual application route guards', () => {
   it.each(['/', '/reports', '/reports/new', '/reports/91', '/sites', '/sites/71/subsites',
-    '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/profile', '/admin-application'])('sends a signed-out visit to %s to login with its return path', async path => {
+    '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/marketplace', '/profile', '/admin-application'])('sends a signed-out visit to %s to login with its return path', async path => {
     const router = createAppRouter(createMemoryHistory());
     await router.push(path);
     expect(router.currentRoute.value.name).toBe('login');
@@ -44,6 +44,12 @@ describe('actual application route guards', () => {
     const router = createAppRouter(createMemoryHistory());
     await router.push('/team-access');
     expect(router.currentRoute.value.name).toBe('team-access');
+  });
+  it.each(['admin', 'technician'] as const)('allows %s to open the job marketplace', async role => {
+    await signIn(role);
+    const router = createAppRouter(createMemoryHistory());
+    await router.push('/marketplace');
+    expect(router.currentRoute.value.name).toBe('marketplace');
   });
   it('restores a technician cookie session before redirecting the dashboard', async () => {
     vi.mocked(api.getMe).mockResolvedValue({ ...account, role: 'technician', siteId: null });
@@ -81,7 +87,7 @@ it.each([true, false])('uses reduced-motion preference %s for anchor navigation'
   } finally { vi.unstubAllGlobals(); }
 });
 
-it.each(['/', '/assignments', '/team-access', '/contracts', '/technician'])('keeps reporters out of management and technician pages: %s', async path => {
+it.each(['/', '/assignments', '/team-access', '/contracts', '/technician', '/marketplace'])('keeps reporters out of management and technician pages: %s', async path => {
   await signIn('reporter');
   const router = createAppRouter(createMemoryHistory());
   await router.push(path);

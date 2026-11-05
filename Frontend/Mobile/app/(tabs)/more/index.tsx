@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import {
   ArrowRight,
+  Briefcase,
   Building2,
   FileText,
   Moon,
@@ -42,7 +43,7 @@ type MenuItem = {
  * scattered role-ifs in the render path, so future additions can't leak.
  */
 type ItemKey =
-  | 'myVerification' | 'siteApplications' | 'verificationReviews'
+  | 'myVerification' | 'siteApplications' | 'verificationReviews' | 'marketplace'
   | 'notifications'
   | 'myAdminApplication'
   | 'siteSetup'
@@ -76,6 +77,7 @@ type ItemKey =
  *  has an admin application pending) also has an ItemGuard below. */
 const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   myVerification: ['technician'],
+  marketplace: ['admin', 'technician'],
   siteApplications: ['super_admin'],
   verificationReviews: ['super_admin'],
   notifications: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
@@ -144,6 +146,7 @@ export default function MoreScreen() {
 
   const allItems: Record<ItemKey, MenuItem> = {
     myVerification: { icon: ShieldCheck, titleKey: 'review.myVerification', subtitleKey: null, onPress: () => router.push('/more/my-verification') },
+    marketplace: { icon: Briefcase, titleKey: 'marketplace.title', subtitleKey: null, onPress: () => router.push('/more/marketplace') },
     siteApplications: { icon: Building2, titleKey: 'review.siteReviews', subtitleKey: null, onPress: () => router.push('/more/site-applications') },
     verificationReviews: { icon: UserCheck, titleKey: 'review.verificationReviews', subtitleKey: null, onPress: () => router.push('/more/verification-reviews') },
     notifications: {
@@ -216,7 +219,7 @@ export default function MoreScreen() {
 
   // Group keys into their sections, then filter each by itemVisible.
   // Each section drops out entirely when it has zero visible items.
-  const workspaceKeys: ItemKey[] = ['notifications', 'contractsTechnician', 'myVerification'];
+  const workspaceKeys: ItemKey[] = ['notifications', 'contractsTechnician', 'myVerification', 'marketplace'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
     'siteSetup',

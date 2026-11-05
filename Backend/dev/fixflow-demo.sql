@@ -653,6 +653,47 @@ CREATE TABLE IF NOT EXISTS site_application_audit (
  created_at TIMESTAMP(6) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS marketplace_listings (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    report_id BIGINT UNSIGNED NOT NULL,
+    summary VARCHAR(300) NOT NULL,
+    broad_location VARCHAR(160) NOT NULL,
+    timing VARCHAR(160) NOT NULL,
+    category VARCHAR(128) NOT NULL,
+    specialty VARCHAR(128) NULL,
+    status VARCHAR(16) NOT NULL,
+    expires_at TIMESTAMP(6) NOT NULL,
+    PRIMARY KEY (id),
+    KEY ix_marketplace_report_status (report_id, status),
+    KEY ix_marketplace_status_expiry (status, expires_at),
+    CONSTRAINT fk_marketplace_listing_report FOREIGN KEY (report_id) REFERENCES reports (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS marketplace_applications (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    listing_id BIGINT UNSIGNED NOT NULL,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    note VARCHAR(1000) NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    offer_expires_at TIMESTAMP(6) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_marketplace_applicant (listing_id, technician_id),
+    CONSTRAINT fk_marketplace_application_listing FOREIGN KEY (listing_id) REFERENCES marketplace_listings (id) ON DELETE CASCADE,
+    CONSTRAINT fk_marketplace_application_technician FOREIGN KEY (technician_id) REFERENCES users (id)
+);
+
+CREATE TABLE IF NOT EXISTS marketplace_audit (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    listing_id BIGINT UNSIGNED NOT NULL,
+    application_id BIGINT UNSIGNED NULL,
+    actor_id BIGINT UNSIGNED NULL,
+    action VARCHAR(32) NOT NULL,
+    occurred_at TIMESTAMP(6) NOT NULL,
+    PRIMARY KEY (id),
+    KEY ix_marketplace_audit_listing (listing_id),
+    CONSTRAINT fk_marketplace_audit_listing FOREIGN KEY (listing_id) REFERENCES marketplace_listings (id) ON DELETE CASCADE
+);
+
 
 -- Authoritative startup taxonomy. Existing rules are never overwritten.
 INSERT INTO site_rules(site_type,category,urgency_weight,sort_order)

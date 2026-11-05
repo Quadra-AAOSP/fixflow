@@ -42,9 +42,14 @@ public class TechnicianTermsService {
 
     @Transactional(readOnly = true)
     public void requireAcceptance(Long technicianId) {
-        if (required && !acceptances.existsByTechnician_IdAndTermsVersion(technicianId, version)) {
+        if (!permitsWork(technicianId)) {
             throw new ApiException(409, "Technician must accept the current terms version before working or requesting a contract");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public boolean permitsWork(Long technicianId) {
+        return !required || acceptances.existsByTechnician_IdAndTermsVersion(technicianId, version);
     }
 
     @Transactional
