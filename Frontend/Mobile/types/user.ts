@@ -68,6 +68,13 @@ export type RegisterPayload = {
   address?: string;
   role: Extract<UserRole, 'reporter' | 'technician' | 'admin'>;
   siteId?: number | null;
+  // Admin self-apply bundle — submits site details together with the
+  // application so the site is created immediately and linked to the
+  // applicant. Super_admin approval then flips both user role and activates.
+  siteName?: string;
+  siteType?: 'school' | 'hostel' | 'hotel';
+  siteAddress?: string;
+  siteDescription?: string;
 };
 
 /**

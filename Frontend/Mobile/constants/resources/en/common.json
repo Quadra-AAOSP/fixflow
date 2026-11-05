@@ -116,8 +116,8 @@
     "registerAdminApply": {
       "kicker": "SITE ADMIN APPLICATION",
       "title": "Apply to administer a site",
-      "description": "A super administrator reviews your request before the admin role activates.",
-      "applyNotice": "You will be able to sign in as a reporter immediately. Once approved, sign in again to activate admin access. Super admins perform identity and site-authority checks before approving — this form does not verify you.",
+      "description": "Describe the site you'll run. Super admins review and activate your admin access.",
+      "applyNotice": "You create your site during this application — no super admin pre-creates it. The site is linked to your reporter account immediately, and a super admin's approval flips both your role and activates the site.",
       "firstName": "First name",
       "firstNamePlaceholder": "Alex",
       "lastName": "Last name",
@@ -126,13 +126,22 @@
       "emailPlaceholder": "you@example.com",
       "password": "Password",
       "passwordPlaceholder": "At least 15 characters",
-      "siteId": "Site ID",
-      "siteIdPlaceholder": "e.g. 1",
       "phoneOptional": "Phone (optional)",
       "phonePlaceholder": "+65 …",
+      "siteSection": "Your site",
+      "siteName": "Site name",
+      "siteNamePlaceholder": "e.g. Greenview Secondary School",
+      "siteType": "Site type",
+      "siteTypeSchool": "School",
+      "siteTypeHotel": "Hotel",
+      "siteTypeHostel": "Hostel",
+      "siteAddress": "Site address",
+      "siteAddressPlaceholder": "Street, building, room …",
+      "siteDescriptionOptional": "Site description (optional)",
+      "siteDescriptionPlaceholder": "Quick note about the site — layout, special areas, etc.",
       "submit": "Submit admin application →",
       "submittedTitle": "Application submitted",
-      "submittedBody": "Your account works as a reporter while a super administrator reviews your application. Track it under More → My admin application.",
+      "submittedBody": "Your site is created and linked to your reporter account. A super admin will review your application — once approved, you'll become site admin and manage the site you described.",
       "continueSignIn": "Continue to sign in →",
       "changeRole": "Change role",
       "errors": {
@@ -591,6 +600,7 @@
     "assignedTechnicianCount": "{count} assigned technician{plural}",
     "assignedCount": "{count} assigned",
     "claimableCount": "{count} claimable",
+    "contractSites": "{count} contracted site{plural}",
     "openA11y": "Open {description}"
   },
   "more": {
@@ -1135,6 +1145,7 @@
     "staffDashboard": "Dashboard",
     "platformConsole": "Platform",
     "shopConsole": "Shop",
+    "technician": "Technician",
     "profile": "Profile"
   },
   "notFound": {
@@ -1251,28 +1262,25 @@
       }
     },
     "contractRequests": {
-      "title": "Contract requests",
-      "loading": "Loading requests…",
-      "existing": "Your requests",
-      "createdAt": "Created {date}",
-      "noRequests": "No contract requests yet.",
-      "new": "Request a contract",
+      "back": "Back",
+      "kicker": "TECHNICIAN",
+      "heroTitle": "Site contracts",
+      "heroBody": "A contract links you to a site so you can be assigned its reports. Request one below — the site admin approves it.",
+      "yourContracts": "Your contracts",
+      "noContracts": "No active contracts yet. Request one below to join a site.",
+      "createdAt": "Since {date}",
+      "active": "Active",
+      "requestTitle": "Request a contract",
+      "requestBody": "Pick the site you want to work with. Your request goes to that site's admin for approval.",
       "newSite": "Site",
       "chooseSite": "Choose a site",
-      "siteFallback": "Site #{id}",
-      "cancel": "Cancel",
-      "submit": "Submit request",
-      "approve": "Approve",
-      "reject": "Reject",
-      "status": {
-        "pending": "Pending",
-        "approved": "Approved",
-        "rejected": "Rejected"
-      },
+      "noSites": "You are already contracted to every site.",
+      "submit": "Send request",
+      "submitted": "Request sent to {site} for approval.",
+      "loading": "Loading contracts…",
       "errors": {
-        "couldNotLoad": "Could not load contract requests.",
-        "couldNotSubmit": "Could not submit the request.",
-        "couldNotDecide": "Could not record the decision."
+        "couldNotLoad": "Could not load your contracts.",
+        "couldNotSubmit": "Could not send the request."
       }
     }
   },

@@ -1,14 +1,13 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
-import { ScrollView } from 'react-native';
 import { ClipboardList, Search, Wrench } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -65,6 +64,9 @@ export default function AssignmentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<ReportFilter>('all');
+  // Number of sites this technician is contracted to. Technicians have no
+  // account-level site, so their queue is scoped by contracts instead.
+  const [contractSiteCount, setContractSiteCount] = useState(0);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -78,8 +80,9 @@ export default function AssignmentsScreen() {
         // so fan out over every contract site and merge by report id.
         const contracts = await listTechnicianContracts();
         const siteIds = Array.from(new Set(contracts.map((contract) => contract.siteId)));
+        setContractSiteCount(siteIds.length);
         const pages = await Promise.all(
-          siteIds.map((siteId) => listReports({ siteId }).catch(() => [])),
+          siteIds.map((siteId) => listReports({ siteId })),
         );
         const merged = new Map<number, Report>();
         for (const report of pages.flat()) merged.set(report.id, report);
@@ -92,6 +95,8 @@ export default function AssignmentsScreen() {
       setError(
         err instanceof ApiError ? err.message : t('assignments.errors.couldNotLoad'),
       );
+      // Surface the failure instead of leaving a stale list on screen.
+      if (reports === null) setReports(null);
     } finally {
       setLoading(false);
     }
@@ -149,10 +154,18 @@ export default function AssignmentsScreen() {
     );
   }, [reports, isTechnician, user?.id]);
 
+  // Report lists from technicians span several contract sites, so resolve
+  // names from the full site directory rather than only the active site.
+  const siteNames = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const site of sites) map.set(site.id, site.name);
+    if (currentSite) map.set(currentSite.id, currentSite.name);
+    return map;
+  }, [sites, currentSite]);
+
   const siteName = useCallback(
-    (id: number | null) =>
-      id !== null && currentSite && id === currentSite.id ? currentSite.name : '',
-    [currentSite],
+    (id: number | null) => (id === null ? '' : siteNames.get(id) ?? ''),
+    [siteNames],
   );
 
   const filtered = useMemo(
@@ -258,7 +271,12 @@ export default function AssignmentsScreen() {
                 {t('assignments.myAssignmentsTitle')}
               </Text>
               <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-                {currentSite?.name ?? ''}
+                {isTechnician
+                  ? t('assignments.contractSites', {
+                      count: contractSiteCount,
+                      plural: contractSiteCount === 1 ? '' : 's',
+                    })
+                  : currentSite?.name ?? ''}
                 {reports !== null
                   ? ` · ${t('assignments.assignedCount', { count: assignedToMe.length })}${
                       availableToClaim.length > 0

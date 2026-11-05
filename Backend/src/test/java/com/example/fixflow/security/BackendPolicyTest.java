@@ -23,9 +23,10 @@ class BackendPolicyTest {
                 .isInstanceOf(ApiException.class).hasMessageContaining("72");
         assertThatThrownBy(() -> AccountPolicy.validateRegistration(new RegisterRequest(
                 "tech@example.test", "password12345678", "Test", "Tech", null, null,
-                UserRole.technician, null))).isInstanceOf(ApiException.class);
+                UserRole.technician, null, null, null, null, null))).isInstanceOf(ApiException.class);
         AccountPolicy.validateRegistration(new RegisterRequest("tech@example.test",
-                "password12345678", "Test", "Tech", "123456789", "Test address", UserRole.technician, null));
+                "password12345678", "Test", "Tech", "123456789", "Test address", UserRole.technician, null,
+                null, null, null, null));
     }
 
     @Test void capabilityHintsMatchBackendRoles() {

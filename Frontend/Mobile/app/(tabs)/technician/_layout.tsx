@@ -6,9 +6,11 @@ import { Stack } from 'expo-router';
 export default function TechnicianLayout() {
   return (
     <Stack>
+      {/* The screen renders its own editorial hero + back affordance,
+          so the stack header would duplicate the title. */}
       <Stack.Screen
         name="contract-requests"
-        options={{ title: 'Contract Requests' }}
+        options={{ title: 'Contract Requests', headerShown: false }}
       />
       <Stack.Screen
         name="terms"

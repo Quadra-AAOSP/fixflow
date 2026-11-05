@@ -48,13 +48,24 @@ describe('validateRegistration', () => {
     expect(validateRegistration(input({ password: 'a'.repeat(15) })).password).toBeUndefined();
   });
 
-  it('requires a siteId for reporter and admin but not technician', () => {
+  it('requires siteId for reporter, site bundle for admin, neither for technician', () => {
+    // Reporter — must provide numeric siteId.
     expect(validateRegistration(input({ role: 'reporter', siteId: '' })).siteId).toBe(
       'Enter the site ID from your administrator.',
     );
-    expect(validateRegistration(input({ role: 'admin', siteId: '   ' })).siteId).toBe(
-      'Enter the site ID from your administrator.',
+    // Admin self-apply — must provide site name + type (no siteId needed).
+    const adminMissing = validateRegistration(
+      input({ role: 'admin', siteId: '', siteName: '', siteType: undefined }),
     );
+    expect(adminMissing.siteName).toBe('Site name is required.');
+    expect(adminMissing.siteType).toBe('Pick a site type.');
+    // Admin site bundle passes when name + type provided.
+    expect(
+      validateRegistration(
+        input({ role: 'admin', siteId: '', siteName: 'Greenview', siteType: 'school' }),
+      ),
+    ).toEqual({});
+    // Technician — nothing required.
     expect(validateRegistration(input({ role: 'technician', siteId: '' })).siteId).toBeUndefined();
   });
 
@@ -121,7 +132,7 @@ describe('buildRegistrationPayload', () => {
 
   it('throws when a reporter has no siteId', () => {
     expect(() => buildRegistrationPayload(input({ role: 'reporter', siteId: '' }))).toThrow(
-      'Enter the site ID provided by your administrator.',
+      'Enter a valid numeric site ID.',
     );
   });
 

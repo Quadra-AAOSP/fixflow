@@ -1,5 +1,6 @@
 package com.example.fixflow.dto;
 
+import com.example.fixflow.domain.SiteType;
 import com.example.fixflow.domain.UserRole;
 
 import jakarta.validation.constraints.Email;
@@ -15,6 +16,13 @@ public record RegisterRequest(
 		@Size(max = 64) String phone,
 		@Size(max = 512) String address,
 		@NotNull UserRole role,
-		Long siteId
+		Long siteId,
+		// Admin self-apply bundle — submit site details with the application.
+		// Site is created immediately, linked to the applicant as reporter,
+		// and approved together with the admin role by super_admin.
+		@Size(max = 128) String siteName,
+		SiteType siteType,
+		@Size(max = 512) String siteAddress,
+		@Size(max = 2000) String siteDescription
 ) {
 }
