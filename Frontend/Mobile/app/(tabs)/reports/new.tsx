@@ -45,9 +45,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { MAX_PHOTO_COUNT, MAX_PHOTO_SIZE_BYTES, uploadPhoto } from '@/services/photos';
 import { createReport } from '@/services/reports';
+import { listJoinableSites } from '@/services/auth';
 import { listSiteRules } from '@/services/siteRules';
 import { listSubsites, createSubsiteAlert } from '@/services/sites';
 import type {
+  JoinableSite,
   ReportPhoto,
   ReportVisibility,
   SiteRule,
@@ -136,6 +138,40 @@ export default function NewReportScreen() {
   const [suggestionText, setSuggestionText] = useState('');
   const [suggestionBusy, setSuggestionBusy] = useState(false);
 
+  // Reporters file wherever the issue is — the account site is just the
+  // default. Other roles stay scoped to their account site.
+  const isReporter = user?.role === 'reporter';
+  const [siteOptions, setSiteOptions] = useState<JoinableSite[]>([]);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [siteListError, setSiteListError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isReporter) return;
+    let active = true;
+    listJoinableSites()
+      .then((list) => {
+        if (active) setSiteOptions(list);
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setSiteListError(
+            err instanceof ApiError ? err.message : t('reports.new.siteLoadFail'),
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [isReporter, t]);
+
+  const activeSite = useMemo(() => {
+    if (isReporter && selectedSiteId) {
+      const picked = siteOptions.find((o) => String(o.id) === selectedSiteId);
+      if (picked) return { id: picked.id, name: picked.name, type: picked.type };
+    }
+    return site ? { id: site.id, name: site.name, type: site.type } : null;
+  }, [isReporter, selectedSiteId, siteOptions, site]);
+
   const activeSubsites = useMemo(
     () => subsites.filter((s) => s.archivedAt == null),
     [subsites],
@@ -172,10 +208,10 @@ export default function NewReportScreen() {
   }, [t]);
 
   useEffect(() => {
-    if (!site) return;
-    void loadSubsites(site.id);
-    void loadRules(site.type);
-  }, [site?.id, site?.type, loadSubsites, loadRules]);
+    if (!activeSite) return;
+    void loadSubsites(activeSite.id);
+    void loadRules(activeSite.type);
+  }, [activeSite?.id, activeSite?.type, loadSubsites, loadRules]);
 
   const categoryOptions = useMemo(
     () => rules.map((r) => ({ value: r.category, label: humanize(r.category) })),
@@ -268,7 +304,7 @@ export default function NewReportScreen() {
   }
 
   async function handleSubmit() {
-    if (!site) {
+    if (!activeSite) {
       setSubmitError(t('reports.new.noSiteTitle'));
       return;
     }
@@ -298,7 +334,7 @@ export default function NewReportScreen() {
         reporterReason: urgencyReason.trim() || undefined,
         subsiteId: subsiteId ? Number(subsiteId) : undefined,
         visibility,
-        siteId: site.id,
+        siteId: activeSite.id,
       };
 
       const report = await createReport(payload);
@@ -344,10 +380,10 @@ export default function NewReportScreen() {
   }
 
   async function handleSuggestMissing() {
-    if (!site || !suggestionText.trim() || suggestionBusy) return;
+    if (!activeSite || !suggestionText.trim() || suggestionBusy) return;
     setSuggestionBusy(true);
     try {
-      await createSubsiteAlert(site.id, suggestionText.trim());
+      await createSubsiteAlert(activeSite.id, suggestionText.trim());
       showToast(t('reports.new.suggestionSuccess'), 'success');
       setSuggestionText('');
       setSuggestionOpen(false);
@@ -466,8 +502,33 @@ export default function NewReportScreen() {
               {t('reports.new.title')}
             </Text>
             <Text className="mt-1 text-[12px] text-dashboard-subtitle">
-              {t('reports.new.intro', { site: site.name })}
+              {t('reports.new.intro', { site: activeSite?.name ?? site.name })}
             </Text>
+            {isReporter ? (
+              <View className="mt-3">
+                <Picker
+                  label={t('reports.new.siteLabel')}
+                  value={activeSite ? String(activeSite.id) : null}
+                  options={siteOptions.map((option) => ({
+                    value: String(option.id),
+                    label: option.name,
+                    disabled: false,
+                  }))}
+                  onChange={(value) => {
+                    setSelectedSiteId(value);
+                    // Subsite + category are per-site — drop stale picks.
+                    setSubsiteId(null);
+                    setCategory(null);
+                  }}
+                  placeholder={t('reports.new.sitePlaceholderChoose')}
+                  emptyMessage={t('reports.new.siteEmpty')}
+                  disabled={siteOptions.length === 0}
+                />
+                {siteListError ? (
+                  <Text className="-mt-2 mb-4 text-[11px] text-coral-link">{siteListError}</Text>
+                ) : null}
+              </View>
+            ) : null}
             <Text className="mt-2 text-[11px] leading-[1.6] text-dashboard-caption">
               {t('reports.new.savedNotice')}
             </Text>
@@ -555,7 +616,7 @@ export default function NewReportScreen() {
                 variant="error"
                 description={subsiteError}
                 actionLabel={t('reports.new.retryLoadingBuildings')}
-                onAction={() => site && void loadSubsites(site.id)}
+                onAction={() => activeSite && void loadSubsites(activeSite.id)}
               />
             ) : (
               <Picker
@@ -578,7 +639,7 @@ export default function NewReportScreen() {
                 variant="error"
                 description={ruleError}
                 actionLabel={t('reports.new.retryLoadingCategories')}
-                onAction={() => void loadRules(site.type)}
+                onAction={() => activeSite && void loadRules(activeSite.type)}
               />
             ) : (
               <Picker
@@ -722,7 +783,7 @@ export default function NewReportScreen() {
 
       <TriageChat
         visible={triageOpen}
-        siteId={site.id}
+        siteId={activeSite?.id ?? site.id}
         onClose={() => setTriageOpen(false)}
         onApply={applyTriage}
       />
