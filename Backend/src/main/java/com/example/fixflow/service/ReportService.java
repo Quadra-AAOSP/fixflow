@@ -520,6 +520,18 @@ public class ReportService {
 			return siteRepository.findById(requestedSiteId)
 					.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found"));
 		}
+		if (filer.getRole() == UserRole.reporter) {
+			// Reporters file wherever the issue actually is. The account site
+			// chosen at sign-up is only the default, not a filing restriction.
+			if (requestedSiteId != null) {
+				return siteRepository.findById(requestedSiteId)
+						.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found"));
+			}
+			if (filer.getSite() == null) {
+				throw new ApiException(HttpStatus.BAD_REQUEST.value(), "Account is not scoped to a site");
+			}
+			return filer.getSite();
+		}
 		if (filer.getSite() == null) {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(), "Account is not scoped to a site");
 		}
