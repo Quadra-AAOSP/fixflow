@@ -39,6 +39,8 @@ export default function ProfileScreen() {
     available,
     setAvailable,
     loading: availabilityLoading,
+    saving: availabilitySaving,
+    syncError: availabilityError,
   } = useTechnicianAvailability();
 
   const [signingOut, setSigningOut] = useState(false);
@@ -255,7 +257,11 @@ export default function ProfileScreen() {
                     {t('profile.availability.label')}
                   </Text>
                   <Text className="mt-0.5 text-[11px] leading-[1.5] text-dashboard-caption">
-                    {t('profile.availability.hint')}
+                    {availabilityError
+                      ? t('profile.availability.syncError')
+                      : availabilitySaving
+                        ? t('profile.availability.saving')
+                        : t('profile.availability.hint')}
                   </Text>
                 </View>
                 <Switch
@@ -263,6 +269,7 @@ export default function ProfileScreen() {
                   accessibilityLabel={t('profile.availability.label')}
                   value={available}
                   onValueChange={setAvailable}
+                  disabled={availabilitySaving}
                   trackColor={{
                     false: dashboardColors.cardLine,
                     true: dashboardColors.teal,
