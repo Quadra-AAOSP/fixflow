@@ -1113,7 +1113,9 @@
     "availability": {
       "kicker": "Availability",
       "label": "Available for work",
-      "hint": "Saved on this device only. Dispatch sync isn't available yet."
+      "hint": "Dispatch and rankings only consider available technicians.",
+      "saving": "Saving…",
+      "syncError": "Could not update availability. Check your connection and try again."
     },
     "tagline": "Your report. The right people. A little peace of mind.",
     "manualRefreshFailed": "Session could not be refreshed. Try signing in again."

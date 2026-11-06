@@ -1113,7 +1113,9 @@
     "availability": {
       "kicker": "接单状态",
       "label": "可接单",
-      "hint": "仅保存在本机。暂不支持与调度同步。"
+      "hint": "派单与排序只会考虑可接单的技师。",
+      "saving": "正在保存…",
+      "syncError": "无法更新接单状态，请检查网络后重试。"
     },
     "tagline": "您的报修。合适的人。一点安心。",
     "manualRefreshFailed": "会话无法刷新，请尝试重新登录。"
