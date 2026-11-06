@@ -11,6 +11,7 @@ import {
 import { ClipboardList, Search, Wrench } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/Button';
 import { FilterTabs } from '@/components/ui/FilterTabs';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
@@ -18,10 +19,11 @@ import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
+import { useToast } from '@/components/ui/useToastContext';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listReports } from '@/services/reports';
+import { claimReport, listReports } from '@/services/reports';
 import { listTechnicianContracts } from '@/services/technician';
 import { useCurrentSite } from '@/stores/site';
 import type { Report, Urgency } from '@/types';
@@ -53,6 +55,7 @@ export default function AssignmentsScreen() {
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   const { site: currentSite, sites, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
 
@@ -67,6 +70,8 @@ export default function AssignmentsScreen() {
   // Number of sites this technician is contracted to. Technicians have no
   // account-level site, so their queue is scoped by contracts instead.
   const [contractSiteCount, setContractSiteCount] = useState(0);
+  // Which claimable report is currently being claimed (spinner + lockout).
+  const [claimingId, setClaimingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -116,6 +121,28 @@ export default function AssignmentsScreen() {
       await refreshSite();
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  /**
+   * Claim an unassigned queue item. The backend gates this on an active
+   * contract at the report's site plus accepted terms, so a rejection (403 /
+   * 409) is surfaced verbatim instead of being swallowed.
+   */
+  async function onClaim(id: number) {
+    if (claimingId !== null) return;
+    setClaimingId(id);
+    try {
+      await claimReport(id);
+      showToast(t('assignments.claimed'), 'success');
+      await load();
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : t('assignments.claimFailed'),
+        'error',
+      );
+    } finally {
+      setClaimingId(null);
     }
   }
 
@@ -304,6 +331,8 @@ export default function AssignmentsScreen() {
               assigned={assignedToMe}
               available={availableToClaim}
               onOpen={(id) => router.push(`/reports/${id}`)}
+              onClaim={onClaim}
+              claimingId={claimingId}
               siteName={(id) => siteName(id)}
             />
           )}
@@ -501,22 +530,25 @@ function ReportCard({
 
 /**
  * Two-section rendering for the technician queue — the split UI spec item
- * 8.2 ("assigned section") + 8.3 ("claimable section"). "Available to claim"
- * items show an inline pill; tapping navigates to the report detail which
- * will still show the "unassigned" card (backend `POST /claim` doesn't exist
- * yet, so claiming is read-only for now).
+ * 8.2 ("assigned section") + 8.3 ("claimable section"). Claimable items carry
+ * a Claim action backed by `POST /api/reports/{id}/claim`; tapping the card
+ * still opens the report detail.
  */
 function TechnicianSections({
   t,
   assigned,
   available,
   onOpen,
+  onClaim,
+  claimingId,
   siteName,
 }: {
   t: TranslateFn;
   assigned: Report[];
   available: Report[];
   onOpen: (id: number) => void;
+  onClaim: (id: number) => void;
+  claimingId: number | null;
   siteName: (id: number | null) => string;
 }) {
   if (assigned.length === 0 && available.length === 0) {
@@ -545,6 +577,14 @@ function TechnicianSections({
       {available.map((r) => (
         <View key={r.id} className="mb-3">
           <ReportCard t={t} report={r} siteName={siteName(r.siteId)} onPress={() => onOpen(r.id)} />
+          <Button
+            variant="cta"
+            className="mt-2 min-h-0 py-2"
+            label={claimingId === r.id ? t('assignments.claiming') : t('assignments.claim')}
+            loading={claimingId === r.id}
+            disabled={claimingId !== null}
+            onPress={() => onClaim(r.id)}
+          />
         </View>
       ))}
     </View>

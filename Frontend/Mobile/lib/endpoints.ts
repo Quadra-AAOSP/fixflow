@@ -64,6 +64,8 @@ export const endpoints = {
     join: (id: number | string) => `/api/reports/${id}/join`,
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
+    /** POST — a contracted technician takes an unassigned queue item. */
+    claim: (id: number | string) => `/api/reports/${id}/claim`,
     /** POST — stateless AI chat about one report; body carries the message history. */
     assistant: (id: number | string) => `/api/reports/${id}/assistant`,
     /** POST — natural-language query → structured filters (NL smart search). */
