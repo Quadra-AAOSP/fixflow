@@ -1,5 +1,5 @@
 import { Redirect, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -8,12 +8,14 @@ import { AuthButton } from '@/components/auth/AuthButton';
 import { AuthField } from '@/components/auth/AuthField';
 import { AuthHeading } from '@/components/auth/AuthHeading';
 import { AuthShell } from '@/components/auth/AuthShell';
+import { Picker } from '@/components/ui/Picker';
 import { authColors, fontFamilies } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import * as authApi from '@/services/auth';
 import { ApiError } from '@/services/auth';
 import { buildRegistrationPayload, validateRegistration } from '@/utils/registration';
 import type { RegistrationFieldErrors } from '@/utils/registration';
+import type { JoinableSite } from '@/types';
 
 type Details = {
   firstName: string; lastName: string; email: string;
@@ -38,6 +40,35 @@ export default function RegisterReporterScreen() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [accountCreated, setAccountCreated] = useState(false);
+  const [sites, setSites] = useState<JoinableSite[]>([]);
+  const [sitesLoading, setSitesLoading] = useState(true);
+  const [sitesError, setSitesError] = useState<string | null>(null);
+
+  // Reporters are site-scoped from sign-up, so the picker needs the public
+  // site list before any session exists.
+  useEffect(() => {
+    let active = true;
+    authApi
+      .listJoinableSites()
+      .then((list) => {
+        if (active) setSites(list);
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setSitesError(
+            err instanceof ApiError
+              ? err.message
+              : t('auth.registerReporter.errors.siteList'),
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setSitesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [t]);
 
   if (!isLoading && isAuthenticated) return <Redirect href="/(tabs)" />;
 
@@ -178,14 +209,32 @@ export default function RegisterReporterScreen() {
         placeholder={t('auth.registerReporter.passwordPlaceholder')}
       />
 
-      <AuthField
+      <Picker
         label={t('auth.registerReporter.siteId')}
-        value={details.siteId}
-        onChangeText={(v) => update('siteId', v)}
-        error={errors.siteId}
-        keyboardType="number-pad"
-        placeholder={t('auth.registerReporter.siteIdPlaceholder')}
+        value={details.siteId.length > 0 ? details.siteId : null}
+        options={sites.map((site) => ({
+          value: String(site.id),
+          label: site.name,
+          disabled: false,
+        }))}
+        onChange={(value) => update('siteId', value)}
+        placeholder={
+          sitesLoading
+            ? t('auth.registerReporter.sitePlaceholderLoading')
+            : t('auth.registerReporter.sitePlaceholderChoose')
+        }
+        emptyMessage={
+          sitesLoading
+            ? t('auth.registerReporter.sitePlaceholderLoading')
+            : t('auth.registerReporter.siteEmpty')
+        }
+        disabled={sitesLoading || sites.length === 0}
       />
+      {errors.siteId ? (
+        <Text className="mb-4 text-[11px] text-coral-link">{errors.siteId}</Text>
+      ) : sitesError ? (
+        <Text className="mb-4 text-[11px] text-coral-link">{sitesError}</Text>
+      ) : null}
 
       <AuthField
         label={t('auth.registerReporter.phoneOptional')}

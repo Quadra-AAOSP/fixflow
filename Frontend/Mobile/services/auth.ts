@@ -1,6 +1,7 @@
 import { api, ApiError } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
+  JoinableSite,
   LoginPayload,
   RegisterPayload,
   SiteAdminApplication,
@@ -8,6 +9,11 @@ import type {
 } from '@/types';
 
 export { ApiError };
+
+/** Sites a new reporter can join, fetched before sign-in. */
+export function listJoinableSites(): Promise<JoinableSite[]> {
+  return api.get<JoinableSite[]>(endpoints.auth.sites);
+}
 
 export function login(payload: LoginPayload): Promise<User> {
   return api.post<User>(endpoints.auth.login, payload);

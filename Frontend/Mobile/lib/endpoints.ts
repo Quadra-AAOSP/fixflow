@@ -21,6 +21,8 @@ export const endpoints = {
     me: '/api/auth/me',
     /** GET — the caller's own site-admin application, or null. */
     siteAdminApplication: '/api/auth/site-admin-application',
+    /** GET — public list for the registration site picker. */
+    sites: '/api/auth/sites',
   },
 
   admin: {
