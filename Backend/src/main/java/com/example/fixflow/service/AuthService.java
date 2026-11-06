@@ -241,7 +241,16 @@ public class AuthService {
 
 	private Site resolveSiteForRole(UserRole role, Long siteId) {
 		return switch (role) {
-			case reporter, staff, admin -> {
+			case reporter -> {
+				// Reporters pick the site per report, so a site at sign-up is
+				// optional (it only seeds their default).
+				if (siteId == null) {
+					yield null;
+				}
+				yield siteRepository.findById(siteId)
+						.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found: " + siteId));
+			}
+			case staff, admin -> {
 				if (siteId == null) {
 					throw new ApiException(HttpStatus.BAD_REQUEST.value(), role + " accounts require a siteId");
 				}
