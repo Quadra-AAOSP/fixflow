@@ -59,8 +59,7 @@
     "registerReporter": {
       "kicker": "REPORTER SIGN-UP",
       "title": "Create your reporter account",
-      "description": "You'll be the person who files issues at your site.",
-      "siteIdHelp": "Choose the site you report at. Your account is scoped to that site, so it decides which issues you can file and see.",
+      "description": "You'll file issues at any site — no site code needed.",
       "firstName": "First name",
       "firstNamePlaceholder": "Alex",
       "lastName": "Last name",
@@ -69,10 +68,6 @@
       "emailPlaceholder": "you@example.com",
       "password": "Password",
       "passwordPlaceholder": "At least 15 characters",
-      "siteId": "Site",
-      "sitePlaceholderLoading": "Loading sites…",
-      "sitePlaceholderChoose": "Choose a site",
-      "siteEmpty": "No sites are available yet. Ask an administrator to create one.",
       "phoneOptional": "Phone (optional)",
       "phonePlaceholder": "+65 …",
       "submit": "Create reporter account →",
@@ -82,7 +77,6 @@
       "changeRole": "Change role",
       "errors": {
         "prepareForm": "Unable to prepare your form.",
-        "siteList": "Could not load the list of sites.",
         "accountCreatedButAutoSignInFailed": "Your account was created, but automatic sign-in did not finish. Sign in with your new account.",
         "generic": "Something went wrong. Please try again."
       }
@@ -360,6 +354,8 @@
       "sitePlaceholderChoose": "Choose where the issue is",
       "siteEmpty": "No sites are available yet.",
       "siteLoadFail": "Could not load the site list.",
+      "siteRequired": "Pick the site where the issue is.",
+      "pickSiteHint": "Pick the site where the issue is, then describe what needs attention.",
       "noSiteTitle": "No site linked",
       "noSiteDesc": "A site must be linked before you can file a report.",
       "noBuildingsTitle": "No buildings set up yet",

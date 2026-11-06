@@ -59,8 +59,7 @@
     "registerReporter": {
       "kicker": "报修人注册",
       "title": "创建您的报修人账户",
-      "description": "您将是在站点上提交问题的人。",
-      "siteIdHelp": "选择您要报修的站点。您的账户将绑定到该站点，并决定您可以提交和查看哪些问题。",
+      "description": "您可以在任意站点提交报修，无需站点编码。",
       "firstName": "名",
       "firstNamePlaceholder": "Alex",
       "lastName": "姓",
@@ -69,10 +68,6 @@
       "emailPlaceholder": "you@example.com",
       "password": "密码",
       "passwordPlaceholder": "至少 15 个字符",
-      "siteId": "站点",
-      "sitePlaceholderLoading": "正在加载站点…",
-      "sitePlaceholderChoose": "请选择站点",
-      "siteEmpty": "暂无可选站点，请联系管理员创建。",
       "phoneOptional": "电话（可选）",
       "phonePlaceholder": "+65 …",
       "submit": "创建报修人账户 →",
@@ -82,7 +77,6 @@
       "changeRole": "更换角色",
       "errors": {
         "prepareForm": "无法准备您的表单。",
-        "siteList": "无法加载站点列表。",
         "accountCreatedButAutoSignInFailed": "您的账户已创建，但自动登录未完成。请用新账户手动登录。",
         "generic": "出了点问题，请再试一次。"
       }
@@ -360,6 +354,8 @@
       "sitePlaceholderChoose": "请选择问题所在站点",
       "siteEmpty": "暂无可选站点。",
       "siteLoadFail": "无法加载站点列表。",
+      "siteRequired": "请选择问题所在的站点。",
+      "pickSiteHint": "请选择问题所在站点，然后描述需要处理的事项。",
       "noSiteTitle": "未关联站点",
       "noSiteDesc": "提交报修前必须先关联站点。",
       "noBuildingsTitle": "尚未设置任何建筑",

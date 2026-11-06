@@ -293,6 +293,7 @@ export default function NewReportScreen() {
   }
 
   function validate(): string | null {
+    if (!activeSite) return t('reports.new.siteRequired');
     if (!description.trim()) return t('reports.new.descErrors.required');
     if (description.trim().length < 10) return t('reports.new.descErrors.tooShort');
     if (description.length > 10000) return t('reports.new.descErrors.tooLong');
@@ -433,7 +434,7 @@ export default function NewReportScreen() {
     );
   }
 
-  if (!site || siteError) {
+  if (siteError || (!isReporter && !site)) {
     return (
       <Screen>
         <View className="flex-1 items-center justify-center px-6">
@@ -449,8 +450,9 @@ export default function NewReportScreen() {
     );
   }
 
-  // No active buildings — reporters get guidance; admins can open setup.
-  if (activeSubsites.length === 0 && !subsiteError) {
+  // No active buildings on the chosen site — reporters get guidance; admins
+  // can open setup. Skip entirely while a reporter hasn't picked a site yet.
+  if (activeSite && !loadingSubsites && activeSubsites.length === 0 && !subsiteError) {
     const isAdmin = canManageSubsites(user);
     return (
       <Screen>
@@ -502,7 +504,9 @@ export default function NewReportScreen() {
               {t('reports.new.title')}
             </Text>
             <Text className="mt-1 text-[12px] text-dashboard-subtitle">
-              {t('reports.new.intro', { site: activeSite?.name ?? site.name })}
+              {activeSite
+                ? t('reports.new.intro', { site: activeSite.name })
+                : t('reports.new.pickSiteHint')}
             </Text>
             {isReporter ? (
               <View className="mt-3">
@@ -781,12 +785,14 @@ export default function NewReportScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <TriageChat
-        visible={triageOpen}
-        siteId={activeSite?.id ?? site.id}
-        onClose={() => setTriageOpen(false)}
-        onApply={applyTriage}
-      />
+      {activeSite ? (
+        <TriageChat
+          visible={triageOpen}
+          siteId={activeSite.id}
+          onClose={() => setTriageOpen(false)}
+          onApply={applyTriage}
+        />
+      ) : null}
 
       {suggestionOpen ? (
         <View className="absolute inset-0 items-center justify-center bg-black/40 px-6">
