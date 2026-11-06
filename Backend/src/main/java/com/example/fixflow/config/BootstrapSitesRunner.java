@@ -11,7 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.fixflow.domain.ContractStatus;
 import com.example.fixflow.domain.Site;
 import com.example.fixflow.domain.SiteType;
+import com.example.fixflow.domain.Subsite;
 import com.example.fixflow.repository.SiteRepository;
+import com.example.fixflow.repository.SubsiteRepository;
 
 /**
  * Seeds the three platform-owned sites that exist before any customer
@@ -39,9 +41,11 @@ public class BootstrapSitesRunner implements ApplicationRunner {
 	};
 
 	private final SiteRepository siteRepository;
+	private final SubsiteRepository subsiteRepository;
 
-	public BootstrapSitesRunner(SiteRepository siteRepository) {
+	public BootstrapSitesRunner(SiteRepository siteRepository, SubsiteRepository subsiteRepository) {
 		this.siteRepository = siteRepository;
+		this.subsiteRepository = subsiteRepository;
 	}
 
 	@Override
@@ -49,16 +53,25 @@ public class BootstrapSitesRunner implements ApplicationRunner {
 	public void run(ApplicationArguments args) {
 		for (Object[] spec : DEFAULT_SITES) {
 			String name = (String) spec[0];
-			if (siteRepository.findFirstByNameIgnoreCase(name).isPresent()) {
-				continue;
+			Site site = siteRepository.findFirstByNameIgnoreCase(name).orElse(null);
+			if (site == null) {
+				site = new Site();
+				site.setName(name);
+				site.setType((SiteType) spec[1]);
+				site.setAddress((String) spec[2]);
+				site.setContractStatus(ContractStatus.contracted);
+				site = siteRepository.save(site);
+				log.info("Seeded default site: {}", name);
 			}
-			Site site = new Site();
-			site.setName(name);
-			site.setType((SiteType) spec[1]);
-			site.setAddress((String) spec[2]);
-			site.setContractStatus(ContractStatus.contracted);
-			siteRepository.save(site);
-			log.info("Seeded default site: {}", name);
+			// Reporting requires an active subsite; seed a catch-all building so
+			// the platform sites are usable the moment the backend starts.
+			if (!subsiteRepository.existsBySite_IdAndArchivedAtIsNull(site.getId())) {
+				Subsite main = new Subsite();
+				main.setSite(site);
+				main.setLabel("MAIN");
+				main.setName("Main building");
+				subsiteRepository.save(main);
+			}
 		}
 	}
 }
