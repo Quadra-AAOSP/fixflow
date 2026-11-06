@@ -55,13 +55,8 @@ export function validateRegistration(
     if (input.siteDescription && input.siteDescription.trim().length > 2000)
       errors.siteDescription = 'Keep site description under 2000 characters.';
     // siteId ignored for admin — we auto-create from bundle.
-  } else if (input.role === 'reporter') {
-    // Reporter joins an existing site by its ID.
-    if (!input.siteId.trim()) errors.siteId = 'Enter the site ID from your administrator.';
-    else if (!/^\d+$/.test(input.siteId.trim()))
-      errors.siteId = 'Site ID must be a positive whole number.';
   }
-  // technician — no siteId needed, no site bundle.
+  // reporter / technician — no site requirement (reporters pick per report).
 
   // Phone — optional, but if entered must be 6-20 chars of digits, spaces, or +-.
   if (input.phone.trim()) {
@@ -95,8 +90,9 @@ export function buildRegistrationPayload(input: RegistrationInput): RegisterPayl
   }
 
   if (input.role === 'reporter') {
+    // Optional default site — reporters file wherever the issue is.
     const siteId = input.siteId.trim() ? Number(input.siteId) : null;
-    if (siteId === null || !Number.isSafeInteger(siteId) || siteId <= 0) {
+    if (siteId !== null && (!Number.isSafeInteger(siteId) || siteId <= 0)) {
       throw new Error('Enter a valid numeric site ID.');
     }
     base.siteId = siteId;
