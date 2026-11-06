@@ -162,8 +162,12 @@ export function getMyAvailability(): Promise<TechnicianAvailabilityResponse> {
 export function updateMyAvailability(
   available: boolean,
 ): Promise<TechnicianAvailabilityResponse> {
+  // Backend contract: AvailabilityRequest is `{ status }` with an
+  // AvailabilityStatus enum (available | unavailable). Sending
+  // `{ available }` left `status` null, so the @NotNull validation rejected
+  // the PUT with 400 and the optimistic toggle rolled straight back.
   return api.put<TechnicianAvailabilityResponse>(
     endpoints.technicians.myAvailability,
-    { available },
+    { status: available ? 'available' : 'unavailable' },
   );
 }

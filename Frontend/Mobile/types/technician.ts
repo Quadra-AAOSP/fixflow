@@ -131,9 +131,11 @@ export type TechnicianContractPayload = {
 };
 
 /** The signed-in technician's availability status. */
+/** Mirrors the backend AvailabilityResponse record. */
 export type TechnicianAvailabilityResponse = {
-  available: boolean;
-  status?: 'available' | 'unavailable';
+  technicianId: number;
+  status: 'available' | 'unavailable';
+  updatedAt: string | null;
 };
 
 export type TechnicianAvailability = 'available' | 'unavailable';
