@@ -466,8 +466,20 @@ export default function NewReportScreen() {
               {t('reports.new.title')}
             </Text>
             <Text className="mt-1 text-[12px] text-dashboard-subtitle">
-              {t('reports.new.intro', { site: site.name })}
+              {t('reports.new.intro')}
             </Text>
+            <View className="mt-2 flex-row items-center gap-2 rounded-[9px] border border-dashboard-card-line px-3 py-2">
+              <Building2 color={dashboardColors.subtitle} size={14} />
+              <Text className="text-[11px] text-dashboard-subtitle">
+                {t('reports.new.siteLabel')}
+              </Text>
+              <Text
+                className="flex-1 text-right text-[12px] font-semibold text-ink"
+                numberOfLines={1}
+              >
+                {site.name}
+              </Text>
+            </View>
             <Text className="mt-2 text-[11px] leading-[1.6] text-dashboard-caption">
               {t('reports.new.savedNotice')}
             </Text>
