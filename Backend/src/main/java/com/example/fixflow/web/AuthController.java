@@ -1,5 +1,7 @@
 package com.example.fixflow.web;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.fixflow.dto.JoinableSiteResponse;
 import com.example.fixflow.dto.LoginRequest;
 import com.example.fixflow.dto.RegisterRequest;
 import com.example.fixflow.dto.UserResponse;
@@ -43,6 +46,11 @@ public class AuthController {
 	public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
 		return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
 	}
+
+    @GetMapping("/sites")
+    public List<JoinableSiteResponse> sites() {
+        return authService.joinableSites();
+    }
 
     @GetMapping("/policy")
     public java.util.Map<String, Object> policy() {
