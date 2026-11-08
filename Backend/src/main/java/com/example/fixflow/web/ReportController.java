@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -103,11 +104,19 @@ public class ReportController {
 		return reportService.update(id, request, principal);
 	}
 
+	/** PATCH alias for the same edit contract (partial-field clients). */
+	@PatchMapping("/{id}")
+	public ReportResponse patch(@PathVariable Long id, @Valid @RequestBody UpdateReportRequest request,
+			@AuthenticationPrincipal AppUserDetails principal) {
+		return reportService.update(id, request, principal);
+	}
+
 	@DeleteMapping("/{id}")
 	public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
 		reportService.archive(id, principal);
 		return ResponseEntity.noContent().build();
 	}
+
 
 	@PostMapping("/{id}/classify")
 	public ReportResponse classify(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {

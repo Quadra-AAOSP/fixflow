@@ -244,13 +244,30 @@ public class ReportService {
 		String description = request.description().trim();
 		String address = blankToNull(request.address());
 		String reason = blankToNull(request.reporterReason());
-		if (!Objects.equals(report.getDescription(), description) || !Objects.equals(report.getAddress(), address)
+		String category = request.category() == null ? null
+				: categoryTaxonomyService.requireAllowedCategory(report.getSite().getType(), request.category());
+		String specialty = request.specialty() == null ? null : blankToNull(request.specialty());
+		boolean changed = !Objects.equals(report.getDescription(), description)
+				|| !Objects.equals(report.getAddress(), address)
 				|| report.getReporterUrgency() != request.reporterUrgency()
-				|| !Objects.equals(report.getReporterReason(), reason)) {
+				|| !Objects.equals(report.getReporterReason(), reason)
+				|| category != null && !Objects.equals(report.getCategory(), category)
+				|| specialty != null && !Objects.equals(report.getSpecialty(), specialty)
+				|| request.visibility() != null && report.getVisibility() != request.visibility();
+		if (changed) {
 			report.setDescription(description);
 			report.setAddress(address);
 			report.setReporterUrgency(request.reporterUrgency());
 			report.setReporterReason(reason);
+			if (category != null) {
+				report.setCategory(category);
+			}
+			if (specialty != null) {
+				report.setSpecialty(specialty);
+			}
+			if (request.visibility() != null) {
+				report.setVisibility(request.visibility());
+			}
 			reportRepository.flush();
 			recordChange(report, actor, ReportNotification.Type.report_edited);
 		}
