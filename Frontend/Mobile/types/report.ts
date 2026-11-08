@@ -113,6 +113,14 @@ export type CreateReportPayload = {
   visibility?: ReportVisibility;
 };
 
+/** Mirrors backend `UpdateReportRequest` — every field optional; body may not be empty. */
+export type UpdateReportPayload = Partial<
+  Pick<
+    CreateReportPayload,
+    'description' | 'address' | 'category' | 'specialty' | 'reporterUrgency' | 'visibility'
+  >
+>;
+
 /** Mirrors backend `ReportPageResponse`. */
 export type ReportPage = {
   content: Report[];
