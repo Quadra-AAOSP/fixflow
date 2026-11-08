@@ -11,6 +11,8 @@ type SegmentedControlProps<T extends string> = {
       choice is required (e.g. urgency on the new-report form). */
   value: T | null;
   onChange: (value: T) => void;
+  /** Disables interaction while a mutation is in flight. */
+  disabled?: boolean;
   className?: string;
 };
 
@@ -27,6 +29,7 @@ export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
+  disabled = false,
   className,
 }: SegmentedControlProps<T>) {
   return (
@@ -43,10 +46,12 @@ export function SegmentedControl<T extends string>({
                 ? 'bg-dashboard-teal-soft'
                 : 'bg-transparent'
             }`}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+              if (!disabled) onChange(option.value);
+            }}
             accessibilityRole="button"
             accessibilityLabel={option.label}
-            accessibilityState={{ selected }}
+            accessibilityState={{ selected, disabled }}
           >
             <Text
               className={`text-[12px] font-semibold ${
