@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -26,6 +26,7 @@ import { ApiError } from '@/lib/apiClient';
 import { claimReport, listReports } from '@/services/reports';
 import { listTechnicianContracts } from '@/services/technician';
 import { useCurrentSite } from '@/stores/site';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import type { Report, Urgency } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import {
@@ -112,6 +113,20 @@ export default function AssignmentsScreen() {
     useCallback(() => {
       void load();
     }, [load]),
+  );
+
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load();
+    }, 600);
+  }, [load]);
+  useRealtimeEvents(
+    currentSite ? `/sites/${currentSite.id}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
   );
 
   async function onRefresh() {
