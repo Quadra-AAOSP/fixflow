@@ -65,6 +65,16 @@ export const API_BASE_URL =
   OVERRIDE ?? `http://${pageHost() ?? devServerHost() ?? fallbackHost()}:8080`;
 
 /**
+ * Report event stream (`/ws/reports`). Same host as the API, ws/wss scheme.
+ * Native clients must send an `Origin` the backend allow-lists (browsers
+ * set their own automatically); override it when the deployed origin differs
+ * from `http://localhost:8081`.
+ */
+export const WS_EVENTS_URL = `${API_BASE_URL.replace(/^http/, 'ws')}/ws/reports`;
+export const WS_ORIGIN =
+  process.env.EXPO_PUBLIC_WS_ORIGIN?.trim() || 'http://localhost:8081';
+
+/**
  * Development-only candidates for public, credential-free discovery before
  * application requests. Explicit URLs and release builds never fail over.
  * The selected server is pinned for the app session; requests are not replayed.
