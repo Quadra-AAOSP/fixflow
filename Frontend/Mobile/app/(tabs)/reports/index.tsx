@@ -53,6 +53,8 @@ import { ApiError } from '@/lib/apiClient';
 import { listReportsPage } from '@/services/reports';
 import { searchReportsNl } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
+import { useConnectivity } from '@/hooks/useConnectivity';
 import type { NlSearchFilters, Report, ReportStatus } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import { appendReportPage, createReportPageRequests, nextReportPage } from '@/utils/requestGate';
@@ -159,6 +161,22 @@ export default function ReportsScreen() {
       void load(0);
       return () => { loadGeneration.current.invalidate(); };
     }, [load]),
+  );
+
+  // Live site events keep the list in sync (new reports, status changes,
+  // assignments). Debounced so a burst of events becomes one refetch.
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load(true);
+    }, 600);
+  }, [load]);
+  useRealtimeEvents(
+    site ? `/sites/${site.id}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
   );
 
   const onRefresh = useCallback(async () => {
@@ -301,7 +319,9 @@ export default function ReportsScreen() {
               />
             }
             ListHeaderComponent={
-              <ReportsHeader
+              <View>
+                <PendingQueueBanner />
+                <ReportsHeader
                 t={t}
                 siteName={site?.name ?? ''}
                 contractStatus={isOps ? site?.contractStatus ?? null : null}
@@ -319,7 +339,8 @@ export default function ReportsScreen() {
                 onOpenAsk={() => { setAskError(null); setAskOpen(true); }}
                 onClearNlChip={clearNlChip}
                 onClearAllNl={clearAllNl}
-              />
+                />
+              </View>
             }
             ItemSeparatorComponent={() => (
               <View className="h-px bg-dashboard-card-line" />
@@ -516,6 +537,37 @@ function AskModal({
 }
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
+/** Shows queued offline reports and lets the user force a send attempt. */
+function PendingQueueBanner() {
+  const { pendingCount, offline, flush } = useConnectivity();
+  const { t } = useTranslation('common');
+  if (pendingCount === 0) return null;
+  return (
+    <View
+      className="mb-3 flex-row items-center justify-between rounded-[10px] px-3 py-2.5"
+      style={{ backgroundColor: dashboardColors.statCitronSoft }}
+    >
+      <Text className="flex-1 text-[11px] leading-[1.6] text-dashboard-stat-citron-deep">
+        {offline
+          ? t('offlineBanner.offlineWithPending', { count: pendingCount })
+          : t('offlineBanner.pending', { count: pendingCount })}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('offlineBanner.retry')}
+        onPress={() => {
+          void flush();
+        }}
+        className="ml-3 rounded-md px-2 py-1 active:opacity-70"
+      >
+        <Text className="text-[10px] font-semibold text-dashboard-stat-citron-deep">
+          {t('offlineBanner.retry')}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
 
 type ReportsHeaderProps = {
   t: TranslateFn;

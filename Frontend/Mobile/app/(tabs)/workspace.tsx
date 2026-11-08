@@ -5,7 +5,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
@@ -27,6 +27,7 @@ import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
 import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import type { Report } from '@/types';
 import { statusGroup } from '@/utils/maintenance';
 
@@ -70,6 +71,14 @@ export default function WorkspaceScreen() {
     useCallback(() => {
       void load();
     }, [load]),
+  );
+
+  useRealtimeEvents(
+    site ? `/sites/${site.id}/events` : null,
+    useCallback(() => {
+      void load();
+    }, [load]),
+    { enabled: user !== null },
   );
 
   const myAssignments = (reports ?? []).filter(
