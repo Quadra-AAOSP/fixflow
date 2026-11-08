@@ -9,6 +9,7 @@ import LanguageSelector from '@/components/ui/LanguageSelector.vue';
 import { useLocale } from '@/i18n';
 import { initials, formatDate } from '@/utils/maintenance';
 import WorkspaceNavigation from '@/components/dashboard/WorkspaceNavigation.vue';
+import ShopNotifications from '@/components/dashboard/ShopNotifications.vue';
 import SkipLink from '@/components/ui/SkipLink.vue';
 import { listNotifications, type ReportNotice } from '@/services/notifications';
 import { errorMessage } from '@/services/api';
@@ -31,6 +32,7 @@ onBeforeUnmount(() => mobileQuery?.removeEventListener('change', adaptNavigation
 watch(() => route.fullPath, closeNavigation);
 const search = ref(String(route.query.q || ''));
 const notificationDialog = ref<HTMLDialogElement>();
+const shopNoticeEpoch = ref(0);
 const notices = ref<ReportNotice[]>([]);
 const noticePage = ref(0);
 const moreNotices = ref(false);
@@ -51,6 +53,7 @@ async function loadNotices(page = 0) {
 }
 function openNotifications() {
   notificationDialog.value?.showModal();
+  shopNoticeEpoch.value++;
   void loadNotices();
 }
 const canBrowseReports = computed(() => !!user.value && user.value.role !== 'shop_manager' && (user.value.role !== 'technician' || !!data.selectedSite));
@@ -91,7 +94,7 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
     </div>
     <dialog ref="notificationDialog" class="dashboard-dialog" :aria-label="t('Notifications')">
       <div class="dialog-heading"><h2>{{ t('Notifications') }}</h2><button class="icon-button" :aria-label="t('Close dialog')" @click="notificationDialog?.close()"><X :size="22" /></button></div>
-      <p v-if="noticeError" class="live-error" role="alert">{{ t(noticeError) }} <button @click="loadNotices()">{{ t('Retry') }}</button></p>
+      <ShopNotifications :key="shopNoticeEpoch" /><p v-if="noticeError" class="live-error" role="alert">{{ t(noticeError) }} <button @click="loadNotices()">{{ t('Retry') }}</button></p>
       <p v-if="loadingNotices" role="status" class="dialog-intro">{{ t('Loading notifications…') }}</p>
       <p v-else-if="!notices.length && !noticeError" class="dialog-intro">{{ t('No notifications yet.') }}</p>
       <ul v-if="notices.length" class="reporter-list">

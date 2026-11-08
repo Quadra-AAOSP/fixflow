@@ -161,9 +161,8 @@ WHERE NOT EXISTS (SELECT 1 FROM status_history WHERE report_id=(SELECT id FROM r
 
 -- Historical paid dev checkout. Current catalogue stock is the opening balance;
 -- importing history does not reserve/decrement it again. No live gateway calls.
-INSERT INTO shop_orders(public_id,user_id,status,currency,minor_unit_digits,subtotal_minor,shipping_minor,tax_minor,total_minor,shipping_name,shipping_phone,shipping_address,idempotency_key,created_at,updated_at)
-SELECT '00000000-0000-4000-8000-000000000001',(SELECT id FROM users WHERE email='reporter@fixflow.test'),'paid','SGD',2,3180,500,0,3680,'Demo Reporter','+6500000000','Demo campus reception','demo-history-order-1',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+INSERT INTO shop_orders(public_id,user_id,status,fulfillment_status,currency,minor_unit_digits,subtotal_minor,shipping_minor,tax_minor,total_minor,shipping_name,shipping_phone,shipping_address,idempotency_key,created_at,updated_at)
+SELECT '00000000-0000-4000-8000-000000000001',(SELECT id FROM users WHERE email='reporter@fixflow.test'),'paid','ordered','SGD',2,3180,500,0,3680,'Demo Reporter','+6500000000','Demo campus reception','demo-history-order-1',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
 WHERE NOT EXISTS (SELECT 1 FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001');
 INSERT INTO shop_order_items(order_id,product_id,name,unit_price_minor,quantity) SELECT (SELECT id FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001'),'safety-gloves','Cut-Resistant Work Gloves',1590,2 WHERE NOT EXISTS (SELECT 1 FROM shop_order_items WHERE order_id=(SELECT id FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001') AND product_id='safety-gloves');
 INSERT INTO shop_payments(order_id,provider,provider_ref,status,created_at,updated_at) SELECT (SELECT id FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001'),'dev','demo-historical-payment-1','succeeded',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT 1 FROM shop_payments WHERE order_id=(SELECT id FROM shop_orders WHERE public_id='00000000-0000-4000-8000-000000000001'));
-

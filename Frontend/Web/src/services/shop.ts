@@ -142,3 +142,5 @@ export async function completeDevPayment(orderId: string): Promise<ShopOrder> {
     method: 'POST',
   });
 }
+export const confirmDelivery = (id: string, signedName: string) => request<ShopOrder>(`/api/shop/orders/${encodeURIComponent(id)}/confirm-delivery`, { method: 'POST', body: JSON.stringify({ signedName, received: true }) });
+export const listShopNotifications = (page: number) => request<{content: import('@/types/shop').ShopNotice[]; hasMore: boolean}>(`/api/shop/notifications?page=${page}`);

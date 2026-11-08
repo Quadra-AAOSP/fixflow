@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -45,6 +45,7 @@ import type {
   ShopQuote,
 } from '@/types';
 import {
+  canShopPurchase,
   BasketLine,
   SHOP_SORT_OPTIONS,
   ShopSortKey,
@@ -78,6 +79,12 @@ type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
  * auth gate is enforced at the `createOrder` call.
  */
 export default function ShopIndexScreen() {
+  const { user } = useAuth();
+  if (!canShopPurchase(user?.role)) return <Redirect href="/more/shop-orders" />;
+  return <ShopPurchaseScreen key={`${user?.id ?? ''}:${user?.role ?? ''}`} />;
+}
+
+function ShopPurchaseScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useTranslation('common');
@@ -204,7 +211,7 @@ export default function ShopIndexScreen() {
     : 0;
 
   async function openCheckout() {
-    if (!catalog || basketLines.length === 0) return;
+    if (!canShopPurchase(user?.role) || !catalog || basketLines.length === 0) return;
     // Same gate the web applies: anonymous browsers can browse, but the
     // checkout path requires a session ("Sign in to checkout").
     if (!user) {
@@ -228,7 +235,7 @@ export default function ShopIndexScreen() {
   }
 
   async function placeOrder() {
-    if (!checkoutQuote) return;
+    if (!canShopPurchase(user?.role) || !checkoutQuote) return;
     if (shippingName.trim().length === 0) {
       setCheckoutError(t('more.shop.errors.shippingName'));
       return;
@@ -1018,7 +1025,7 @@ function OrdersSheet({
                 #{order.orderId}
               </Text>
               <Text className="text-xs uppercase tracking-wide text-muted">
-                {order.status.replaceAll('_', ' ')}
+                {order.fulfillmentStatus ? t(`orderManagement.status.${order.fulfillmentStatus}`) : order.status.replaceAll('_', ' ')} · {order.paymentStatus.replaceAll('_', ' ')}
               </Text>
             </View>
             <Text className="mt-0.5 text-xs text-muted">

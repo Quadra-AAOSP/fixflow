@@ -21,6 +21,8 @@ export const endpoints = {
     me: '/api/auth/me',
     /** GET — the caller's own site-admin application, or null. */
     siteAdminApplication: '/api/auth/site-admin-application',
+    /** GET — public list for the registration site picker. */
+    sites: '/api/auth/sites',
   },
 
   admin: {
@@ -64,6 +66,8 @@ export const endpoints = {
     join: (id: number | string) => `/api/reports/${id}/join`,
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
+    /** POST — a contracted technician takes an unassigned queue item. */
+    claim: (id: number | string) => `/api/reports/${id}/claim`,
     /** POST — stateless AI chat about one report; body carries the message history. */
     assistant: (id: number | string) => `/api/reports/${id}/assistant`,
     /** POST — natural-language query → structured filters (NL smart search). */
@@ -132,6 +136,8 @@ export const endpoints = {
     catalog: '/api/shop/catalog',
     quote: '/api/shop/checkout/quote',
     orders: '/api/shop/orders',
+    notifications: (page: number) => `/api/shop/notifications?page=${page}`,
+    confirmDelivery: (id: string) => `/api/shop/orders/${encodeURIComponent(id)}/confirm-delivery`,
     order: (publicId: string) =>
       `/api/shop/orders/${encodeURIComponent(publicId)}`,
     cancel: (publicId: string) =>
@@ -142,6 +148,10 @@ export const endpoints = {
 
   /** Shop-manager product CRUD (`manageShop` capability). */
   shopAdmin: {
+    analytics: '/api/admin/shop/analytics',
+    orders: (page: number) => `/api/admin/shop/orders?page=${page}`,
+    order: (id: string) => `/api/admin/shop/orders/${encodeURIComponent(id)}`,
+    fulfillment: (id: string) => `/api/admin/shop/orders/${encodeURIComponent(id)}/fulfillment`,
     products: '/api/admin/shop/products',
     product: (id: string) => `/api/admin/shop/products/${encodeURIComponent(id)}`,
   },

@@ -20,7 +20,8 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
   const role = user.role;
   const links: { to: string; label: string; icon: string }[] = [];
   if (role === 'shop_manager') return [
-    { to: '/shop', label: 'Shop', icon: 'shop' },
+    { to: '/shop/dashboard', label: 'Dashboard', icon: 'home' },
+    { to: '/shop/orders-management', label: 'Orders', icon: 'shop' },
     { to: '/shop/manage', label: 'Product management', icon: 'shop' },
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ];
@@ -47,14 +48,14 @@ const primaryDestinations: Record<UserRole, string[]> = {
   reporter: ['/reporter', '/reports', '/sites'],
   staff: ['/', '/reports', '/assignments'],
   admin: ['/', '/reports', '/team-access'],
-  super_admin: ['/', '/sites', '/shop'],
-  technician: ['/technician', '/marketplace', '/shop'],
-  shop_manager: ['/shop', '/shop/manage', '/profile'],
+  super_admin: ['/', '/sites'],
+  technician: ['/technician', '/marketplace'],
+  shop_manager: ['/shop/dashboard', '/profile'],
 };
 
 export function workspaceNavigation(user: User | null, hasSite: boolean) {
   const links = workspaceLinks(user, hasSite);
-  if (!user || links.length <= 4) return { primary: links, more: [] };
+  if (!user) return { primary: [], more: [] };
   const destinations = primaryDestinations[user.role];
   const primary = destinations.flatMap(destination => links.filter(link => link.to === destination));
   return { primary, more: links.filter(link => !destinations.includes(link.to)) };
@@ -62,5 +63,5 @@ export function workspaceNavigation(user: User | null, hasSite: boolean) {
 
 /** Shared by initial routing and subsequent authenticated role changes. */
 export function shopManagerRouteAllowed(name: unknown) {
-  return ['profile', 'shop-management', 'shop-order'].includes(String(name));
+  return ['profile', 'shop-management', 'shop-order', 'shop-dashboard', 'shop-orders-management', 'shop-managed-order'].includes(String(name));
 }

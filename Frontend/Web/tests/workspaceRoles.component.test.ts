@@ -19,7 +19,7 @@ describe('role-specific workspace menus', () => {
     ['admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/marketplace', '/site-rules', '/team-access', '/shop']],
     ['super_admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop/manage', '/site-applications', '/technician-verifications', '/shop']],
     ['technician', ['/technician', '/reports', '/contracts', '/technician/invitations', '/marketplace', '/shop']],
-    ['shop_manager', ['/shop', '/shop/manage', '/profile']],
+    ['shop_manager', ['/shop/dashboard', '/shop/orders-management', '/shop/manage', '/profile']],
   ] as [UserRole, string[]][])('shows only relevant links for %s', (role, expected) => {
     const user = { ...account, role };
     expect(workspaceLinks(user, true).map(link => link.to)).toEqual(expected);
@@ -28,12 +28,12 @@ describe('role-specific workspace menus', () => {
     expect([...primary, ...more].map(link => link.to).sort()).toEqual([...expected].sort());
   });
   it.each([
-    ['reporter', ['/reporter', '/reports', '/sites', '/shop']],
+    ['reporter', ['/reporter', '/reports', '/sites']],
     ['staff', ['/', '/reports', '/assignments']],
     ['admin', ['/', '/reports', '/team-access']],
-    ['super_admin', ['/', '/sites', '/shop']],
-    ['technician', ['/technician', '/marketplace', '/shop']],
-    ['shop_manager', ['/shop', '/shop/manage', '/profile']],
+    ['super_admin', ['/', '/sites']],
+    ['technician', ['/technician', '/marketplace']],
+    ['shop_manager', ['/shop/dashboard', '/profile']],
   ] as [UserRole, string[]][])('prioritizes the primary destinations for %s', (role, expected) => {
     expect(workspaceNavigation({ ...account, role }, true).primary.map(link => link.to)).toEqual(expected);
   });

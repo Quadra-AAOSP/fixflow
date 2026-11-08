@@ -87,6 +87,14 @@ export function assignTechnician(
   return api.post<Report>(endpoints.reports.assign(id), payload);
 }
 
+/**
+ * Technician self-assignment for an unassigned queue item. The backend
+ * requires an active contract at the report's site and accepted terms.
+ */
+export function claimReport(id: number): Promise<Report> {
+  return api.post<Report>(endpoints.reports.claim(id));
+}
+
 export function confirmReport(id: number): Promise<Report> {
   return api.post<Report>(
     endpoints.reports.confirm.replace('{id}', String(id)),

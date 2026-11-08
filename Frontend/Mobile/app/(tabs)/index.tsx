@@ -2,7 +2,6 @@ import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import {
   Activity,
   ArrowRight,
-  Bell,
   Building2,
   CheckCircle2,
   ChevronRight,
@@ -31,6 +30,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { HomeNotificationBell } from '@/components/dashboard/HomeNotificationBell';
+import { ShopDashboard } from '@/components/dashboard/ShopDashboard';
 import { PlantArt } from '@/components/dashboard/PlantArt';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -166,7 +167,7 @@ const ATTENTION_LABELS: Record<'coral' | 'mint' | 'citron', {
  */
 export default function HomeScreen() {
   const { user } = useAuth();
-  return user?.role === 'technician' ? <Redirect href="/(tabs)/workspace" /> : <Dashboard />;
+  return user?.role === 'technician' ? <Redirect href="/(tabs)/workspace" /> : user?.role === 'shop_manager' ? <ShopDashboard key={user.id} /> : <Dashboard />;
 }
 
 function Dashboard() {
@@ -404,6 +405,7 @@ function Dashboard() {
   if (setupRequired) {
     return (
       <Screen>
+        <HomeNotificationBell />
         <View className="flex-1 items-center justify-center px-8">
           <View
             className="mb-5 h-16 w-16 items-center justify-center rounded-2xl"
@@ -451,16 +453,7 @@ function Dashboard() {
           />
         }
       >
-        <View className="mb-1 flex-row justify-end px-1">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('home.notifications.accessibilityLabel')}
-            onPress={() => router.push('/more/notifications')}
-            className="active:opacity-70"
-          >
-            <Bell color={dashboardColors.subtitle} size={18} strokeWidth={1.9} />
-          </Pressable>
-        </View>
+        <HomeNotificationBell />
 
         <WelcomeBanner
           t={t}
@@ -728,14 +721,12 @@ function SiteRow({
   error,
   lastSynced,
   onRefresh,
-  onNotifications,
 }: {
   t: TranslateFn;
   loading: boolean;
   error: string | null;
   lastSynced: Date | null;
   onRefresh: () => void;
-  onNotifications: () => void;
 }) {
   const syncLabel = loading
     ? t('home.sync.refreshing')
@@ -755,14 +746,6 @@ function SiteRow({
         <SiteSwitcher />
       </View>
       <View className="flex-row items-center gap-3">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('home.notifications.accessibilityLabel')}
-          onPress={onNotifications}
-          className="active:opacity-70"
-        >
-          <Bell color={dashboardColors.subtitle} size={16} strokeWidth={1.9} />
-        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('home.sync.accessibilityLabel')}
@@ -1381,6 +1364,8 @@ function QuickActionsCard({
   onPressTeamAccess: () => void;
   onPressApplications: () => void;
 }) {
+  if (!flags.canSetupSite && !flags.canProvisionUsers && !flags.reviewApplications && !flags.canManageSites) return null;
+
   return (
     <Card padded={false} className="mb-4">
       <View className="px-4 pb-2 pt-4">

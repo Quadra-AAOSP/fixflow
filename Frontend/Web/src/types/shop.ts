@@ -67,6 +67,11 @@ export interface ShopOrder {
   shippingAddress: string;
   checkoutUrl: string | null;
   paymentStatus: ShopPaymentStatus | null;
+  fulfillmentStatus: FulfillmentStatus | null;
+  processingAt: string | null; shippedAt: string | null; deliveryConfirmedAt: string | null; deliverySignedName: string | null; canConfirmDelivery: boolean;
   createdAt: string;
   updatedAt: string;
 }
+export type FulfillmentStatus = 'ordered' | 'processing' | 'shipped' | 'delivered';
+export interface ManagedShopOrder extends Omit<ShopOrder, 'checkoutUrl' | 'canConfirmDelivery'> { allowedTransitions: Array<'processing' | 'shipped'> }
+export interface ShopNotice { id: number; orderId: string; type: 'order_shipped' | 'order_placed'; createdAt: string }

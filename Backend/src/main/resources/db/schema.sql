@@ -480,6 +480,24 @@ CREATE TABLE IF NOT EXISTS shop_orders (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
+-- Additive fulfillment migration for existing databases.
+SET @shop_fulfillment_sql = IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='shop_orders' AND column_name='fulfillment_status') = 0,
+ 'ALTER TABLE shop_orders ADD COLUMN fulfillment_status VARCHAR(20) NULL, ADD COLUMN processing_at TIMESTAMP(6) NULL, ADD COLUMN shipped_at TIMESTAMP(6) NULL, ADD COLUMN delivery_confirmed_at TIMESTAMP(6) NULL, ADD COLUMN delivery_signed_name VARCHAR(255) NULL, ADD COLUMN delivery_confirmed_by BIGINT UNSIGNED NULL', 'SELECT 1');
+PREPARE shop_fulfillment_statement FROM @shop_fulfillment_sql;
+EXECUTE shop_fulfillment_statement;
+DEALLOCATE PREPARE shop_fulfillment_statement;
+UPDATE shop_orders SET fulfillment_status = 'ordered' WHERE status = 'paid' AND fulfillment_status IS NULL;
+UPDATE shop_orders SET fulfillment_status = 'delivered' WHERE status = 'fulfilled' AND fulfillment_status IS NULL;
+CREATE TABLE IF NOT EXISTS shop_notifications (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ recipient_id BIGINT NOT NULL,
+ order_id VARCHAR(36) NOT NULL,
+ type VARCHAR(32) NOT NULL,
+ created_at TIMESTAMP(6) NOT NULL,
+ UNIQUE KEY uq_shop_notice (recipient_id, order_id, type),
+ KEY idx_shop_notice_inbox (recipient_id, id)
+);
+
 -- shop_order_items — line snapshots at purchase time
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS shop_order_items (

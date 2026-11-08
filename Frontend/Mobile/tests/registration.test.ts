@@ -48,11 +48,9 @@ describe('validateRegistration', () => {
     expect(validateRegistration(input({ password: 'a'.repeat(15) })).password).toBeUndefined();
   });
 
-  it('requires siteId for reporter, site bundle for admin, neither for technician', () => {
-    // Reporter — must provide numeric siteId.
-    expect(validateRegistration(input({ role: 'reporter', siteId: '' })).siteId).toBe(
-      'Enter the site ID from your administrator.',
-    );
+  it('lets reporters skip the site, requires site bundle for admin, neither for technician', () => {
+    // Reporter — site is optional (they pick per report).
+    expect(validateRegistration(input({ role: 'reporter', siteId: '' })).siteId).toBeUndefined();
     // Admin self-apply — must provide site name + type (no siteId needed).
     const adminMissing = validateRegistration(
       input({ role: 'admin', siteId: '', siteName: '', siteType: undefined }),
@@ -69,9 +67,9 @@ describe('validateRegistration', () => {
     expect(validateRegistration(input({ role: 'technician', siteId: '' })).siteId).toBeUndefined();
   });
 
-  it('rejects a non-numeric siteId', () => {
-    expect(validateRegistration(input({ siteId: 'abc' })).siteId).toBe(
-      'Site ID must be a positive whole number.',
+  it('rejects a non-numeric siteId at payload build', () => {
+    expect(() => buildRegistrationPayload(input({ siteId: 'abc' }))).toThrow(
+      'Enter a valid numeric site ID.',
     );
   });
 
@@ -130,10 +128,9 @@ describe('buildRegistrationPayload', () => {
     expect(payload.siteId).toBeNull();
   });
 
-  it('throws when a reporter has no siteId', () => {
-    expect(() => buildRegistrationPayload(input({ role: 'reporter', siteId: '' }))).toThrow(
-      'Enter a valid numeric site ID.',
-    );
+  it('returns a null siteId when a reporter skips the site', () => {
+    const payload = buildRegistrationPayload(input({ role: 'reporter', siteId: '' }));
+    expect(payload.siteId).toBeNull();
   });
 
   it('throws for non-positive site IDs', () => {

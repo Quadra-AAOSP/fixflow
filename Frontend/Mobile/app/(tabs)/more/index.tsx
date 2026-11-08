@@ -5,7 +5,6 @@ import {
   Briefcase,
   Building2,
   FileText,
-  Moon,
   NotepadText,
   ShieldCheck,
   ShoppingBag,
@@ -44,7 +43,6 @@ type MenuItem = {
  */
 type ItemKey =
   | 'myVerification' | 'siteApplications' | 'verificationReviews' | 'marketplace'
-  | 'notifications'
   | 'myAdminApplication'
   | 'siteSetup'
   | 'siteRules'
@@ -55,7 +53,7 @@ type ItemKey =
   | 'contractsTechnician'
   | 'contractsAdmin'
   | 'shopManagement'
-  | 'shopCustomer';
+  | 'shopCustomer' | 'shopOrders';
 
 /** Which roles may see which item keys. Matches backend source of truth:
  *
@@ -81,7 +79,6 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   marketplace: ['admin', 'technician'],
   siteApplications: ['super_admin'],
   verificationReviews: ['super_admin'],
-  notifications: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
 
   // A reporter who applied to be site admin may track the status — guard
   // below requires user.adminApplication !== null.
@@ -111,9 +108,10 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
 
   // /api/admin/shop/** → SUPER_ADMIN, SHOP_MANAGER only.
   shopManagement: ['super_admin', 'shop_manager'],
+  shopOrders: ['super_admin', 'shop_manager'],
 
   // Everyone can browse and buy from the shop.
-  shopCustomer: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
+  shopCustomer: ['reporter', 'technician', 'staff', 'admin', 'super_admin'],
 };
 
 function itemVisible(key: ItemKey, role: UserRole, guards: ItemGuards): boolean {
@@ -151,12 +149,6 @@ export default function MoreScreen() {
     marketplace: { icon: Briefcase, titleKey: 'marketplace.title', subtitleKey: null, onPress: () => router.push('/more/marketplace') },
     siteApplications: { icon: Building2, titleKey: 'review.siteReviews', subtitleKey: null, onPress: () => router.push('/more/site-applications') },
     verificationReviews: { icon: UserCheck, titleKey: 'review.verificationReviews', subtitleKey: null, onPress: () => router.push('/more/verification-reviews') },
-    notifications: {
-      icon: Moon,
-      titleKey: 'more.menu.notificationsTitle',
-      subtitleKey: 'more.menu.notificationsSubtitle',
-      onPress: () => router.push('/more/notifications'),
-    },
     myAdminApplication: {
       icon: ShieldCheck,
       titleKey: 'more.menu.myAdminApplicationTitle',
@@ -212,6 +204,7 @@ export default function MoreScreen() {
       subtitleKey: 'more.menu.shopManagementSubtitle',
       onPress: () => router.push('/more/shop-management'),
     },
+    shopOrders: { icon: NotepadText, titleKey: 'orderManagement.title', subtitleKey: null, onPress: () => router.push('/more/shop-orders') },
     shopCustomer: {
       icon: ShoppingBag,
       titleKey: 'more.menu.shopTitle',
@@ -222,7 +215,7 @@ export default function MoreScreen() {
 
   // Group keys into their sections, then filter each by itemVisible.
   // Each section drops out entirely when it has zero visible items.
-  const workspaceKeys: ItemKey[] = ['notifications', 'contractsTechnician', 'myVerification', 'marketplace'];
+  const workspaceKeys: ItemKey[] = ['contractsTechnician', 'myVerification', 'marketplace'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
     'siteSetup',
@@ -235,7 +228,7 @@ export default function MoreScreen() {
     'verificationReviews',
     'contractsAdmin',
   ];
-  const shopKeys: ItemKey[] = ['shopManagement', 'shopCustomer'];
+  const shopKeys: ItemKey[] = ['shopManagement', 'shopOrders', 'shopCustomer'];
 
   const buildSection = (
     sectionKey: string,

@@ -28,6 +28,13 @@ export type SiteAdminApplication = {
   decidedBy: number | null;
 };
 
+/** Public registration site descriptor (`GET /api/auth/sites`). */
+export type JoinableSite = {
+  id: number;
+  name: string;
+  type: import('./site').SiteType;
+};
+
 export type User = {
   id: number;
   email: string;

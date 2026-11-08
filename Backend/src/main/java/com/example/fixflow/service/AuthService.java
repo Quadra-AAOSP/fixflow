@@ -1,5 +1,8 @@
 package com.example.fixflow.service;
 
+import java.util.List;
+
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -14,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.fixflow.domain.Site;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
+import com.example.fixflow.dto.JoinableSiteResponse;
 import com.example.fixflow.dto.LoginRequest;
 import com.example.fixflow.dto.ProvisionUserRequest;
 import com.example.fixflow.dto.RegisterRequest;
@@ -105,6 +109,18 @@ public class AuthService {
 		);
 		if (request.role() == UserRole.admin) adminApplications.submit(registered);
 		return response(registered);
+	}
+
+	/**
+	 * Public list for the registration site picker. Reporters are scoped to a
+	 * site from the moment they sign up, so the choice has to be exposed
+	 * before any session exists.
+	 */
+	@Transactional(readOnly = true)
+	public List<JoinableSiteResponse> joinableSites() {
+		return siteRepository.findAll(Sort.by(Sort.Direction.ASC, "name")).stream()
+				.map(JoinableSiteResponse::from)
+				.toList();
 	}
 
 	@Transactional
@@ -224,7 +240,16 @@ public class AuthService {
 
 	private Site resolveSiteForRole(UserRole role, Long siteId) {
 		return switch (role) {
-			case reporter, staff, admin -> {
+			case reporter -> {
+				// Reporters pick the site per report, so a site at sign-up is
+				// optional (it only seeds their default).
+				if (siteId == null) {
+					yield null;
+				}
+				yield siteRepository.findById(siteId)
+						.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found: " + siteId));
+			}
+			case staff, admin -> {
 				if (siteId == null) {
 					throw new ApiException(HttpStatus.BAD_REQUEST.value(), role + " accounts require a siteId");
 				}

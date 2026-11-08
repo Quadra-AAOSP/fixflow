@@ -2,7 +2,6 @@ import {
   ClipboardList,
   House,
   LayoutGrid,
-  ShoppingBag,
   User,
   Wrench,
 } from 'lucide-react-native';
@@ -99,14 +98,9 @@ export default function TabLayout() {
     {
       name: 'more',
       visible: isTabVisible(role, 'more'),
-      title: role === 'super_admin' || role === 'shop_manager'
-        ? t('tabs.shop') : role === 'staff' ? t('tabs.staffTools')
-        : role === 'admin' ? t('tabs.siteTools') : t('tabs.more'),
-      icon: role === 'super_admin' || role === 'shop_manager' ? ShoppingBag : LayoutGrid,
+      title: role === 'staff' ? t('tabs.staffTools') : role === 'admin' ? t('tabs.siteTools') : t('tabs.more'),
+      icon: LayoutGrid,
       hideHeader: true,
-      // Super admins and shop managers land straight in the shop catalog;
-      // everyone else lands in the More hub.
-      href: role === 'super_admin' || role === 'shop_manager' ? '/more/shop' : undefined,
     },
     {
       name: 'profile',

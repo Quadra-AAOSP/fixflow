@@ -90,7 +90,7 @@ describe('workspace keyboard navigation', () => {
     await render();
     for (const selector of ['.desktop-sidebar', '#mobile-navigation']) {
       const nav = wrapper.get(`${selector} nav`);
-      expect(nav.element.children).toHaveLength(4);
+      expect(nav.element.children).toHaveLength(3);
       expect(nav.find(':scope > a[href="/site-applications"]').exists()).toBe(false);
       expect(nav.get('details a[href="/site-applications"]').exists()).toBe(true);
     }

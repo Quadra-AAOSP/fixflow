@@ -12,6 +12,9 @@ const routes: RouteRecordRaw[] = [
   { path: '/shop', component: () => import('@/layouts/ShopLayout.vue'), children: [
     { path: '', name: 'shop', component: () => import('@/views/app/ShopView.vue') },
     { path: 'orders/:orderId', name: 'shop-order', meta: { requiresAuth: true }, component: () => import('@/views/app/ShopOrderView.vue') },
+    { path: 'dashboard', name: 'shop-dashboard', meta: { requiresAuth: true, roles: ['shop_manager', 'super_admin'] }, component: () => import('@/views/app/ShopDashboardView.vue') },
+    { path: 'orders-management', name: 'shop-orders-management', meta: { requiresAuth: true, roles: ['shop_manager', 'super_admin'] }, component: () => import('@/views/app/ShopOrdersManagementView.vue') },
+    { path: 'orders-management/:orderId', name: 'shop-managed-order', meta: { requiresAuth: true, roles: ['shop_manager', 'super_admin'] }, component: () => import('@/views/app/ShopOrdersManagementView.vue') },
     { path: 'manage', name: 'shop-management', meta: { requiresAuth: true, roles: ['shop_manager', 'super_admin'] }, component: () => import('@/views/app/ShopManagementView.vue') },
   ] },
   { path: '/preview', redirect: '/' },
@@ -56,7 +59,8 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     if (auth.user?.applicationOnly) return to.name === 'application-access' || { name: 'application-access' };
     if (to.name === 'application-access') return accountHome(auth.user);
     if (to.meta.guest && auth.isAuthenticated) return accountHome(auth.user);
-    if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && !shopManagerRouteAllowed(to.name)) return '/shop';
+    if (auth.user?.role === 'shop_manager' && to.name === 'shop') return '/shop/orders-management';
+    if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && !shopManagerRouteAllowed(to.name)) return '/shop/dashboard';
     if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.user?.role)) return accountHome(auth.user);
     if (to.name === 'home' && auth.user?.role === 'technician') return { name: 'technician' };
     return true;

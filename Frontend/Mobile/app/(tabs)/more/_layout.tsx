@@ -67,6 +67,7 @@ export default function MoreStackLayout() {
         options={{ title: t('more.menu.siteContractsTitle') }}
       />
       <Stack.Screen name="shop" options={{ headerShown: false }} />
+      <Stack.Screen name="shop-orders" options={{ title: t('orderManagement.title') }} />
       <Stack.Screen
         name="admin-dashboard"
         options={{ title: t('more.menu.adminDashboardTitle') }}

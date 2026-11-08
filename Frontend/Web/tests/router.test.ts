@@ -26,6 +26,10 @@ async function signIn(role: UserRole) {
 }
 
 describe('actual application route guards', () => {
+  it('redirects managers away from buying and allows order management', async () => { await signIn('shop_manager'); const router=createAppRouter(createMemoryHistory()); await router.push('/shop'); expect(router.currentRoute.value.name).toBe('shop-orders-management'); await router.push('/shop/orders-management/A'); expect(router.currentRoute.value.name).toBe('shop-managed-order'); });
+  it.each(['reporter','admin'] as UserRole[])('denies manager orders to %s', async role => { await signIn(role); const router=createAppRouter(createMemoryHistory()); await router.push('/shop/orders-management'); expect(router.currentRoute.value.name).not.toBe('shop-orders-management'); });
+  it('allows super admins to manage orders', async () => { await signIn('super_admin'); const router=createAppRouter(createMemoryHistory()); await router.push('/shop/orders-management'); expect(router.currentRoute.value.name).toBe('shop-orders-management'); });
+
   it.each(['/', '/reports', '/reports/new', '/reports/91', '/sites', '/sites/71/subsites',
     '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/marketplace', '/profile', '/admin-application'])('sends a signed-out visit to %s to login with its return path', async path => {
     const router = createAppRouter(createMemoryHistory());
@@ -71,7 +75,7 @@ describe('actual application route guards', () => {
     await signIn('shop_manager');
     const router = createAppRouter(createMemoryHistory());
     await router.push('/reports');
-    expect(router.currentRoute.value.name).toBe('shop');
+    expect(router.currentRoute.value.name).toBe('shop-dashboard');
     await router.push('/profile');
     expect(router.currentRoute.value.name).toBe('profile');
   });

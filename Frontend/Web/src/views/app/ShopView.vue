@@ -88,7 +88,7 @@ async function refreshQuote() {
   const actorId = auth.user?.id;
   quote.value = null;
   checkoutError.value = '';
-  if (!auth.isAuthenticated || !cartItems.value.length) return;
+  if (!auth.isAuthenticated || auth.user?.role === 'shop_manager' || !cartItems.value.length) return;
   try {
     const result = await quoteCheckout(cartItems.value);
     if (!disposed && current === quoteVersion && actorId === auth.user?.id) quote.value = result;
@@ -98,7 +98,7 @@ async function refreshQuote() {
 }
 
 async function placeOrder() {
-  if (checkoutBusy.value || !cartItems.value.length) return;
+  if (checkoutBusy.value || auth.user?.role === 'shop_manager' || !cartItems.value.length) return;
   const actorId = auth.user?.id;
   checkoutError.value = '';
   if (!auth.isAuthenticated) {
@@ -170,6 +170,7 @@ async function openOrders() {
   ordersDialog.value?.showModal();
 }
 
+watch(() => auth.user?.role, role => { if (role === 'shop_manager') { quoteVersion++; quote.value = null; basket.value?.close(); void router.replace('/shop/orders-management'); } }, { immediate: true });
 watch(cartItems, () => { void refreshQuote(); }, { deep: true });
 watch(() => auth.isAuthenticated, (ok) => {
   if (ok) {
@@ -359,7 +360,7 @@ onMounted(async () => {
       <article v-for="order in orders" :key="order.orderId" class="shop-cart-line shop-order-card">
         <div>
           <h3><RouterLink :to="{ name: 'shop-order', params: { orderId: order.orderId } }">{{ order.orderId }} · {{ t('View order details') }}</RouterLink></h3>
-          <p>{{ t(order.status.replaceAll('_', ' ')) }} · {{ money(order.totalMinor, order.currency, order.minorUnitDigits) }}</p>
+          <p>{{ t(order.fulfillmentStatus ? ({ ordered: 'Ordered', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered' } as const)[order.fulfillmentStatus] : order.status.replaceAll('_', ' ')) }} · {{ money(order.totalMinor, order.currency, order.minorUnitDigits) }}</p>
           <p>{{ order.items.map(i => `${i.quantity}× ${i.name}`).join(', ') }}</p>
           <RouterLink v-if="order.status === 'pending_payment'" class="shop-remove" :to="{ name: 'shop-order', params: { orderId: order.orderId } }">{{ t('Review cancellation') }}</RouterLink>
         </div>

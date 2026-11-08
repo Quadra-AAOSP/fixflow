@@ -14,6 +14,7 @@ import {
   Wrench,
 } from 'lucide-react-native';
 
+import { HomeNotificationBell } from '@/components/dashboard/HomeNotificationBell';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
@@ -79,6 +80,7 @@ export default function WorkspaceScreen() {
   return (
     <Screen>
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
+        <HomeNotificationBell />
         {/* Welcome banner — mirrors the web's `.welcome-banner` block
             inside `TechnicianView.vue`, with a large Wrench on the right. */}
         <View
