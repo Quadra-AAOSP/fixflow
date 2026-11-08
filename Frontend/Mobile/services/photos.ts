@@ -63,6 +63,20 @@ export function getPhotoSignedUrl(reportId: number, photoId: number): Promise<Re
   );
 }
 
+export const protectedPhotoPath = (reportId: number, photoId: number) =>
+  `/api/reports/${reportId}/photos/${photoId}/content`;
+
+export async function readProtectedPhoto(reportId: number, photoId: number, signal: AbortSignal): Promise<string> {
+  const blob = await api.getBlob(protectedPhotoPath(reportId, photoId), signal);
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not load photo'));
+    reader.onload = () => typeof reader.result === 'string'
+      ? resolve(reader.result) : reject(new Error('Could not load photo'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 /** Max file size the server accepts (5 MB). */
 export const MAX_PHOTO_SIZE_BYTES = BASE;
 

@@ -1,7 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -167,9 +166,7 @@ export default function SitesScreen() {
         </View>
 
         {sites === null && loading ? (
-          <View className="py-12">
-            <ActivityIndicator size="large" color={palette.primary} />
-          </View>
+          <StateView variant="loading" title={t('more.shopAdmin.loadingSites')} />
         ) : sites && sites.length === 0 ? (
           <StateView
             variant="empty"

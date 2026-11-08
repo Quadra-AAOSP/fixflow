@@ -60,6 +60,12 @@ export function isTabVisible(role: UserRole, tab: TabName): boolean {
   }
 }
 
+/** Filesystem routes that must be declared explicitly to avoid automatic tabs. */
+export const TAB_ROUTES = ['index', 'reports', 'workspace', 'assignments', 'more', 'profile'] as const;
+export function hiddenTabRoutes(role: UserRole): string[] {
+  return [...TAB_ROUTES.filter(tab => !isTabVisible(role, tab)), 'technician'];
+}
+
 /** Technician must be bounced off Home / Reports routes when deep-linked. */
 export function isTechnicianForbiddenRoute(role: UserRole | null, pathname: string): boolean {
   return role === 'technician' && (pathname === '/' || pathname.startsWith('/reports'));

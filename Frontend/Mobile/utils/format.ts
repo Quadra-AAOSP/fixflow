@@ -5,6 +5,8 @@
  * screen.
  */
 
+import i18n from '@/constants/i18n';
+
 const FALLBACK_MONTHS = [
   'Jan',
   'Feb',
@@ -34,8 +36,8 @@ function pad(value: number): string {
   return value.toString().padStart(2, '0');
 }
 
-function fallbackDate(date: Date, includeTime: boolean): string {
-  const base = `${FALLBACK_MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+function fallbackDate(date: Date, includeTime: boolean, locale: string): string {
+  const base = locale.startsWith('zh') ? `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日` : `${FALLBACK_MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   if (!includeTime) return base;
   return `${base}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
@@ -48,20 +50,22 @@ function fallbackDate(date: Date, includeTime: boolean): string {
 export function formatDate(
   value: string | null | undefined,
   includeTime = false,
+  locale = i18n.language || 'en',
 ): string {
-  if (!value) return 'Not available';
+  if (!value) return locale.startsWith('zh') ? '不可用' : 'Not available';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not available';
+  if (Number.isNaN(date.getTime())) return locale.startsWith('zh') ? '不可用' : 'Not available';
 
   try {
+    if (!Intl.DateTimeFormat.supportedLocalesOf(locale).length) return fallbackDate(date, includeTime, locale);
     return new Intl.DateTimeFormat(
-      undefined,
+      locale,
       includeTime
         ? { dateStyle: 'medium', timeStyle: 'short' }
         : { dateStyle: 'medium' },
     ).format(date);
   } catch {
-    return fallbackDate(date, includeTime);
+    return fallbackDate(date, includeTime, locale);
   }
 }
 
@@ -70,27 +74,27 @@ export function formatDate(
  * `3h ago`, `2d ago`. Anything a week or older falls back to an absolute
  * date, so old items never read as a vague "12d ago".
  */
-export function relativeTime(value: string | null | undefined): string {
-  if (!value) return 'Not available';
+export function relativeTime(value: string | null | undefined, locale = i18n.language || 'en'): string {
+  if (!value) return locale.startsWith('zh') ? '不可用' : 'Not available';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not available';
+  if (Number.isNaN(date.getTime())) return locale.startsWith('zh') ? '不可用' : 'Not available';
 
   const minutes = Math.floor((Date.now() - date.getTime()) / 60_000);
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return locale.startsWith('zh') ? '刚刚' : 'Just now';
+  if (minutes < 60) return locale.startsWith('zh') ? `${minutes}分钟前` : `${minutes}m ago`;
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return locale.startsWith('zh') ? `${hours}小时前` : `${hours}h ago`;
 
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return locale.startsWith('zh') ? `${days}天前` : `${days}d ago`;
 
-  return formatDate(value);
+  return formatDate(value, false, locale);
 }
 
 /** Short weekday label for chart axes — index matches `Date.getDay()`. */
-export function weekdayLabel(date: Date): string {
-  return WEEKDAY_LABELS[date.getDay()];
+export function weekdayLabel(date: Date, locale = i18n.language || 'en'): string {
+  return locale.startsWith('zh') ? ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()] : WEEKDAY_LABELS[date.getDay()];
 }
 
 /**
@@ -101,12 +105,13 @@ export function formatMoney(
   minor: number,
   minorUnitDigits: number,
   currency: string,
+  locale = i18n.language || 'en',
 ): string {
   const digits = Number.isInteger(minorUnitDigits) ? minorUnitDigits : 2;
   const value = minor / 10 ** digits;
 
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       minimumFractionDigits: digits,

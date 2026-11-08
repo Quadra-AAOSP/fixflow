@@ -79,6 +79,22 @@ export default function SiteSetupScreen() {
     }
   }, [site?.id, t]);
 
+  const loadReportingSetup = useCallback(async () => {
+    if (!site) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const setup = await getReportingSetup(site.id);
+      setReportingSetup(setup);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotLoadSetup'),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [site?.id, t]);
+
   useEffect(() => {
     if (!site) return;
     void load();
@@ -127,21 +143,6 @@ export default function SiteSetupScreen() {
     }
   }
 
-  async function loadReportingSetup() {
-    if (!site) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const setup = await getReportingSetup(site.id);
-      setReportingSetup(setup);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotLoadSetup'),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function suggestMissingBuilding() {
     if (!site || !missingBuildingName.trim()) return;
@@ -440,13 +441,14 @@ export default function SiteSetupScreen() {
                 {idx > 0 ? (
                   <View className="mx-4 border-t border-dashboard-card-line" />
                 ) : null}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={entry.row.label}
-                  onPress={() => openEdit(entry.row)}
-                  className="flex-row items-center justify-between px-4 py-3 active:opacity-80"
-                >
-                  <View className="flex-1">
+                <View className="flex-row items-center justify-between px-4 py-3">
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={entry.row.label}
+                    onPress={() => openEdit(entry.row)}
+                    className="flex-1 active:opacity-80"
+                  >
+                  <View>
                     <Text className="text-[12px] font-semibold text-ink">
                       {entry.row.label} · {entry.row.name}
                       {entry.archived ? t('siteSetup.archivedSuffix') : ''}
@@ -457,6 +459,7 @@ export default function SiteSetupScreen() {
                       </Text>
                     ) : null}
                   </View>
+                  </Pressable>
                   {!entry.archived ? (
                     <Pressable
                       accessibilityRole="button"
@@ -477,7 +480,7 @@ export default function SiteSetupScreen() {
                       <X color={dashboardColors.statCoralDeep} size={14} />
                     </Pressable>
                   ) : null}
-                </Pressable>
+                </View>
               </View>
             ))
           )}

@@ -1,5 +1,6 @@
 package com.example.fixflow.ai.openrouter;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,6 +16,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class OpenRouterResponse {
 
     private String id;
@@ -31,6 +33,7 @@ public class OpenRouterResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Choice {
         private int index;
         private Message message;
@@ -45,6 +48,7 @@ public class OpenRouterResponse {
         @Builder
         @NoArgsConstructor
         @AllArgsConstructor
+        @JsonIgnoreProperties(ignoreUnknown = true)
         public static class Message {
             private String role;
             private String content;
@@ -58,6 +62,7 @@ public class OpenRouterResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Usage {
         @JsonProperty("prompt_tokens")
         private int promptTokens;

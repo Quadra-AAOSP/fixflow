@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
 import { formatDate } from '@/utils/maintenance';
 import { computed, onMounted, ref } from 'vue';
@@ -57,7 +58,7 @@ onMounted(refresh);
   <section class="contract-choice" aria-labelledby="technician-terms-heading">
     <div class="card-heading"><h2 id="technician-terms-heading">{{ t("Technician terms") }}</h2><button class="text-action" type="button" :disabled="loading || saving" @click="refresh">{{ t("Refresh terms") }}</button></div>
     <RouterLink class="text-action" to="/agreements/technician/draft-2026-11-03">{{ t("Review the draft agreement") }}</RouterLink>
-    <p v-if="loading" role="status">{{ t("Loading current terms…") }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading current terms…')" />
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <template v-if="status && !loading">
       <p v-if="!status.currentVersion || !documentUrl">{{ t('Approved terms are not configured for review.') }} {{ t(status.enforcementRequired ? 'Contact the platform owner before requesting site work.' : 'Acceptance is not currently required by the service.') }}</p>

@@ -97,6 +97,7 @@ export const endpoints = {
 
   technicianSkills: {
     create: '/api/technician-skills',
+    me: '/api/technician-skills/me',
   },
 
   technicianContracts: {
@@ -135,6 +136,8 @@ export const endpoints = {
     catalog: '/api/shop/catalog',
     quote: '/api/shop/checkout/quote',
     orders: '/api/shop/orders',
+    notifications: (page: number) => `/api/shop/notifications?page=${page}`,
+    confirmDelivery: (id: string) => `/api/shop/orders/${encodeURIComponent(id)}/confirm-delivery`,
     order: (publicId: string) =>
       `/api/shop/orders/${encodeURIComponent(publicId)}`,
     cancel: (publicId: string) =>
@@ -145,6 +148,10 @@ export const endpoints = {
 
   /** Shop-manager product CRUD (`manageShop` capability). */
   shopAdmin: {
+    analytics: '/api/admin/shop/analytics',
+    orders: (page: number) => `/api/admin/shop/orders?page=${page}`,
+    order: (id: string) => `/api/admin/shop/orders/${encodeURIComponent(id)}`,
+    fulfillment: (id: string) => `/api/admin/shop/orders/${encodeURIComponent(id)}/fulfillment`,
     products: '/api/admin/shop/products',
     product: (id: string) => `/api/admin/shop/products/${encodeURIComponent(id)}`,
   },

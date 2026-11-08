@@ -92,9 +92,7 @@ export default function AdminApplicationsScreen() {
         </Text>
 
         {loading ? (
-          <Text className="text-[12px] text-dashboard-caption">
-            {t('adminApplications.loading')}
-          </Text>
+          <StateView variant="loading" title={t('adminApplications.loading')} />
         ) : error ? (
           <StateView
             variant="error"

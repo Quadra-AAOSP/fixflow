@@ -190,11 +190,6 @@ export default function ProfileScreen() {
               value={roleLabel}
             />
             <IconRow
-              icon={Mail}
-              label={t('profile.labels.accountId')}
-              value={String(user.id)}
-            />
-            <IconRow
               icon={Phone}
               label={t('profile.labels.phone')}
               value={user.phone ?? t('profile.dash')}
@@ -231,7 +226,7 @@ export default function ProfileScreen() {
               >
                 <View className="flex-1 pr-3">
                   <Text className="text-[12px] leading-[1.5] text-dashboard-subtitle">
-                    {t('profile.contracts.body', { id: user.id })}
+                    {t('profile.contracts.body')}
                   </Text>
                 </View>
                 <ArrowRight color={dashboardColors.teal} size={14} />
@@ -293,7 +288,7 @@ export default function ProfileScreen() {
               admin-application.tsx:185. */}
           <Button
             variant="secondary"
-            label="Log out"
+            label={t('profile.session.signOut')}
             loading={signingOut}
             disabled={signingOut}
             onPress={() => {

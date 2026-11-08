@@ -30,7 +30,7 @@ export interface Report {
   policy?: {
     statusGroup: string; effectiveUrgency: Urgency; urgent: boolean;
     inAssignmentQueue: boolean; participant: boolean; canSeeSensitive: boolean;
-    canAssign: boolean; canJoin: boolean;
+    canAssign: boolean; canJoin: boolean; canEdit?: boolean; canDelete?: boolean;
   };
   photos?: ReportPhoto[];
   reopenReason?: string | null;

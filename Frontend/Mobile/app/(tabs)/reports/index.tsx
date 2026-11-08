@@ -55,6 +55,7 @@ import { searchReportsNl } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
 import type { NlSearchFilters, Report, ReportStatus } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
+import { appendReportPage, createReportPageRequests, nextReportPage } from '@/utils/requestGate';
 import {
   REPORT_FILTERS,
   ReportFilter as FilterValue,
@@ -102,7 +103,7 @@ export default function ReportsScreen() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
-  const loadGeneration = useRef(0);
+  const loadGeneration = useRef(createReportPageRequests());
 
   // A3 smart search: structured filters parsed from a natural-language query.
   const [nlFilters, setNlFilters] = useState<NlSearchFilters | null>(null);
@@ -112,11 +113,11 @@ export default function ReportsScreen() {
   const [askLoading, setAskLoading] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
 
-  const load = useCallback(async (reset = false) => {
+  const load = useCallback(async (targetPage = 0) => {
     if (!site) return;
+    const gen = loadGeneration.current.begin(targetPage);
+    if (gen === null) return;
     setError(null);
-    const targetPage = reset ? 0 : page;
-    const gen = ++loadGeneration.current;
     if (targetPage === 0) setLoading(true);
     else setLoadingMore(true);
     try {
@@ -124,15 +125,16 @@ export default function ReportsScreen() {
         siteId: site.id,
         page: targetPage,
         size: PAGE_SIZE,
+        category: nlFilters?.category ?? undefined,
       });
-      if (gen !== loadGeneration.current) return;
+      if (!loadGeneration.current.current(gen)) return;
       setReports((prev) =>
-        targetPage === 0 ? result.content : [...(prev ?? []), ...result.content],
+        targetPage === 0 ? result.content : appendReportPage(prev ?? [], result.content),
       );
       setPage(targetPage);
       setTotalPages(result.totalPages);
     } catch (err) {
-      if (gen !== loadGeneration.current) return;
+      if (!loadGeneration.current.current(gen)) return;
       if (err instanceof ApiError && err.status === 401) {
         await logout().catch(() => {});
         return;
@@ -141,33 +143,38 @@ export default function ReportsScreen() {
         err instanceof ApiError ? err.message : t('reports.list.errors.couldNotLoad'),
       );
     } finally {
-      if (gen === loadGeneration.current) {
+      if (loadGeneration.current.finish(gen)) {
         setLoading(false);
         setLoadingMore(false);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site?.id, logout]);
+  }, [site?.id, logout, nlFilters?.category]);
 
   useFocusEffect(
     useCallback(() => {
-      void load(true);
+      setReports(null);
+      setPage(0);
+      setTotalPages(0);
+      void load(0);
+      return () => { loadGeneration.current.invalidate(); };
     }, [load]),
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await load(true);
+      await load(0);
     } finally {
       setRefreshing(false);
     }
   }, [load]);
 
   const onLoadMore = useCallback(async () => {
-    if (loadingMore || loading || refreshing || page + 1 >= totalPages) return;
+    const next = nextReportPage(page, totalPages);
+    if (loadingMore || loading || refreshing || next === null) return;
     setLoadingMore(true);
-    await load(false);
+    await load(next);
   }, [loadingMore, loading, refreshing, page, totalPages, load]);
 
   const siteName = useCallback(
@@ -344,7 +351,7 @@ export default function ReportsScreen() {
                   description={error}
                   actionLabel={t('reports.list.errors.retry')}
                   onAction={() => {
-                    void load(true);
+                    void load(reports !== null && reports.length > 0 ? page + 1 : 0);
                   }}
                 />
               ) : loading ? (
@@ -361,7 +368,7 @@ export default function ReportsScreen() {
                   description={
                     reports && reports.length === 0
                       ? t('reports.list.noReportsDesc')
-                      : t('reports.list.noMatchesDesc')
+                      : page + 1 < totalPages ? t('reports.list.partialSearch') : t('reports.list.noMatchesDesc')
                   }
                 />
               )
@@ -374,7 +381,7 @@ export default function ReportsScreen() {
                 onPress={() => router.push(`/reports/${item.id}`)}
               />
             )}
-            onEndReached={onLoadMore}
+            onEndReached={!query.trim() && filter === 'all' && !nlFilters && !error ? onLoadMore : undefined}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
               loadingMore ? (
@@ -383,11 +390,17 @@ export default function ReportsScreen() {
                     {t('reports.list.loadingMore')}
                   </Text>
                 </View>
-              ) : page + 1 < totalPages && reports !== null && reports.length > 0 ? (
+              ) : page + 1 < totalPages && reports !== null ? (
                 <View className="py-3">
-                  <Text className="text-center text-[10px] text-dashboard-caption">
-                    {t('reports.list.scrollForMore')}
-                  </Text>
+                  {query.trim() || filter !== 'all' || nlFilters ? (
+                    <Text className="text-center text-dashboard-caption">{t('reports.list.partialSearch')}</Text>
+                  ) : null}
+                  {error ? <Text accessibilityRole="alert" className="text-center text-dashboard-caption">{error}</Text> : null}
+                  <Pressable accessibilityRole="button" className="min-h-[48px] justify-center" onPress={onLoadMore}>
+                    <Text className="text-center text-[12px] text-dashboard-caption">
+                      {t('reports.list.loadMore')}
+                    </Text>
+                  </Pressable>
                 </View>
               ) : null
             }

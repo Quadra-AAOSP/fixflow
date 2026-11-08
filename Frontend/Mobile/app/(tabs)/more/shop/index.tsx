@@ -1,7 +1,6 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -30,7 +29,7 @@ import { SearchField } from '@/components/ui/SearchField';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/hooks/useAuth';
-import { shopColors, themeColors } from '@/constants/theme';
+import { shopColors } from '@/constants/theme';
 import { ApiError } from '@/lib/apiClient';
 import {
   cancelOrder,
@@ -46,6 +45,7 @@ import type {
   ShopQuote,
 } from '@/types';
 import {
+  canShopPurchase,
   BasketLine,
   SHOP_SORT_OPTIONS,
   ShopSortKey,
@@ -79,7 +79,12 @@ type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
  * auth gate is enforced at the `createOrder` call.
  */
 export default function ShopIndexScreen() {
-  const palette = themeColors();
+  const { user } = useAuth();
+  if (!canShopPurchase(user?.role)) return <Redirect href="/more/shop-orders" />;
+  return <ShopPurchaseScreen key={`${user?.id ?? ''}:${user?.role ?? ''}`} />;
+}
+
+function ShopPurchaseScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useTranslation('common');
@@ -206,7 +211,7 @@ export default function ShopIndexScreen() {
     : 0;
 
   async function openCheckout() {
-    if (!catalog || basketLines.length === 0) return;
+    if (!canShopPurchase(user?.role) || !catalog || basketLines.length === 0) return;
     // Same gate the web applies: anonymous browsers can browse, but the
     // checkout path requires a session ("Sign in to checkout").
     if (!user) {
@@ -230,7 +235,7 @@ export default function ShopIndexScreen() {
   }
 
   async function placeOrder() {
-    if (!checkoutQuote) return;
+    if (!canShopPurchase(user?.role) || !checkoutQuote) return;
     if (shippingName.trim().length === 0) {
       setCheckoutError(t('more.shop.errors.shippingName'));
       return;
@@ -304,6 +309,12 @@ export default function ShopIndexScreen() {
 
   return (
     <Screen className="bg-shop-shell px-0 pt-0">
+      {user?.role === 'super_admin' || user?.role === 'technician' ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push('/more')}
+          className="self-end px-5 pt-3 active:opacity-70">
+          <Text className="text-[12px] font-semibold text-ink">{t('tabs.openTools')}</Text>
+        </Pressable>
+      ) : null}
       {/* Title bar â€” mirrors the web's `.shop-titlebar`: eyebrow +
           "A little care starts here." headline, with the Orders button and
           the "Your basket" pill on the right. */}
@@ -383,10 +394,6 @@ export default function ShopIndexScreen() {
             void load();
           }}
         />
-      ) : catalog === null && loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={palette.primary} />
-        </View>
       ) : (
         <FlatList
           ref={listRef}
@@ -547,10 +554,10 @@ export default function ShopIndexScreen() {
 
                 <View className="mb-3 flex-row items-end justify-between">
                   <Text className="text-[10px] uppercase tracking-wide text-shop-foot-text">
-                    {t('more.shop.productCount', {
+                    {catalog ? t('more.shop.productCount', {
                       count: filtered.length,
                       plural: filtered.length === 1 ? '' : 's',
-                    })}
+                    }) : t('more.shop.loading')}
                   </Text>
                   <View className="w-44">
                     <Picker
@@ -567,7 +574,9 @@ export default function ShopIndexScreen() {
               </View>
             </View>
           }
-          ListEmptyComponent={
+          ListEmptyComponent={catalog === null ? (
+            <StateView variant="loading" title={t('more.shop.loading')} className="px-5" />
+          ) : (
             <View className="px-5">
               <StateView
                 variant="empty"
@@ -582,7 +591,7 @@ export default function ShopIndexScreen() {
                 }}
               />
             </View>
-          }
+          )}
           ListFooterComponent={
             filtered.length > 0 ? (
               <View className="mx-5 mb-8 mt-4 overflow-hidden rounded-[20px] bg-shop-editorial-bg p-4">
@@ -985,13 +994,10 @@ function OrdersSheet({
   onCancelOrder,
   t,
 }: OrdersSheetProps) {
-  const palette = themeColors();
   return (
     <ModalSheet visible={visible} title={t('more.shop.myOrders')} onClose={onClose}>
       {loading ? (
-        <View className="py-6">
-          <ActivityIndicator size="large" color={palette.primary} />
-        </View>
+        <StateView variant="loading" title={t('more.shop.loading')} />
       ) : error ? (
         <StateView
           variant="error"
@@ -1019,7 +1025,7 @@ function OrdersSheet({
                 #{order.orderId}
               </Text>
               <Text className="text-xs uppercase tracking-wide text-muted">
-                {order.status.replaceAll('_', ' ')}
+                {order.fulfillmentStatus ? t(`orderManagement.status.${order.fulfillmentStatus}`) : order.status.replaceAll('_', ' ')} · {order.paymentStatus.replaceAll('_', ' ')}
               </Text>
             </View>
             <Text className="mt-0.5 text-xs text-muted">

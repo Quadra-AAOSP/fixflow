@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
@@ -9,8 +10,10 @@ const { t } = useLocale();
 
 const props = defineProps<{ report: Report }>();
 const { user } = useAuth();
-const allowed = computed(() => ['staff', 'admin', 'super_admin'].includes(user.value?.role ?? '') ||
+const canEdit = computed(() => ['staff', 'admin', 'super_admin'].includes(user.value?.role ?? '') ||
   (user.value?.role === 'reporter' && (props.report.createdByUserId === user.value.id || props.report.policy?.participant)));
+const allowed = computed(() => canEdit.value || (user.value?.role === 'technician'
+  && props.report.assignedTechnicianId === user.value.id && props.report.policy?.canSeeSensitive));
 const photos = ref<ReportPhoto[]>([]);
 const file = ref<File | null>(null);
 const input = ref<HTMLInputElement>();
@@ -35,7 +38,7 @@ async function load() {
   catch (err) { if (current === generation) error.value = errorMessage(err); }
   finally { if (current === generation) loading.value = false; }
 }
-watch(() => [props.report.id, allowed.value, user.value?.id], load, { immediate: true });
+watch([() => props.report.id, allowed, () => user.value?.id], load, { immediate: true });
 
 function select(event: Event) {
   error.value = ''; file.value = null;
@@ -45,7 +48,7 @@ function select(event: Event) {
   catch (err) { error.value = errorMessage(err); if (input.value) input.value.value = ''; }
 }
 async function upload() {
-  if (!allowed.value || !file.value || loading.value || busy.value || photos.value.length >= REPORT_PHOTO_LIMIT) return;
+  if (!canEdit.value || !file.value || loading.value || busy.value || photos.value.length >= REPORT_PHOTO_LIMIT) return;
   const current = generation;
   busy.value = true; error.value = ''; success.value = '';
   try {
@@ -58,7 +61,7 @@ async function upload() {
   finally { busy.value = false; }
 }
 async function remove(photoId: number) {
-  if (!allowed.value || busy.value || confirmingId.value !== photoId) return;
+  if (!canEdit.value || busy.value || confirmingId.value !== photoId) return;
   const current = generation;
   busy.value = true; error.value = ''; success.value = '';
   try {
@@ -87,18 +90,18 @@ async function refreshUrl(item: ReportPhoto) {
     <div class="card-heading"><h2>{{ t("Report photos") }}</h2><button class="text-action" type="button" :disabled="loading || busy" @click="load">{{ t("Refresh photos") }}</button></div>
     <p class="dialog-intro">{{ t('Up to {limit} photos, 5 MiB each. Photos are shared with people authorized to access this report.', { limit: REPORT_PHOTO_LIMIT }) }}</p>
     <p v-if="error" class="live-error" role="alert">{{ t(error) }}</p><p v-if="success" class="draft-notice" role="status">{{ t(success) }}</p>
-    <p v-if="loading" role="status">{{ t("Loading photos…") }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading photos…')" />
     <p v-else-if="!error && !photos.length">{{ t("No photos attached.") }}</p>
     <ul class="report-photo-grid"><li v-for="(item, index) in photos" :key="item.id">
-      <img v-if="safePhotoUrl(item.url) && !failedImages.includes(item.id)" :src="safePhotoUrl(item.url)" :alt="t('Report photo {number}', { number: index + 1 })" loading="lazy" referrerpolicy="no-referrer" @error="failedImages.push(item.id)" />
+      <img v-if="safePhotoUrl(item.url) && !failedImages.includes(item.id)" :src="safePhotoUrl(item.url)" :alt="t('Report photo {number}', { number: index + 1 })" loading="lazy" :crossorigin="item.url?.startsWith('/api/') ? 'use-credentials' : undefined" referrerpolicy="no-referrer" @error="failedImages.push(item.id)" />
       <p v-else-if="item.url?.startsWith('memory://')" role="status">{{ t("This photo is in temporary server memory. Browser previews require persistent photo storage to be enabled by the platform owner.") }}</p>
       <p v-else>{{ t("Photo preview unavailable. Try refreshing its link.") }}</p>
       <a v-if="safePhotoUrl(item.url)" :href="safePhotoUrl(item.url)" target="_blank" rel="noopener noreferrer" class="text-action">{{ t('View or download photo {number} ↗', { number: index + 1 }) }}</a>
       <button type="button" class="text-action" :disabled="busy" @click="refreshUrl(item)">{{ t('Refresh photo {number} link', { number: index + 1 }) }}</button>
-      <template v-if="confirmingId === item.id"><p>{{ t("Remove this photo permanently?") }}</p><button type="button" :disabled="busy" class="text-action" @click="remove(item.id)">{{ t("Confirm removal") }}</button><button type="button" :disabled="busy" class="text-action" @click="confirmingId = null">{{ t("Cancel") }}</button></template>
-      <button v-else type="button" class="text-action" :disabled="busy" @click="confirmingId = item.id">{{ t('Remove photo {number}', { number: index + 1 }) }}</button>
+      <template v-if="canEdit && confirmingId === item.id"><p>{{ t("Remove this photo permanently?") }}</p><button type="button" :disabled="busy" class="text-action" @click="remove(item.id)">{{ t("Confirm removal") }}</button><button type="button" :disabled="busy" class="text-action" @click="confirmingId = null">{{ t("Cancel") }}</button></template>
+      <button v-else-if="canEdit" type="button" class="text-action" :disabled="busy" @click="confirmingId = item.id">{{ t('Remove photo {number}', { number: index + 1 }) }}</button>
     </li></ul>
-    <form class="draft-form" @submit.prevent="upload"><fieldset class="report-fields" :disabled="loading || busy || photos.length >= REPORT_PHOTO_LIMIT">
+    <form v-if="canEdit" class="draft-form" @submit.prevent="upload"><fieldset class="report-fields" :disabled="loading || busy || photos.length >= REPORT_PHOTO_LIMIT">
       <label>{{ t("Add a photo") }}<input ref="input" type="file" :accept="REPORT_PHOTO_TYPES.join(',')" @change="select" /></label>
       <button type="submit" class="report-issue-button" :disabled="!file">{{ t(busy ? 'Saving…' : 'Upload photo') }}</button>
     </fieldset></form>

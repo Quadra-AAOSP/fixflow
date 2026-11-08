@@ -77,9 +77,11 @@ a maintained production distribution or security approval. See
 Do not redistribute without the appropriate license/source compliance review.
 
 Java, Go and Alpine base images, Maven artifacts, Go modules and official source
-must be downloadable on the builder. Docker Hub authentication timed out on this PC
-during the recorded build attempts. Fix registry/DNS/proxy access before retrying;
-do not disable TLS or substitute an unknown public mirror. No network settings were changed.
+must be downloadable on the builder. The default base image registry is Docker Hub.
+If Docker Hub is unreachable, set `DOCKER_LIBRARY=public.ecr.aws/docker/library`
+in the local Docker env file to use the Docker Official Images on Amazon ECR Public.
+This changes the build base images only. The MySQL service still uses `mysql:8.4.11`
+and needs that image cached locally or available from Docker Hub.
 
 ## Production override
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, Pressable, Text, View } from 'react-native';
 import { Check, Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Picker } from '@/components/ui/Picker';
+import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,6 +17,7 @@ import {
   SKILL_PROFICIENCY_MIN,
   SKILL_SPECIALTY_MAX_LENGTH,
   addTechnicianSkill,
+  listMyTechnicianSkills,
 } from '@/services/technician';
 import { listSiteRules } from '@/services/siteRules';
 import type { SiteRule } from '@/types';
@@ -61,13 +63,42 @@ export function TradeProfile() {
   const [proficiency, setProficiency] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState<TechnicianSkill | null>(null);
+  const [trades, setTrades] = useState<TechnicianSkill[]>([]);
+  const [loadingTrades, setLoadingTrades] = useState(true);
+  const [tradeLoadError, setTradeLoadError] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [savedId, setSavedId] = useState<number>();
+  const tradeRequest = useRef<AbortController | null>(null);
   const [rules, setRules] = useState<SiteRule[]>([]);
 
   const categoryOptions = rules
     .map((rule) => rule.category)
     .filter((value, index, array) => array.indexOf(value) === index)
     .sort();
+
+  const loadTrades = useCallback(async () => {
+    tradeRequest.current?.abort();
+    const request = new AbortController();
+    tradeRequest.current = request;
+    setLoadingTrades(true);
+    setTradeLoadError('');
+    try {
+      const next = await listMyTechnicianSkills(request.signal);
+      if (!request.signal.aborted) setTrades(next);
+    } catch (err) {
+      if (!request.signal.aborted) {
+        setTradeLoadError(err instanceof ApiError ? err.message : t('components.tradeProfile.errors.loadFailed'));
+      }
+    } finally {
+      if (!request.signal.aborted) setLoadingTrades(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    if (user?.role !== 'technician') return;
+    void loadTrades();
+    return () => tradeRequest.current?.abort();
+  }, [loadTrades, user?.id, user?.role]);
 
   useEffect(() => {
     if (!site) {
@@ -90,7 +121,7 @@ export function TradeProfile() {
   }, [site?.type]);
 
   async function onSubmit() {
-    if (!user) return;
+    if (user?.role !== 'technician' || loadingTrades || tradeLoadError || submitting) return;
     if (category.trim().length === 0) {
       setError(t('components.tradeProfile.errors.categoryRequired'));
       return;
@@ -138,10 +169,10 @@ export function TradeProfile() {
         specialty: specialty.trim(),
         proficiency: proficiencyValue,
       });
-      setSaved(result);
+      setTrades(current => [...current.filter(trade => trade.id !== result.id), result]);
+      setSavedId(result.id);
+      closeForm();
     } catch (err) {
-      // Duplicate-submission warning — same suffix the web appends in
-      // `TradeProfile.vue`.
       setError(
         (err instanceof ApiError
           ? err.message
@@ -153,10 +184,9 @@ export function TradeProfile() {
     }
   }
 
-  /** Resets the form after the saved-state panel — the web's
-      "Add another trade →" button. */
-  function onAddAnother() {
-    setSaved(null);
+  function closeForm() {
+    setAdding(false);
+    setError(null);
     setCategory('');
     setSpecialty('');
     setProficiency('');
@@ -176,95 +206,106 @@ export function TradeProfile() {
         {t('components.tradeProfile.intro')}
       </Text>
 
-      {saved ? (
-        <View className="mb-2">
-          <View className="flex-row items-center gap-1.5">
-            <Check color={palette.tone.success} size={14} />
-            <Text className="text-xs text-tone-success">
-              {t('components.tradeProfile.saved', {
-                category: saved.category,
-                specialty: saved.specialty,
-                proficiency: saved.proficiency,
-              })}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onAddAnother}
-            className="mt-2 self-start active:opacity-70"
-          >
-            <Text className="text-xs font-medium text-dashboard-teal underline">
-              {t('components.tradeProfile.addAnother')}
-            </Text>
-          </Pressable>
-        </View>
+      {loadingTrades ? (
+        <StateView variant="loading" title={t('components.tradeProfile.loading')} />
+      ) : tradeLoadError ? (
+        <StateView variant="error" description={tradeLoadError}
+          actionLabel={t('workspace.retry')} onAction={() => void loadTrades()} />
       ) : (
-      <ScrollView keyboardShouldPersistTaps="handled">
-        {categoryOptions.length > 0 ? (
-          <View className="mb-3">
-            <Picker
-              label={t('components.tradeProfile.primaryTrade')}
-              value={category}
-              onChange={setCategory}
-              options={categoryOptions.map((value) => ({
-                value,
-                label: value,
-              }))}
-              placeholder={t('components.tradeProfile.chooseCategory')}
-            />
-          </View>
-        ) : (
-          <TextField
-            label={t('components.tradeProfile.primaryTrade')}
-            value={category}
-            onChangeText={setCategory}
-            placeholder={t('components.tradeProfile.categoryPlaceholder')}
-            maxLength={SKILL_CATEGORY_MAX_LENGTH}
-            autoCapitalize="none"
-            className="mb-3"
-          />
-        )}
+        <>
+          {trades.map(trade => (
+            <View key={trade.id} className="mb-2 flex-row items-center gap-1.5">
+              <Check color={palette.tone.success} size={14} />
+              <Text className="flex-1 text-xs text-ink"
+                accessibilityLiveRegion={trade.id === savedId ? 'polite' : undefined}>
+                {t('components.tradeProfile.saved', {
+                  category: trade.category,
+                  specialty: trade.specialty ?? t('reports.detail.definition.notSpecified'),
+                  proficiency: trade.proficiency,
+                })}
+              </Text>
+            </View>
+          ))}
+          {!adding ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setAdding(true)}
+              className="mt-2 self-start active:opacity-70"
+            >
+              <Text className="text-xs font-medium text-dashboard-teal underline">
+                {t(trades.length ? 'components.tradeProfile.addAnother' : 'components.tradeProfile.addTrade')}
+              </Text>
+            </Pressable>
+          ) : null}
+          {adding ? (
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {categoryOptions.length > 0 ? (
+                <View className="mb-3">
+                  <Picker
+                    label={t('components.tradeProfile.primaryTrade')}
+                    value={category}
+                    onChange={setCategory}
+                    options={categoryOptions.map((value) => ({
+                      value,
+                      label: value,
+                    }))}
+                    placeholder={t('components.tradeProfile.chooseCategory')}
+                  />
+                </View>
+              ) : (
+                <TextField
+                  label={t('components.tradeProfile.primaryTrade')}
+                  value={category}
+                  onChangeText={setCategory}
+                  placeholder={t('components.tradeProfile.categoryPlaceholder')}
+                  maxLength={SKILL_CATEGORY_MAX_LENGTH}
+                  autoCapitalize="none"
+                  className="mb-3"
+                />
+              )}
 
-        <TextField
-          label={t('components.tradeProfile.specialtyLabel')}
-          value={specialty}
-          onChangeText={setSpecialty}
-          placeholder={t('components.tradeProfile.specialtyPlaceholder')}
-          maxLength={SKILL_SPECIALTY_MAX_LENGTH}
-          autoCapitalize="none"
-          className="mb-3"
-        />
+              <TextField
+                label={t('components.tradeProfile.specialtyLabel')}
+                value={specialty}
+                onChangeText={setSpecialty}
+                placeholder={t('components.tradeProfile.specialtyPlaceholder')}
+                maxLength={SKILL_SPECIALTY_MAX_LENGTH}
+                autoCapitalize="none"
+                className="mb-3"
+              />
 
-        <Picker
-          label={t('components.tradeProfile.proficiencyLabel')}
-          value={proficiency}
-          onChange={setProficiency}
-          options={PROFICIENCY_OPTIONS}
-          placeholder={t('components.tradeProfile.chooseLevel')}
-        />
+              <Picker
+                label={t('components.tradeProfile.proficiencyLabel')}
+                value={proficiency}
+                onChange={setProficiency}
+                options={PROFICIENCY_OPTIONS}
+                placeholder={t('components.tradeProfile.chooseLevel')}
+              />
 
-        {error ? (
-          <Text className="mt-3 text-xs leading-5 text-tone-danger">
-            {error}
-          </Text>
-        ) : null}
+              {error ? (
+                <Text className="mt-3 text-xs leading-5 text-tone-danger">
+                  {error}
+                </Text>
+              ) : null}
 
-        <Button
-          label={
-            submitting
-              ? t('components.tradeProfile.saving')
-              : t('components.tradeProfile.save')
-          }
-          loading={submitting}
-          onPress={onSubmit}
-          className="mt-4"
-        />
-      </ScrollView>
+              <Button
+                label={
+                  submitting
+                    ? t('components.tradeProfile.saving')
+                    : t('components.tradeProfile.save')
+                }
+                loading={submitting}
+                onPress={onSubmit}
+                className="mt-4"
+              />
+              {(
+                <Button label={t('components.tradeProfile.cancel')} variant="secondary"
+                  disabled={submitting} onPress={closeForm} className="mt-2" />
+              )}
+            </ScrollView>
+          ) : null}
+        </>
       )}
-
-      <Text className="mt-4 text-xs leading-5 text-muted">
-        {t('components.tradeProfile.previousSkillsNote')}
-      </Text>
       <Text className="mt-3 text-[13px] font-semibold text-ink">
         {t('components.tradeProfile.beforeYouStart')}
       </Text>

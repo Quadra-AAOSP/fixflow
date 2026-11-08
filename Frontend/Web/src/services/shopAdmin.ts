@@ -34,3 +34,15 @@ export function saveManagedProduct(draft: ProductDraft, editing: boolean) {
 }
 // Backend DELETE deactivates the product; existing orders remain unchanged.
 export const deactivateManagedProduct = (id: string) => request<void>(path(id), { method: 'DELETE' });
+export interface ShopAnalytics {
+  generatedAt: string; trendStartDate: string; trendEndDate: string; totalOrders: number;
+  ordersByStatus: Record<'pending_payment' | 'paid' | 'cancelled' | 'refunded' | 'fulfilled', number>;
+  revenue: ShopRevenue[];
+  products: { total: number; active: number; inStock: number; outOfStock: number };
+  daily: { date: string; orders: number; revenue: ShopRevenue[] }[];
+}
+export interface ShopRevenue { currency: string; minorUnitDigits: number; totalMinor: number }
+export const getShopAnalytics = () => request<ShopAnalytics>('/api/admin/shop/analytics');
+export const listManagedOrders = (page: number) => request<{content: import('@/types/shop').ManagedShopOrder[]; hasMore: boolean}>(`/api/admin/shop/orders?page=${page}`);
+export const getManagedOrder = (id: string) => request<import('@/types/shop').ManagedShopOrder>(`/api/admin/shop/orders/${encodeURIComponent(id)}`);
+export const advanceFulfillment = (id: string, status: 'processing' | 'shipped') => request<import('@/types/shop').ManagedShopOrder>(`/api/admin/shop/orders/${encodeURIComponent(id)}/fulfillment`, {method: 'POST', body: JSON.stringify({status})});

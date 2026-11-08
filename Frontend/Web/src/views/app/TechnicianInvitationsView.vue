@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
@@ -32,7 +33,7 @@ watch(() => [user.value?.id, user.value?.role], () => load(), { immediate: true 
   <section v-if="user?.role === 'technician'" class="dashboard-card live-page">
     <div class="card-heading"><div><h1>{{ t("Site invitations") }}</h1><p>{{ t("Invitations to discuss a site contract") }}</p></div><button type="button" class="text-action" :disabled="loading" @click="load(inbox?.page ?? 0)">{{ t("Refresh inbox") }}</button></div>
     <p class="dialog-intro">{{ t("These invitations do not assign work or create contracts. You can review the site’s message and choose whether to request a contract, or remain independent.") }}</p>
-    <p v-if="loading" role="status">{{ t("Loading invitations…") }}</p><p v-if="error" role="alert" class="live-error">{{ t(error) }} <button type="button" @click="load(requestedPage)">{{ t("Try again") }}</button></p>
+    <LoadingStatus v-if="loading" :label="t('Loading invitations…')" /><p v-if="error" role="alert" class="live-error">{{ t(error) }} <button type="button" @click="load(requestedPage)">{{ t("Try again") }}</button></p>
     <template v-if="inbox && !loading">
       <p v-if="!inbox.items.length" class="live-empty">{{ t("No invitations on this page.") }}</p>
       <ul class="invitation-list"><li v-for="item in inbox.items" :key="item.id" class="contract-choice"><h2>{{ t('Site #{id}', { id: item.siteId }) }}</h2><p>{{ t(humanize(item.category)) }}<template v-if="item.specialty"> · {{ t(humanize(item.specialty)) }}</template></p><p>{{ item.reason }}</p><p class="dialog-intro">{{ t('Received {date}', { date: formatDate(item.createdAt, true) }) }}</p><RouterLink class="text-action" :to="{ name: 'contracts', query: { siteId: item.siteId } }">{{ t("Review a site contract request →") }}</RouterLink></li></ul>

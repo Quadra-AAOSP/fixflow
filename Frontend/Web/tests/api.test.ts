@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { request, setUnauthorizedHandler } from '../src/services/api';
-import { assignTechnician, createReport, joinReport, listRules } from '../src/services/maintenance';
+import { assignTechnician, classifyReport, createReport, joinReport, listRules } from '../src/services/maintenance';
 import { stubApiFetch } from './csrfFetch';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); setUnauthorizedHandler(() => {}); });
@@ -19,6 +19,20 @@ describe('API transport', () => {
     const pending = request('/api/reports', { signal: new AbortController().signal });
     const result = expect(pending).rejects.toThrow('too long');
     await vi.advanceTimersByTimeAsync(20_000); await result;
+  });
+  it('waits for a classification that outlasts the usual API deadline', async () => {
+    vi.useFakeTimers();
+    stubApiFetch(vi.fn().mockImplementation((_url: string, init: RequestInit) =>
+      new Promise((resolve, reject) => {
+        const result = setTimeout(() => resolve(new Response('{"aiUrgency":"medium"}')), 35_000);
+        init.signal?.addEventListener('abort', () => {
+          clearTimeout(result);
+          reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      })));
+    const pending = expect(classifyReport(1)).resolves.toMatchObject({ aiUrgency: 'medium' });
+    await vi.advanceTimersByTimeAsync(35_000);
+    await pending;
   });
   it('preserves caller cancellation as AbortError instead of a network failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {

@@ -50,6 +50,7 @@ export type User = {
   role: UserRole;
   siteId: number | null;
   adminApplication?: AdminApplication | null;
+  applicationOnly?: boolean;
   capabilities?: UserCapabilities;
   siteOnboarding?: SiteOnboarding | null;
 };

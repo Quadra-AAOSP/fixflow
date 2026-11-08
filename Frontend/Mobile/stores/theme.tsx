@@ -3,11 +3,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { Appearance, Platform } from 'react-native';
 import { useColorScheme as useNativewindColorScheme } from 'nativewind';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { setActiveThemeMode, type ThemeMode } from '@/constants/theme';
 
@@ -21,11 +23,6 @@ type ThemeModeValue = {
 
 const ThemeModeContext = createContext<ThemeModeValue | null>(null);
 
-/**
- * Web keeps the choice in localStorage. Native has no bundled storage module
- * (no async-storage dependency), so the choice lives in memory for the session
- * and starts from the system scheme on launch.
- */
 function readStoredMode(): ThemeMode | null {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
   try {
@@ -51,14 +48,25 @@ function systemMode(): ThemeMode {
  *    effect, and on web it adds/removes the `dark` class on <html> for the same
  *    result.
  *
- * This runs on iOS and Android as well as web; only the *persistence* of the
- * choice is web-only.
+ * Explicit choices persist on native and web. With no saved choice the
+ * provider starts with the current system appearance.
  */
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
   const { setColorScheme } = useNativewindColorScheme();
   const [mode, setModeState] = useState<ThemeMode>(
     () => readStoredMode() ?? systemMode(),
   );
+  const [restored, setRestored] = useState(Platform.OS === 'web');
+  const userChanged = useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let active = true;
+    void AsyncStorage.getItem(STORAGE_KEY).then(value => {
+      if (active && !userChanged.current && (value === 'light' || value === 'dark')) setModeState(value);
+    }).catch(() => {}).finally(() => { if (active) setRestored(true); });
+    return () => { active = false; };
+  }, []);
 
   // Resolve the module-level accessor *during* render so the very first paint
   // already uses the stored/system palette.
@@ -68,7 +76,10 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
     setActiveThemeMode(mode);
     setColorScheme(mode);
 
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    if (!userChanged.current) return;
+    if (Platform.OS !== 'web' && restored) {
+      void AsyncStorage.setItem(STORAGE_KEY, mode).catch(() => {});
+    } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(STORAGE_KEY, mode);
       } catch {
@@ -78,17 +89,18 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
     // `setColorScheme`'s identity is not stable between renders; its behaviour
     // is, so re-running on `mode` alone is correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  }, [mode, restored]);
 
   const value = useMemo<ThemeModeValue>(
     () => ({
       mode,
-      setMode: setModeState,
-      toggle: () => setModeState((current) => (current === 'dark' ? 'light' : 'dark')),
+      setMode: (next) => { userChanged.current = true; setModeState(next); },
+      toggle: () => { userChanged.current = true; setModeState((current) => (current === 'dark' ? 'light' : 'dark')); },
     }),
     [mode],
   );
 
+  if (!restored) return null;
   return (
     <ThemeModeContext.Provider value={value}>{children}</ThemeModeContext.Provider>
   );

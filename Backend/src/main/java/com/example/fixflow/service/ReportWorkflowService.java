@@ -44,9 +44,30 @@ public class ReportWorkflowService {
         terms.requireAcceptance(actor.getId());
         if(report.getAssignedTechnician()!=null || !List.of(ReportStatus.open,ReportStatus.routed,
                 ReportStatus.reopened,ReportStatus.escalated).contains(report.getStatus())) conflict("Report is not claimable");
-        report.setAssignedTechnician(actor(actor));
-        transition(report,ReportStatus.assigned,actor,"Technician claimed report",ReportDomainEvent.ASSIGNMENT);
+        activateAssignment(report,actor(actor),actor,"Technician claimed report");
         return reportService.get(id,actor);
+    }
+
+    void activateMarketplaceAssignment(Report report, User technician, AppUserDetails actor) {
+        activateAssignment(report,technician,actor,"Technician accepted marketplace offer");
+    }
+
+    void cancelMarketplaceAssignment(Report report, AppUserDetails actor, String reason) {
+        Long former = report.getAssignedTechnician().getId();
+        ReportStatus from = report.getStatus();
+        ReportStatus to = report.getReopenCount() > 0 ? ReportStatus.reopened : ReportStatus.open;
+        report.setAssignedTechnician(null);
+        report.setStatus(to);
+        report.setConfirmedAt(null);
+        report.setConfirmedBy(null);
+        audit(report, from, to, actor, "Marketplace assignment cancelled: " + reason);
+        events.publishEvent(ReportDomainEvent.of(ReportDomainEvent.REASSIGNMENT, report.getSite().getId(),
+                report.getId(), from, to, former, null));
+    }
+
+    private void activateAssignment(Report report, User technician, AppUserDetails actor, String reason) {
+        report.setAssignedTechnician(technician);
+        transition(report,ReportStatus.assigned,actor,reason,ReportDomainEvent.ASSIGNMENT);
     }
 
     public ReportResponse start(Long id, AppUserDetails actor) {
@@ -100,7 +121,8 @@ public class ReportWorkflowService {
         return resolutions.findByReport_IdOrderByIdAsc(id).stream().map(r->new ResolutionItem(r.getId(),
                 r.getTechnician().getId(),r.getDescription(),r.getCreatedAt())).toList();
     }
-    public record RatingItem(Long id,Long resolutionId,int score,String feedback,Instant createdAt) { }
+    public record RatingItem(Long id,Long resolutionId,int score,String feedback,Instant createdAt,
+            boolean ratedByCurrentUser) { }
     public RatingItem rate(Long id,Long resolutionId,int score,String feedback,AppUserDetails actor) {
         Report report=locked(id); view(report,actor);
         if(actor.getRole()==UserRole.technician) denied();
@@ -114,15 +136,16 @@ public class ReportWorkflowService {
         if(ratings.existsByResolution_IdAndRatedBy_Id(resolutionId,actor.getId())) conflict("Resolution already rated by this user");
         ReportRating rating=new ReportRating(); rating.setResolution(resolution); rating.setRatedBy(actor(actor));
         rating.setScore(score); rating.setFeedback(feedback==null?null:feedback.trim()); ratings.saveAndFlush(rating);
-        return rating(rating);
+        return rating(rating,actor);
     }
     @Transactional(readOnly=true)
     public List<RatingItem> ratings(Long id,AppUserDetails actor) {
         view(found(id),actor);
-        return ratings.findByResolution_Report_IdOrderByIdAsc(id).stream().map(this::rating).toList();
+        return ratings.findByResolution_Report_IdOrderByIdAsc(id).stream().map(value->rating(value,actor)).toList();
     }
-    private RatingItem rating(ReportRating value) {
-        return new RatingItem(value.getId(),value.getResolution().getId(),value.getScore(),value.getFeedback(),value.getCreatedAt());
+    private RatingItem rating(ReportRating value,AppUserDetails actor) {
+        return new RatingItem(value.getId(),value.getResolution().getId(),value.getScore(),value.getFeedback(),
+                value.getCreatedAt(),value.getRatedBy().getId().equals(actor.getId()));
     }
     public record LinkItem(Long id,Long reportId,Long linkedReportId,String reason,Instant createdAt) { }
     public LinkItem link(Long id,Long target,String reason,AppUserDetails actor) {

@@ -24,11 +24,8 @@ import type { UserRole } from '@/types';
  *     reporter   → lands as reporter immediately
  *     technician → lands as technician immediately
  *
- *   ⏳ Self-register, pending super_admin approval:
- *     admin (site admin apply) → backend creates user as reporter +
- *                                 files a pending adminApplication.
- *                                 Super admin approves → flips to admin.
- *                                 Rejects → stays reporter.
+ *   ⏳ Site administrator access starts with a separate site application.
+ *     The designated admin sets up their account after super-admin approval.
  *
  *   🔒 Cannot self-register — created by existing admins only:
  *     staff, shop_manager, super_admin

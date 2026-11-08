@@ -23,7 +23,8 @@ The API base URL comes from `constants/config.ts` (`EXPO_PUBLIC_API_URL` or LAN 
 
 ```sh
 npm test            # vitest unit suite + node:test security suite
-npx tsc --noEmit    # typecheck
+npm run lint       # ESLint checks for mobile TypeScript
+npm run typecheck  # TypeScript
 ```
 
 ## Build (preview APK)

@@ -63,10 +63,9 @@ public class AuthService {
 	@Transactional
 	public UserResponse register(RegisterRequest request) {
         AccountPolicy.validateRegistration(request);
-		if (request.role() != UserRole.reporter && request.role() != UserRole.technician
-				&& request.role() != UserRole.admin) {
+		if (request.role() != UserRole.reporter && request.role() != UserRole.technician) {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(),
-					"Self-registration is only allowed for reporter, technician or site admin applications");
+					"Self-registration is only allowed for reporters or technicians; request a site for administrator access");
 		}
 
 		// ── Admin self-apply: bundle site creation with the application ──────

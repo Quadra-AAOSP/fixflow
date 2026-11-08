@@ -1,3 +1,4 @@
+import { StateView } from '@/components/ui/StateView';
 import { Stack, useRouter } from 'expo-router';
 import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
@@ -94,9 +95,7 @@ export default function TechnicianInvitationsScreen() {
 
         {loading ? (
           <Card className="mb-4">
-            <Text className="p-4 text-center text-dashboard-subtitle">
-              {t('technician.invitations.loading')}
-            </Text>
+            <StateView variant="loading" title={t('technician.invitations.loading')} />
           </Card>
         ) : inbox && inbox.items.length > 0 ? (
           <>

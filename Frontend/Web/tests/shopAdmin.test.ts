@@ -13,8 +13,7 @@ it('uses separate create and update DTOs without read-only metadata', async () =
   expect(request).toHaveBeenLastCalledWith(`/api/admin/shop/products/${id}`, expect.objectContaining({ method: 'PUT' }));
   expect(JSON.parse(vi.mocked(request).mock.calls.at(-1)![1]!.body as string)).toEqual(update);
 });
-it.each([{ priceMinor: -1 }, { stock: 2.5 }, { stock: 2147483648 }, { imageUrl: 'http://example.invalid/photo.png' }, { name: '' }])
-('rejects invalid product values before sending: %j', change => {
+it.each([{ priceMinor: -1 }, { stock: 2.5 }, { stock: 2147483648 }, { imageUrl: 'http://example.invalid/photo.png' }, { name: '' }])('rejects invalid product values before sending: %j', change => {
   expect(() => productPayload({ ...draft, ...change })).toThrow(); expect(request).not.toHaveBeenCalled();
 });
 it('encodes IDs for detail and deactivation', async () => {

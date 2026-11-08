@@ -85,7 +85,7 @@ export function StatCard({
 
   const body = (
     <View
-      className={`flex-1 flex-row items-center gap-3 rounded-xl border px-3.5 py-3 ${
+      className={`grow flex-row items-center gap-3 rounded-xl border px-3.5 py-3 ${
         selected ? 'border-dashboard-teal' : 'border-dashboard-card-line'
       } bg-dashboard-card-bg`}
       style={

@@ -13,6 +13,9 @@ import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportStatus;
 
 public interface ReportRepository extends JpaRepository<Report, Long> {
+    long countByAssignedTechnician_IdAndStatusIn(Long technicianId, java.util.Collection<ReportStatus> statuses);
+    long countByAssignedTechnician_IdAndStatus(Long technicianId, ReportStatus status);
+
     long countByAssignedTechnician_IdAndSite_IdAndStatusIn(Long technicianId, Long siteId,
             java.util.Collection<com.example.fixflow.domain.ReportStatus> statuses);
 

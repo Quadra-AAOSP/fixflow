@@ -67,3 +67,8 @@ it('keeps the basket and retry key when the real service rejects an invalid paym
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(fetch.mock.calls[0]![1].headers.get('Idempotency-Key')).toBe(fetch.mock.calls[1]![1].headers.get('Idempotency-Key'));
 });
+it('shows the fulfillment stage in buyer order history', async () => {
+  vi.mocked(api.listOrders).mockResolvedValue(['ordered','processing','shipped'].map((fulfillmentStatus, i) => ({orderId:`order-${i}`,status:'paid',fulfillmentStatus,currency:'USD',minorUnitDigits:2,totalMinor:1000,items:[]})) as unknown as import('../src/types/shop').ShopOrder[]);
+  await render(); await wrapper.findAll('button').find(b => b.text() === 'Orders')!.trigger('click'); await flushPromises();
+  const history=wrapper.get('#orders-title').element.closest('dialog')!; expect(history.textContent).toContain('Ordered'); expect(history.textContent).toContain('Processing'); expect(history.textContent).toContain('Shipped');
+});

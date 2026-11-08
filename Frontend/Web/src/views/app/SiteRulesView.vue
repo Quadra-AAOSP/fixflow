@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
@@ -73,7 +74,7 @@ onMounted(load);
     </fieldset></form>
     <section v-if="removing" ref="confirmation" tabindex="-1" class="draft-notice rule-confirmation" :aria-label="t('Delete rule confirmation')"><p>{{ t('Permanently delete category {category} for all {type} sites? This cannot be undone.', { category: removing.category, type: t(humanize(removing.siteType)) }) }}</p><div class="rule-actions"><button type="button" class="text-action" :disabled="busy" @click="remove">{{ t('Delete rule permanently') }}</button><button type="button" class="text-action" :disabled="busy" @click="removing = null">{{ t('Cancel') }}</button></div></section>
     <label class="rule-filter">{{ t('Site type') }}<select v-model="filter"><option value="">{{ t('All types') }}</option><option value="school">{{ t('School') }}</option><option value="hostel">{{ t('Hostel') }}</option><option value="hotel">{{ t('Hotel') }}</option></select></label>
-    <p v-if="loading" role="status" class="live-empty">{{ t('Loading rules…') }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading rules…')" />
     <ul v-else-if="rules" class="rule-list"><li v-for="rule in visible" :key="rule.id"><div><strong>{{ rule.category }}</strong><p>{{ t(humanize(rule.siteType)) }} · {{ t('Urgency weight') }}: {{ rule.urgencyWeight ?? t('Not specified') }} · {{ t('Sort order') }}: {{ rule.sortOrder ?? t('Not specified') }}</p></div><div class="rule-actions"><button type="button" class="text-action" :disabled="busy" @click="edit(rule)">{{ t('Edit') }}</button><button type="button" class="text-action" :disabled="busy" @click="askRemove(rule)">{{ t('Delete') }}</button></div></li><li v-if="!visible.length">{{ t('No rules for this site type.') }}</li></ul>
   </section>
 </template>

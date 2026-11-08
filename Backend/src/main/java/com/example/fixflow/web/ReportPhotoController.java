@@ -55,6 +55,15 @@ public class ReportPhotoController {
 		return ResponseEntity.noContent().build();
 	}
 
+    @GetMapping("/{photoId}/content")
+    public ResponseEntity<org.springframework.core.io.InputStreamResource> content(
+            @PathVariable Long id, @PathVariable Long photoId, @AuthenticationPrincipal AppUserDetails principal) {
+        var photo = reportPhotoService.authorizedPhoto(id, photoId, principal);
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .contentType(MediaType.parseMediaType(photo.getContentType()))
+                .body(new org.springframework.core.io.InputStreamResource(reportPhotoService.content(photo)));
+    }
 	@GetMapping("/{photoId}")
 	public Map<String, String> presignedUrl(
 			@PathVariable Long id,

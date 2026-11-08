@@ -1,4 +1,4 @@
-import { api } from '@/lib/apiClient';
+import { AI_REQUEST_OPTIONS, api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
   ContractDecisionPayload,
@@ -21,6 +21,10 @@ export const SKILL_CATEGORY_MAX_LENGTH = 128;
 export const SKILL_SPECIALTY_MAX_LENGTH = 128;
 export const SKILL_PROFICIENCY_MIN = 1;
 export const SKILL_PROFICIENCY_MAX = 5;
+
+export function listMyTechnicianSkills(signal?: AbortSignal): Promise<TechnicianSkill[]> {
+  return api.get<TechnicianSkill[]>(endpoints.technicianSkills.me, { signal });
+}
 
 /** Declares a trade skill on a technician's profile. */
 export function addTechnicianSkill(
@@ -148,6 +152,7 @@ export function rankTechniciansForReport(
   return api.post<TechnicianRanking>(
     endpoints.reports.technicianRanking(reportId),
     { mode },
+    mode === 'AI' ? AI_REQUEST_OPTIONS : undefined,
   );
 }
 

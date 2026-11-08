@@ -56,10 +56,10 @@ public class AuthController {
     public java.util.Map<String, Object> policy() {
         return java.util.Map.of(
                 "passwordMinLength", com.example.fixflow.service.AccountPolicy.PASSWORD_MIN_LENGTH,
-                "selfRegistrationRoles", java.util.List.of("reporter", "technician", "admin"),
+                "selfRegistrationRoles", java.util.List.of("reporter", "technician"),
                 "siteAdminApprovalRequired", true,
                 "siteAdminApplicationStatusEndpoint", "/api/auth/site-admin-application",
-                "managedRoleMessage", "Site admin applicants start as reporters until super-admin approval. "
+                "managedRoleMessage", "Site administrator access is created after approval of a new site application. "
                         + "Identity checks, independent approval and MFA are policy requirements, "
                         + "not currently automated checks in this application.");
     }

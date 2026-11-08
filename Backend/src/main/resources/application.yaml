@@ -91,7 +91,7 @@ fixflow:
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     bucket: ${MINIO_BUCKET:fixflow-photos}
   shop:
-    currency: ${SHOP_CURRENCY:SGD}
+    currency: ${SHOP_CURRENCY:CNY}
     minor-unit-digits: ${SHOP_MINOR_UNIT_DIGITS:2}
     flat-shipping-minor: ${SHOP_FLAT_SHIPPING_MINOR:500}
     checkout-success-url: ${SHOP_CHECKOUT_SUCCESS_URL:http://localhost:5173/shop}
@@ -111,7 +111,7 @@ openrouter:
   vision:
     enabled: ${OPENROUTER_VISION_ENABLED:false}
     model: ${OPENROUTER_VISION_MODEL:nvidia/nemotron-3.5-super-vl:free}
-    fallback-model: ${OPENROUTER_VISION_FALLBACK_MODEL:minimax/minimax-m3.1-flash:free}
+    fallback-model: ${OPENROUTER_VISION_FALLBACK_MODEL:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free}
   api-key: ${OPENROUTER_API_KEY:}
   model: ${OPENROUTER_MODEL:openrouter/free}
   base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1/chat/completions}

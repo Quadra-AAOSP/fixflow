@@ -1,4 +1,4 @@
-import { api } from '@/lib/apiClient';
+import { AI_REQUEST_OPTIONS, api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
   AssignTechnicianPayload,
@@ -46,6 +46,27 @@ export function getReport(id: number): Promise<Report> {
   return api.get<Report>(endpoints.reports.byId(id));
 }
 
+export type ReportEdit = Pick<Report, 'description' | 'address' | 'reporterUrgency' | 'reporterReason'>;
+export const updateReport = (id: number, payload: ReportEdit) =>
+  api.put<Report>(endpoints.reports.byId(id), payload);
+export const deleteReport = (id: number) => api.del<void>(endpoints.reports.byId(id));
+
+export type ReportResolution = { id: number; technicianId: number; description: string; createdAt: string };
+export type ReportRating = { id: number; resolutionId: number; ratedByCurrentUser: boolean; score: number; feedback: string | null };
+
+export const listResolutions = (id: number) =>
+  api.get<ReportResolution[]>(`${endpoints.reports.byId(id)}/resolutions`);
+export const listReportRatings = (id: number) =>
+  api.get<ReportRating[]>(`${endpoints.reports.byId(id)}/ratings`);
+export const startReportWork = (id: number) =>
+  api.post<Report>(`${endpoints.reports.byId(id)}/start`);
+export const resolveReportWork = (id: number, description: string) =>
+  api.post<Report>(`${endpoints.reports.byId(id)}/resolve`, { description });
+export const escalateReportWork = (id: number, reason: string) =>
+  api.post<Report>(`${endpoints.reports.byId(id)}/escalate`, { reason });
+export const rateReportWork = (id: number, resolutionId: number, score: number, feedback: string) =>
+  api.post<ReportRating>(`${endpoints.reports.byId(id)}/ratings`, { resolutionId, score, feedback });
+
 /**
  * Idempotent join. The backend short-circuits on existing membership
  * (`existsByReportIdAndUserId`), so callers do not need a separate
@@ -91,14 +112,25 @@ export function reopenReport(id: number, reason: string): Promise<Report> {
  * Triggers AI classification for a report.
  */
 export function classifyReport(id: number): Promise<Report> {
-  return api.post<Report>(endpoints.reports.classify(id));
+  return api.post<Report>(endpoints.reports.classify(id), undefined, AI_REQUEST_OPTIONS);
 }
 
 /**
  * Triggers AI vision processing for a report.
  */
-export function triggerVisionProcessing(reportId: number): Promise<VisionJob> {
-  return api.post<VisionJob>(endpoints.reports.vision(reportId));
+export function triggerVisionProcessing(
+  reportId: number,
+  asset: { file?: File; uri: string; fileName?: string | null; mimeType?: string },
+): Promise<VisionJob> {
+  const form = new FormData();
+  const name = asset.fileName ?? 'report-image.jpg';
+  if (asset.file) {
+    form.append('image', asset.file, name);
+  } else {
+    form.append('image', { uri: asset.uri, name, type: asset.mimeType ?? 'image/jpeg' } as unknown as Blob);
+  }
+  form.append('consent', 'true');
+  return api.post<VisionJob>(endpoints.reports.vision(reportId), undefined, { body: form });
 }
 
 /**

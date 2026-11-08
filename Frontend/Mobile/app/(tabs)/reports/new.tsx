@@ -17,10 +17,8 @@ import {
   Camera,
   House,
   ImagePlus,
-  Mic,
   Plus,
   Sparkles,
-  Square,
   X,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -39,7 +37,6 @@ import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
 import { canManageSubsites } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
-import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useToast } from '@/components/ui/useToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
@@ -101,7 +98,6 @@ export default function NewReportScreen() {
   const { user } = useAuth();
   const { site, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
   const { showToast } = useToast();
-  const recorder = useAudioRecorder();
 
   const canCreate = user?.capabilities.createReport ?? false;
 
@@ -397,15 +393,6 @@ export default function NewReportScreen() {
     }
   }
 
-  async function onMicDescription() {
-    if (recorder.isRecording) {
-      const text = await recorder.stop();
-      if (text) setDescription((prev) => (prev ? `${prev} ${text}` : text));
-    } else {
-      await recorder.start();
-    }
-  }
-
   const requiresBuilding = activeSubsites.length > 0;
 
   // --- Permission / setup gate states ---
@@ -560,30 +547,6 @@ export default function NewReportScreen() {
               <Text className="mb-1.5 text-[12px] font-medium text-ink">
                 {t('reports.new.descLabel')}
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  recorder.isRecording
-                    ? t('reports.new.voice.stop')
-                    : t('reports.new.voice.start')
-                }
-                onPress={onMicDescription}
-                className="h-8 w-8 items-center justify-center rounded-full"
-                style={{
-                  backgroundColor: recorder.isRecording
-                    ? dashboardColors.statCoralSoft
-                    : dashboardColors.cardLine,
-                }}
-              >
-                {recorder.isRecording ? (
-                  <Square color={dashboardColors.statCoralDeep} size={12} fill={dashboardColors.statCoralDeep} />
-                ) : (
-                  <Mic
-                    color={recorder.transcribing ? dashboardColors.subtitle : dashboardColors.teal}
-                    size={15}
-                  />
-                )}
-              </Pressable>
             </View>
             <TextField
               label=""
@@ -595,14 +558,6 @@ export default function NewReportScreen() {
               maxLength={10000}
               className="mb-0"
             />
-            {recorder.transcribing ? (
-              <Text className="mt-1 text-[10px] italic text-dashboard-subtitle">
-                {t('reports.new.voice.transcribing')}
-              </Text>
-            ) : null}
-            {recorder.error ? (
-              <Text className="mt-1 text-[11px] text-tone-danger">{recorder.error}</Text>
-            ) : null}
 
             <TextField
               label={t('reports.new.addressLabel')}
@@ -637,6 +592,16 @@ export default function NewReportScreen() {
                 disabled={loadingSubsites || activeSubsites.length === 0}
               />
             )}
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setSuggestionOpen(true)}
+              className="mt-2 mb-4 self-start active:opacity-80"
+            >
+              <Text className="text-[12px] font-semibold text-dashboard-teal underline">
+                {t('reports.new.suggestionTitle')}
+              </Text>
+            </Pressable>
 
             {ruleError ? (
               <StateView
@@ -761,16 +726,6 @@ export default function NewReportScreen() {
               </Pressable>
             </View>
           </Card>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setSuggestionOpen(true)}
-            className="mb-4 self-start active:opacity-80"
-          >
-            <Text className="text-[12px] font-semibold text-dashboard-teal underline">
-              {t('reports.new.suggestionTitle')}
-            </Text>
-          </Pressable>
 
           {submitError ? (
             <StateView variant="error" description={submitError} className="mb-4" />

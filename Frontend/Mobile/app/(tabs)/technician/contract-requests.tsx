@@ -1,3 +1,4 @@
+import { StateView } from '@/components/ui/StateView';
 import { useRouter } from 'expo-router';
 import {
   AlertCircle,
@@ -7,7 +8,7 @@ import {
   Send,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
@@ -196,9 +197,7 @@ export default function TechnicianContractRequestsScreen() {
           </View>
 
           {loading ? (
-            <View className="items-center py-8">
-              <ActivityIndicator size="small" color={dashboardColors.teal} />
-            </View>
+            <StateView variant="loading" title={t('more.contracts.loading')} />
           ) : contracts.length === 0 ? (
             <View className="items-center px-6 py-7">
               <View

@@ -1,5 +1,6 @@
 # Local verification only: archived official source, not a supported production image.
-FROM golang:1.24.8-alpine AS build
+ARG DOCKER_LIBRARY=docker.io/library
+FROM ${DOCKER_LIBRARY}/golang:1.24.8-alpine AS build
 RUN apk add --no-cache git ca-certificates
 WORKDIR /src
 RUN git init && git remote add origin https://github.com/minio/minio.git \
@@ -9,7 +10,7 @@ ENV CGO_ENABLED=0
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath -o /out/minio .
 
-FROM alpine:3.22
+FROM ${DOCKER_LIBRARY}/alpine:3.22
 RUN apk add --no-cache ca-certificates curl \
     && addgroup -g 10001 minio && adduser -D -u 10001 -G minio minio \
     && mkdir /data && chown minio:minio /data

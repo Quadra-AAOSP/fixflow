@@ -46,11 +46,12 @@ export default function TabLayout() {
   const palette = themeColors();
   const { user, isLoading } = useAuth();
   const { t } = useTranslation('common');
+  const headerShown = useClientOnlyValue(false, true);
 
   if (isLoading || !user) {
     return (
       <SiteProvider>
-        <Tabs screenOptions={{ headerShown: false }} />
+        <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }} />
       </SiteProvider>
     );
   }
@@ -61,7 +62,8 @@ export default function TabLayout() {
   const homeLabel =
     role === 'super_admin' ? t('tabs.platformConsole')
     : role === 'shop_manager' ? t('tabs.shopConsole')
-    : t('tabs.home');
+    : role === 'reporter' ? t('tabs.myReports')
+    : t('tabs.dashboard');
 
   // Fixed slot order: home/dashboard → reports/technician → more → profile.
   // First visible tab is the role's default landing.
@@ -82,7 +84,7 @@ export default function TabLayout() {
     {
       name: 'reports',
       visible: isTabVisible(role, 'reports'),
-      title: t('tabs.reports'),
+      title: role === 'staff' ? t('tabs.siteReports') : t('tabs.reports'),
       icon: ClipboardList,
       hideHeader: true,
     },
@@ -96,12 +98,9 @@ export default function TabLayout() {
     {
       name: 'more',
       visible: isTabVisible(role, 'more'),
-      title: role === 'technician' ? t('tabs.shop') : t('tabs.more'),
+      title: role === 'staff' ? t('tabs.staffTools') : role === 'admin' ? t('tabs.siteTools') : t('tabs.more'),
       icon: LayoutGrid,
       hideHeader: true,
-      // Technician + shop_manager land straight in the shop catalog;
-      // everyone else lands in the More hub.
-      href: role === 'technician' || role === 'shop_manager' ? '/more/shop' : undefined,
     },
     {
       name: 'profile',
@@ -147,7 +146,7 @@ export default function TabLayout() {
           headerTintColor: palette.ink,
           headerTitleStyle: { fontWeight: '600', fontSize: 16 },
           headerShadowVisible: false,
-          headerShown: useClientOnlyValue(false, true),
+          headerShown,
         }}
       >
         {tabs.map((tab) => (

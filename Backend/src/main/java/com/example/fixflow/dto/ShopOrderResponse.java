@@ -23,7 +23,13 @@ public record ShopOrderResponse(
 		String checkoutUrl,
 		ShopPaymentStatus paymentStatus,
 		Instant createdAt,
-		Instant updatedAt
+		Instant updatedAt,
+		com.example.fixflow.domain.ShopFulfillmentStatus fulfillmentStatus,
+		Instant processingAt,
+		Instant shippedAt,
+		Instant deliveryConfirmedAt,
+		String deliverySignedName,
+		boolean canConfirmDelivery
 ) {
 	public static ShopOrderResponse from(ShopOrder order) {
 		List<ShopOrderItemResponse> items = order.getItems().stream()
@@ -53,7 +59,10 @@ public record ShopOrderResponse(
 				checkoutUrl,
 				paymentStatus,
 				order.getCreatedAt(),
-				order.getUpdatedAt()
+				order.getUpdatedAt(),
+				order.getFulfillmentStatus(), order.getProcessingAt(), order.getShippedAt(),
+				order.getDeliveryConfirmedAt(), order.getDeliverySignedName(),
+				order.getStatus() == ShopOrderStatus.paid && order.getFulfillmentStatus() == com.example.fixflow.domain.ShopFulfillmentStatus.shipped
 		);
 	}
 }

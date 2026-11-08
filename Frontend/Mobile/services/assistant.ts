@@ -1,4 +1,4 @@
-import { api } from '@/lib/apiClient';
+import { AI_REQUEST_OPTIONS, api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 
 /**
@@ -38,5 +38,5 @@ export function askReportAssistant(
 ): Promise<AssistantReply> {
   return api.post<AssistantReply>(endpoints.reports.assistant(reportId), {
     messages,
-  });
+  }, AI_REQUEST_OPTIONS);
 }

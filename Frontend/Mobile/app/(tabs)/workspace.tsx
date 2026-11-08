@@ -1,6 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -15,6 +14,7 @@ import {
   Wrench,
 } from 'lucide-react-native';
 
+import { HomeNotificationBell } from '@/components/dashboard/HomeNotificationBell';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
@@ -41,7 +41,6 @@ import { statusGroup } from '@/utils/maintenance';
  * file, they resolve. Hence the absence of a "New report" FAB.
  */
 export default function WorkspaceScreen() {
-  const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useTranslation('common');
@@ -81,6 +80,7 @@ export default function WorkspaceScreen() {
   return (
     <Screen>
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
+        <HomeNotificationBell />
         {/* Welcome banner — mirrors the web's `.welcome-banner` block
             inside `TechnicianView.vue`, with a large Wrench on the right. */}
         <View
@@ -180,9 +180,7 @@ export default function WorkspaceScreen() {
         </Text>
         <Card className="mb-4">
           {reports === null ? (
-            <View className="py-6">
-              <ActivityIndicator size="large" color={palette.primary} />
-            </View>
+            <StateView variant="loading" title={t('assignments.loading')} />
           ) : error ? (
             <StateView
               variant="error"
@@ -204,9 +202,9 @@ export default function WorkspaceScreen() {
                 })}
               </Text>
               {myAssignments.length === 0 ? (
-                <Text className="mt-2 text-[11px] leading-[1.7] text-dashboard-caption">
-                  {t('workspace.marketplaceUnavailable')}
-                </Text>
+                <Pressable accessibilityRole="link" onPress={() => router.push('/more/marketplace')} className="mt-2">
+                  <Text className="text-[12px] font-semibold text-ink">{t('marketplace.title')}</Text>
+                </Pressable>
               ) : (
                 <View className="mt-3">
                   {myAssignments.slice(0, 3).map((report) => (
@@ -292,6 +290,17 @@ export default function WorkspaceScreen() {
                 {t('workspace.invitationsHint')}
               </Text>
             </View>
+            <ArrowRight color={dashboardColors.subtitle} size={16} />
+          </Pressable>
+          <View className="mx-4 border-t border-dashboard-card-line" />
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push('/more/my-verification')}
+            className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
+          >
+            <Text className="flex-1 pr-3 text-[13px] font-semibold text-ink">
+              {t('review.myVerification')}
+            </Text>
             <ArrowRight color={dashboardColors.subtitle} size={16} />
           </Pressable>
         </Card>

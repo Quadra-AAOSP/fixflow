@@ -1,28 +1,36 @@
 import { sitePayload } from '@/utils/requestFields';
 import { reportIntakePayload } from '@/utils/reportIntake';
-import { request } from './api';
+import { AI_REQUEST_TIMEOUT_MS, request } from './api';
 import { REPORT_PHOTO_LIMIT, validateReportPhoto } from './reportPhotos';
 import type { CreateReportPayload, Report, ReportPage, ReportReporter, Site, SiteRule, SiteType, SitePayload, Subsite, SubsitePayload, SubsiteAlert } from '@/types/maintenance';
 
 export const listSites = () => request<Site[]>('/api/sites');
 export const listRules = (type: SiteType) => request<SiteRule[]>(`/api/site-rules?siteType=${encodeURIComponent(type)}`);
+export async function listReportPage(siteId: number, pageNumber = 0, signal?: AbortSignal) {
+  const page = await request<ReportPage>(`/api/reports?siteId=${siteId}&page=${pageNumber}&size=100`, { signal });
+  if (!Array.isArray(page.content) || page.page !== pageNumber || !Number.isInteger(page.totalPages) || page.totalPages < 0) {
+    throw new Error('The report paging response is incomplete. Please refresh the site.');
+  }
+  return page;
+}
 export const listReports = async (siteId: number, signal?: AbortSignal) => {
   const reports = new Map<number, Report>();
   let pageNumber = 0;
   let totalPages = 1;
   do {
-    const page = await request<ReportPage>(`/api/reports?siteId=${siteId}&page=${pageNumber}&size=100`, { signal });
-    if (!Array.isArray(page.content) || page.page !== pageNumber || !Number.isInteger(page.totalPages) || page.totalPages < 0) {
-      throw new Error('The report paging response is incomplete. Please refresh the site.');
-    }
+    const page = await listReportPage(siteId, pageNumber, signal);
     page.content.forEach(report => reports.set(report.id, report));
     totalPages = page.totalPages;
     pageNumber++;
   } while (pageNumber < totalPages);
   return [...reports.values()];
 };
-export const getReport = (id: number) => request<Report>(`/api/reports/${id}`);
-export const classifyReport = (id: number) => request<Report>(`/api/reports/${id}/classify`, { method: 'POST' });
+export const getReport = (id: number, signal?: AbortSignal) => request<Report>(`/api/reports/${id}`, { signal });
+export type ReportEdit = Pick<Report, 'description' | 'address' | 'reporterUrgency' | 'reporterReason'>;
+export const updateReport = (id: number, payload: ReportEdit) =>
+  request<Report>(`/api/reports/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+export const deleteReport = (id: number) => request<void>(`/api/reports/${id}`, { method: 'DELETE' });
+export const classifyReport = (id: number) => request<Report>(`/api/reports/${id}/classify`, { method: 'POST', timeoutMs: AI_REQUEST_TIMEOUT_MS });
 export const createReport = (payload: CreateReportPayload) => request<Report>('/api/reports', { method: 'POST', body: JSON.stringify(reportIntakePayload(payload)) });
 export function createReportWithPhotos(payload: CreateReportPayload, photos: File[]) {
   if (photos.length > REPORT_PHOTO_LIMIT) throw new Error('A report may have at most 5 photos.');

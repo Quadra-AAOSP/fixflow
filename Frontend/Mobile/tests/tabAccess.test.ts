@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { UserRole } from '../types';
 import {
   homeRouteForRole,
+  hiddenTabRoutes,
+  TAB_ROUTES,
   isTabVisible,
   isTechnicianForbiddenRoute,
   landingRedirectForRoute,
@@ -178,5 +180,17 @@ describe('landingRedirectForRoute', () => {
 
   it('ignores unauthenticated users', () => {
     expect(landingRedirectForRoute(null, '/workspace')).toBeNull();
+  });
+});
+
+
+describe('filesystem tab declarations', () => {
+  it('hides every non-visible route and the technician stack for every role', () => {
+    for (const role of ALL_ROLES) {
+      const hidden = hiddenTabRoutes(role);
+      expect(hidden).toContain('technician');
+      for (const tab of TAB_ROUTES) expect(hidden.includes(tab)).toBe(!isTabVisible(role, tab));
+      expect(TAB_ROUTES.filter(tab => !hidden.includes(tab))).toHaveLength(role === 'shop_manager' ? 3 : 4);
+    }
   });
 });

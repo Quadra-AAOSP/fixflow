@@ -18,6 +18,8 @@ import org.springframework.web.context.WebApplicationContext;
 
 import com.example.fixflow.domain.ContractStatus;
 import com.example.fixflow.domain.Site;
+import com.example.fixflow.domain.SiteAdminApplication;
+import com.example.fixflow.repository.SiteAdminApplicationRepository;
 import com.example.fixflow.domain.SiteType;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
@@ -36,6 +38,9 @@ class AuthApiIntegrationTest {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private SiteAdminApplicationRepository applications;
 
 	private MockMvc mockMvc;
 	private Site site;
@@ -124,29 +129,34 @@ class AuthApiIntegrationTest {
 	}
 
 	@Test
-	void siteAdminRegistrationRequiresSuperAdminApproval() throws Exception {
-		String body = """
-				{
-				  "email": "badadmin%s@example.com",
-				  "password": "password12345678",
-				  "firstName": "Bad",
-				  "lastName": "Admin",
-				  "role": "admin",
-				  "siteId": %d
-				}
-				""".formatted(System.nanoTime(), site.getId());
+	void publicAdminRegistrationIsRejected() throws Exception {
+		String email = "badadmin" + System.nanoTime() + "@example.com";
+		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"email":"%s","password":"password12345678","firstName":"Bad","lastName":"Admin","role":"admin","siteId":%d}
+						""".formatted(email, site.getId())))
+				.andExpect(status().isBadRequest());
+		org.assertj.core.api.Assertions.assertThat(userRepository.findByEmailIgnoreCase(email)).isEmpty();
+	}
 
-		var result = mockMvc.perform(post("/api/auth/register")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(body))
-				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.role").value("reporter"))
-				.andExpect(jsonPath("$.adminApplication.status").value("pending"))
-				.andReturn();
-		var json = new com.fasterxml.jackson.databind.ObjectMapper()
-				.readTree(result.getResponse().getContentAsString());
-		long id = json.get("adminApplication").get("id").asLong();
-		User applicant = userRepository.findById(json.get("id").asLong()).orElseThrow();
+	private User legacyApplicant() {
+		User applicant = new User();
+		applicant.setEmail("legacy-applicant-" + System.nanoTime() + "@example.com");
+		applicant.setFirstName("Legacy"); applicant.setLastName("Applicant");
+		applicant.setPasswordHash("unused"); applicant.setRole(UserRole.reporter); applicant.setSite(site);
+		return userRepository.save(applicant);
+	}
+
+	private SiteAdminApplication legacyApplication(User applicant) {
+		SiteAdminApplication application = new SiteAdminApplication();
+		application.setUser(applicant); application.setSite(site);
+		return applications.save(application);
+	}
+
+	@Test
+	void legacySiteAdminApplicationsRequireSuperAdminDecision() throws Exception {
+		User applicant = legacyApplicant();
+		long id = legacyApplication(applicant).getId();
 		mockMvc.perform(post("/api/admin/site-admin-applications/" + id + "/approve")
 				.with(user(new AppUserDetails(applicant)))).andExpect(status().isForbidden());
 		User superAdmin = new User();
@@ -161,16 +171,12 @@ class AuthApiIntegrationTest {
 				.orElseThrow().getRole()).isEqualTo(UserRole.admin);
 		mockMvc.perform(post("/api/admin/site-admin-applications/" + id + "/reject")
 				.with(user(new AppUserDetails(superAdmin)))).andExpect(status().isConflict());
-		var rejectedSignup = mockMvc.perform(post("/api/auth/register")
-				.contentType(MediaType.APPLICATION_JSON).content(body.replace("badadmin", "rejectedadmin")))
-				.andExpect(status().isCreated()).andReturn();
-		var rejected = new com.fasterxml.jackson.databind.ObjectMapper()
-				.readTree(rejectedSignup.getResponse().getContentAsString());
-		mockMvc.perform(post("/api/admin/site-admin-applications/"
-				+ rejected.get("adminApplication").get("id").asLong() + "/reject")
+		User rejected = legacyApplicant();
+		long rejectedId = legacyApplication(rejected).getId();
+		mockMvc.perform(post("/api/admin/site-admin-applications/" + rejectedId + "/reject")
 				.with(user(new AppUserDetails(superAdmin))))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.status").value("rejected"));
-		org.assertj.core.api.Assertions.assertThat(userRepository.findById(rejected.get("id").asLong())
+		org.assertj.core.api.Assertions.assertThat(userRepository.findById(rejected.getId())
 				.orElseThrow().getRole()).isEqualTo(UserRole.reporter);
 	}
 

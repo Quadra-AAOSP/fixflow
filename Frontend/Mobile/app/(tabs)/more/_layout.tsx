@@ -40,6 +40,7 @@ export default function MoreStackLayout() {
         name="notifications"
         options={{ title: t('more.menu.notificationsTitle') }}
       />
+      <Stack.Screen name="site-rules" options={{ title: t('more.menu.siteRulesTitle') }} />
       <Stack.Screen name="sites" options={{ title: t('more.menu.sitesTitle') }} />
       <Stack.Screen
         name="site-setup"
@@ -66,6 +67,7 @@ export default function MoreStackLayout() {
         options={{ title: t('more.menu.siteContractsTitle') }}
       />
       <Stack.Screen name="shop" options={{ headerShown: false }} />
+      <Stack.Screen name="shop-orders" options={{ title: t('orderManagement.title') }} />
       <Stack.Screen
         name="admin-dashboard"
         options={{ title: t('more.menu.adminDashboardTitle') }}

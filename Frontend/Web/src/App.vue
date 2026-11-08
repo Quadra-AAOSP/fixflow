@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { useAuth } from '@/composables/useAuth';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useLocale } from '@/i18n';
 import { usePageNavigation } from '@/composables/usePageNavigation';
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 usePageNavigation();
 
 const { isLoading, user } = useAuth();
 const { t } = useLocale();
-const accountScope = computed(() => `${user.value?.id ?? 'guest'}:${user.value?.role ?? ''}:${user.value?.siteId ?? ''}`);
+const route = useRoute();
+const router = useRouter();
+const accountScope = computed(() => `${user.value?.id ?? 'guest'}:${user.value?.role ?? ''}:${user.value?.siteId ?? ''}:${user.value?.applicationOnly ?? false}`);
+const restrictedRoute = computed(() => user.value?.applicationOnly && route.name !== 'application-access');
+watch(restrictedRoute, restricted => {
+  if (restricted && route.name) void router.replace({ name: 'application-access' });
+});
 </script>
 
 <template>
@@ -15,10 +23,7 @@ const accountScope = computed(() => `${user.value?.id ?? 'guest'}:${user.value?.
     v-if="isLoading"
     class="flex min-h-screen items-center justify-center bg-surface dark:bg-surface-dark"
   >
-    <span
-      class="inline-block h-8 w-8 animate-spin rounded-full border-2 border-primary border-r-transparent dark:border-primary-dark"
-      role="status"
-    ><span class="sr-only">{{ t('Loading') }}</span></span>
+    <LoadingStatus :label="t('Loading')" class="w-full max-w-2xl px-5" />
   </div>
-  <RouterView v-else :key="accountScope" />
+  <RouterView v-else-if="!restrictedRoute" :key="accountScope" />
 </template>

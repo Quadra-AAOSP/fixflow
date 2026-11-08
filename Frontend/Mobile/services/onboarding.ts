@@ -1,0 +1,30 @@
+import { api } from '@/lib/apiClient';
+
+export type SiteRequest = {
+  organization: string; siteName: string; siteType: string; address: string;
+  contactEmail: string; contactPhone: string; relationship: string;
+  adminFirstName: string; adminLastName: string; adminEmail: string; adminPhone: string;
+};
+export type ApplicationStatus = { status: string; message: string | null; siteId: number | null; setupComplete: boolean };
+export type SiteReview = SiteRequest & Omit<ApplicationStatus, 'setupComplete'> & { id: number; adminId: number | null; createdAt: string };
+export type Audit = { id: number; action?: string; snapshot: string; createdAt: string };
+const applications = '/api/site-applications';
+const reviews = '/api/admin/site-applications';
+export const submitSite = (body: SiteRequest) => api.post<{ trackingToken: string; status: string }>(applications, body);
+export const trackSite = (token: string) => api.get<ApplicationStatus>(`${applications}/status`, { headers: { 'X-Application-Token': token.trim() } });
+export const correctSite = (token: string, body: SiteRequest) => api.put<ApplicationStatus>(`${applications}/information`, body, { headers: { 'X-Application-Token': token.trim() } });
+export const setupAdmin = (token: string, password: string) => api.post<void>(`${applications}/setup`, { password }, { headers: { 'X-Setup-Token': token.trim() } });
+export const listSites = () => api.get<SiteReview[]>(reviews);
+export const siteHistory = (id: number) => api.get<Audit[]>(`${reviews}/${id}/history`);
+export const decideSite = (id: number, decision: 'approve' | 'reject' | 'request_information', reason: string) => api.post<SiteReview>(`${reviews}/${id}/decision`, { decision, reason });
+export const issueSetup = (id: number) => api.post<{ setupToken: string; expiresAt: string; delivery: string }>(`${reviews}/${id}/setup-invitation`);
+export type VerificationInput = { email: string; phone: string; trades: string; experience: string; qualifications: string };
+export type Verification = VerificationInput & { technicianId: number; status: string; version: number; reason?: string; identityChecked: boolean; emailChecked: boolean; phoneChecked: boolean; tradeChecked: boolean };
+export type OwnVerification = Omit<Verification, keyof VerificationInput | 'version'> & { [K in keyof VerificationInput]: string | null } & { version: number | null };
+const verification = '/api/technician-verification/me';
+const verificationReviews = '/api/admin/technician-verifications';
+export const ownVerification = () => api.get<OwnVerification>(verification);
+export const submitVerification = (body: VerificationInput) => api.post<Verification>(verification, body);
+export const listVerifications = () => api.get<Verification[]>(verificationReviews);
+export const verificationHistory = (id: number) => api.get<Audit[]>(`${verificationReviews}/${id}/history`);
+export const decideVerification = (id: number, body: Pick<Verification, 'status' | 'version' | 'identityChecked' | 'emailChecked' | 'phoneChecked' | 'tradeChecked'> & { reason: string }) => api.post<Verification>(`${verificationReviews}/${id}/decision`, body);

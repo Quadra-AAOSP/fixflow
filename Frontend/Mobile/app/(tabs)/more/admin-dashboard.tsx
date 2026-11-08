@@ -74,9 +74,7 @@ export default function AdminDashboardScreen() {
 
         {loading ? (
           <Card className="mb-4">
-            <Text className="p-4 text-center text-dashboard-subtitle">
-              {t('adminDashboard.loading')}
-            </Text>
+            <StateView variant="loading" title={t('adminDashboard.loading')} />
           </Card>
         ) : (
           <>

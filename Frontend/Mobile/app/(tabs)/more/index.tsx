@@ -2,9 +2,9 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import {
   ArrowRight,
+  Briefcase,
   Building2,
   FileText,
-  Moon,
   NotepadText,
   ShieldCheck,
   ShoppingBag,
@@ -42,9 +42,10 @@ type MenuItem = {
  * scattered role-ifs in the render path, so future additions can't leak.
  */
 type ItemKey =
-  | 'notifications'
+  | 'myVerification' | 'siteApplications' | 'verificationReviews' | 'marketplace'
   | 'myAdminApplication'
   | 'siteSetup'
+  | 'siteRules'
   | 'sites'
   | 'teamAccess'
   | 'technicians'
@@ -52,7 +53,7 @@ type ItemKey =
   | 'contractsTechnician'
   | 'contractsAdmin'
   | 'shopManagement'
-  | 'shopCustomer';
+  | 'shopCustomer' | 'shopOrders';
 
 /** Which roles may see which item keys. Matches backend source of truth:
  *
@@ -74,7 +75,10 @@ type ItemKey =
  *  Anything that needs both a role match AND a capability flag (e.g. user
  *  has an admin application pending) also has an ItemGuard below. */
 const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
-  notifications: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
+  myVerification: ['technician'],
+  marketplace: ['admin', 'technician'],
+  siteApplications: ['super_admin'],
+  verificationReviews: ['super_admin'],
 
   // A reporter who applied to be site admin may track the status — guard
   // below requires user.adminApplication !== null.
@@ -84,6 +88,7 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   siteSetup: ['super_admin'],
   // Sites = edit / manage existing sites → admin (theirs) + super_admin (all).
   sites: ['admin', 'super_admin'],
+  siteRules: ['admin', 'super_admin'],
 
   // TeamAccess = provision users via /api/admin/users → admin + super_admin.
   // Admin can only provision staff at their own site (backend enforces scope).
@@ -103,9 +108,10 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
 
   // /api/admin/shop/** → SUPER_ADMIN, SHOP_MANAGER only.
   shopManagement: ['super_admin', 'shop_manager'],
+  shopOrders: ['super_admin', 'shop_manager'],
 
   // Everyone can browse and buy from the shop.
-  shopCustomer: ['reporter', 'technician', 'staff', 'admin', 'super_admin', 'shop_manager'],
+  shopCustomer: ['reporter', 'technician', 'staff', 'admin', 'super_admin'],
 };
 
 function itemVisible(key: ItemKey, role: UserRole, guards: ItemGuards): boolean {
@@ -139,12 +145,10 @@ export default function MoreScreen() {
   };
 
   const allItems: Record<ItemKey, MenuItem> = {
-    notifications: {
-      icon: Moon,
-      titleKey: 'more.menu.notificationsTitle',
-      subtitleKey: 'more.menu.notificationsSubtitle',
-      onPress: () => router.push('/more/notifications'),
-    },
+    myVerification: { icon: ShieldCheck, titleKey: 'review.myVerification', subtitleKey: null, onPress: () => router.push('/more/my-verification') },
+    marketplace: { icon: Briefcase, titleKey: 'marketplace.title', subtitleKey: null, onPress: () => router.push('/more/marketplace') },
+    siteApplications: { icon: Building2, titleKey: 'review.siteReviews', subtitleKey: null, onPress: () => router.push('/more/site-applications') },
+    verificationReviews: { icon: UserCheck, titleKey: 'review.verificationReviews', subtitleKey: null, onPress: () => router.push('/more/verification-reviews') },
     myAdminApplication: {
       icon: ShieldCheck,
       titleKey: 'more.menu.myAdminApplicationTitle',
@@ -157,6 +161,7 @@ export default function MoreScreen() {
       subtitleKey: 'more.menu.siteSetupSubtitleRequired',
       onPress: () => router.push('/more/site-setup'),
     },
+    siteRules: { icon: FileText, titleKey: 'more.menu.siteRulesTitle', subtitleKey: null, onPress: () => router.push('/more/site-rules') },
     sites: {
       icon: Users,
       titleKey: 'more.menu.sitesTitle',
@@ -199,6 +204,7 @@ export default function MoreScreen() {
       subtitleKey: 'more.menu.shopManagementSubtitle',
       onPress: () => router.push('/more/shop-management'),
     },
+    shopOrders: { icon: NotepadText, titleKey: 'orderManagement.title', subtitleKey: null, onPress: () => router.push('/more/shop-orders') },
     shopCustomer: {
       icon: ShoppingBag,
       titleKey: 'more.menu.shopTitle',
@@ -209,17 +215,20 @@ export default function MoreScreen() {
 
   // Group keys into their sections, then filter each by itemVisible.
   // Each section drops out entirely when it has zero visible items.
-  const workspaceKeys: ItemKey[] = ['notifications', 'contractsTechnician'];
+  const workspaceKeys: ItemKey[] = ['contractsTechnician', 'myVerification', 'marketplace'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
     'siteSetup',
     'sites',
+    'siteRules',
     'teamAccess',
     'technicians',
     'adminApplications',
+    'siteApplications',
+    'verificationReviews',
     'contractsAdmin',
   ];
-  const shopKeys: ItemKey[] = ['shopManagement', 'shopCustomer'];
+  const shopKeys: ItemKey[] = ['shopManagement', 'shopOrders', 'shopCustomer'];
 
   const buildSection = (
     sectionKey: string,

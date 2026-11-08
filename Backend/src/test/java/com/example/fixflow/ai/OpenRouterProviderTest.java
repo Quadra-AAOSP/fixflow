@@ -79,6 +79,20 @@ class OpenRouterProviderTest {
     }
 
     @Test
+    void acceptsProviderMetadataAndOneFencedJsonResponse() throws Exception {
+        var json = new ObjectMapper();
+        var result = json.createObjectNode().put("provider", "test upstream");
+        result.putObject("usage").put("completion_tokens_details", "extra metadata");
+        result.putArray("choices").addObject().put("native_finish_reason", "stop")
+                .putObject("message").put("reasoning", "metadata")
+                .put("content", "```json\n{\"category\":\"plumbing\",\"urgency\":\"low\"}\n```");
+        overrideResponse = json.writeValueAsString(result);
+        var request = ClassificationRequest.builder().description("The sink leaks.").siteType("school")
+                .allowedCategories(List.of("plumbing")).build();
+        assertEquals("plumbing", provider("test-api-key").classifyText(request).getCategory());
+    }
+
+    @Test
     void rejectsClassificationWhenApiKeyIsMissing() {
         OpenRouterProvider provider = provider("");
         ClassificationRequest request = ClassificationRequest.builder()

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useLocale } from '@/i18n';
+defineOptions({ name: 'UiButton' });
 const { t } = useLocale();
 defineProps<{
   label: string;
