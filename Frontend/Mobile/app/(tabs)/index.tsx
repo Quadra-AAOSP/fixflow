@@ -21,7 +21,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -51,6 +51,8 @@ import { listReports } from '@/services/reports';
 
 // Reporter-specific dashboard components and logic
 import { useCurrentSite } from '@/stores/site';
+import { useNotifications } from '@/stores/notifications';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import type { Report, ReportStatus } from '@/types';
 import { humanize, relativeTime } from '@/utils/format';
 import {
@@ -170,6 +172,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { site } = useCurrentSite();
+  const { unread } = useNotifications();
 
   const [reports, setReports] = useState<Report[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -207,6 +210,20 @@ export default function HomeScreen() {
     useCallback(() => {
       void load();
     }, [load]),
+  );
+
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load();
+    }, 600);
+  }, [load]);
+  useRealtimeEvents(
+    site ? `/sites/${site.id}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
   );
 
   async function onRefresh() {
@@ -453,7 +470,19 @@ export default function HomeScreen() {
             onPress={() => router.push('/more/notifications')}
             className="active:opacity-70"
           >
-            <Bell color={dashboardColors.subtitle} size={18} strokeWidth={1.9} />
+            <View>
+              <Bell color={dashboardColors.subtitle} size={18} strokeWidth={1.9} />
+              {unread > 0 ? (
+                <View
+                  className="absolute -right-2 -top-1.5 min-w-[14px] items-center justify-center rounded-full px-1"
+                  style={{ backgroundColor: dashboardColors.statCoralDeep }}
+                >
+                  <Text className="text-[8px] font-bold text-white">
+                    {unread > 9 ? '9+' : unread}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </Pressable>
         </View>
 
@@ -736,6 +765,7 @@ function SiteRow({
   onRefresh: () => void;
   onNotifications: () => void;
 }) {
+  const { unread } = useNotifications();
   const syncLabel = loading
     ? t('home.sync.refreshing')
     : error
@@ -760,7 +790,19 @@ function SiteRow({
           onPress={onNotifications}
           className="active:opacity-70"
         >
-          <Bell color={dashboardColors.subtitle} size={16} strokeWidth={1.9} />
+          <View>
+            <Bell color={dashboardColors.subtitle} size={16} strokeWidth={1.9} />
+            {unread > 0 ? (
+              <View
+                className="absolute -right-2 -top-1.5 min-w-[14px] items-center justify-center rounded-full px-1"
+                style={{ backgroundColor: dashboardColors.statCoralDeep }}
+              >
+                <Text className="text-[8px] font-bold text-white">
+                  {unread > 9 ? '9+' : unread}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </Pressable>
         <Pressable
           accessibilityRole="button"

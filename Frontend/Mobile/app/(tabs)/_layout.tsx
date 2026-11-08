@@ -9,6 +9,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { SiteProvider } from '@/stores/site';
+import { NotificationsProvider } from '@/stores/notifications';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
@@ -133,7 +134,8 @@ export default function TabLayout() {
 
   return (
     <SiteProvider>
-      <Tabs
+      <NotificationsProvider>
+        <Tabs
         initialRouteName={visibleTabs[0].name}
         screenOptions={{
           tabBarActiveTintColor: palette.tabIconSelected,
@@ -165,7 +167,8 @@ export default function TabLayout() {
             }}
           />
         ))}
-      </Tabs>
+        </Tabs>
+      </NotificationsProvider>
     </SiteProvider>
   );
 }
