@@ -170,7 +170,7 @@ export default function ReportsScreen() {
     if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
     realtimeTimer.current = setTimeout(() => {
       realtimeTimer.current = null;
-      void load(true);
+      void load(0);
     }, 600);
   }, [load]);
   useRealtimeEvents(
