@@ -7,6 +7,8 @@ import type {
   ReportPage,
   ReportPhoto,
   ReportReporter,
+  UpdateReportPayload,
+  Urgency,
   VisionJob,
 } from '@/types';
 
@@ -74,6 +76,37 @@ export function claimReport(id: number): Promise<Report> {
   return api.post<Report>(endpoints.reports.claim(id));
 }
 
+/** Assigned technician starts work (assigned/reopened → in_progress). */
+export function startReport(id: number): Promise<Report> {
+  return api.post<Report>(endpoints.reports.start(id));
+}
+
+/**
+ * Two-step resolution, step 1: the assigned technician marks the work complete.
+ * The report moves to `resolved_pending_confirmation` and the reporter must
+ * confirm or reopen it.
+ */
+export function resolveReport(id: number, description: string): Promise<Report> {
+  return api.post<Report>(endpoints.reports.resolve(id), { description });
+}
+
+/** Staff/admin final-urgency override with a required rationale. */
+export function overrideUrgency(
+  id: number,
+  urgency: Urgency,
+  reason: string,
+): Promise<Report> {
+  return api.patch<Report>(endpoints.reports.urgency(id), { urgency, reason });
+}
+
+/** Reporter/ops edit of a still-editable report. */
+export function updateReport(
+  id: number,
+  payload: UpdateReportPayload,
+): Promise<Report> {
+  return api.patch<Report>(endpoints.reports.update(id), payload);
+}
+
 export function confirmReport(id: number): Promise<Report> {
   return api.post<Report>(
     endpoints.reports.confirm.replace('{id}', String(id)),
@@ -118,19 +151,23 @@ export function getReportPhotos(reportId: number): Promise<ReportPhoto[]> {
 }
 
 /*
- * Endpoints NOT exposed here yet — backend audit dependencies #1, #2, #4, #6:
+ * Backend contract notes (verified against the controllers):
  *
- *   PATCH  /api/reports/{id}/status
- *   PATCH  /api/reports/{id}/urgency
- *   POST   /api/reports/{id}/reassign
- *   GET    /api/technicians/me/availability
- *   PUT    /api/technicians/me/availability
- *   GET    /api/reports/assigned-to-me
- *   GET    /api/reports/claimable
- *   GET    /api/technicians
- *   GET    /api/technician-skills
- *   GET    /api/technician-contracts
+ *   POST   /api/reports/{id}/start          → in_progress (assigned tech)
+ *   POST   /api/reports/{id}/resolve        → resolved_pending_confirmation
+ *   POST   /api/reports/{id}/confirm        → confirmed (reporter/participant)
+ *   POST   /api/reports/{id}/reopen         → reopened (reporter/participant)
+ *   PATCH  /api/reports/{id}/urgency        → final urgency override (staff/admin)
+ *   PATCH  /api/reports/{id}                → field edit while `editable`
+ *   POST   /api/reports/{id}/assign         → assign or reassign (staff/admin)
+ *   POST   /api/reports/{id}/claim          → contracted technician self-claim
+ *   GET/PUT /api/technicians/me/availability
  *
- * Each is added to this file only after the backend lands and the
- * backend team confirms the request/response shape.
+ * Still NOT implemented by the backend, so no screen may depend on them:
+ *   PATCH /api/reports/{id}/status, POST /api/reports/{id}/reassign
+ *   GET /api/reports/assigned-to-me, GET /api/reports/claimable
+ *
+ * Server-side concurrency: workflow transitions load the report with a
+ * pessimistic write lock, so simultaneous confirm/reopen/assign/claim calls
+ * cannot both commit.
  */

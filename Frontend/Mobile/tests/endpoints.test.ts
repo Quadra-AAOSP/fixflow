@@ -61,6 +61,8 @@ describe('endpoint registry', () => {
         'technicianContracts.create',
         'technicianContracts.list',
       ],
+      // GET `/api/reports/{id}` and PATCH `/api/reports/{id}` share a path.
+      '/api/reports/1': ['reports.byId', 'reports.update'],
     };
 
     const duplicates = [...byPath.entries()]
@@ -82,7 +84,6 @@ describe('endpoint registry', () => {
     // rather than treated as absent.
     const banned = [
       '/api/reports/{id}/status',
-      '/api/reports/{id}/urgency',
       '/api/reports/{id}/reassign',
       '/api/reports/assigned-to-me',
       '/api/reports/claimable',
@@ -94,6 +95,17 @@ describe('endpoint registry', () => {
 
     expect(endpoints.technicianSkills.create).toBe('/api/technician-skills');
     expect(endpoints.technicianContracts.create).toBe('/api/technician-contracts');
+  });
+
+  it('keeps the technician resolution + triage endpoints wired', () => {
+    expect(endpoints.reports.start(7)).toBe('/api/reports/7/start');
+    expect(endpoints.reports.resolve(7)).toBe('/api/reports/7/resolve');
+    expect(endpoints.reports.urgency(7)).toBe('/api/reports/7/urgency');
+    expect(endpoints.reports.update(7)).toBe('/api/reports/7');
+    expect(endpoints.reports.claim(7)).toBe('/api/reports/7/claim');
+    expect(endpoints.technicians.myAvailability).toBe(
+      '/api/technicians/me/availability',
+    );
   });
 
   it('keeps the Phase 4–5 report lifecycle endpoints wired', () => {
