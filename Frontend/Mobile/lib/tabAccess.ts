@@ -11,9 +11,9 @@ export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'staff
  *   /api/admin/shop/**   → SUPER_ADMIN, SHOP_MANAGER only (shop management)
  *   /api/**              → authenticated (everyone)
  *
- * Tab bar (fixed 4-slot order — first visible tab = home):
+ * Tab bar (at most 4 slots — first visible tab = home):
  *
- *   reporter      → Home (index), Reports,            More,       Profile
+ *   reporter      → Home (index), Reports,                        Profile
  *   technician    → Workspace,    Assignments,       More(Shop), Profile
  *   staff         → Home (index), Reports,            More,       Profile
  *   admin (site)  → Home (index), Reports,            More,       Profile
@@ -47,9 +47,9 @@ export function isTabVisible(role: UserRole, tab: TabName): boolean {
     case 'reports':
       return role === 'reporter' || role === 'staff' || role === 'admin' || role === 'super_admin';
 
-    // ── More tab — everyone gets it (contents differ by role) ─────────────
+    // ── More tab — roles with additional tools ─────────────
     case 'more':
-      return true;
+      return role !== 'reporter';
 
     // ── Profile — everyone ───────────────────────────────────────────────
     case 'profile':
@@ -96,7 +96,7 @@ export function landingRedirectForRoute(role: UserRole | null, pathname: string)
 
   const match = PATH_TO_TAB.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
   const tab = match ? match[1] : 'index';
-  if (!isTabVisible(role, tab)) {
+  if (!isTabVisible(role, tab) && !(role === 'reporter' && tab === 'more')) {
     return home;
   }
   return null;

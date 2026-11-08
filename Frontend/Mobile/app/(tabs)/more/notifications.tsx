@@ -12,6 +12,7 @@ import { listShopNotifications } from '@/services/shop';
 import type { ShopNotification } from '@/types/shop';
 import { toErrorMessage } from '@/lib/apiClient';
 import { listNotifications, type ReportNotice } from '@/services/notifications';
+import { markNoticesSeen } from '@/lib/notificationSeen';
 import { formatDate } from '@/utils/format';
 
 export default function NotificationsScreen() {
@@ -20,6 +21,7 @@ export default function NotificationsScreen() {
 }
 
 function NotificationFeeds() {
+  const { user } = useAuth();
   const { t } = useTranslation('common');
   const [notices, setNotices] = useState<ReportNotice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +39,7 @@ function NotificationFeeds() {
       if (version !== requestVersion.current) return;
       setNotices(current => nextPage === 0 ? result.content
         : [...current, ...result.content.filter(item => !current.some(notice => notice.id === item.id))]);
+      if (user?.id != null) void markNoticesSeen(user.id, 'reports', result.content);
       setHasMore(result.hasMore);
       setPage(nextPage);
     } catch (err) {
@@ -46,7 +49,7 @@ function NotificationFeeds() {
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
-  }, [t]);
+  }, [t, user?.id]);
 
   useFocusEffect(useCallback(() => {
     void load(0);
@@ -81,6 +84,7 @@ function NotificationFeeds() {
 }
 
 function ShopNotices() {
+  const { user } = useAuth();
   const { t } = useTranslation('common');
   const router = useRouter();
   const [notices, setNotices] = useState<ShopNotification[]>([]);
@@ -96,11 +100,12 @@ function ShopNotices() {
       const result = await listShopNotifications(next);
       if (token !== version.current) return;
       setNotices(current => next === 0 ? result.content : [...current, ...result.content.filter(item => !current.some(old => old.id === item.id))]);
+      if (user?.id != null) void markNoticesSeen(user.id, 'shop', result.content);
       setPage(next); setHasMore(result.hasMore);
     } catch {
       if (token === version.current) { setNotices([]); setHasMore(false); setError(true); }
     } finally { if (token === version.current) setLoading(false); }
-  }, []);
+  }, [user?.id]);
   useFocusEffect(useCallback(() => {
     setNotices([]); setHasMore(false); setPage(0); void load(0);
     return () => { version.current++; };

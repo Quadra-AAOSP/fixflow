@@ -268,6 +268,7 @@
       "accessibilityLabel": "刷新面板"
     },
     "notifications": {
+      "unreadAccessibilityLabel": "通知，有新通知",
       "accessibilityLabel": "打开通知"
     },
     "applicationBanner": {
