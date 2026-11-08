@@ -32,6 +32,7 @@ import com.example.fixflow.dto.ReportPageResponse;
 import com.example.fixflow.dto.ReportPhotoResponse;
 import com.example.fixflow.dto.ReportReporterResponse;
 import com.example.fixflow.dto.ReportResponse;
+import com.example.fixflow.dto.UpdateReportRequest;
 import com.example.fixflow.repository.ReportPhotoRepository;
 import com.example.fixflow.repository.ReportReporterRepository;
 import com.example.fixflow.repository.ReportRepository;
@@ -237,6 +238,62 @@ public class ReportService {
 
         }
 		return response(report, actor);
+	}
+
+	/**
+	 * Field edit of a still-editable report. The creator and site operators may
+	 * edit while the report is in an early (unresolved) state; the transition
+	 * history records the edit so work history is preserved.
+	 */
+	@Transactional
+	public ReportResponse update(Long id, UpdateReportRequest request, AppUserDetails actor) {
+		Report report = reportRepository.findForVisionUpdate(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
+		boolean creator = report.getCreatedBy() != null
+				&& report.getCreatedBy().getId().equals(actor.getId());
+		boolean operator = actor.getRole() == UserRole.staff
+				|| actor.getRole() == UserRole.admin
+				|| actor.getRole() == UserRole.super_admin;
+		if (!creator && !operator) {
+			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to edit this report");
+		}
+		if (!report.isEditable()) {
+			throw new ApiException(HttpStatus.CONFLICT.value(), "This report can no longer be edited");
+		}
+		ReportStatus status = report.getStatus();
+		if (status != ReportStatus.open && status != ReportStatus.routed
+				&& status != ReportStatus.reopened && status != ReportStatus.escalated) {
+			throw new ApiException(HttpStatus.CONFLICT.value(),
+					"Report cannot be edited once work has started");
+		}
+		if (request.description() != null) {
+			if (request.description().isBlank()) {
+				throw new ApiException(HttpStatus.BAD_REQUEST.value(), "Description cannot be blank");
+			}
+			report.setDescription(request.description().trim());
+		}
+		if (request.address() != null) {
+			report.setAddress(blankToNull(request.address()));
+		}
+		if (request.category() != null) {
+			report.setCategory(categoryTaxonomyService.requireAllowedCategory(
+					report.getSite().getType(), request.category()));
+		}
+		if (request.specialty() != null) {
+			report.setSpecialty(blankToNull(request.specialty()));
+		}
+		if (request.reporterUrgency() != null) {
+			report.setReporterUrgency(request.reporterUrgency());
+		}
+		if (request.visibility() != null) {
+			report.setVisibility(request.visibility());
+			}
+		Report saved = reportRepository.saveAndFlush(report);
+		appendStatusHistory(saved, status, status, loadUser(actor.getId()), "Report edited");
+		publishStatusTransition(saved, status, com.example.fixflow.realtime.ReportDomainEvent.STATUS_CHANGE);
+		return response(saved, actor);
 	}
 
 	@Transactional

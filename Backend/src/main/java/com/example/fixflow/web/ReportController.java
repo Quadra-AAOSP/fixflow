@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,6 +25,7 @@ import com.example.fixflow.dto.ReopenReportRequest;
 import com.example.fixflow.dto.ReportPageResponse;
 import com.example.fixflow.dto.ReportReporterResponse;
 import com.example.fixflow.dto.ReportResponse;
+import com.example.fixflow.dto.UpdateReportRequest;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.service.ReportService;
 
@@ -92,6 +94,15 @@ public class ReportController {
 	@GetMapping("/{id}")
 	public ReportResponse get(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
 		return reportService.get(id, principal);
+	}
+
+	@PatchMapping("/{id}")
+	public ReportResponse update(
+			@PathVariable Long id,
+			@Valid @RequestBody UpdateReportRequest request,
+			@AuthenticationPrincipal AppUserDetails principal
+	) {
+		return reportService.update(id, request, principal);
 	}
 
 	@PostMapping("/{id}/classify")
