@@ -1,5 +1,5 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,8 +13,11 @@ import {
 } from 'react-native';
 import {
   ArrowLeft,
+  CheckCircle2,
   ClipboardList,
   Lock,
+  Pencil,
+  Play,
   RefreshCw,
   Sparkles,
   UserPlus,
@@ -28,6 +31,7 @@ import { ReportAssistantChat } from '@/components/chat/ReportAssistantChat';
 import { ModalSheet } from '@/components/ui/ModalSheet';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { TextField } from '@/components/ui/TextField';
 import { dashboardColors } from '@/constants/theme';
@@ -42,9 +46,13 @@ import {
   getVisionJobStatus,
   joinReport,
   listReporters,
+  overrideUrgency,
   reopenReport,
+  resolveReport,
+  startReport,
   triggerVisionProcessing,
   getReportPhotos,
+  updateReport,
 } from '@/services/reports';
 
 // NOTE: The backend does not currently have a dedicated 'leaveReport' endpoint.
@@ -73,6 +81,13 @@ import type {
 } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
+import {
+  canEditReport,
+  canTechnicianResolve,
+  canTechnicianStart,
+  isAssignedToMe,
+} from '@/utils/reportActions';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 
 /** A selectable assignment candidate (server ranking or directory-derived). */
 type AssignmentCandidate = {
@@ -127,6 +142,32 @@ export default function ReportDetailScreen() {
   const [visionJob, setVisionJob] = useState<VisionJob | null>(null);
   const [visionLoading, setVisionLoading] = useState(false);
   const [visionError, setVisionError] = useState<string | null>(null);
+  const visionPollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const visionAttempts = useRef(0);
+
+  // Two-step resolution (technician) + triage override (staff/admin).
+  const [starting, setStarting] = useState(false);
+  const [resolveVisible, setResolveVisible] = useState(false);
+  const [resolveNote, setResolveNote] = useState('');
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [urgencyVisible, setUrgencyVisible] = useState(false);
+  const [urgencyDraft, setUrgencyDraft] = useState<Urgency>('medium');
+  const [urgencyReason, setUrgencyReason] = useState('');
+  const [urgencyError, setUrgencyError] = useState<string | null>(null);
+  const [urgencySaving, setUrgencySaving] = useState(false);
+
+  // Field edit.
+  const [editVisible, setEditVisible] = useState(false);
+  const [editDescription, setEditDescription] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editSpecialty, setEditSpecialty] = useState('');
+  const [editUrgency, setEditUrgency] = useState<Urgency>('medium');
+  const [editVisibility, setEditVisibility] = useState<'public' | 'private'>('public');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     if (!Number.isInteger(reportId) || reportId <= 0) {
@@ -201,34 +242,81 @@ export default function ReportDetailScreen() {
     [reportId],
   );
 
+  const stopVisionPolling = useCallback(() => {
+    if (visionPollTimer.current !== null) {
+      clearInterval(visionPollTimer.current);
+      visionPollTimer.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => stopVisionPolling(), [stopVisionPolling]);
+
+  /**
+   * Non-blocking photo analysis: the trigger request returns immediately and
+   * the job is polled in the background while the badge reflects its state.
+   * The technician/reporter can keep using the screen meanwhile.
+   */
+  const pollVisionJob = useCallback(
+    async (jobId: string) => {
+      try {
+        const next = await getVisionJobStatus(reportId, jobId);
+        setVisionJob(next);
+        if (next.status === 'completed') {
+          stopVisionPolling();
+          await load();
+        } else if (next.status === 'failed') {
+          stopVisionPolling();
+          setVisionError(t('reports.detail.vision.failed'));
+        } else {
+          visionAttempts.current += 1;
+          if (visionAttempts.current >= 30) {
+            stopVisionPolling();
+            setVisionError(t('reports.detail.vision.timedOut'));
+          }
+        }
+      } catch {
+        stopVisionPolling();
+        setVisionError(t('reports.detail.vision.failed'));
+      }
+    },
+    [reportId, load, stopVisionPolling, t],
+  );
+
   const analyzePhotos = useCallback(async () => {
     if (visionLoading) return;
     setVisionLoading(true);
     setVisionError(null);
     try {
-      let job = await triggerVisionProcessing(reportId);
+      const job = await triggerVisionProcessing(reportId);
       setVisionJob(job);
-      // Poll until the background job settles, then refresh the report so the
-      // new AI assessment replaces the masked one.
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        if (job.status === 'completed' || job.status === 'failed') break;
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        job = await getVisionJobStatus(reportId, job.id);
-        setVisionJob(job);
-      }
+      visionAttempts.current = 0;
+      stopVisionPolling();
       if (job.status === 'completed') {
         await load();
+      } else if (job.status !== 'failed') {
+        visionPollTimer.current = setInterval(() => {
+          void pollVisionJob(job.id);
+        }, 2000);
       } else {
         setVisionError(t('reports.detail.vision.failed'));
       }
     } catch (err) {
+      // 404/501/503 mean the vision service is not configured on this server:
+      // that is an "unavailable" state, not a transient failure.
+      const unavailable =
+        err instanceof ApiError &&
+        (err.status === 404 || err.status === 501 || err.status === 503);
       setVisionError(
-        err instanceof ApiError ? err.message : t('reports.detail.vision.failed'),
+        unavailable
+          ? t('reports.detail.vision.unavailable')
+          : err instanceof ApiError
+            ? err.message
+            : t('reports.detail.vision.failed'),
       );
     } finally {
       setVisionLoading(false);
     }
-  }, [reportId, visionLoading, load, t]);
+  }, [reportId, visionLoading, load, stopVisionPolling, pollVisionJob, t]);
 
   const confirmAnalyzePhotos = useCallback(() => {
     if (visionLoading) return;
@@ -251,6 +339,29 @@ export default function ReportDetailScreen() {
     useCallback(() => {
       void load();
     }, [load]),
+  );
+
+  // Live status/assignment events: the detail reloads within ~400 ms of a
+  // server commit. Falls back to polling when the socket is unavailable.
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load();
+    }, 400);
+  }, [load]);
+
+  useRealtimeEvents(
+    Number.isInteger(reportId) && reportId > 0 ? `/reports/${reportId}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
+  );
+
+  useEffect(
+    () => () => {
+      if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    },
+    [],
   );
 
   const isReportManager =
@@ -444,6 +555,265 @@ export default function ReportDetailScreen() {
     }
   }
 
+  /**
+   * Reassignment is the same server action as assignment, but it moves a job
+   * away from a technician — require an explicit confirmation.
+   */
+  function requestAssign() {
+    if (selectedTechnicianId === null) {
+      setActionError(t('reports.detail.assignSelectFirst'));
+      return;
+    }
+    if (!assignmentCandidates.some((row) => row.technicianId === selectedTechnicianId)) {
+      setActionError(t('reports.detail.assignSelectFirst'));
+      return;
+    }
+    if (
+      report &&
+      report.assignedTechnicianId !== null &&
+      report.assignedTechnicianId === selectedTechnicianId
+    ) {
+      setActionError(t('reports.detail.assignSameTechnician'));
+      return;
+    }
+    if (report && report.assignedTechnicianId !== null) {
+      Alert.alert(
+        t('reports.detail.assignReassignConfirmTitle'),
+        t('reports.detail.assignReassignConfirmBody', {
+          from: technicianName(report.assignedTechnicianId),
+          to: technicianName(selectedTechnicianId),
+        }),
+        [
+          { text: t('reports.detail.reopen.cancel'), style: 'cancel' },
+          {
+            text: t('reports.detail.assignReassignConfirmAction'),
+            style: 'destructive',
+            onPress: () => {
+              void onAssign();
+            },
+          },
+        ],
+      );
+      return;
+    }
+    void onAssign();
+  }
+
+  /** Technician: begin work. */
+  async function onStartWork() {
+    setActionError(null);
+    setActionMessage(null);
+    setStarting(true);
+    try {
+      const updated = await startReport(reportId);
+      setReport(updated);
+      setActionMessage(t('reports.detail.tech.started'));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      }
+      if (err instanceof ApiError && err.status === 409) {
+        setActionError(t('reports.detail.tech.startWrongStatus'));
+      } else {
+        setActionError(
+          toErrorMessage(err, { fallback: t('reports.detail.tech.startFailed') }),
+        );
+      }
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  function openResolveModal() {
+    setActionError(null);
+    setActionMessage(null);
+    setResolveNote('');
+    setResolveError(null);
+    setResolveVisible(true);
+  }
+
+  async function performResolve(note: string) {
+    setResolving(true);
+    try {
+      const updated = await resolveReport(reportId, note);
+      setReport(updated);
+      setResolveVisible(false);
+      setResolveNote('');
+      setActionMessage(t('reports.detail.tech.resolved'));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      }
+      if (err instanceof ApiError && err.status === 409) {
+        setResolveError(t('reports.detail.tech.resolveWrongStatus'));
+      } else if (err instanceof ApiError && err.status === 400) {
+        setResolveError(t('reports.detail.tech.noteRequired'));
+      } else {
+        setResolveError(
+          toErrorMessage(err, { fallback: t('reports.detail.tech.resolveFailed') }),
+        );
+      }
+    } finally {
+      setResolving(false);
+    }
+  }
+
+  /** Marking work complete is irreversible from the technician's side. */
+  function submitResolve() {
+    const trimmed = resolveNote.trim();
+    if (trimmed.length === 0) {
+      setResolveError(t('reports.detail.tech.noteRequired'));
+      return;
+    }
+    if (trimmed.length > 10000) {
+      setResolveError(t('reports.detail.tech.noteTooLong'));
+      return;
+    }
+    setResolveError(null);
+    Alert.alert(
+      t('reports.detail.tech.resolveConfirmTitle'),
+      t('reports.detail.tech.resolveConfirmBody'),
+      [
+        { text: t('reports.detail.reopen.cancel'), style: 'cancel' },
+        {
+          text: t('reports.detail.tech.resolveConfirmAction'),
+          onPress: () => {
+            void performResolve(trimmed);
+          },
+        },
+      ],
+    );
+  }
+
+  function performConfirm() {
+    void onConfirm();
+  }
+
+  /** A confirmation closes the loop for the reporter — never on a stray tap. */
+  function confirmWithGuard() {
+    Alert.alert(
+      t('reports.detail.confirm.confirmTitle'),
+      t('reports.detail.confirm.confirmBody'),
+      [
+        { text: t('reports.detail.reopen.cancel'), style: 'cancel' },
+        {
+          text: t('reports.detail.confirm.confirmAction'),
+          onPress: performConfirm,
+        },
+      ],
+    );
+  }
+
+  function openUrgencyModal() {
+    if (!report) return;
+    setActionError(null);
+    setActionMessage(null);
+    setUrgencyDraft(report.finalUrgency ?? report.aiUrgency ?? report.reporterUrgency);
+    setUrgencyReason('');
+    setUrgencyError(null);
+    setUrgencyVisible(true);
+  }
+
+  async function submitUrgencyOverride() {
+    const reason = urgencyReason.trim();
+    if (reason.length === 0) {
+      setUrgencyError(t('reports.detail.triage.reasonRequired'));
+      return;
+    }
+    if (reason.length > 2000) {
+      setUrgencyError(t('reports.detail.triage.reasonTooLong'));
+      return;
+    }
+    setUrgencyError(null);
+    setUrgencySaving(true);
+    try {
+      const updated = await overrideUrgency(reportId, urgencyDraft, reason);
+      setReport(updated);
+      setUrgencyVisible(false);
+      setActionMessage(t('reports.detail.triage.saved'));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      }
+      setUrgencyError(
+        toErrorMessage(err, { fallback: t('reports.detail.triage.failed') }),
+      );
+    } finally {
+      setUrgencySaving(false);
+    }
+  }
+
+  function openEditModal() {
+    if (!report) return;
+    setActionError(null);
+    setActionMessage(null);
+    setEditDescription(report.description);
+    setEditAddress(report.address ?? '');
+    setEditCategory(report.category);
+    setEditSpecialty(report.specialty ?? '');
+    setEditUrgency(report.reporterUrgency);
+    setEditVisibility(report.visibility);
+    setEditError(null);
+    setEditVisible(true);
+  }
+
+  async function submitEdit() {
+    if (!report) return;
+    const description = editDescription.trim();
+    if (description.length === 0) {
+      setEditError(t('reports.detail.edit.descriptionRequired'));
+      return;
+    }
+    if (description.length > 10000) {
+      setEditError(t('reports.detail.edit.descriptionTooLong'));
+      return;
+    }
+    const category = editCategory.trim();
+    if (category.length === 0) {
+      setEditError(t('reports.detail.edit.categoryRequired'));
+      return;
+    }
+    setEditError(null);
+    setEditSaving(true);
+    try {
+      const updated = await updateReport(reportId, {
+        description,
+        address: editAddress.trim(),
+        category,
+        specialty: editSpecialty.trim(),
+        reporterUrgency: editUrgency,
+        visibility: editVisibility,
+      });
+      setReport(updated);
+      setEditVisible(false);
+      setActionMessage(t('reports.detail.edit.saved'));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        await logout().catch(() => {});
+        return;
+      }
+      if (
+        err instanceof ApiError &&
+        (err.status === 404 || err.status === 405 || err.status === 501)
+      ) {
+        setEditError(t('reports.detail.edit.unavailable'));
+      } else if (err instanceof ApiError && err.status === 409) {
+        setEditError(t('reports.detail.edit.wrongStatus'));
+      } else if (err instanceof ApiError && err.status === 403) {
+        setEditError(t('reports.detail.edit.forbidden'));
+      } else {
+        setEditError(
+          toErrorMessage(err, { fallback: t('reports.detail.edit.failed') }),
+        );
+      }
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   async function onConfirm() {
     setActionError(null);
     setActionMessage(null);
@@ -567,6 +937,25 @@ export default function ReportDetailScreen() {
   const reopenable =
     report.status === 'confirmed' || report.status === 'resolved_pending_confirmation';
 
+  const canEdit = canEditReport(report, user?.id);
+  const assignedToMe = isAssignedToMe(report, user?.id);
+  const canStartWork = canTechnicianStart(report, user?.id);
+  const canResolveWork = canTechnicianResolve(report, user?.id);
+
+  const urgencyOptions: { value: Urgency; label: string }[] = (
+    ['low', 'medium', 'high', 'critical'] as Urgency[]
+  ).map((value) => ({ value, label: t(urgencyLabels[value]) }));
+
+  const visionStatus: 'pending' | 'processing' | 'completed' | 'failed' | 'unavailable' | null =
+    visionJob?.status === 'pending' ||
+    visionJob?.status === 'processing' ||
+    visionJob?.status === 'completed' ||
+    visionJob?.status === 'failed'
+      ? visionJob.status
+      : visionError
+        ? 'unavailable'
+        : null;
+
   return (
     <Screen>
       <Stack.Screen options={{ title: t('reports.detail.title', { id: report.id }) }} />
@@ -630,6 +1019,22 @@ export default function ReportDetailScreen() {
           <Text className="mb-2 text-[14px] leading-[1.8] text-ink">
             {report.description}
           </Text>
+          {canEdit ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('reports.detail.edit.button')}
+              accessibilityState={{ disabled: editSaving }}
+              onPress={openEditModal}
+              disabled={editSaving}
+              className="mb-2 flex-row items-center gap-1 self-start rounded-md border px-3 py-2 active:opacity-70"
+              style={{ borderColor: dashboardColors.cardLine }}
+            >
+              <Pencil color={dashboardColors.subtitle} size={12} />
+              <Text className="text-[11px] font-semibold text-dashboard-subtitle">
+                {t('reports.detail.edit.button')}
+              </Text>
+            </Pressable>
+          ) : null}
           {reporters && reporters.some(r => r.userId === user?.id) && (
             <Card className="mb-4">
               <View className="flex-row items-center justify-between px-4 py-3">
@@ -743,10 +1148,18 @@ export default function ReportDetailScreen() {
                     : t('reports.detail.vision.analyze')}
                 </Text>
               </Pressable>
-              {visionJob ? (
-                <Text className="mt-1 text-[10px] text-dashboard-caption">
-                  {humanize(visionJob.status)}
-                </Text>
+              {visionStatus ? (
+                <View
+                  className="mt-2 flex-row items-center gap-1 self-start rounded-full px-2 py-1"
+                  style={{ backgroundColor: visionStatusBackground(visionStatus) }}
+                >
+                  <Text
+                    className="text-[10px] font-semibold"
+                    style={{ color: visionStatusInk(visionStatus) }}
+                  >
+                    {t(`reports.detail.vision.status.${visionStatus}`)}
+                  </Text>
+                </View>
               ) : null}
               {visionError ? (
                 <Text className="mt-1 text-[10px] text-tone-danger">
@@ -784,6 +1197,60 @@ export default function ReportDetailScreen() {
             </Text>
           </Card>
         )}
+
+        {/* Triage: reporter vs AI vs final urgency, with the staff/admin
+            override. Mirrors the web's urgency comparison panel. */}
+        {canAssign ? (
+          <Card className="mb-4">
+            <Text
+              className="mb-1 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.triage.title')}
+            </Text>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              {t('reports.detail.triage.body')}
+            </Text>
+            <View className="mb-3 flex-row gap-2">
+              {[
+                {
+                  label: t('reports.detail.definition.reporterUrgency'),
+                  value: t(urgencyLabels[report.reporterUrgency]),
+                },
+                {
+                  label: t('reports.detail.definition.aiUrgency'),
+                  value: report.aiUrgency
+                    ? t(urgencyLabels[report.aiUrgency])
+                    : t('reports.detail.definition.notClassified'),
+                },
+                {
+                  label: t('reports.detail.definition.finalUrgency'),
+                  value: report.finalUrgency
+                    ? t(urgencyLabels[report.finalUrgency])
+                    : t('reports.detail.definition.notDetermined'),
+                },
+              ].map((cell) => (
+                <View
+                  key={cell.label}
+                  className="flex-1 rounded-md border px-2.5 py-2"
+                  style={{ borderColor: dashboardColors.cardLine }}
+                >
+                  <Text className="text-[9px] uppercase tracking-[0.5px] text-dashboard-subtitle">
+                    {cell.label}
+                  </Text>
+                  <Text className="mt-1 text-[12px] font-semibold text-ink">
+                    {cell.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <Button
+              label={t('reports.detail.triage.override')}
+              variant="secondary"
+              onPress={openUrgencyModal}
+            />
+          </Card>
+        ) : null}
 
         {/* Definition list — mirrors the web's `.report-detail-grid` (3-col
             on desktop, stacked on mobile). Field labels and the
@@ -1123,7 +1590,7 @@ export default function ReportDetailScreen() {
                     : t('reports.detail.assignSave')
                 }
                 variant="secondary"
-                onPress={onAssign}
+                onPress={requestAssign}
                 loading={assigning}
                 disabled={selectedTechnicianId === null || rankingLoading}
                 className="flex-1"
@@ -1265,6 +1732,51 @@ export default function ReportDetailScreen() {
           </Card>
         ) : null}
 
+        {/* Technician two-step resolution. The technician marks the job done;
+            the reporter then confirms or reopens it. */}
+        {assignedToMe ? (
+          <Card className="mb-4">
+            <Text
+              className="mb-1 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.tech.title')}
+            </Text>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              {t('reports.detail.tech.body')}
+            </Text>
+            {canStartWork ? (
+              <Button
+                label={starting ? t('reports.detail.tech.starting') : t('reports.detail.tech.start')}
+                variant="secondary"
+                loading={starting}
+                onPress={() => {
+                  void onStartWork();
+                }}
+                className="mb-2 min-h-[44px]"
+              />
+            ) : null}
+            {canResolveWork ? (
+              <Button
+                label={t('reports.detail.tech.resolve')}
+                variant="cta"
+                onPress={openResolveModal}
+                className="min-h-[44px]"
+              />
+            ) : null}
+            {!canStartWork && !canResolveWork ? (
+              <View className="flex-row items-center gap-1.5">
+                <Play color={dashboardColors.subtitle} size={12} />
+                <Text className="text-[11px] leading-[1.7] text-dashboard-subtitle">
+                  {t('reports.detail.tech.noAction')}
+                </Text>
+              </View>
+            ) : null}
+          </Card>
+        ) : null}
+
+        {/* Pending-resolution panel: the reporter (or site operations) sees
+            what the technician reported and chooses confirm vs reopen. */}
         {canConfirmReopen && awaitingConfirmation ? (
           <Card className="mb-4">
             <Text
@@ -1273,19 +1785,43 @@ export default function ReportDetailScreen() {
             >
               {t('reports.detail.confirm.title')}
             </Text>
-            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+            <Text className="mb-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
               {t('reports.detail.confirm.body')}
             </Text>
-            <Button
-              label={t('reports.detail.confirm.button')}
-              variant="cta"
-              onPress={onConfirm}
-              loading={confirming}
+            <DefinitionRow
+              label={t('reports.detail.confirm.technician')}
+              value={
+                report.assignedTechnicianId === null
+                  ? t('reports.detail.definition.unassigned')
+                  : technicianName(report.assignedTechnicianId)
+              }
             />
+            <DefinitionRow
+              label={t('reports.detail.confirm.updated')}
+              value={formatDate(report.updatedAt, true)}
+            />
+            <Text className="mb-3 mt-1 text-[10px] leading-[1.6] text-dashboard-caption">
+              {t('reports.detail.confirm.guardHint')}
+            </Text>
+            <View className="flex-row gap-2">
+              <Button
+                label={t('reports.detail.confirm.button')}
+                variant="cta"
+                onPress={confirmWithGuard}
+                loading={confirming}
+                className="flex-1 min-h-[44px]"
+              />
+              <Button
+                label={t('reports.detail.reopen.buttonLabel')}
+                variant="secondary"
+                onPress={openReopenModal}
+                className="flex-1 min-h-[44px]"
+              />
+            </View>
           </Card>
         ) : null}
 
-        {canConfirmReopen && reopenable ? (
+        {canConfirmReopen && report.status === 'confirmed' ? (
           <Card className="mb-4">
             <Text
               className="mb-1 text-[15px] font-semibold text-ink"
@@ -1300,6 +1836,7 @@ export default function ReportDetailScreen() {
               label={t('reports.detail.reopen.buttonLabel')}
               variant="secondary"
               onPress={openReopenModal}
+              className="min-h-[44px]"
             />
           </Card>
         ) : null}
@@ -1359,6 +1896,199 @@ export default function ReportDetailScreen() {
         />
       </ModalSheet>
 
+      <ModalSheet
+        visible={resolveVisible}
+        title={t('reports.detail.tech.resolveModalTitle')}
+        onClose={() => {
+          if (!resolving) setResolveVisible(false);
+        }}
+        busy={resolving}
+        footer={
+          <View className="flex-row gap-2">
+            <Button
+              label={t('reports.detail.reopen.cancel')}
+              variant="secondary"
+              onPress={() => setResolveVisible(false)}
+              disabled={resolving}
+            />
+            <Button
+              label={t('reports.detail.tech.resolveSubmit')}
+              variant="cta"
+              onPress={submitResolve}
+              loading={resolving}
+              className="flex-1 min-h-[44px]"
+            />
+          </View>
+        }
+      >
+        <Text className="mb-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
+          {t('reports.detail.tech.resolveModalBody')}
+        </Text>
+        <TextField
+          label={t('reports.detail.tech.noteLabel')}
+          value={resolveNote}
+          onChangeText={(text) => {
+            setResolveNote(text);
+            if (resolveError) setResolveError(null);
+          }}
+          placeholder={t('reports.detail.tech.notePlaceholder')}
+          error={resolveError ?? undefined}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+          maxLength={10000}
+        />
+        <Text className="mt-1 self-end text-[10px] text-dashboard-caption">
+          {resolveNote.length}/10000
+        </Text>
+      </ModalSheet>
+
+      <ModalSheet
+        visible={urgencyVisible}
+        title={t('reports.detail.triage.modalTitle')}
+        onClose={() => {
+          if (!urgencySaving) setUrgencyVisible(false);
+        }}
+        busy={urgencySaving}
+        footer={
+          <View className="flex-row gap-2">
+            <Button
+              label={t('reports.detail.reopen.cancel')}
+              variant="secondary"
+              onPress={() => setUrgencyVisible(false)}
+              disabled={urgencySaving}
+            />
+            <Button
+              label={t('reports.detail.triage.save')}
+              variant="cta"
+              onPress={() => {
+                void submitUrgencyOverride();
+              }}
+              loading={urgencySaving}
+              className="flex-1 min-h-[44px]"
+            />
+          </View>
+        }
+      >
+        <Text className="mb-2 text-[12px] font-semibold text-ink">
+          {t('reports.detail.triage.urgencyLabel')}
+        </Text>
+        <SegmentedControl
+          options={urgencyOptions}
+          value={urgencyDraft}
+          onChange={(value) => setUrgencyDraft(value)}
+          disabled={urgencySaving}
+          className="mb-4"
+        />
+        <TextField
+          label={t('reports.detail.triage.reasonLabel')}
+          value={urgencyReason}
+          onChangeText={(text) => {
+            setUrgencyReason(text);
+            if (urgencyError) setUrgencyError(null);
+          }}
+          placeholder={t('reports.detail.triage.reasonPlaceholder')}
+          error={urgencyError ?? undefined}
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+          maxLength={2000}
+        />
+      </ModalSheet>
+
+      <ModalSheet
+        visible={editVisible}
+        title={t('reports.detail.edit.modalTitle')}
+        onClose={() => {
+          if (!editSaving) setEditVisible(false);
+        }}
+        busy={editSaving}
+        footer={
+          <View className="flex-row gap-2">
+            <Button
+              label={t('reports.detail.reopen.cancel')}
+              variant="secondary"
+              onPress={() => setEditVisible(false)}
+              disabled={editSaving}
+            />
+            <Button
+              label={t('reports.detail.edit.save')}
+              variant="cta"
+              onPress={() => {
+                void submitEdit();
+              }}
+              loading={editSaving}
+              className="flex-1 min-h-[44px]"
+            />
+          </View>
+        }
+      >
+        <TextField
+          label={t('reports.detail.edit.descriptionLabel')}
+          value={editDescription}
+          onChangeText={(text) => {
+            setEditDescription(text);
+            if (editError) setEditError(null);
+          }}
+          placeholder={t('reports.detail.edit.descriptionPlaceholder')}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+          maxLength={10000}
+        />
+        <View className="h-3" />
+        <TextField
+          label={t('reports.detail.edit.addressLabel')}
+          value={editAddress}
+          onChangeText={setEditAddress}
+          placeholder={t('reports.detail.edit.addressPlaceholder')}
+          maxLength={512}
+        />
+        <View className="h-3" />
+        <TextField
+          label={t('reports.detail.edit.categoryLabel')}
+          value={editCategory}
+          onChangeText={setEditCategory}
+          placeholder={t('reports.detail.edit.categoryPlaceholder')}
+          maxLength={128}
+        />
+        <View className="h-3" />
+        <TextField
+          label={t('reports.detail.edit.specialtyLabel')}
+          value={editSpecialty}
+          onChangeText={setEditSpecialty}
+          placeholder={t('reports.detail.edit.specialtyPlaceholder')}
+          maxLength={128}
+        />
+        <Text className="mb-2 mt-4 text-[12px] font-semibold text-ink">
+          {t('reports.detail.edit.urgencyLabel')}
+        </Text>
+        <SegmentedControl
+          options={urgencyOptions}
+          value={editUrgency}
+          onChange={(value) => setEditUrgency(value)}
+          disabled={editSaving}
+          className="mb-4"
+        />
+        <Text className="mb-2 text-[12px] font-semibold text-ink">
+          {t('reports.detail.edit.visibilityLabel')}
+        </Text>
+        <SegmentedControl
+          options={[
+            { value: 'public', label: t('reports.detail.edit.visibilityPublic') },
+            { value: 'private', label: t('reports.detail.edit.visibilityPrivate') },
+          ]}
+          value={editVisibility}
+          onChange={(value) => setEditVisibility(value)}
+          disabled={editSaving}
+        />
+        {editError ? (
+          <Text className="mt-3 text-[11px] leading-[1.6] text-tone-danger">
+            {editError}
+          </Text>
+        ) : null}
+      </ModalSheet>
+
       <Modal
         visible={previewPhoto !== null}
         transparent
@@ -1391,6 +2121,44 @@ export default function ReportDetailScreen() {
 }
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
+
+const VISION_TONE: Record<
+  'pending' | 'processing' | 'completed' | 'failed' | 'unavailable',
+  { background: string; ink: string }
+> = {
+  pending: {
+    background: dashboardColors.statCitronSoft,
+    ink: dashboardColors.statCitronDeep,
+  },
+  processing: {
+    background: dashboardColors.statMintSoft,
+    ink: dashboardColors.statMintDeep,
+  },
+  completed: {
+    background: dashboardColors.statMintSoft,
+    ink: dashboardColors.statMintDeep,
+  },
+  failed: {
+    background: dashboardColors.statCoralSoft,
+    ink: dashboardColors.statCoralDeep,
+  },
+  unavailable: {
+    background: dashboardColors.cardLine,
+    ink: dashboardColors.subtitle,
+  },
+};
+
+function visionStatusBackground(
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'unavailable',
+): string {
+  return VISION_TONE[status].background;
+}
+
+function visionStatusInk(
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'unavailable',
+): string {
+  return VISION_TONE[status].ink;
+}
 
 function DefinitionRow({
   label, value,
