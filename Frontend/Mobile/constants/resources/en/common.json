@@ -1,7 +1,37 @@
 {
+  "notifications": {
+    "unreadCount": "{count} new",
+    "markAllRead": "Mark all read",
+    "clearAll": "Clear all",
+    "event": {
+      "assignment": {
+        "title": "New assignment",
+        "body": "Report #{id} has been assigned to you."
+      },
+      "reassignment": {
+        "title": "Report reassigned",
+        "body": "Report #{id} has a new technician."
+      },
+      "status": {
+        "title": "Report updated",
+        "body": "The status of report #{id} has changed."
+      },
+      "pendingResolution": {
+        "title": "Confirm the fix",
+        "body": "Report #{id} is marked complete and needs your confirmation."
+      },
+      "confirmation": {
+        "title": "Report confirmed",
+        "body": "Report #{id} has been confirmed as resolved."
+      }
+    }
+  },
   "offlineBanner": {
     "offlineText": "Offline — check your connection. Reports can't be filed or updated until the app reconnects.",
-    "retry": "Retry"
+    "offlineWithPending": "Offline — {count} report(s) saved on this device will be sent when the connection returns.",
+    "pending": "{count} report(s) waiting to be sent.",
+    "retry": "Send now",
+    "retryHint": "Retry the connection and send queued reports."
   },
   "auth": {
     "login": {
@@ -364,6 +394,7 @@
       "openSiteSetup": "Open site setup",
       "siteNotLoaded": "Site is not loaded yet. Please try again in a moment.",
       "noConnection": "Unable to reach the server.",
+      "queuedOffline": "You're offline. The report is saved on this device and will be sent when the connection returns.",
       "retry": "Retry",
       "couldNotLoadSite": "Could not load site",
       "retryLoadingBuildings": "Retry loading buildings",
@@ -486,6 +517,10 @@
       "assignActiveCases": "{count} active cases",
       "assignRefresh": "Refresh candidates",
       "assignSelectFirst": "Select a technician first.",
+      "assignSameTechnician": "That technician is already assigned to this report.",
+      "assignReassignConfirmTitle": "Reassign this report?",
+      "assignReassignConfirmBody": "Move this report from {from} to {to}? The previous technician loses access to the case, and the reassignment is saved in the history.",
+      "assignReassignConfirmAction": "Reassign",
       "assignAccount": "Technician #{id}",
       "assignSave": "Save assignment",
       "assignReassign": "Reassign",
@@ -517,7 +552,76 @@
         "button": "Confirm resolved",
         "success": "Report marked as resolved.",
         "wrongStatus": "This report cannot be confirmed right now.",
-        "failed": "Could not confirm this report."
+        "failed": "Could not confirm this report.",
+        "technician": "Technician",
+        "updated": "Updated",
+        "guardHint": "You will be asked to confirm before this is recorded.",
+        "confirmTitle": "Confirm resolution?",
+        "confirmBody": "This closes the report for everyone. You can reopen it later if the problem returns.",
+        "confirmAction": "Yes, confirm resolved"
+      },
+      "tech": {
+        "title": "Your work on this report",
+        "body": "Start the job when you arrive, then mark it complete. The reporter confirms the fix afterwards.",
+        "start": "Start work",
+        "starting": "Starting…",
+        "started": "Work started. The reporter can see the report is in progress.",
+        "startWrongStatus": "This report can no longer be started from its current status.",
+        "startFailed": "Could not start work on this report.",
+        "resolve": "Mark work complete",
+        "resolveModalTitle": "Mark work complete",
+        "resolveModalBody": "Describe what you fixed. The report moves to “pending confirmation” until the reporter confirms.",
+        "noteLabel": "Work note",
+        "notePlaceholder": "What was wrong, what you replaced or repaired, and anything the reporter should check.",
+        "noteRequired": "Add a short work note before marking the job complete.",
+        "noteTooLong": "Keep the work note under 10,000 characters.",
+        "resolveSubmit": "Submit for confirmation",
+        "resolveConfirmTitle": "Mark this job complete?",
+        "resolveConfirmBody": "The reporter will be asked to confirm the fix. You can no longer edit this report afterwards.",
+        "resolveConfirmAction": "Mark complete",
+        "resolved": "Work marked complete. Waiting for the reporter to confirm.",
+        "resolveWrongStatus": "This report is not in a state where work can be completed.",
+        "resolveFailed": "Could not mark the work complete.",
+        "noAction": "No technician action is available for this report right now."
+      },
+      "triage": {
+        "title": "Urgency triage",
+        "body": "Compare what the reporter chose, what the AI suggested, and the urgency that actually routes this report.",
+        "override": "Override final urgency",
+        "modalTitle": "Override final urgency",
+        "urgencyLabel": "Final urgency",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Why is this the right urgency for this report?",
+        "reasonRequired": "A reason is required for an override.",
+        "reasonTooLong": "Keep the reason under 2,000 characters.",
+        "save": "Save urgency",
+        "saved": "Final urgency updated.",
+        "failed": "Could not update the final urgency."
+      },
+      "edit": {
+        "button": "Edit report",
+        "modalTitle": "Edit report",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "What needs attention?",
+        "descriptionRequired": "A description is required.",
+        "descriptionTooLong": "Keep the description under 10,000 characters.",
+        "addressLabel": "Location (optional)",
+        "addressPlaceholder": "Building, floor, room…",
+        "categoryLabel": "Category",
+        "categoryPlaceholder": "e.g. plumbing",
+        "categoryRequired": "Choose a category.",
+        "specialtyLabel": "Specialty (optional)",
+        "specialtyPlaceholder": "e.g. pipework",
+        "urgencyLabel": "Urgency",
+        "visibilityLabel": "Visibility",
+        "visibilityPublic": "Public",
+        "visibilityPrivate": "Private",
+        "save": "Save changes",
+        "saved": "Report updated.",
+        "wrongStatus": "This report can no longer be edited.",
+        "forbidden": "You are not allowed to edit this report.",
+        "unavailable": "The server does not support report editing yet. Contact the backend team.",
+        "failed": "Could not update this report."
       },
       "reopen": {
         "buttonLabel": "Reopen",
@@ -552,7 +656,16 @@
         "consentMessage": "This sends this report's photos to the AI vision service. Continue?",
         "cancel": "Cancel",
         "continue": "Continue",
-        "failed": "Photo analysis failed. Try again."
+        "failed": "Photo analysis failed. Try again.",
+        "timedOut": "Photo analysis is taking longer than expected. Check back shortly.",
+        "unavailable": "Photo analysis is not available on this server right now.",
+        "status": {
+          "pending": "Analysis queued",
+          "processing": "Analyzing photos…",
+          "completed": "Analysis complete",
+          "failed": "Analysis failed",
+          "unavailable": "Analysis unavailable"
+        }
       },
       "analysis": {
         "title": "AI Analysis",

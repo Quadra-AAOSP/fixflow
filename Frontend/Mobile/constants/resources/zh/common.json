@@ -1,7 +1,37 @@
 {
+  "notifications": {
+    "unreadCount": "{count} 条新消息",
+    "markAllRead": "全部标为已读",
+    "clearAll": "清空",
+    "event": {
+      "assignment": {
+        "title": "新的派单",
+        "body": "报修 #{id} 已分配给您。"
+      },
+      "reassignment": {
+        "title": "报修已重新分配",
+        "body": "报修 #{id} 已更换技师。"
+      },
+      "status": {
+        "title": "报修已更新",
+        "body": "报修 #{id} 的状态已变更。"
+      },
+      "pendingResolution": {
+        "title": "请确认修复结果",
+        "body": "报修 #{id} 已标记完成，需要您确认。"
+      },
+      "confirmation": {
+        "title": "报修已确认",
+        "body": "报修 #{id} 已确认解决。"
+      }
+    }
+  },
   "offlineBanner": {
     "offlineText": "离线状态 — 请检查您的网络连接。在应用恢复连接之前，无法提交或更新报修。",
-    "retry": "重试"
+    "offlineWithPending": "离线状态 — 本设备已保存 {count} 条报修，恢复连接后将自动发送。",
+    "pending": "{count} 条报修等待发送。",
+    "retry": "立即发送",
+    "retryHint": "重试连接并发送排队中的报修。"
   },
   "auth": {
     "login": {
@@ -364,6 +394,7 @@
       "openSiteSetup": "打开站点设置",
       "siteNotLoaded": "站点尚未加载，请稍后重试。",
       "noConnection": "无法连接到服务器。",
+      "queuedOffline": "当前离线，报修已保存在本设备，网络恢复后将自动发送。",
       "retry": "重试",
       "couldNotLoadSite": "无法加载站点",
       "retryLoadingBuildings": "重新加载建筑",
@@ -486,6 +517,10 @@
       "assignActiveCases": "{count} 个进行中工单",
       "assignRefresh": "刷新候选技师",
       "assignSelectFirst": "请先选择一位技师。",
+      "assignSameTechnician": "该技师已被分配到本报修。",
+      "assignReassignConfirmTitle": "重新分配此报修？",
+      "assignReassignConfirmBody": "将本报修从 {from} 移交给 {to}？原技师将失去该工单的访问权限，此次重新分配会记录在处理历史中。",
+      "assignReassignConfirmAction": "重新分配",
       "assignAccount": "技师 #{id}",
       "assignSave": "保存分配",
       "assignReassign": "重新分配",
@@ -517,7 +552,76 @@
         "button": "确认已解决",
         "success": "报修已标记为已解决。",
         "wrongStatus": "此报修目前无法确认。",
-        "failed": "无法确认此报修。"
+        "failed": "无法确认此报修。",
+        "technician": "技师",
+        "updated": "更新时间",
+        "guardHint": "记录前会请您再次确认。",
+        "confirmTitle": "确认已解决？",
+        "confirmBody": "此操作会对所有人关闭该报修。若问题再次出现，您之后仍可重开。",
+        "confirmAction": "确认已解决"
+      },
+      "tech": {
+        "title": "您在此报修上的工作",
+        "body": "到达现场后开始工作，完成后标记为完成。随后由报修人确认修复结果。",
+        "start": "开始工作",
+        "starting": "正在开始…",
+        "started": "工作已开始，报修人可以看到报修进入处理中。",
+        "startWrongStatus": "此报修当前状态无法开始工作。",
+        "startFailed": "无法开始处理此报修。",
+        "resolve": "标记工作完成",
+        "resolveModalTitle": "标记工作完成",
+        "resolveModalBody": "说明您修复了什么。报修将进入“待确认”状态，直到报修人确认。",
+        "noteLabel": "工作说明",
+        "notePlaceholder": "问题原因、更换或修复的内容，以及需要报修人检查的事项。",
+        "noteRequired": "标记完成前请填写工作说明。",
+        "noteTooLong": "工作说明请控制在 10000 个字符以内。",
+        "resolveSubmit": "提交待确认",
+        "resolveConfirmTitle": "确认工作已完成？",
+        "resolveConfirmBody": "系统会请报修人确认修复结果。此后您将无法再编辑此报修。",
+        "resolveConfirmAction": "标记完成",
+        "resolved": "工作已标记完成，等待报修人确认。",
+        "resolveWrongStatus": "此报修当前状态无法标记完成。",
+        "resolveFailed": "无法标记工作完成。",
+        "noAction": "此报修目前没有可执行的技师操作。"
+      },
+      "triage": {
+        "title": "紧急程度研判",
+        "body": "对比报修人的选择、AI 的建议，以及实际决定路由的紧急程度。",
+        "override": "调整最终紧急程度",
+        "modalTitle": "调整最终紧急程度",
+        "urgencyLabel": "最终紧急程度",
+        "reasonLabel": "原因",
+        "reasonPlaceholder": "为什么这是该报修合适的紧急程度？",
+        "reasonRequired": "调整紧急程度时必须填写原因。",
+        "reasonTooLong": "原因请控制在 2000 个字符以内。",
+        "save": "保存紧急程度",
+        "saved": "最终紧急程度已更新。",
+        "failed": "无法更新最终紧急程度。"
+      },
+      "edit": {
+        "button": "编辑报修",
+        "modalTitle": "编辑报修",
+        "descriptionLabel": "问题描述",
+        "descriptionPlaceholder": "需要处理的问题是什么？",
+        "descriptionRequired": "请填写问题描述。",
+        "descriptionTooLong": "描述请控制在 10000 个字符以内。",
+        "addressLabel": "位置（可选）",
+        "addressPlaceholder": "楼栋、楼层、房间…",
+        "categoryLabel": "类别",
+        "categoryPlaceholder": "例如 plumbing",
+        "categoryRequired": "请选择类别。",
+        "specialtyLabel": "专长（可选）",
+        "specialtyPlaceholder": "例如 pipework",
+        "urgencyLabel": "紧急程度",
+        "visibilityLabel": "可见范围",
+        "visibilityPublic": "公开",
+        "visibilityPrivate": "私密",
+        "save": "保存修改",
+        "saved": "报修已更新。",
+        "wrongStatus": "此报修已无法编辑。",
+        "forbidden": "您无权编辑此报修。",
+        "unavailable": "服务器暂不支持编辑报修，请联系后端团队。",
+        "failed": "无法更新此报修。"
       },
       "reopen": {
         "buttonLabel": "重开",
@@ -552,7 +656,16 @@
         "consentMessage": "这会将本报告的照片发送给 AI 视觉服务。是否继续？",
         "cancel": "取消",
         "continue": "继续",
-        "failed": "照片分析失败，请重试。"
+        "failed": "照片分析失败，请重试。",
+        "timedOut": "照片分析耗时较长，请稍后再查看。",
+        "unavailable": "此服务器暂不提供照片分析。",
+        "status": {
+          "pending": "分析已排队",
+          "processing": "正在分析照片…",
+          "completed": "分析完成",
+          "failed": "分析失败",
+          "unavailable": "分析不可用"
+        }
       },
       "analysis": {
         "title": "AI 分析",
