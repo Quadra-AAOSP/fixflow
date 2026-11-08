@@ -1,3 +1,4 @@
+import { StateView } from '@/components/ui/StateView';
 import { Stack, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
@@ -99,9 +100,7 @@ export default function TechnicianTermsScreen() {
 
         {loading ? (
           <Card className="mb-4">
-            <Text className="p-4 text-center text-dashboard-subtitle">
-              {t('technician.terms.loading')}
-            </Text>
+            <StateView variant="loading" title={t('technician.terms.loading')} />
           </Card>
         ) : terms && hasPublishedTerms ? (
           <Card padded={false} className="mb-4">

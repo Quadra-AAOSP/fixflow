@@ -44,6 +44,7 @@ export type User = {
   };
   siteOnboarding: SiteOnboarding | null;
   adminApplication: AdminApplicationRef | null;
+  applicationOnly?: boolean;
 };
 
 export type LoginPayload = {
@@ -52,10 +53,8 @@ export type LoginPayload = {
 };
 
 /**
- * Self-registration payload. The backend permits `reporter`, `technician` and
- * `admin` here (`AuthService.register`). An `admin` registration is demoted to
- * `reporter` server-side and files a pending site-admin application instead.
- * `siteId` is required for reporter/admin and must be null for technicians.
+ * Reporter and technician self-registration. New site administrators apply
+ * through site onboarding. Reporters need a site and technicians start without one.
  *
  * Backed by backend `RegisterRequest` (DTO). Mirrors the locked contract.
  */

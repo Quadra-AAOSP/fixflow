@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
@@ -88,7 +89,7 @@ watch(() => [scopeId.value, user.value?.id, props.revision], load, { immediate: 
     </div>
     <p class="dialog-intro">{{ t('These are recorded site relationships, separate from pending contract requests. Each record identifies the technician account and when the contract was created.') }}</p>
     <p v-if="!scopeId">{{ t('Choose an accessible site to view its recorded contracts.') }}</p>
-    <p v-else-if="loading" role="status">{{ t('Loading recorded contracts…') }}</p>
+    <LoadingStatus v-else-if="loading" :label="t('Loading recorded contracts…')" />
     <p v-else-if="error" class="live-error" role="alert">{{ t(error) }}</p>
     <p v-if="actionError" class="live-error" role="alert">{{ t(actionError) }}</p>
     <p v-if="message" class="draft-notice" role="status">{{ t(message) }}</p>

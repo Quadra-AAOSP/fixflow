@@ -114,6 +114,37 @@ class ReportAssistantIntegrationTest {
         assertThat(outbound.get(1)).isEqualTo(ChatMessage.user("What is leaking?"));
     }
 
+    @Test void triageFiltersModelSuggestionsAndFallsBackOnInvalidJson() throws Exception {
+        when(chatProvider.chat(any())).thenReturn("""
+                {"reply":"Review this draft.","suggestedFields":{"category":"invented","urgency":"MEDIUM","descriptionDraft":"Sink leaks."}}
+                """, "malformed response");
+        mvc.perform(triage(site.getId()).with(user(new AppUserDetails(actor))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.fallback").value(false))
+                .andExpect(jsonPath("$.suggestedFields.category").isEmpty())
+                .andExpect(jsonPath("$.suggestedFields.urgency").value("medium"))
+                .andExpect(jsonPath("$.suggestedFields.descriptionDraft").value("Sink leaks."));
+        mvc.perform(triage(site.getId()).with(user(new AppUserDetails(actor))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.fallback").value(true))
+                .andExpect(jsonPath("$.suggestedFields").isEmpty());
+    }
+
+    @Test void triageDeniesAnonymousForeignSiteAndTechnicianRequestsBeforeCallingProvider() throws Exception {
+        mvc.perform(triage(site.getId())).andExpect(status().isUnauthorized());
+        mvc.perform(triage(Long.MAX_VALUE).with(user(new AppUserDetails(actor))))
+                .andExpect(status().isForbidden());
+        User technician = newUser(UserRole.technician, null);
+        mvc.perform(triage(site.getId()).with(user(new AppUserDetails(technician))))
+                .andExpect(status().isForbidden());
+        org.mockito.Mockito.verifyNoInteractions(chatProvider);
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder triage(Long siteId)
+            throws Exception {
+        return post("/api/assistant/triage").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(new com.example.fixflow.service.ReportTriageService.Request(siteId,
+                        List.of(new ReportAssistantService.Turn("user", "The sink leaks.")))));
+    }
+
     @Test void staffAndSuperAdminReachTheAssistantWithoutParticipation() throws Exception {
         when(chatProvider.chat(any())).thenReturn("ok");
         User staff = newUser(UserRole.staff, site);

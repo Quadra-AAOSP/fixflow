@@ -1,7 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -193,9 +192,7 @@ export default function TechniciansScreen() {
         </View>
 
         {technicians === null && loading ? (
-          <View className="py-12">
-            <ActivityIndicator size="large" color={palette.primary} />
-          </View>
+          <StateView variant="loading" title={t('review.loading')} />
         ) : technicians && technicians.length === 0 ? (
           <StateView
             variant="empty"

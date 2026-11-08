@@ -126,6 +126,8 @@ public class OpenRouterProvider implements AIProvider {
 
         return OpenRouterRequest.builder()
                 .model(model)
+                .responseFormat(java.util.Map.of("type", "json_object"))
+                .reasoning(java.util.Map.of("effort", "none"))
                 .messages(List.of(
                         OpenRouterRequest.Message.builder()
                                 .role("system")
@@ -167,7 +169,8 @@ public class OpenRouterProvider implements AIProvider {
     private ClassificationResponse parseClassificationResponse(OpenRouterResponse response) throws AIProviderException {
         try {
             String content = response.getChoices().get(0).getMessage().getContent();
-            JsonNode jsonNode = objectMapper.readTree(content);
+            JsonNode jsonNode = objectMapper.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                    .readTree(com.example.fixflow.ai.openrouter.ModelJson.unwrap(content));
             if (jsonNode == null || !jsonNode.isObject() || !jsonNode.path("category").isTextual()
                     || !jsonNode.path("urgency").isTextual()
                     || (!jsonNode.path("specialty").isMissingNode() && !jsonNode.path("specialty").isNull()
@@ -191,7 +194,10 @@ public class OpenRouterProvider implements AIProvider {
                     .build();
             
         } catch (Exception e) {
-            logger.warn("OpenRouter classification response was invalid");
+            var choice = response.getChoices().get(0);
+            String finishReason = choice == null ? null : choice.getFinishReason();
+            logger.warn("OpenRouter classification response was invalid ({}; token limit reached: {})",
+                    e.getClass().getSimpleName(), "length".equals(finishReason));
             throw new AIProviderException("Failed to parse OpenRouter response", e, 
                     AIProviderException.AIErrorType.INVALID_RESPONSE);
         }

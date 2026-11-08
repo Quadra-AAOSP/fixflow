@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
@@ -89,7 +90,7 @@ async function refreshUrl(item: ReportPhoto) {
     <div class="card-heading"><h2>{{ t("Report photos") }}</h2><button class="text-action" type="button" :disabled="loading || busy" @click="load">{{ t("Refresh photos") }}</button></div>
     <p class="dialog-intro">{{ t('Up to {limit} photos, 5 MiB each. Photos are shared with people authorized to access this report.', { limit: REPORT_PHOTO_LIMIT }) }}</p>
     <p v-if="error" class="live-error" role="alert">{{ t(error) }}</p><p v-if="success" class="draft-notice" role="status">{{ t(success) }}</p>
-    <p v-if="loading" role="status">{{ t("Loading photos…") }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading photos…')" />
     <p v-else-if="!error && !photos.length">{{ t("No photos attached.") }}</p>
     <ul class="report-photo-grid"><li v-for="(item, index) in photos" :key="item.id">
       <img v-if="safePhotoUrl(item.url) && !failedImages.includes(item.id)" :src="safePhotoUrl(item.url)" :alt="t('Report photo {number}', { number: index + 1 })" loading="lazy" :crossorigin="item.url?.startsWith('/api/') ? 'use-credentials' : undefined" referrerpolicy="no-referrer" @error="failedImages.push(item.id)" />

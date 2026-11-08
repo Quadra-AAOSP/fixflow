@@ -1,6 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -41,7 +40,6 @@ import { statusGroup } from '@/utils/maintenance';
  * file, they resolve. Hence the absence of a "New report" FAB.
  */
 export default function WorkspaceScreen() {
-  const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useTranslation('common');
@@ -180,9 +178,7 @@ export default function WorkspaceScreen() {
         </Text>
         <Card className="mb-4">
           {reports === null ? (
-            <View className="py-6">
-              <ActivityIndicator size="large" color={palette.primary} />
-            </View>
+            <StateView variant="loading" title={t('assignments.loading')} />
           ) : error ? (
             <StateView
               variant="error"

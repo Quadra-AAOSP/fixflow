@@ -6,6 +6,7 @@ import { accountHome } from '@/utils/navigation';
 const routes: RouteRecordRaw[] = [
   { path: '/request-site', name: 'request-site', component: () => import('@/views/auth/SiteApplicationView.vue') },
   { path: '/site-application', name: 'site-application-status', component: () => import('@/views/auth/SiteApplicationView.vue') },
+  { path: '/application-access', name: 'application-access', meta: { requiresAuth: true }, props: { applicationOnly: true }, component: () => import('@/views/app/AdminApplicationView.vue') },
   { path: '/setup-site-admin', name: 'site-admin-setup', component: () => import('@/views/auth/SiteApplicationView.vue') },
   { path: '/agreements/technician/draft-2026-11-03', name: 'technician-agreement-draft', component: () => import('@/views/auth/TechnicianAgreementView.vue') },
   { path: '/shop', component: () => import('@/layouts/ShopLayout.vue'), children: [
@@ -52,6 +53,8 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     const auth = useAuthStore();
     await auth.hydrate();
     if (to.meta.requiresAuth && !auth.isAuthenticated) return { name: 'login', query: { redirect: to.fullPath } };
+    if (auth.user?.applicationOnly) return to.name === 'application-access' || { name: 'application-access' };
+    if (to.name === 'application-access') return accountHome(auth.user);
     if (to.meta.guest && auth.isAuthenticated) return accountHome(auth.user);
     if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && !shopManagerRouteAllowed(to.name)) return '/shop';
     if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.user?.role)) return accountHome(auth.user);

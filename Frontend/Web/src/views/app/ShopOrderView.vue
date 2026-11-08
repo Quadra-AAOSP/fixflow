@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
@@ -44,7 +45,7 @@ watch([id, () => auth.user?.id, () => auth.user?.role], load, { immediate: true 
   <section class="order-detail">
     <div class="order-heading"><RouterLink to="/shop">{{ t('Back to shop') }}</RouterLink><button type="button" :disabled="busy || loading" @click="load">{{ t('Refresh order') }}</button></div>
     <h1>{{ t('Order details') }}</h1>
-    <p v-if="loading" role="status">{{ t('Loading order…') }}</p><p v-else-if="error" role="alert" class="order-error">{{ t(error) }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading order…')" /><p v-else-if="error" role="alert" class="order-error">{{ t(error) }}</p>
     <template v-else-if="order">
       <p class="order-id">{{ order.orderId }}</p>
       <dl><dt>{{ t('Status') }}</dt><dd>{{ t(order.status.replaceAll('_', ' ')) }}</dd><dt>{{ t('Payment status') }}</dt><dd>{{ order.paymentStatus ? t(order.paymentStatus.replaceAll('_', ' ')) : t('Not available') }}</dd><dt>{{ t('Created') }}</dt><dd>{{ formatDate(order.createdAt, true) }}</dd><dt>{{ t('Updated') }}</dt><dd>{{ formatDate(order.updatedAt, true) }}</dd></dl>

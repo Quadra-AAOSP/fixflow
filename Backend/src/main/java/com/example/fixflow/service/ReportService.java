@@ -5,8 +5,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.fixflow.domain.Report;
+import com.example.fixflow.domain.ReportNotification;
 import com.example.fixflow.domain.ReportPhoto;
 import com.example.fixflow.domain.ReportReporter;
 import com.example.fixflow.domain.ReportStatus;
@@ -32,6 +35,8 @@ import com.example.fixflow.dto.ReportPageResponse;
 import com.example.fixflow.dto.ReportPhotoResponse;
 import com.example.fixflow.dto.ReportReporterResponse;
 import com.example.fixflow.dto.ReportResponse;
+import com.example.fixflow.dto.UpdateReportRequest;
+import com.example.fixflow.repository.ReportNotificationRepository;
 import com.example.fixflow.repository.ReportPhotoRepository;
 import com.example.fixflow.repository.ReportReporterRepository;
 import com.example.fixflow.repository.ReportRepository;
@@ -47,6 +52,7 @@ public class ReportService {
 
 	private final ReportRepository reportRepository;
 	private final ReportReporterRepository reportReporterRepository;
+	private final ReportNotificationRepository notifications;
 	private final ReportPhotoRepository reportPhotoRepository;
 	private final StatusHistoryRepository statusHistoryRepository;
 	private final UserRepository userRepository;
@@ -66,6 +72,7 @@ public class ReportService {
 	public ReportService(
 			ReportRepository reportRepository,
 			ReportReporterRepository reportReporterRepository,
+			ReportNotificationRepository notifications,
 			ReportPhotoRepository reportPhotoRepository,
 			StatusHistoryRepository statusHistoryRepository,
 			UserRepository userRepository,
@@ -84,6 +91,7 @@ public class ReportService {
 	) {
 		this.reportRepository = reportRepository;
 		this.reportReporterRepository = reportReporterRepository;
+		this.notifications = notifications;
 		this.reportPhotoRepository = reportPhotoRepository;
 		this.statusHistoryRepository = statusHistoryRepository;
 		this.userRepository = userRepository;
@@ -231,11 +239,82 @@ public class ReportService {
 	}
 
 	@Transactional
+	public ReportResponse update(Long id, UpdateReportRequest request, AppUserDetails actor) {
+		Report report = lockForChange(id, actor, false);
+		String description = request.description().trim();
+		String address = blankToNull(request.address());
+		String reason = blankToNull(request.reporterReason());
+		if (!Objects.equals(report.getDescription(), description) || !Objects.equals(report.getAddress(), address)
+				|| report.getReporterUrgency() != request.reporterUrgency()
+				|| !Objects.equals(report.getReporterReason(), reason)) {
+			report.setDescription(description);
+			report.setAddress(address);
+			report.setReporterUrgency(request.reporterUrgency());
+			report.setReporterReason(reason);
+			reportRepository.flush();
+			recordChange(report, actor, ReportNotification.Type.report_edited);
+		}
+		return response(report, actor);
+	}
+
+	@Transactional
+	public void archive(Long id, AppUserDetails actor) {
+		Report report = lockForChange(id, actor, true);
+		recordChange(report, actor, ReportNotification.Type.report_deleted);
+		report.setArchivedAt(Instant.now());
+	}
+
+	private Report lockForChange(Long id, AppUserDetails actor, boolean archive) {
+		Report report = reportRepository.findForVisionUpdate(id)
+				.orElseThrow(() -> new ApiException(404, "Report not found"));
+		assertCanReadReport(actor, report);
+		if (!canManageReport(actor, report)) {
+			throw new ApiException(403, "Only the report creator or an authorized admin may change this report");
+		}
+		if (!isEditable(report) || archive && report.getStatus() == ReportStatus.in_progress) {
+			throw new ApiException(409, "The report cannot be changed this way in its current state");
+		}
+		return report;
+	}
+
+	private boolean canManageReport(AppUserDetails actor, Report report) {
+		if (actor.getRole() == UserRole.super_admin) {
+			return true;
+		}
+		return report.getSite().getId().equals(actor.getSiteId())
+				&& (actor.getRole() == UserRole.admin
+				|| (actor.getRole() == UserRole.reporter || actor.getRole() == UserRole.staff)
+				&& report.getCreatedBy().getId().equals(actor.getId()));
+	}
+
+	private boolean isEditable(Report report) {
+		return report.isEditable() && report.getStatus() != ReportStatus.confirmed
+				&& report.getStatus() != ReportStatus.resolved_pending_confirmation;
+	}
+
+	private void recordChange(Report report, AppUserDetails actor, ReportNotification.Type type) {
+		Long siteId = report.getSite().getId();
+		var recipients = new HashSet<>(userRepository.findIdsBySiteAndRole(siteId, UserRole.admin));
+		recipients.add(report.getCreatedBy().getId());
+		reportReporterRepository.findByReportIdOrderByJoinedAtAsc(report.getId())
+				.forEach(participant -> recipients.add(participant.getUserId()));
+		if (report.getAssignedTechnician() != null) {
+			recipients.add(report.getAssignedTechnician().getId());
+		}
+		recipients.remove(actor.getId());
+		Instant now = Instant.now();
+		notifications.saveAll(recipients.stream()
+				.map(id -> new ReportNotification(id, report.getId(), type, now)).toList());
+		appendStatusHistory(report, report.getStatus(), report.getStatus(), loadUser(actor.getId()),
+				type == ReportNotification.Type.report_edited ? "Report edited" : "Report archived");
+	}
+
+	@Transactional
 	public ReportResponse join(Long id, AppUserDetails actor) {
 		if (actor.getRole() != UserRole.reporter) {
 			throw new ApiException(403, "Only reporters can join reports");
 		}
-		Report report = reportRepository.findDetailedById(id)
+		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
 		assertCanSeeVisibility(actor, report);
@@ -598,13 +677,15 @@ public class ReportService {
 				|| report.getAssignedTechnician() != null
 				&& report.getAssignedTechnician().getId().equals(actor.getId());
 		boolean canSee = canSeeSensitive(actor, report);
+		boolean canEdit = canManageReport(actor, report) && isEditable(report);
 		List<ReportPhotoResponse> photos = canSee
 				? actor.getRole() == UserRole.technician ? reportPhotoService.listWithSessionUrls(report.getId())
                         : reportPhotoService.listWithPresignedUrls(report.getId())
 				: List.of();
 		return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
 				report, canSee, participant, canAssign,
-				actor.getRole() == UserRole.reporter && !participant, ownQueue), photos,
+				actor.getRole() == UserRole.reporter && !participant, ownQueue,
+				canEdit, canEdit && report.getStatus() != ReportStatus.in_progress), photos,
                 actor.getRole() == UserRole.admin || actor.getRole() == UserRole.super_admin || actor.getRole() == UserRole.staff);
 	}
 

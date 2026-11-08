@@ -236,6 +236,7 @@ CREATE TABLE IF NOT EXISTS reports (
                             )               NOT NULL DEFAULT 'open',
     assigned_technician_id  BIGINT UNSIGNED NULL COMMENT 'Must be users.role = technician (app-enforced)',
     editable                TINYINT(1)      NOT NULL DEFAULT 1,
+    archived_at             TIMESTAMP(6)    NULL,
     visibility              VARCHAR(16)     NOT NULL DEFAULT 'public' COMMENT 'public = listed/joinable for site reporters; private = creator, participants, staff/admin, assigned tech only',
     reopen_count            INT UNSIGNED    NOT NULL DEFAULT 0,
     created_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -288,6 +289,24 @@ SET @visibility_migration = IF(
 PREPARE visibility_statement FROM @visibility_migration;
 EXECUTE visibility_statement;
 DEALLOCATE PREPARE visibility_statement;
+
+SET @report_archive_sql = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'archived_at') = 0,
+    'ALTER TABLE reports ADD COLUMN archived_at TIMESTAMP(6) NULL', 'SELECT 1');
+PREPARE report_archive_statement FROM @report_archive_sql;
+EXECUTE report_archive_statement;
+DEALLOCATE PREPARE report_archive_statement;
+
+CREATE TABLE IF NOT EXISTS report_notifications (
+    id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    recipient_id BIGINT UNSIGNED NOT NULL,
+    report_id    BIGINT UNSIGNED NOT NULL,
+    type         VARCHAR(32) NOT NULL,
+    created_at   TIMESTAMP(6) NOT NULL,
+    INDEX idx_report_notification_inbox (recipient_id, id),
+    CONSTRAINT fk_report_notification_recipient FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
 SET @confirm_user_migration = IF(
     (SELECT COUNT(*) FROM information_schema.columns

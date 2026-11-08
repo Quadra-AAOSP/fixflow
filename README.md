@@ -220,6 +220,22 @@ Staff/admin can override the ranked list.
 
 ---
 
+### Live AI verification
+
+From `Backend`, load the `OPENROUTER_*` settings from your local environment,
+then run the opt-in smoke test:
+
+```powershell
+$env:FIXFLOW_LIVE_AI_TEST = 'true'
+try { .\mvnw.cmd '-Dtest=LiveAiSmokeTest' test }
+finally { Remove-Item Env:FIXFLOW_LIVE_AI_TEST }
+```
+
+The test uses an isolated in-memory database and sends only synthetic report data
+and a generated image to OpenRouter. It checks manual classification, the report
+assistant, pre-report triage, AI technician ranking, and background photo analysis.
+Live responses can take longer than normal API calls.
+
 ## Development workflow
 
 - **GitHub Flow** with branch protection

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useLocale } from '@/i18n';
 import { useAuth } from '@/composables/useAuth';
@@ -90,7 +91,7 @@ onMounted(load);
       <div class="product-actions"><button type="button" :disabled="busy" @click="confirmDeactivation">{{ t('Confirm deactivation') }}</button><button type="button" :disabled="busy" @click="deactivate = null">{{ t('Cancel') }}</button></div>
     </section>
     <label class="product-search">{{ t('Search products') }}<input v-model="search" type="search" /></label>
-    <p v-if="loading" role="status">{{ t('Loading products…') }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading products…')" />
     <div v-else class="product-admin-grid">
       <article v-for="product in visible" :key="product.id"><img v-if="safeImageUrl(product.imageUrl)" :src="safeImageUrl(product.imageUrl)!" :alt="product.name" loading="lazy" /><h2>{{ product.name }}</h2><p>{{ product.category }} · {{ product.id }}</p><dl><dt>{{ t('Price (minor units)') }}</dt><dd>{{ product.priceMinor }}</dd><dt>{{ t('Stock') }}</dt><dd>{{ product.stock }}</dd><dt>{{ t('Status') }}</dt><dd>{{ t(product.active ? 'Active' : 'Inactive') }}</dd></dl><div class="product-actions"><button type="button" :disabled="busy" @click="edit(product.id)">{{ t('Edit') }}</button><button v-if="product.active" type="button" :disabled="busy" @click="requestDeactivation(product)">{{ t('Deactivate') }}</button></div></article>
       <p v-if="!visible.length && !error">{{ t('No matching products.') }}</p>

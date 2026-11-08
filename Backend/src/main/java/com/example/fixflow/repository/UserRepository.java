@@ -20,6 +20,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	List<User> findByRoleOrderByLastNameAscFirstNameAsc(UserRole role);
 
+	@Query("select u.id from User u where u.site.id = :siteId and u.role = :role")
+	List<Long> findIdsBySiteAndRole(@Param("siteId") Long siteId, @Param("role") UserRole role);
+
 	@Query("select u from User u left join fetch u.site where u.id = :id")
 	Optional<User> findWithSiteById(@Param("id") Long id);
 }

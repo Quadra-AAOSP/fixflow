@@ -36,7 +36,8 @@ export const useAuthStore = defineStore('auth', () => {
     if (accountId == null) return;
     const current = await authApi.getMe();
     if (currentGeneration === sessionGeneration && user.value?.id === accountId) {
-      if (current.id !== accountId || current.role !== user.value.role || current.siteId !== user.value.siteId) {
+      if (current.id !== accountId || current.role !== user.value.role || current.siteId !== user.value.siteId ||
+          current.applicationOnly !== user.value.applicationOnly) {
         sessionGeneration++;
         advanceRequestSession();
       }

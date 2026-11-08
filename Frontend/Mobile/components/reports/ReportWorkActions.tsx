@@ -5,7 +5,7 @@ import { Action, Field } from '@/components/ReviewControls';
 import { toErrorMessage } from '@/lib/apiClient';
 import {
   escalateReportWork, listReportRatings, listResolutions, rateReportWork, resolveReportWork, startReportWork,
-  type ReportResolution,
+  type ReportResolution, type ReportRating,
 } from '@/services/reports';
 import type { Report } from '@/types';
 
@@ -13,10 +13,13 @@ type Props = {
   report: Report;
   isAssignedTechnician: boolean;
   canRate: boolean;
+  isOperator: boolean;
+  canReadWork: boolean;
+  currentUserId: number | undefined;
   onReportChanged: (report: Report) => void;
 };
 
-export function ReportWorkActions({ report, isAssignedTechnician, canRate, onReportChanged }: Props) {
+export function ReportWorkActions({ report, isAssignedTechnician, canRate, isOperator, canReadWork, currentUserId, onReportChanged }: Props) {
   const { t } = useTranslation('common');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -26,26 +29,29 @@ export function ReportWorkActions({ report, isAssignedTechnician, canRate, onRep
   const [feedback, setFeedback] = useState('');
   const [resolutions, setResolutions] = useState<ReportResolution[]>([]);
   const [selected, setSelected] = useState<number>();
-  const [rated, setRated] = useState<number[]>([]);
+  const [ratings, setRatings] = useState<ReportRating[]>([]);
   const canStart = isAssignedTechnician && ['assigned', 'reopened', 'escalated'].includes(report.status);
   const canResolve = isAssignedTechnician && report.status === 'in_progress';
-  const canEscalate = isAssignedTechnician && ['assigned', 'reopened', 'in_progress'].includes(report.status);
-  const canReadResolution = canRate || report.status === 'resolved_pending_confirmation';
+  const canEscalate = (isAssignedTechnician || (isOperator && report.assignedTechnicianId != null)) && ['assigned', 'reopened', 'in_progress'].includes(report.status);
+  const canReadResolution = canReadWork && ['resolved_pending_confirmation', 'confirmed'].includes(report.status);
 
   useEffect(() => {
+    setResolutions([]);
+    setRatings([]);
+    setSelected(undefined);
     if (!canReadResolution) return;
     let active = true;
-    Promise.all([listResolutions(report.id), canRate ? listReportRatings(report.id) : []]).then(([items, ratings]) => {
+    Promise.all([listResolutions(report.id), listReportRatings(report.id)]).then(([items, ratings]) => {
       if (active) {
         setResolutions(items);
         setSelected(items[items.length - 1]?.id);
-        setRated(ratings.filter(rating => rating.ratedByCurrentUser).map(rating => rating.resolutionId));
+        setRatings(ratings);
       }
     }).catch(err => {
       if (active) setError(toErrorMessage(err, { fallback: t('marketplace.error') }));
     });
     return () => { active = false; };
-  }, [canRate, canReadResolution, report.id, report.status, t]);
+  }, [canRate, canReadResolution, currentUserId, report.id, report.status, t]);
 
   async function run(operation: () => Promise<void>) {
     setBusy(true);
@@ -89,20 +95,23 @@ export function ReportWorkActions({ report, isAssignedTechnician, canRate, onRep
             date: new Date(resolution.createdAt).toLocaleString(),
           })}</Text>
           <Text className="text-ink">{resolution.description}</Text>
+          {ratings.filter(rating => rating.resolutionId === resolution.id).map(rating => (
+            <Text key={rating.id} className="text-ink">{rating.score}/5{rating.feedback ? ` · ${rating.feedback}` : ''}</Text>
+          ))}
           {canRate && resolutions.length > 1 ? <Action label={t(
             selected === resolution.id ? 'marketplace.work.selected' : 'marketplace.work.choose',
           )} disabled={busy || selected === resolution.id} onPress={() => setSelected(resolution.id)} /> : null}
         </View>
       )) : null}
-      {canRate && selected !== undefined ? rated.includes(selected)
+      {canRate && selected !== undefined && resolutions.find(item => item.id === selected)?.technicianId !== currentUserId ? ratings.some(rating => rating.ratedByCurrentUser && rating.resolutionId === selected)
         ? <Text accessibilityLiveRegion="polite">{t('marketplace.work.rated')}</Text>
         : <View className="my-2">
           <Field label={t('marketplace.work.score')} value={score} maxLength={1} onChangeText={setScore} />
           <Field label={t('marketplace.work.feedback')} value={feedback} maxLength={2000} onChangeText={setFeedback} multiline />
           <Action label={t('marketplace.work.rate')} disabled={busy || !/^[1-5]$/.test(score)}
             onPress={() => void run(async () => {
-              await rateReportWork(report.id, selected, Number(score), feedback.trim());
-              setRated(items => [...items, selected]);
+              const rating = await rateReportWork(report.id, selected, Number(score), feedback.trim());
+              setRatings(items => [...items, rating]);
               setScore('');
               setFeedback('');
             })} />

@@ -30,6 +30,8 @@ export function QuantityStepper({
       <Pressable
         onPress={() => canDecrease && onChange(value - 1)}
         disabled={!canDecrease}
+        accessibilityState={{ disabled: !canDecrease }}
+        style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
         accessibilityRole="button"
         accessibilityLabel={t('components.quantityStepper.decrease')}
         className={`px-3 py-2 ${canDecrease ? 'active:opacity-70' : 'opacity-40'}`}
@@ -44,6 +46,8 @@ export function QuantityStepper({
       <Pressable
         onPress={() => canIncrease && onChange(value + 1)}
         disabled={!canIncrease}
+        accessibilityState={{ disabled: !canIncrease }}
+        style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
         accessibilityRole="button"
         accessibilityLabel={t('components.quantityStepper.increase')}
         className={`px-3 py-2 ${canIncrease ? 'active:opacity-70' : 'opacity-40'}`}

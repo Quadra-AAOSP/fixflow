@@ -4,7 +4,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { StateView } from '@/components/ui/StateView';
 import { RefreshCw } from 'lucide-react-native';
 import { useFonts } from 'expo-font';
 import {
@@ -153,13 +154,14 @@ function OfflineBanner() {
 }
 
 function AuthNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useTranslation('common');
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const applicationOnly = user?.applicationOnly === true;
   const segments = useSegments();
   const router = useRouter();
-  const palette = themeColors();
 
   useEffect(() => {
-    if (isLoading) {
+    if (isLoading || applicationOnly) {
       return;
     }
 
@@ -170,12 +172,12 @@ function AuthNavigator() {
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, isLoading, segments, router]);
+  }, [applicationOnly, isAuthenticated, isLoading, segments, router]);
 
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-surface">
-        <ActivityIndicator size="large" color={palette.primary} />
+        <StateView variant="loading" title={t('review.loading')} className="px-6" />
       </View>
     );
   }
@@ -186,8 +188,14 @@ function AuthNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
+      <Stack.Protected guard={!applicationOnly}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="+not-found" />
+      </Stack.Protected>
+      <Stack.Protected guard={applicationOnly}>
+        <Stack.Screen name="application-access" />
+      </Stack.Protected>
     </Stack>
   );
 }

@@ -47,6 +47,7 @@ type ItemKey =
   | 'notifications'
   | 'myAdminApplication'
   | 'siteSetup'
+  | 'siteRules'
   | 'sites'
   | 'teamAccess'
   | 'technicians'
@@ -90,6 +91,7 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   siteSetup: ['super_admin'],
   // Sites = edit / manage existing sites → admin (theirs) + super_admin (all).
   sites: ['admin', 'super_admin'],
+  siteRules: ['admin', 'super_admin'],
 
   // TeamAccess = provision users via /api/admin/users → admin + super_admin.
   // Admin can only provision staff at their own site (backend enforces scope).
@@ -167,6 +169,7 @@ export default function MoreScreen() {
       subtitleKey: 'more.menu.siteSetupSubtitleRequired',
       onPress: () => router.push('/more/site-setup'),
     },
+    siteRules: { icon: FileText, titleKey: 'more.menu.siteRulesTitle', subtitleKey: null, onPress: () => router.push('/more/site-rules') },
     sites: {
       icon: Users,
       titleKey: 'more.menu.sitesTitle',
@@ -224,6 +227,7 @@ export default function MoreScreen() {
   const adminKeys: ItemKey[] = [
     'siteSetup',
     'sites',
+    'siteRules',
     'teamAccess',
     'technicians',
     'adminApplications',

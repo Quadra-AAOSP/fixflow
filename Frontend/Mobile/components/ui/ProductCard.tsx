@@ -31,6 +31,9 @@ type ProductCardProps = {
  * button. Nesting one Pressable inside another produces a DOM error on web
  * (<button> inside <button>); sibling Pressables render cleanly everywhere.
  */
+const CARD_CLASS = 'flex-1 overflow-hidden rounded-[15px] border border-shop-card-line bg-card';
+const IMAGE_ASPECT_RATIO = 1.25;
+
 export function ProductCard({
   product,
   currency,
@@ -44,7 +47,7 @@ export function ProductCard({
   const outOfStock = product.stock <= 0;
 
   return (
-    <View className="flex-1 overflow-hidden rounded-[15px] border border-shop-card-line bg-card">
+    <View className={CARD_CLASS}>
       {/* Detail-tap overlay — this is a sibling of the plus button, not a
           parent. No nested Pressables means no <button>-in-<button> on web. */}
       <Pressable
@@ -54,7 +57,7 @@ export function ProductCard({
       >
         <View
           className="w-full items-center justify-center bg-shop-image-bg"
-          style={{ aspectRatio: 1.25 }}
+          style={{ aspectRatio: IMAGE_ASPECT_RATIO }}
         >
           <Image
             source={{ uri: imageUri }}

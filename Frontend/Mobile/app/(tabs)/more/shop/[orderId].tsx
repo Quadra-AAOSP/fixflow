@@ -2,7 +2,6 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
@@ -33,7 +32,6 @@ import { formatDate, formatMoney } from '@/utils/format';
  * payment gateway.
  */
 export default function OrderDetailScreen() {
-  const palette = themeColors();
   const router = useRouter();
   const { orderId } = useLocalSearchParams<{ orderId?: string | string[] }>();
   const publicId = Array.isArray(orderId) ? orderId[0] : orderId;
@@ -119,9 +117,7 @@ export default function OrderDetailScreen() {
   if (loading && order === null) {
     return (
       <Screen>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={palette.primary} />
-        </View>
+        <StateView variant="loading" title={t('review.loading')} />
       </Screen>
     );
   }

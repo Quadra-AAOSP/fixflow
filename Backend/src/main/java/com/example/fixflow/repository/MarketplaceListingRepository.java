@@ -9,11 +9,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface MarketplaceListingRepository extends JpaRepository<MarketplaceListing, Long> {
-    List<MarketplaceListing> findByReport_Site_IdOrderByIdDesc(Long siteId);
+    @Query("select l from MarketplaceListing l join fetch l.report r where r.site.id = :siteId order by l.id desc")
+    List<MarketplaceListing> findByReport_Site_IdOrderByIdDesc(@Param("siteId") Long siteId);
     List<MarketplaceListing> findByReport_IdAndStatusIn(Long reportId, Collection<MarketplaceListing.Status> statuses);
 
     @Query("""
-            select l from MarketplaceListing l
+            select l from MarketplaceListing l join fetch l.report
             where l.status in ('open', 'offered') or exists
                 (select a.id from MarketplaceApplication a where a.listing.id = l.id and a.technician.id = :technicianId)
             order by l.id desc

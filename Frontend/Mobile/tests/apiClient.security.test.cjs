@@ -103,3 +103,45 @@ test('CSRF rejection does not retry the write or switch API origins', async () =
   await assert.rejects(client.api.post('/api/reports', { description: 'sample' }), error => error.status === 403);
   assert.equal(calls.length, 2);
 });
+
+test('manual classification can finish after the normal write deadline', async () => {
+  const timers = new Map();
+  const client = load('lib/apiClient.ts', { '@/constants/config': {
+    API_BASE_URL: 'https://api.example.com', API_BASE_URL_CANDIDATES: ['https://api.example.com'],
+  } }, {
+    setTimeout: (fn, delay) => { const id = Symbol(); timers.set(id, { fn, delay }); return id; },
+    clearTimeout: (id) => timers.delete(id),
+    fetch: async (url, init) => {
+      if (url.endsWith('/csrf')) return { ok: true, json: async () => ({ headerName: 'X-CSRF-TOKEN', token: 'token' }) };
+      for (const timer of timers.values()) {
+        if (timer.delay <= 25_000) timer.fn();
+      }
+      if (init.signal.aborted) throw Error('request timed out');
+      return { ok: true, json: async () => ({ aiUrgency: 'high' }) };
+    },
+  });
+  const reports = load('services/reports.ts', {
+    '@/lib/apiClient': client,
+    '@/lib/endpoints': { endpoints: { reports: { classify: id => `/api/reports/${id}/classify` } } },
+  });
+  assert.equal((await reports.classifyReport(1)).aiUrgency, 'high');
+  await assert.rejects(client.api.post('/api/reports', { description: 'sample' }), /timed out/);
+});
+
+test('vision queues the selected image with explicit consent as multipart', async () => {
+  const reportApi = load('services/reports.ts', {
+    '@/lib/apiClient': { api: { post: async (url, json, init) => {
+      assert.equal(url, '/api/reports/1/vision');
+      assert.equal(json, undefined);
+      assert.equal(init.body.get('consent'), 'true');
+      assert.equal(init.body.get('image').name, 'photo.png');
+      assert.equal(init.body.get('image').type, 'image/png');
+      return { jobId: 'test-job', status: 'queued' };
+    } } },
+    '@/lib/endpoints': { endpoints: { reports: { vision: id => `/api/reports/${id}/vision` } } },
+  }, { FormData });
+  const file = new Blob(['synthetic-image'], { type: 'image/png' });
+  const job = await reportApi.triggerVisionProcessing(1, { file, uri: 'blob:test', fileName: 'photo.png' });
+  assert.equal(job.jobId, 'test-job');
+  assert.equal(job.status, 'queued');
+});

@@ -1,4 +1,5 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,9 +25,11 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { ReportWorkActions } from '@/components/reports/ReportWorkActions';
+import { ReportChangeActions } from '@/components/reports/ReportChangeActions';
 import { Card } from '@/components/ui/Card';
 import { ReportAssistantChat } from '@/components/chat/ReportAssistantChat';
 import { ModalSheet } from '@/components/ui/ModalSheet';
+import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -74,6 +77,7 @@ import type {
 } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
+import { reportTechnicianRoutes, type TechnicianRoute } from '@/utils/reportTechnicianRoutes';
 
 /** A selectable assignment candidate (server ranking or directory-derived). */
 type AssignmentCandidate = {
@@ -110,6 +114,7 @@ export default function ReportDetailScreen() {
   const [rankingMode, setRankingMode] = useState<RankingMode>('STANDARD');
   const [rankingLoading, setRankingLoading] = useState(false);
   const [rankingError, setRankingError] = useState<string | null>(null);
+  const candidateRequest = useRef(0);
   const [directory, setDirectory] = useState<TechnicianSummary[]>([]);
   const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [selectedTechnicianId, setSelectedTechnicianId] = useState<number | null>(null);
@@ -117,6 +122,7 @@ export default function ReportDetailScreen() {
   const [inviting, setInviting] = useState(false);
   const [inviteSent, setInviteSent] = useState<TechnicianInvitationsSent | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [routingChoice, setRoutingChoice] = useState<{ reportId: number; route: TechnicianRoute } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [reopenModalVisible, setReopenModalVisible] = useState(false);
@@ -152,9 +158,33 @@ export default function ReportDetailScreen() {
   const [visionJob, setVisionJob] = useState<VisionJob | null>(null);
   const [visionLoading, setVisionLoading] = useState(false);
   const [visionError, setVisionError] = useState<string | null>(null);
+  const visionRequest = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    setVisionLoading(false);
+    setVisionError(null);
+    return () => {
+      visionRequest.current?.abort();
+      visionRequest.current = null;
+    };
+  }, [reportId, user?.id]);
+
+  const loadRevision = useRef(0);
+  const clearReport = useCallback(() => {
+    protectedPhotoRequest.current?.abort();
+    setProtectedPhotoLoading(false);
+    setReport(null);
+    setReporters(null);
+    setPhotoUrls({});
+    setPreviewPhoto(null);
+    setAiAssessment(null);
+    setVisionJob(null);
+  }, []);
 
   const load = useCallback(async () => {
+    const revision = ++loadRevision.current;
     if (!Number.isInteger(reportId) || reportId <= 0) {
+      clearReport();
       setLoadError(t('reports.detail.noAccess'));
       setLoading(false);
       return;
@@ -164,38 +194,36 @@ export default function ReportDetailScreen() {
     setLoadError(null);
     try {
       const next = await getReport(reportId);
+      if (revision !== loadRevision.current) return;
       setReport(next);
+      setReporters(null);
       setSelectedTechnicianId(null);
       setPhotoUrls({});
-      setVisionJob(null);
-      setVisionError(null);
 
       if (next.policy.canSeeSensitive) {
-        const photos = await getReportPhotos(reportId);
+        const [photos, people] = await Promise.all([getReportPhotos(reportId), listReporters(reportId)]);
+        if (revision !== loadRevision.current) return;
         setReport({ ...next, photos });
-        if (user) {
-          setReporters(await listReporters(reportId));
-        } else {
-          setReporters(null);
-        }
+        setReporters(people);
       }
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        await logout().catch(() => {});
-        return;
-      } else if (err instanceof ApiError && err.status === 403) {
-        setLoadError(t('reports.detail.noAccess'));
-      } else if (err instanceof ApiError && err.status === 404) {
-        setLoadError(t('reports.detail.gone'));
+      if (revision !== loadRevision.current) return;
+      if (err instanceof ApiError && [401, 403, 404].includes(err.status)) {
+        clearReport();
+        if (err.status === 401) {
+          await logout().catch(() => {});
+          return;
+        }
+        setLoadError(t(err.status === 404 ? 'reports.detail.gone' : 'reports.detail.noAccess'));
       } else {
         setLoadError(
           toErrorMessage(err, { fallback: t('reports.detail.couldNotLoad') }),
         );
       }
     } finally {
-      setLoading(false);
+      if (revision === loadRevision.current) setLoading(false);
     }
-  }, [reportId, t]);
+  }, [clearReport, logout, reportId, t]);
 
   const triggerAiAssessment = useCallback(async () => {
     if (!report || aiLoading) return;
@@ -227,36 +255,54 @@ export default function ReportDetailScreen() {
   );
 
   const analyzePhotos = useCallback(async () => {
-    if (visionLoading) return;
+    if (visionRequest.current) return;
+    const request = new AbortController();
+    visionRequest.current = request;
     setVisionLoading(true);
     setVisionError(null);
     try {
-      let job = await triggerVisionProcessing(reportId);
+      let job = visionJob?.reportId === reportId &&
+        (visionJob.status === 'queued' || visionJob.status === 'processing') ? visionJob : null;
+      if (!job) {
+        const image = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+        if (image.canceled || request.signal.aborted) return;
+        job = await triggerVisionProcessing(reportId, image.assets[0]);
+      }
+      if (request.signal.aborted) return;
       setVisionJob(job);
-      // Poll until the background job settles, then refresh the report so the
-      // new AI assessment replaces the masked one.
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        if (job.status === 'completed' || job.status === 'failed') break;
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        job = await getVisionJobStatus(reportId, job.id);
+      const deadline = Date.now() + 240_000;
+      while ((job.status === 'queued' || job.status === 'processing') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        if (request.signal.aborted) return;
+        job = await getVisionJobStatus(reportId, job.jobId);
+        if (request.signal.aborted) return;
         setVisionJob(job);
       }
       if (job.status === 'completed') {
         await load();
-      } else {
+      } else if (job.status === 'failed') {
         setVisionError(t('reports.detail.vision.failed'));
       }
     } catch (err) {
+      if (request.signal.aborted) return;
       setVisionError(
         err instanceof ApiError ? err.message : t('reports.detail.vision.failed'),
       );
     } finally {
-      setVisionLoading(false);
+      if (visionRequest.current === request) {
+        visionRequest.current = null;
+        setVisionLoading(false);
+      }
     }
-  }, [reportId, visionLoading, load, t]);
+  }, [reportId, visionJob, load, t]);
 
   const confirmAnalyzePhotos = useCallback(() => {
     if (visionLoading) return;
+    if (visionJob?.reportId === reportId &&
+        (visionJob.status === 'queued' || visionJob.status === 'processing')) {
+      void analyzePhotos();
+      return;
+    }
     Alert.alert(
       t('reports.detail.vision.consentTitle'),
       t('reports.detail.vision.consentMessage'),
@@ -270,16 +316,27 @@ export default function ReportDetailScreen() {
         },
       ],
     );
-  }, [analyzePhotos, visionLoading, t]);
+  }, [analyzePhotos, reportId, visionJob, visionLoading, t]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
-    }, [load]),
+      return () => { loadRevision.current++; };
+    }, [load, user?.id]),
   );
 
   const isReportManager =
     user?.role === 'admin' || user?.role === 'super_admin';
+  const routingOptions = report?.id === reportId ? reportTechnicianRoutes(report, user) : [];
+  const technicianRoute = routingChoice?.reportId === reportId && routingOptions.includes(routingChoice.route)
+    ? routingChoice.route
+    : routingOptions[0];
+
+  useEffect(() => {
+    setInviteSent(null);
+    setInviteReason('');
+    setInviteError(null);
+  }, [reportId]);
 
   /**
    * Admins/super admins rank through the backend (STANDARD or AI/OpenRouter);
@@ -288,7 +345,8 @@ export default function ReportDetailScreen() {
    */
   const loadCandidates = useCallback(
     async (mode: RankingMode) => {
-      if (!report || !report.policy.canAssign) return;
+      if (!report || technicianRoute !== 'contracted') return;
+      const request = ++candidateRequest.current;
       setRankingLoading(true);
       setRankingError(null);
       setDirectoryError(null);
@@ -298,6 +356,7 @@ export default function ReportDetailScreen() {
           ? rankTechniciansForReport(report.id, mode)
           : Promise.resolve(null),
       ]);
+      if (request !== candidateRequest.current) return;
       if (results[0].status === 'fulfilled') {
         setDirectory(results[0].value);
       } else {
@@ -318,12 +377,13 @@ export default function ReportDetailScreen() {
       }
       setRankingLoading(false);
     },
-    [report, isReportManager, t],
+    [report, isReportManager, technicianRoute, t],
   );
 
   useEffect(() => {
-    if (!report) return;
+    if (!report || technicianRoute !== 'contracted') return;
     void loadCandidates(rankingMode);
+    return () => { candidateRequest.current++; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     report?.id,
@@ -331,6 +391,7 @@ export default function ReportDetailScreen() {
     report?.category,
     report?.specialty,
     report?.policy.canAssign,
+    technicianRoute,
     rankingMode,
   ]);
 
@@ -384,6 +445,7 @@ export default function ReportDetailScreen() {
   );
 
   async function onInviteTechnicians() {
+    if (technicianRoute !== 'invite' || inviting || (inviteSent && !inviteSent.hasNext)) return;
     const reason = inviteReason.trim();
     if (reason.length === 0) {
       setInviteError(t('reports.detail.inviteReasonRequired'));
@@ -576,8 +638,8 @@ export default function ReportDetailScreen() {
     );
   }
 
+  const reportRevision = loadRevision.current;
   const canSeeSensitive = report.policy.canSeeSensitive;
-  const canAssign = report.policy.canAssign;
   // Backend permits any same-site actor to join, but the concept is only
   // meaningful for reporters who did not file the report themselves.
   const canJoin = report.policy.canJoin;
@@ -592,9 +654,9 @@ export default function ReportDetailScreen() {
   const reopenable =
     report.status === 'confirmed' || report.status === 'resolved_pending_confirmation';
   const isAssignedTechnician = user?.role === 'technician' && report.assignedTechnicianId === user.id;
-  const canRate = report.status === 'confirmed' && user?.role !== 'technician' && canConfirmReopen;
-  const canPublishJob = user?.role === 'admin' && user.siteId === report.siteId
-    && report.assignedTechnicianId === null && ['open', 'routed', 'reopened', 'escalated'].includes(report.status);
+  const isOperator = ['staff', 'admin', 'super_admin'].includes(user?.role ?? '');
+  const canReadWork = canSeeSensitive && (isAssignedTechnician || isOperator || (user?.role === 'reporter' && (user.id === report.createdByUserId || report.policy.participant)));
+  const canRate = canReadWork && report.status === 'confirmed' && (isOperator || (user?.role === 'reporter' && (user.id === report.createdByUserId || report.policy.participant)));
 
   return (
     <Screen>
@@ -659,6 +721,8 @@ export default function ReportDetailScreen() {
           <Text className="mb-2 text-[14px] leading-[1.8] text-ink">
             {report.description}
           </Text>
+          <ReportChangeActions key={report.id} report={report} onSaved={setReport}
+            onDeleted={() => router.replace('/reports')} />
           {reporters && reporters.some(r => r.userId === user?.id) && (
             <Card className="mb-4">
               <View className="flex-row items-center justify-between px-4 py-3">
@@ -673,17 +737,11 @@ export default function ReportDetailScreen() {
           )}
         </View>
 
-        {canPublishJob ? (
-          <Button
-            className="mb-4"
-            label={t('marketplace.publishFromReport')}
-            onPress={() => router.push({ pathname: '/more/marketplace', params: { reportId: String(report.id) } })}
-          />
-        ) : null}
-
-        {isAssignedTechnician || canRate || (awaitingConfirmation && canConfirmReopen) ? (
+        {isAssignedTechnician || isOperator || canReadWork ? (
           <ReportWorkActions key={report.id} report={report} isAssignedTechnician={isAssignedTechnician}
-            canRate={canRate} onReportChanged={setReport} />
+            canRate={canRate} isOperator={isOperator} canReadWork={canReadWork} currentUserId={user?.id} onReportChanged={updated => {
+              if (reportRevision === loadRevision.current) setReport(updated);
+            }} />
         ) : null}
 
         {/* AI Assessment Section */}
@@ -724,10 +782,9 @@ export default function ReportDetailScreen() {
                   {report.aiReport.description}
                 </Text>
               )}
-              {canSeeSensitive && report.aiReport.confidence != null && (
+              {report.aiReport.urgencyReason && (
                 <Text className="mt-1 text-[11px] text-dashboard-caption">
-                  {t('reports.detail.aiAssessment.confidence')}:{' '}
-                  {Math.round(report.aiReport.confidence * 100)}%
+                  {t('reports.detail.definition.urgencyReason')}: {report.aiReport.urgencyReason}
                 </Text>
               )}
             </View>
@@ -780,7 +837,10 @@ export default function ReportDetailScreen() {
               {t('reports.detail.photos.noPhotos')}
             </Text>
           )}
-          {canSeeSensitive && report.photos && report.photos.length > 0 ? (
+          {canSeeSensitive && report.status === 'open' && (
+            user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'staff' ||
+            (user?.role === 'reporter' && user.id === report.createdByUserId)
+          ) ? (
             <View className="mt-3">
               <Pressable
                 onPress={confirmAnalyzePhotos}
@@ -792,10 +852,12 @@ export default function ReportDetailScreen() {
                 <Text className="text-[11px] font-medium text-dashboard-teal">
                   {visionLoading
                     ? t('reports.detail.vision.running')
-                    : t('reports.detail.vision.analyze')}
+                    : visionJob?.reportId === reportId && (visionJob.status === 'queued' || visionJob.status === 'processing')
+                      ? t('reports.detail.vision.checkStatus')
+                      : t('reports.detail.vision.analyze')}
                 </Text>
               </Pressable>
-              {visionJob ? (
+              {visionJob?.reportId === reportId ? (
                 <Text className="mt-1 text-[10px] text-dashboard-caption">
                   {humanize(visionJob.status)}
                 </Text>
@@ -1016,269 +1078,299 @@ export default function ReportDetailScreen() {
           </Card>
         ) : null}
 
-        {canAssign ? (
+        {technicianRoute ? (
           <Card className="mb-4">
-            <Text
-              className="mb-1 text-[15px] font-semibold text-ink"
-              style={{ letterSpacing: -0.3 }}
-            >
-              {report.assignedTechnicianId
-                ? t('reports.detail.assignTitleReassign')
-                : t('reports.detail.assignTitleAssign')}
+            <Text accessibilityRole="header" className="mb-3 text-[15px] font-semibold text-ink">
+              {t('reports.detail.technicianRouting.title')}
             </Text>
-            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-              {t('reports.detail.assignBody')}
-            </Text>
-            {isReportManager ? (
-              <View className="mb-3">
-                <Text className="mb-1 text-[10px] font-semibold uppercase tracking-[1px] text-dashboard-caption">
-                  {t('reports.detail.assignCandidatesTitle')}
+            <Picker
+              label={t('reports.detail.technicianRouting.label')}
+              value={technicianRoute}
+              options={routingOptions.map(route => ({
+                value: route,
+                label: t(`reports.detail.technicianRouting.${route}`),
+              }))}
+              onChange={value => {
+                const route = routingOptions.find(option => option === value);
+                if (route) setRoutingChoice({ reportId, route });
+              }}
+              disabled={routingOptions.length === 1 || assigning || inviting}
+            />
+            {technicianRoute === 'contracted' ? (
+              <View>
+                <Text
+                  className="mb-1 text-[15px] font-semibold text-ink"
+                  style={{ letterSpacing: -0.3 }}
+                >
+                  {report.assignedTechnicianId
+                    ? t('reports.detail.assignTitleReassign')
+                    : t('reports.detail.assignTitleAssign')}
                 </Text>
-                <View className="flex-row gap-2">
-                  {(['STANDARD', 'AI'] as RankingMode[]).map((mode) => {
-                    const active = rankingMode === mode;
-                    return (
-                      <Pressable
-                        key={mode}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: active }}
-                        onPress={() => setRankingMode(mode)}
-                        className="flex-row items-center gap-1 rounded-full border px-3 py-1.5 active:opacity-80"
-                        style={{
-                          backgroundColor: active
-                            ? dashboardColors.statMintSoft
-                            : dashboardColors.cardBg,
-                          borderColor: active
-                            ? dashboardColors.statMintDeep
-                            : dashboardColors.cardLine,
-                        }}
-                      >
-                        {mode === 'AI' ? (
-                          <Sparkles
-                            color={
-                              active
+                <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+                  {t('reports.detail.assignBody')}
+                </Text>
+                {isReportManager ? (
+                  <View className="mb-3">
+                    <Text className="mb-1 text-[10px] font-semibold uppercase tracking-[1px] text-dashboard-caption">
+                      {t('reports.detail.assignCandidatesTitle')}
+                    </Text>
+                    <View className="flex-row gap-2">
+                      {(['STANDARD', 'AI'] as RankingMode[]).map((mode) => {
+                        const active = rankingMode === mode;
+                        return (
+                          <Pressable
+                            key={mode}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: active }}
+                            onPress={() => setRankingMode(mode)}
+                            className="flex-row items-center gap-1 rounded-full border px-3 py-1.5 active:opacity-80"
+                            style={{
+                              backgroundColor: active
+                                ? dashboardColors.statMintSoft
+                                : dashboardColors.cardBg,
+                              borderColor: active
                                 ? dashboardColors.statMintDeep
-                                : dashboardColors.subtitle
-                            }
-                            size={12}
-                          />
-                        ) : null}
-                        <Text
-                          className="text-[11px] font-semibold"
+                                : dashboardColors.cardLine,
+                            }}
+                          >
+                            {mode === 'AI' ? (
+                              <Sparkles
+                                color={
+                                  active
+                                    ? dashboardColors.statMintDeep
+                                    : dashboardColors.subtitle
+                                }
+                                size={12}
+                              />
+                            ) : null}
+                            <Text
+                              className="text-[11px] font-semibold"
+                              style={{
+                                color: active
+                                  ? dashboardColors.statMintDeep
+                                  : dashboardColors.subtitle,
+                              }}
+                            >
+                              {t(
+                                mode === 'AI'
+                                  ? 'reports.detail.assignModeAI'
+                                  : 'reports.detail.assignModeStandard',
+                              )}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
+
+                {isReportManager && ranking ? (
+                  <Text className="mb-2 text-[10px] leading-[1.7] text-dashboard-caption">
+                    {t('reports.detail.assignRankingUsed', {
+                      mode: humanize(ranking.methodUsed),
+                    })}
+                    {ranking.fallbackReason
+                      ? ` · ${t('reports.detail.assignRankingFallback', {
+                          reason: ranking.fallbackReason,
+                        })}`
+                      : ''}
+                  </Text>
+                ) : null}
+
+                {rankingLoading ? (
+                  <View className="mb-3 flex-row items-center gap-2">
+                    <ActivityIndicator color={dashboardColors.teal} size="small" />
+                    <Text className="text-[11px] text-dashboard-subtitle">
+                      {t('reports.detail.assignLoadingCandidates')}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {rankingError ? (
+                  <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
+                    {rankingError}
+                  </Text>
+                ) : null}
+                {directoryError ? (
+                  <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
+                    {directoryError}
+                  </Text>
+                ) : null}
+
+                {assignmentCandidates.length > 0 ? (
+                  <View className="mb-3 overflow-hidden rounded-md border border-dashboard-card-line">
+                    {assignmentCandidates.map((candidate, index) => {
+                      const active =
+                        selectedTechnicianId === candidate.technicianId;
+                      return (
+                        <Pressable
+                          key={candidate.technicianId}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: active }}
+                          onPress={() =>
+                            setSelectedTechnicianId(candidate.technicianId)
+                          }
+                          className={`px-3 py-2 active:opacity-80 ${
+                            index > 0 ? 'border-t border-dashboard-card-line' : ''
+                          }`}
                           style={{
-                            color: active
-                              ? dashboardColors.statMintDeep
-                              : dashboardColors.subtitle,
+                            backgroundColor: active
+                              ? dashboardColors.statMintSoft
+                              : 'transparent',
                           }}
                         >
-                          {t(
-                            mode === 'AI'
-                              ? 'reports.detail.assignModeAI'
-                              : 'reports.detail.assignModeStandard',
-                          )}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                          <Text className="text-[12px] font-medium text-ink">
+                            {technicianName(candidate.technicianId)}
+                          </Text>
+                          <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                            {t('reports.detail.assignProficiency', {
+                              level: candidate.proficiency,
+                            })}
+                            {' · '}
+                            {t(
+                              candidate.specialtyMatch
+                                ? 'reports.detail.assignSpecialtyMatch'
+                                : 'reports.detail.assignSpecialtyMismatch',
+                            )}
+                            {candidate.activeCases !== null
+                              ? ` · ${t('reports.detail.assignActiveCases', {
+                                  count: candidate.activeCases,
+                                })}`
+                              : ''}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : !rankingLoading ? (
+                  <Text className="mb-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
+                    {t('reports.detail.assignNoCandidates')}
+                  </Text>
+                ) : null}
+                <View className="flex-row items-center gap-2">
+                  <Button
+                    label={
+                      report.assignedTechnicianId !== null
+                        ? t('reports.detail.assignReassign')
+                        : t('reports.detail.assignSave')
+                    }
+                    variant="secondary"
+                    onPress={onAssign}
+                    loading={assigning}
+                    disabled={selectedTechnicianId === null || rankingLoading}
+                    className="flex-1"
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('reports.detail.assignRefresh')}
+                    disabled={rankingLoading}
+                    onPress={() => {
+                      void loadCandidates(rankingMode);
+                    }}
+                    className="h-11 w-11 items-center justify-center rounded-md active:opacity-70"
+                    style={{ opacity: rankingLoading ? 0.4 : 1 }}
+                  >
+                    <RefreshCw color={dashboardColors.subtitle} size={15} />
+                  </Pressable>
                 </View>
               </View>
             ) : null}
-
-            {isReportManager && ranking ? (
-              <Text className="mb-2 text-[10px] leading-[1.7] text-dashboard-caption">
-                {t('reports.detail.assignRankingUsed', {
-                  mode: humanize(ranking.methodUsed),
-                })}
-                {ranking.fallbackReason
-                  ? ` · ${t('reports.detail.assignRankingFallback', {
-                      reason: ranking.fallbackReason,
-                    })}`
-                  : ''}
-              </Text>
-            ) : null}
-
-            {rankingLoading ? (
-              <View className="mb-3 flex-row items-center gap-2">
-                <ActivityIndicator color={dashboardColors.teal} size="small" />
-                <Text className="text-[11px] text-dashboard-subtitle">
-                  {t('reports.detail.assignLoadingCandidates')}
+            {technicianRoute === 'invite' ? (
+              <View>
+                <View className="mb-2 flex-row items-center gap-2">
+                  <UserPlus color={dashboardColors.teal} size={18} />
+                  <Text
+                    className="text-[15px] font-semibold text-ink"
+                    style={{ letterSpacing: -0.3 }}
+                  >
+                    {t('reports.detail.inviteTitle')}
+                  </Text>
+                </View>
+                <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+                  {t('reports.detail.inviteBody')}
                 </Text>
-              </View>
-            ) : null}
-
-            {rankingError ? (
-              <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
-                {rankingError}
-              </Text>
-            ) : null}
-            {directoryError ? (
-              <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
-                {directoryError}
-              </Text>
-            ) : null}
-
-            {assignmentCandidates.length > 0 ? (
-              <View className="mb-3 overflow-hidden rounded-md border border-dashboard-card-line">
-                {assignmentCandidates.map((candidate, index) => {
-                  const active =
-                    selectedTechnicianId === candidate.technicianId;
-                  return (
-                    <Pressable
-                      key={candidate.technicianId}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: active }}
-                      onPress={() =>
-                        setSelectedTechnicianId(candidate.technicianId)
-                      }
-                      className={`px-3 py-2 active:opacity-80 ${
-                        index > 0 ? 'border-t border-dashboard-card-line' : ''
-                      }`}
-                      style={{
-                        backgroundColor: active
-                          ? dashboardColors.statMintSoft
-                          : 'transparent',
-                      }}
+                <TextField
+                  label={t('reports.detail.inviteReasonLabel')}
+                  value={inviteReason}
+                  onChangeText={(text) => {
+                    setInviteReason(text);
+                    if (inviteError) setInviteError(null);
+                  }}
+                  placeholder={t('reports.detail.inviteReasonPlaceholder')}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  editable={!inviting}
+                  maxLength={1000}
+                />
+                {inviteError ? (
+                  <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
+                    {inviteError}
+                  </Text>
+                ) : null}
+                {inviteSent ? (
+                  <View className="mb-3">
+                    <Text
+                      className="text-[11px] font-medium"
+                      style={{ color: dashboardColors.statMintDeep }}
                     >
-                      <Text className="text-[12px] font-medium text-ink">
-                        {technicianName(candidate.technicianId)}
-                      </Text>
-                      <Text className="mt-0.5 text-[10px] text-dashboard-caption">
-                        {t('reports.detail.assignProficiency', {
-                          level: candidate.proficiency,
-                        })}
-                        {' · '}
-                        {t(
-                          candidate.specialtyMatch
-                            ? 'reports.detail.assignSpecialtyMatch'
-                            : 'reports.detail.assignSpecialtyMismatch',
-                        )}
-                        {candidate.activeCases !== null
-                          ? ` · ${t('reports.detail.assignActiveCases', {
-                              count: candidate.activeCases,
-                            })}`
-                          : ''}
+                      {t('reports.detail.inviteCreated', {
+                        count: inviteSent.created,
+                        page: inviteSent.page + 1,
+                      })}
+                    </Text>
+                    <Text className="mt-0.5 text-[10px] leading-[1.7] text-dashboard-caption">
+                      {inviteSent.hasNext
+                        ? t('reports.detail.inviteMoreBatches')
+                        : t('reports.detail.inviteNoMoreBatches')}
+                    </Text>
+                  </View>
+                ) : null}
+                <View className="flex-row items-center gap-2">
+                  <Button
+                    label={
+                      inviting
+                        ? t('reports.detail.inviteSending')
+                        : inviteSent?.hasNext
+                          ? t('reports.detail.inviteNextBatch')
+                          : t('reports.detail.inviteSend')
+                    }
+                    variant="secondary"
+                    onPress={onInviteTechnicians}
+                    loading={inviting}
+                    disabled={
+                      inviting || (inviteSent !== null && !inviteSent.hasNext)
+                    }
+                    className="flex-1"
+                  />
+                  {inviteSent ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('reports.detail.inviteNewPass')}
+                      disabled={inviting}
+                      onPress={resetInvitePass}
+                      className="h-11 items-center justify-center rounded-md px-3 active:opacity-70"
+                      style={{ opacity: inviting ? 0.4 : 1 }}
+                    >
+                      <Text className="text-[11px] font-semibold text-dashboard-subtitle">
+                        {t('reports.detail.inviteNewPass')}
                       </Text>
                     </Pressable>
-                  );
-                })}
-              </View>
-            ) : !rankingLoading ? (
-              <Text className="mb-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
-                {t('reports.detail.assignNoCandidates')}
-              </Text>
-            ) : null}
-            <View className="flex-row items-center gap-2">
-              <Button
-                label={
-                  report.assignedTechnicianId !== null
-                    ? t('reports.detail.assignReassign')
-                    : t('reports.detail.assignSave')
-                }
-                variant="secondary"
-                onPress={onAssign}
-                loading={assigning}
-                disabled={selectedTechnicianId === null || rankingLoading}
-                className="flex-1"
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('reports.detail.assignRefresh')}
-                disabled={rankingLoading}
-                onPress={() => {
-                  void loadCandidates(rankingMode);
-                }}
-                className="h-11 w-11 items-center justify-center rounded-md active:opacity-70"
-                style={{ opacity: rankingLoading ? 0.4 : 1 }}
-              >
-                <RefreshCw color={dashboardColors.subtitle} size={15} />
-              </Pressable>
-            </View>
-          </Card>
-        ) : null}
-
-        {isReportManager ? (
-          <Card className="mb-4">
-            <View className="mb-2 flex-row items-center gap-2">
-              <UserPlus color={dashboardColors.teal} size={18} />
-              <Text
-                className="text-[15px] font-semibold text-ink"
-                style={{ letterSpacing: -0.3 }}
-              >
-                {t('reports.detail.inviteTitle')}
-              </Text>
-            </View>
-            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-              {t('reports.detail.inviteBody')}
-            </Text>
-            <TextField
-              label={t('reports.detail.inviteReasonLabel')}
-              value={inviteReason}
-              onChangeText={(text) => {
-                setInviteReason(text);
-                if (inviteError) setInviteError(null);
-              }}
-              placeholder={t('reports.detail.inviteReasonPlaceholder')}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              editable={!inviting}
-              maxLength={1000}
-            />
-            {inviteError ? (
-              <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
-                {inviteError}
-              </Text>
-            ) : null}
-            {inviteSent ? (
-              <View className="mb-3">
-                <Text
-                  className="text-[11px] font-medium"
-                  style={{ color: dashboardColors.statMintDeep }}
-                >
-                  {t('reports.detail.inviteCreated', {
-                    count: inviteSent.created,
-                    page: inviteSent.page + 1,
-                  })}
-                </Text>
-                <Text className="mt-0.5 text-[10px] leading-[1.7] text-dashboard-caption">
-                  {inviteSent.hasNext
-                    ? t('reports.detail.inviteMoreBatches')
-                    : t('reports.detail.inviteNoMoreBatches')}
-                </Text>
+                  ) : null}
+                </View>
               </View>
             ) : null}
-            <View className="flex-row items-center gap-2">
-              <Button
-                label={
-                  inviting
-                    ? t('reports.detail.inviteSending')
-                    : inviteSent?.hasNext
-                      ? t('reports.detail.inviteNextBatch')
-                      : t('reports.detail.inviteSend')
-                }
-                variant="secondary"
-                onPress={onInviteTechnicians}
-                loading={inviting}
-                disabled={
-                  inviting || (inviteSent !== null && !inviteSent.hasNext)
-                }
-                className="flex-1"
-              />
-              {inviteSent ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('reports.detail.inviteNewPass')}
-                  disabled={inviting}
-                  onPress={resetInvitePass}
-                  className="h-11 items-center justify-center rounded-md px-3 active:opacity-70"
-                  style={{ opacity: inviting ? 0.4 : 1 }}
-                >
-                  <Text className="text-[11px] font-semibold text-dashboard-subtitle">
-                    {t('reports.detail.inviteNewPass')}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
+            {technicianRoute === 'marketplace' ? (
+              <View>
+                <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+                  {t('reports.detail.technicianRouting.marketplaceBody')}
+                </Text>
+                <Button
+                  label={t('reports.detail.technicianRouting.openMarketplace')}
+                  onPress={() => router.push({ pathname: '/more/marketplace', params: { reportId: String(report.id) } })}
+                />
+              </View>
+            ) : null}
           </Card>
         ) : null}
 

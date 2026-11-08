@@ -1,4 +1,8 @@
-import type { Report, Site } from '../src/types/maintenance';
+import type { Report, ReportPage, Site } from '../src/types/maintenance';
+
+export function reportPage(content: Report[] = [], page = 0, totalPages = 1): ReportPage {
+  return { content, page, size: 20, totalElements: content.length, totalPages };
+}
 export function report(overrides: Partial<Report> = {}): Report {
   return { id: 1, siteId: 7, subsiteId: null, createdByUserId: null, createdByName: null, description: 'A reported issue', address: null,
     category: 'plumbing', specialty: null, aiUrgency: null, reporterUrgency: 'medium', reporterReason: null,

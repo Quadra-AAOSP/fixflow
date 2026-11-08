@@ -10,6 +10,8 @@ import { useLocale } from '@/i18n';
 import { initials, formatDate } from '@/utils/maintenance';
 import WorkspaceNavigation from '@/components/dashboard/WorkspaceNavigation.vue';
 import SkipLink from '@/components/ui/SkipLink.vue';
+import { listNotifications, type ReportNotice } from '@/services/notifications';
+import { errorMessage } from '@/services/api';
 import '@/styles/dashboard.css';
 
 const route = useRoute();
@@ -29,6 +31,28 @@ onBeforeUnmount(() => mobileQuery?.removeEventListener('change', adaptNavigation
 watch(() => route.fullPath, closeNavigation);
 const search = ref(String(route.query.q || ''));
 const notificationDialog = ref<HTMLDialogElement>();
+const notices = ref<ReportNotice[]>([]);
+const noticePage = ref(0);
+const moreNotices = ref(false);
+const loadingNotices = ref(false);
+const noticeError = ref('');
+async function loadNotices(page = 0) {
+  if (loadingNotices.value) return;
+  loadingNotices.value = true;
+  noticeError.value = '';
+  try {
+    const result = await listNotifications(page);
+    notices.value = page === 0 ? result.content
+      : [...notices.value, ...result.content.filter(item => !notices.value.some(notice => notice.id === item.id))];
+    noticePage.value = page;
+    moreNotices.value = result.hasMore;
+  } catch (err) { noticeError.value = errorMessage(err); }
+  finally { loadingNotices.value = false; }
+}
+function openNotifications() {
+  notificationDialog.value?.showModal();
+  void loadNotices();
+}
 const canBrowseReports = computed(() => !!user.value && user.value.role !== 'shop_manager' && (user.value.role !== 'technician' || !!data.selectedSite));
 const name = computed(() => [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' '));
 watch(() => route.query.q, value => { search.value = String(value || ''); });
@@ -49,7 +73,7 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
     <div class="dashboard-workspace">
       <header class="dashboard-topbar"><button class="mobile-menu icon-button" :aria-label="t('Open navigation')" aria-controls="mobile-navigation" :aria-expanded="mobileOpen" @click="openNavigation"><Menu :size="22" /></button>
         <form v-if="canBrowseReports" class="dashboard-search" role="search" @submit.prevent="runSearch"><Search :size="19" /><input v-model="search" :aria-label="t('Search reports')" :placeholder="t('Search reports')" /><kbd>↵</kbd></form>
-        <div class="topbar-account"><button v-if="canBrowseReports" class="icon-button" :aria-label="t('Notification availability')" @click="notificationDialog?.showModal()"><Bell :size="23" /></button><span class="topbar-divider" /><RouterLink to="/profile" :aria-label="t('{name}: view profile', { name })" class="account-link"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></RouterLink></div>
+        <div class="topbar-account"><button v-if="user?.role !== 'shop_manager'" class="icon-button" :aria-label="t('Notifications')" @click="openNotifications"><Bell :size="23" /></button><span class="topbar-divider" /><RouterLink to="/profile" :aria-label="t('{name}: view profile', { name })" class="account-link"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></RouterLink></div>
       </header>
       <main id="main-content" tabindex="-1" class="dashboard-main">
         <div class="workspace-language"><LanguageSelector /></div>
@@ -65,6 +89,18 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
       </main>
       <footer class="dashboard-footer"><span><b>FixFlow</b> {{ t('© {year} FixFlow. Keeping spaces working beautifully.', { year: new Date().getFullYear() }) }}</span><span><Heart :size="13" fill="currentColor" />{{ t("Better spaces. Brighter tomorrows.") }}</span></footer>
     </div>
-    <dialog ref="notificationDialog" class="dashboard-dialog" :aria-label="t('Notifications')"><div class="dialog-heading"><h2>{{ t("Notifications") }}</h2><button class="icon-button" :aria-label="t('Close dialog')" @click="notificationDialog?.close()"><X :size="22" /></button></div><p class="dialog-intro">{{ t("Notifications are not available yet. You can check current report statuses on the Reports page.") }}</p><RouterLink class="text-action" to="/reports" @click="notificationDialog?.close()">{{ t("View reports") }}</RouterLink></dialog>
+    <dialog ref="notificationDialog" class="dashboard-dialog" :aria-label="t('Notifications')">
+      <div class="dialog-heading"><h2>{{ t('Notifications') }}</h2><button class="icon-button" :aria-label="t('Close dialog')" @click="notificationDialog?.close()"><X :size="22" /></button></div>
+      <p v-if="noticeError" class="live-error" role="alert">{{ t(noticeError) }} <button @click="loadNotices()">{{ t('Retry') }}</button></p>
+      <p v-if="loadingNotices" role="status" class="dialog-intro">{{ t('Loading notifications…') }}</p>
+      <p v-else-if="!notices.length && !noticeError" class="dialog-intro">{{ t('No notifications yet.') }}</p>
+      <ul v-if="notices.length" class="reporter-list">
+        <li v-for="notice in notices" :key="notice.id">
+          {{ t(notice.type === 'report_edited' ? 'Report #{id} was edited.' : 'Report #{id} was archived.', { id: notice.reportId }) }}
+          <span>{{ formatDate(notice.createdAt, true) }}</span>
+        </li>
+      </ul>
+      <button v-if="moreNotices" class="text-action" :disabled="loadingNotices" @click="loadNotices(noticePage + 1)">{{ t('Load more') }}</button>
+    </dialog>
   </div>
 </template>

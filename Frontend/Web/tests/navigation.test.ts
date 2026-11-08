@@ -21,7 +21,7 @@ describe('account landing screens', () => {
     } })).toBe('/reporter');
   });
   it('shows pending applicants their status and keeps approved users in their workspace', () => {
-    expect(accountHome({ ...user, role: 'reporter', adminApplication: { id: 4, status: 'pending' } })).toBe('/admin-application');
+    expect(accountHome({ ...user, role: 'reporter', applicationOnly: true, adminApplication: { id: 4, status: 'pending' } })).toBe('/application-access');
     expect(accountHome({ ...user, adminApplication: { id: 4, status: 'approved' } })).toBe('/');
   });
   it('routes independent technicians and shop managers to their own area', () => {

@@ -1,4 +1,16 @@
 {
+  "reportChanges": {
+    "edit": "编辑报修",
+    "delete": "删除报修",
+    "save": "保存更改",
+    "confirmDelete": "确认删除",
+    "description": "描述",
+    "address": "地址",
+    "urgency": "报修人选择的紧急程度",
+    "reason": "紧急程度原因",
+    "archiveExplanation": "这将归档报修并通知相关人员。",
+    "saveError": "无法保存报修更改。"
+  },
   "marketplace": {
     "title": "工作市场",
     "adminIntro": "在符合条件的报告详情中发布工作。在此查看申请并管理本场所的工作。",
@@ -345,6 +357,8 @@
   },
   "reports": {
     "list": {
+      "partialSearch": "搜索仅涵盖已加载的报修。加载更多以继续搜索。",
+      "loadMore": "加载更多报修",
       "title": "报修",
       "contracted": "已签约",
       "uncontracted": "未签约",
@@ -544,6 +558,15 @@
       "attachedIndicator": "您已关联到此报修",
       "assignTitleAssign": "分配技师",
       "assignTitleReassign": "重新分配技师",
+      "technicianRouting": {
+        "title": "寻找技术人员",
+        "label": "技术人员安排方式",
+        "contracted": "指派已签约技术人员",
+        "invite": "邀请技术人员申请场地合同",
+        "marketplace": "发布到工作市场",
+        "marketplaceBody": "发布公开的工作简介，供已通过审核的独立技术人员申请。您可以在工作市场查看申请并发出工作邀约。",
+        "openMarketplace": "前往工作市场"
+      },
       "assignBody": "从与该报修站点和类别匹配的技师中选择，然后保存分配。",
       "assignCandidatesTitle": "候选技师",
       "assignModeStandard": "标准排序",
@@ -565,7 +588,7 @@
       "assignReassign": "重新分配",
       "assignSaved": "技师分配已保存。",
       "inviteTitle": "邀请技师",
-      "inviteBody": "按站点和类别分批向技师发送邀请，技师会在邀请收件箱中看到。",
+      "inviteBody": "邀请尚未与此场地签约且技能匹配的技术人员。他们可以从收件箱申请场地合同。批准后，您可以将报修指派给他们。",
       "inviteReasonLabel": "邀请原因",
       "inviteReasonPlaceholder": "说明为什么需要这些技师。",
       "inviteSend": "发送邀请",
@@ -622,10 +645,11 @@
       },
       "aiAssessmentError": "无法刷新 AI 评估。",
       "vision": {
-        "analyze": "用 AI 分析照片",
+        "analyze": "选择照片进行 AI 分析",
+        "checkStatus": "查看 AI 分析状态",
         "running": "正在分析照片…",
         "consentTitle": "AI 照片分析",
-        "consentMessage": "这会将本报告的照片发送给 AI 视觉服务。是否继续？",
+        "consentMessage": "所选照片将发送至 AI 视觉服务。请勿选择包含人脸、个人信息或机密信息的照片。是否继续？",
         "cancel": "取消",
         "continue": "继续",
         "failed": "照片分析失败，请重试。"
@@ -695,13 +719,14 @@
       "reportsTitle": "报修",
       "reportsSubtitle": "此站点的所有报修。",
       "notificationsTitle": "通知",
-      "notificationsSubtitle": "暂无通知 — 即将上线。",
+      "notificationsSubtitle": "查看您的报修更新。",
       "myAdminApplicationTitle": "我的管理员申请",
       "myAdminApplicationPending": "等待超级管理员审核。",
       "myAdminApplicationStatus": "申请状态：{status}。",
       "siteSetupTitle": "站点设置",
       "siteSetupSubtitleRequired": "必做 — 添加您的第一栋建筑。",
       "siteSetupSubtitle": "管理建筑及报修就绪检查。",
+      "siteRulesTitle": "站点规则",
       "sitesTitle": "站点",
       "sitesSubtitleCreate": "创建和编辑站点。",
       "sitesSubtitleEdit": "编辑分配给您的站点。",
@@ -922,12 +947,12 @@
     },
     "notifications": {
       "title": "通知",
-      "subtitle": "关于您的报修和派单的更新。",
-      "emptyTitle": "通知功能尚未上线",
-      "emptyDesc": "当通知服务上线后，关于您的报修、派单和合同的更新将显示在这里。",
-      "interimTitle": "与此同时",
-      "interimBody": "请查看“报修”标签页了解最新动态。首页的“最近更新”板块会展示您报修的最新变化。",
-      "viewReports": "查看报修"
+      "emptyTitle": "暂无通知。",
+      "edited": "报修 #{id} 已编辑。",
+      "archived": "报修 #{id} 已归档。",
+      "loadError": "无法加载通知。",
+      "retry": "重试",
+      "loadMore": "加载更多"
     },
     "shop": {
       "kicker": "FIXFLOW 物资商城",
@@ -1158,7 +1183,7 @@
     "contracts": {
       "kicker": "合同",
       "title": "站点合同是可选的",
-      "body": "您的账户编号是 {id}。洽谈合同时请将此编号提供给站点管理员。站点编号不代表您的合同列表。",
+      "body": "查看您的站点合同选项。",
       "link": "查看合同选项"
     },
     "session": {
@@ -1192,7 +1217,7 @@
     "availability": {
       "kicker": "接单状态",
       "label": "可接单",
-      "hint": "仅保存在本机。暂不支持与调度同步。"
+      "hint": "您的接单状态会保存到账户。"
     },
     "tagline": "您的报修。合适的人。一点安心。",
     "manualRefreshFailed": "会话无法刷新，请尝试重新登录。"
@@ -1215,6 +1240,12 @@
     "languageHint": "选择应用使用的语言。"
   },
   "tabs": {
+    "myReports": "我的报修",
+    "dashboard": "仪表盘",
+    "siteReports": "场地报修",
+    "staffTools": "员工工具",
+    "siteTools": "场地工具",
+    "openTools": "打开工具",
     "home": "首页",
     "reports": "报修",
     "workspace": "工作台",
@@ -1223,7 +1254,7 @@
     "shop": "商城",
     "staffDashboard": "工作台",
     "platformConsole": "平台",
-    "shopConsole": "商城",
+    "shopConsole": "商城概览",
     "technician": "技术员",
     "profile": "个人资料"
   },
@@ -1372,13 +1403,15 @@
     "approvedTitle": "申请已通过",
     "approvedBody": "您的管理员权限将在下次登录时激活。请退出并重新登录以开始管理站点。",
     "rejectedTitle": "申请被拒绝",
-    "rejectedBody": "超级管理员已拒绝此申请。您的账户仍为报修人账户 — 如果您认为这是个错误，请联系他们。",
+    "rejectedBody": "超级管理员已拒绝您的申请。如需讨论访问权限，请联系超级管理员。",
     "pendingTitle": "审核中",
-    "pendingBody": "超级管理员会审核每一份站点管理员申请。在此之前您的账户以报修人身份使用。",
+    "pendingBody": "等待审批期间，您可以查看申请状态。",
     "retry": "重试",
     "checking": "正在检查状态…",
     "applicationSubmitted": "申请 #{id} · 提交于 {time}",
     "decided": "决定于 {time}。",
+    "signOut": "退出登录",
+    "signOutError": "无法退出登录，请重试。",
     "signOutToActivate": "退出登录以激活",
     "refreshing": "正在刷新…",
     "checkForUpdates": "检查更新",
@@ -1446,8 +1479,9 @@
     },
     "tradeProfile": {
       "heading": "您的技能档案",
-      "intro": "创建账户后添加您的工种。这些信息为自行申报，并非经核实的资质。",
+      "intro": "管理已保存到您账户的工种。资质由审核人员另行核实。",
       "saved": "已保存：{category} · {specialty} · 熟练度 {proficiency}/5。",
+      "addTrade": "添加工种 →",
       "addAnother": "添加另一项技能 →",
       "primaryTrade": "主工种",
       "specialtyLabel": "专长及您有资格从事的工作",
@@ -1458,7 +1492,6 @@
       "chooseLevel": "选择等级",
       "saving": "正在保存…",
       "save": "保存技能详情",
-      "previousSkillsNote": "暂无法显示此前保存的技能。请仅添加尚未提交过的技能。",
       "beforeYouStart": "在站点开始工作之前",
       "reviewBody": "请与站点管理员安排一次审核，内容涵盖您的身份、相关工作经历与推荐人、资质、适用的行业执照及有效期，以及适合该工作的保险。具体要求取决于工种和所在地。",
       "evidenceNote": "暂不支持安全证据上传和审批跟踪。请勿在此输入身份号码或文件链接。已保存的技能或站点合同并非审核通过的凭证。",
@@ -1477,8 +1510,11 @@
         "specialtyTooLong": "专长不得超过 {max} 个字符。",
         "proficiencyRange": "熟练度必须在 1 到 5 之间。",
         "saveFailed": "目前无法保存该技能。",
-        "duplicateSuffix": " 如果连接中断，请先与管理员确认再重新提交，以免重复添加技能。"
-      }
+        "duplicateSuffix": " 如果连接中断，请重新加载已保存的工种后再试。",
+        "loadFailed": "无法加载已保存的工种。"
+      },
+      "loading": "正在加载已保存的工种…",
+      "cancel": "取消"
     }
   },
   "labels": {

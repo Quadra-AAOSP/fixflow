@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
+  AccessibilityInfo,
+  Platform,
   Text,
   TextInput,
   View,
@@ -40,14 +42,19 @@ export function TextField({
   className,
   onFocus,
   onBlur,
+  accessibilityLabel,
+  accessibilityHint,
   ...props
 }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
   const showRing = focused && !error;
+  useEffect(() => {
+    if (error && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(error);
+  }, [error]);
 
   return (
     <View className={`mb-4 ${className ?? ''}`}>
-      <Text className="mb-1.5 text-[12px] font-medium text-ink" numberOfLines={1}>{label}</Text>
+      <Text className="mb-1.5 text-[12px] font-medium text-ink">{label}</Text>
       <TextInput
         placeholderTextColor={colors.subtitle}
         selectionColor={colors.primary}
@@ -70,10 +77,12 @@ export function TextField({
         textAlignVertical="center"
         editable={props.editable !== false}
         importantForAccessibility="yes"
+        accessibilityLabel={accessibilityLabel ?? label}
+        accessibilityHint={error ?? accessibilityHint}
         {...props}
       />
       {error ? (
-        <Text className="mt-1 text-xs text-tone-danger">{error}</Text>
+        <Text accessibilityLiveRegion="polite" className="mt-1 text-xs text-tone-danger">{error}</Text>
       ) : hint ? (
         <Text className="mt-1 text-[10px] leading-[1.65] text-subtitle">
           {hint}

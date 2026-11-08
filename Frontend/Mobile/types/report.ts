@@ -48,16 +48,15 @@ export type AiReport = {
   description: string | null;
   category: string | null;
   specialty: string | null;
-  confidence: number | null;
+  urgencyReason: string | null;
 };
 
 /** Background vision-processing job state. */
 export type VisionJob = {
-  id: string;
+  jobId: string;
   reportId: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  createdAt: string;
-  updatedAt: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'review_required' | 'stale';
+  model: string | null;
 };
 
 export type Report = {
@@ -90,7 +89,7 @@ export type Report = {
   policy: {
     statusGroup: 'open' | 'progress' | 'resolved'; effectiveUrgency: Urgency; urgent: boolean;
     inAssignmentQueue: boolean; participant: boolean; canSeeSensitive: boolean;
-    canAssign: boolean; canJoin: boolean;
+    canAssign: boolean; canJoin: boolean; canEdit?: boolean; canDelete?: boolean;
   };
 };
 

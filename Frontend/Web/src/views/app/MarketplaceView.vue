@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useLocale } from '@/i18n';
@@ -116,7 +117,7 @@ onBeforeUnmount(() => { revision++; listingRequest?.abort(); applicantRequest?.a
     <p v-else class="dialog-intro">{{ t('Verified technicians can apply for eligible jobs. Report details become available after you accept an offer.') }}</p>
     <RouterLink class="text-action" :to="admin ? '/reports' : '/technician'">{{ t(admin ? 'All reports' : 'Return to workspace') }}</RouterLink>
     <p v-if="error" class="live-error" role="alert">{{ t(error) }}</p>
-    <p v-if="loading" role="status">{{ t('Loading marketplace…') }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading marketplace…')" />
     <p v-else-if="!listings.length && !error" class="live-empty">{{ t(admin ? 'No marketplace listings for your site.' : 'No eligible jobs or applications. Check your verification and technician terms in your workspace.') }}</p>
 
     <article v-for="listing in listings" :key="listing.id" class="detail-section">
@@ -147,7 +148,7 @@ onBeforeUnmount(() => { revision++; listingRequest?.abort(); applicantRequest?.a
           </form>
         </details>
         <template v-if="selectedListing === listing.id">
-          <p v-if="loadingApplicants" role="status">{{ t('Loading applicants…') }}</p>
+          <LoadingStatus v-if="loadingApplicants" :label="t('Loading applicants…')" />
           <p v-else-if="applicantError" class="live-error" role="alert">{{ t(applicantError) }}</p>
           <p v-else-if="!applicants.length">{{ t('No applications yet.') }}</p>
           <section v-for="applicant in applicants" :key="applicant.id" class="detail-section">

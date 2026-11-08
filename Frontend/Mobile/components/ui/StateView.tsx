@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   Pressable,
   Text,
   View,
@@ -30,7 +29,7 @@ type StateViewProps = {
  * `.live-empty` / `.live-error` blocks:
  *   - empty   → muted text on the page background, optional action
  *   - error   → soft coral background, navy ink, optional teal retry
- *   - loading → small slate spinner, no chrome
+ *   - loading → a short, accessible status message
  *
  * The whole component renders the error variant as an inline block
  * (matching the web's `.live-error`) so callers can drop it above a
@@ -45,6 +44,21 @@ export function StateView({
   onAction,
   className,
 }: StateViewProps) {
+  if (variant === 'loading') {
+    return (
+      <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={title}
+        accessibilityState={{ busy: true }}
+        accessibilityLiveRegion="polite"
+        className={`py-4 ${className ?? ''}`}
+      >
+        <Text className="text-center text-[12px] text-subtitle">{title}</Text>
+      </View>
+    );
+  }
+
   if (variant === 'error') {
     return (
       <View
@@ -83,9 +97,7 @@ export function StateView({
         className ?? ''
       }`}
     >
-      {variant === 'loading' ? (
-        <ActivityIndicator size="small" color={colors.muted} />
-      ) : Icon ? (
+      {Icon ? (
         <Icon color={colors.caption} size={36} strokeWidth={1.6} />
       ) : null}
 

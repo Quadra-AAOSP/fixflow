@@ -1,83 +1,73 @@
-import { Bell, BellOff, ArrowRight } from 'lucide-react-native';
-import { Pressable, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
+import { FlatList, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
-import { dashboardColors } from '@/constants/theme';
+import { toErrorMessage } from '@/lib/apiClient';
+import { listNotifications, type ReportNotice } from '@/services/notifications';
+import { formatDate } from '@/utils/format';
 
-/**
- * Notifications placeholder. The web build renders a similar stub from the
- * sidebar bell, and the backend doesn't expose a notifications endpoint yet,
- * so this screen tells the user where to look instead of pretending to be
- * fully functional — including the web dialog's "View reports" link.
- */
 export default function NotificationsScreen() {
-  const router = useRouter();
   const { t } = useTranslation('common');
+  const [notices, setNotices] = useState<ReportNotice[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const requestVersion = useRef(0);
+
+  const load = useCallback(async (nextPage: number) => {
+    const version = ++requestVersion.current;
+    setLoading(true);
+    setError('');
+    try {
+      const result = await listNotifications(nextPage);
+      if (version !== requestVersion.current) return;
+      setNotices(current => nextPage === 0 ? result.content
+        : [...current, ...result.content.filter(item => !current.some(notice => notice.id === item.id))]);
+      setHasMore(result.hasMore);
+      setPage(nextPage);
+    } catch (err) {
+      if (version === requestVersion.current) {
+        setError(toErrorMessage(err, { fallback: t('more.notifications.loadError') }));
+      }
+    } finally {
+      if (version === requestVersion.current) setLoading(false);
+    }
+  }, [t]);
+
+  useFocusEffect(useCallback(() => {
+    void load(0);
+    return () => { requestVersion.current++; };
+  }, [load]));
+
   return (
     <Screen>
-      <View className="px-5 pt-4">
-        <View className="mb-5 flex-row items-center gap-3">
-          <View
-            className="rounded-xl p-3"
-            style={{ backgroundColor: dashboardColors.statMintSoft }}
-          >
-            <Bell color={dashboardColors.statMintDeep} size={26} />
-          </View>
-          <View className="flex-1">
-            <Text
-              className="text-2xl font-bold text-ink"
-              style={{ letterSpacing: -0.5 }}
-            >
-              {t('more.notifications.title')}
+      <FlatList data={notices} keyExtractor={notice => String(notice.id)}
+        contentContainerClassName="gap-3 px-5 py-4"
+        onRefresh={() => load(0)} refreshing={loading && page === 0}
+        ListHeaderComponent={<Text className="text-2xl font-bold text-ink">{t('more.notifications.title')}</Text>}
+        ListEmptyComponent={!loading && !error ? (
+          <StateView variant="empty" title={t('more.notifications.emptyTitle')} />
+        ) : null}
+        renderItem={({ item }) => (
+          <Card>
+            <Text className="text-sm font-semibold text-ink">
+              {t(item.type === 'report_edited' ? 'more.notifications.edited' : 'more.notifications.archived', { id: item.reportId })}
             </Text>
-            <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-              {t('more.notifications.subtitle')}
-            </Text>
-          </View>
-        </View>
-
-        <StateView
-          variant="empty"
-          icon={BellOff}
-          title={t('more.notifications.emptyTitle')}
-          description={t('more.notifications.emptyDesc')}
-        />
-        <Card>
-          <View className="flex-row items-start gap-3">
-            <View
-              className="rounded-lg p-2"
-              style={{ backgroundColor: dashboardColors.statMintSoft }}
-            >
-              <Bell color={dashboardColors.statMintDeep} size={18} />
-            </View>
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-ink">
-                {t('more.notifications.interimTitle')}
-              </Text>
-              <Text className="mt-1 text-xs leading-5 text-dashboard-subtitle">
-                {t('more.notifications.interimBody')}
-              </Text>
-              <Pressable
-                accessibilityRole="link"
-                onPress={() => router.push('/reports')}
-                className="mt-2 flex-row items-center gap-1 self-start active:opacity-70"
-              >
-                <Text
-                  className="text-[11px] font-semibold"
-                  style={{ color: dashboardColors.teal }}
-                >
-                  {t('more.notifications.viewReports')}
-                </Text>
-                <ArrowRight color={dashboardColors.teal} size={13} />
-              </Pressable>
-            </View>
-          </View>
-        </Card>
-      </View>
+            <Text className="mt-1 text-xs text-subtitle">{formatDate(item.createdAt, true)}</Text>
+          </Card>
+        )}
+        ListFooterComponent={error ? (
+          <StateView variant="error" description={error} actionLabel={t('more.notifications.retry')} onAction={() => load(0)} />
+        ) : hasMore ? (
+          <Button variant="secondary" label={t('more.notifications.loadMore')} loading={loading} onPress={() => load(page + 1)} />
+        ) : null}
+      />
     </Screen>
   );
 }

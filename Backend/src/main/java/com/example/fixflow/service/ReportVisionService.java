@@ -80,7 +80,10 @@ public class ReportVisionService {
                 if (job.getAttempts() > 3) {
                     job.setStatus("failed"); job.setImageData(null); return null;
                 }
-                Report report = reports.findById(job.getReportId()).orElseThrow();
+                Report report = reports.findById(job.getReportId()).orElse(null);
+                if (report == null) {
+                    job.setStatus("stale"); job.setImageData(null); return null;
+                }
                 return VisionClassificationRequest.builder().imageData(job.getImageData()).mimeType("image/png")
                         .description(job.getDescription()).siteType(report.getSite().getType().name())
                         .allowedCategories(rules.findBySiteTypeOrderBySortOrderAsc(report.getSite().getType())
@@ -92,9 +95,9 @@ public class ReportVisionService {
             catch (Exception unavailable) { result = null; }
             var response = result;
             transactions.executeWithoutResult(tx -> {
-                Report report = reports.findForVisionUpdate(candidate.getReportId()).orElseThrow();
+                Report report = reports.findForVisionUpdate(candidate.getReportId()).orElse(null);
                 ReportVisionJob job = jobs.findById(candidate.getId()).orElseThrow();
-                boolean unchanged = Objects.equals(job.getAiSnapshot(), aiSnapshot(report))
+                boolean unchanged = report != null && Objects.equals(job.getAiSnapshot(), aiSnapshot(report))
                         && Objects.equals(job.getDescription(), report.getDescription())
                         && Objects.equals(job.getCategory(), report.getCategory())
                         && Objects.equals(job.getSpecialty(), report.getSpecialty())

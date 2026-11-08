@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import {
   Activity,
   ArrowRight,
@@ -165,6 +165,11 @@ const ATTENTION_LABELS: Record<'coral' | 'mint' | 'citron', {
  * next?" without opening the Reports tab:
  */
 export default function HomeScreen() {
+  const { user } = useAuth();
+  return user?.role === 'technician' ? <Redirect href="/(tabs)/workspace" /> : <Dashboard />;
+}
+
+function Dashboard() {
   const { t } = useTranslation('common');
   const palette = themeColors();
   const router = useRouter();
@@ -489,11 +494,7 @@ export default function HomeScreen() {
           />
         ) : null}
 
-        {reports === null && loading ? <HomeSkeleton /> : null}
-
-        {loading && !reports && (
-          <StateView variant="loading" title={t('home.loading')} />
-        )}
+        {reports === null && loading ? <StateView variant="loading" title={t('home.loadingDashboard')} /> : null}
 
         {reports !== null && site ? (
           allReports.length === 0 ? (
@@ -1523,30 +1524,6 @@ function EmptyHomeCard({
         </Text>
       </View>
     </Card>
-  );
-}
-
-/**
- * Placeholder geometry for the first load — it mirrors the real block order
- * (attention, two stat rows, chart, list) so the dashboard does not jump
- * when the data arrives.
- */
-function HomeSkeleton() {
-  const { t } = useTranslation('common');
-  return (
-    <View accessibilityLabel={t('home.loadingDashboard')}>
-      <View className="mb-4 h-[104px] rounded-[11px] border border-dashboard-card-line bg-dashboard-card-bg" />
-      <View className="mb-3 flex-row gap-2">
-        <View className="h-[76px] flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg" />
-        <View className="h-[76px] flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg" />
-      </View>
-      <View className="mb-5 flex-row gap-2">
-        <View className="h-[76px] flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg" />
-        <View className="h-[76px] flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg" />
-      </View>
-      <View className="mb-4 h-[180px] rounded-[11px] border border-dashboard-card-line bg-dashboard-card-bg" />
-      <View className="mb-4 h-[150px] rounded-[11px] border border-dashboard-card-line bg-dashboard-card-bg" />
-    </View>
   );
 }
 

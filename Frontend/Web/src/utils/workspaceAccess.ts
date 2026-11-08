@@ -1,4 +1,4 @@
-import type { User } from '@/types';
+import type { User, UserRole } from '@/types';
 
 // Screen visibility is UX policy; the API remains the authorization authority.
 export const workspaceRoles = {
@@ -16,7 +16,7 @@ export const workspaceRoles = {
 } as const;
 
 export function workspaceLinks(user: User | null, hasSite: boolean) {
-  if (!user) return [];
+  if (!user || user.applicationOnly) return [];
   const role = user.role;
   const links: { to: string; label: string; icon: string }[] = [];
   if (role === 'shop_manager') return [
@@ -41,6 +41,23 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
     { to: '/technician-verifications', label: 'Technician verification', icon: 'team' });
   links.push({ to: '/shop', label: 'Shop', icon: 'shop' });
   return links;
+}
+
+const primaryDestinations: Record<UserRole, string[]> = {
+  reporter: ['/reporter', '/reports', '/sites'],
+  staff: ['/', '/reports', '/assignments'],
+  admin: ['/', '/reports', '/team-access'],
+  super_admin: ['/', '/sites', '/shop'],
+  technician: ['/technician', '/marketplace', '/shop'],
+  shop_manager: ['/shop', '/shop/manage', '/profile'],
+};
+
+export function workspaceNavigation(user: User | null, hasSite: boolean) {
+  const links = workspaceLinks(user, hasSite);
+  if (!user || links.length <= 4) return { primary: links, more: [] };
+  const destinations = primaryDestinations[user.role];
+  const primary = destinations.flatMap(destination => links.filter(link => link.to === destination));
+  return { primary, more: links.filter(link => !destinations.includes(link.to)) };
 }
 
 /** Shared by initial routing and subsequent authenticated role changes. */

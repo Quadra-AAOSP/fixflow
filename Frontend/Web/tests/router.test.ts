@@ -58,6 +58,15 @@ describe('actual application route guards', () => {
     expect(api.getMe).toHaveBeenCalledTimes(1);
     expect(router.currentRoute.value.name).toBe('technician');
   });
+  it.each(['pending', 'rejected'] as const)('limits a %s applicant to the standalone status screen', async status => {
+    vi.mocked(api.getMe).mockResolvedValue({ ...account, applicationOnly: true, adminApplication: { id: 3, status } });
+    const router = createAppRouter(createMemoryHistory());
+    for (const path of ['/reports/91', '/shop', '/profile', '/request-site', '/login']) {
+      await router.push(path);
+      expect(router.currentRoute.value.name).toBe('application-access');
+      expect(router.currentRoute.value.matched).toHaveLength(1);
+    }
+  });
   it('routes shop managers away from maintenance while preserving profile access', async () => {
     await signIn('shop_manager');
     const router = createAppRouter(createMemoryHistory());

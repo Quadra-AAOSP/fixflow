@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -356,7 +355,6 @@ function TechnicianView({ userId, t }: { userId: number; t: TranslateFn }) {
 }
 
 function AdminView({ t }: { t: TranslateFn }) {
-  const palette = themeColors();
   const [sites, setSites] = useState<Site[] | null>(null);
   const [loadingSites, setLoadingSites] = useState(false);
   const [sitesError, setSitesError] = useState<string | null>(null);
@@ -454,9 +452,7 @@ function AdminView({ t }: { t: TranslateFn }) {
 
   if (loadingSites && sites === null) {
     return (
-      <View className="py-6">
-        <ActivityIndicator size="large" color={palette.primary} />
-      </View>
+      <StateView variant="loading" title={t('more.contracts.loading')} />
     );
   }
 

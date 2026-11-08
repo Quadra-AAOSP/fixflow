@@ -21,7 +21,7 @@ import { ApiError } from '@/services/auth';
 export default function LoginScreen() {
   const { t } = useTranslation('common');
   const router = useRouter();
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, isAuthenticated, isLoading, user } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,7 +30,7 @@ export default function LoginScreen() {
   const passwordRef = useRef<TextInput>(null);
 
   if (!isLoading && isAuthenticated) {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href={user?.applicationOnly ? '/application-access' : '/(tabs)'} />;
   }
 
   async function onSubmit() {

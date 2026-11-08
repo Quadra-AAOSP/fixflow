@@ -12,6 +12,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
   const data = useMaintenanceStore();
   const state = ref<RealtimeState>('stopped');
   const accessRevision = ref(0);
+  const accessReason = ref<'disconnect' | 'revoked'>('revoked');
   const refreshRevision = ref(0);
   const changedReportIds = ref<number[] | null>(null);
   let client: ReportRealtimeClient | null = null;
@@ -41,7 +42,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
   function invalidate() {
     clearTimeout(timer); timer = undefined; pendingReports.clear();
     siteId = null; reportId = null; subscriptions();
-    data.reset(); accessRevision.value++;
+    data.reset(); accessReason.value = 'revoked'; accessRevision.value++;
   }
   function synchronize() {
     if (syncFlight || !client) return syncFlight;
@@ -72,7 +73,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
     timer = undefined;
     const ids = [...pendingReports]; pendingReports.clear();
     const access = accessRevision.value;
-    await data.refresh();
+    await Promise.all(ids.map(id => data.refreshReport(id)));
     if (current !== generation || access !== accessRevision.value) return;
     changedReportIds.value = ids; refreshRevision.value++;
   }
@@ -92,8 +93,8 @@ export const useRealtimeStore = defineStore('realtime', () => {
           if (current !== generation) return;
           // Recheck private report access without destroying the site or report draft.
           reportId = null; subscriptions();
-          data.reports = []; data.reportsLoaded = false;
-          accessRevision.value++;
+          data.clearReportPages();
+          accessReason.value = 'disconnect'; accessRevision.value++;
           void synchronize();
         },
         revoked() { if (current === generation) { invalidate(); void synchronize(); } },
@@ -112,7 +113,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
     const previous = client; client = null; previous?.stop();
     siteId = null; reportId = null; physicalConnection = false;
     state.value = 'stopped'; changedReportIds.value = null;
-    data.reset(); accessRevision.value++;
+    data.reset(); accessReason.value = 'revoked'; accessRevision.value++;
   }
-  return { state, accessRevision, refreshRevision, changedReportIds, start, stop, setSite, setReport };
+  return { state, accessReason, accessRevision, refreshRevision, changedReportIds, start, stop, setSite, setReport };
 });

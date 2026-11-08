@@ -111,7 +111,7 @@ openrouter:
   vision:
     enabled: ${OPENROUTER_VISION_ENABLED:false}
     model: ${OPENROUTER_VISION_MODEL:nvidia/nemotron-3.5-super-vl:free}
-    fallback-model: ${OPENROUTER_VISION_FALLBACK_MODEL:minimax/minimax-m3.1-flash:free}
+    fallback-model: ${OPENROUTER_VISION_FALLBACK_MODEL:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free}
   api-key: ${OPENROUTER_API_KEY:}
   model: ${OPENROUTER_MODEL:openrouter/free}
   base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1/chat/completions}

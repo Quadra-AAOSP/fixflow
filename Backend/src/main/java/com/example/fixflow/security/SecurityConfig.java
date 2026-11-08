@@ -30,6 +30,8 @@ public class SecurityConfig {
 	SecurityFilterChain securityFilterChain(HttpSecurity http,
             org.springframework.core.env.Environment environment,
             com.example.fixflow.web.TraceIdFilter traceIdFilter,
+            com.example.fixflow.repository.SiteAdminApplicationRepository applications,
+            com.example.fixflow.repository.UserRepository users,
             org.springframework.security.web.csrf.CsrfTokenRepository csrfTokens) throws Exception {
 		SessionExpiryFilter sessionExpiryFilter = new SessionExpiryFilter(
 				org.springframework.boot.convert.DurationStyle.detectAndParse(
@@ -46,6 +48,8 @@ public class SecurityConfig {
                     org.springframework.security.web.access.intercept.AuthorizationFilter.class);
         }
 		http
+                .addFilterBefore(new ApplicationAccessFilter(applications, users),
+                        org.springframework.security.web.access.intercept.AuthorizationFilter.class)
 				.addFilterBefore(traceIdFilter,
 						org.springframework.security.web.context.SecurityContextHolderFilter.class)
 				.addFilterAfter(sessionExpiryFilter, com.example.fixflow.web.TraceIdFilter.class)

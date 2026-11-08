@@ -2,6 +2,7 @@ import {
   ClipboardList,
   House,
   LayoutGrid,
+  ShoppingBag,
   User,
   Wrench,
 } from 'lucide-react-native';
@@ -62,7 +63,8 @@ export default function TabLayout() {
   const homeLabel =
     role === 'super_admin' ? t('tabs.platformConsole')
     : role === 'shop_manager' ? t('tabs.shopConsole')
-    : t('tabs.home');
+    : role === 'reporter' ? t('tabs.myReports')
+    : t('tabs.dashboard');
 
   // Fixed slot order: home/dashboard → reports/technician → more → profile.
   // First visible tab is the role's default landing.
@@ -83,7 +85,7 @@ export default function TabLayout() {
     {
       name: 'reports',
       visible: isTabVisible(role, 'reports'),
-      title: t('tabs.reports'),
+      title: role === 'staff' ? t('tabs.siteReports') : t('tabs.reports'),
       icon: ClipboardList,
       hideHeader: true,
     },
@@ -97,12 +99,14 @@ export default function TabLayout() {
     {
       name: 'more',
       visible: isTabVisible(role, 'more'),
-      title: role === 'technician' ? t('tabs.shop') : t('tabs.more'),
-      icon: LayoutGrid,
+      title: role === 'super_admin' || role === 'shop_manager'
+        ? t('tabs.shop') : role === 'staff' ? t('tabs.staffTools')
+        : role === 'admin' ? t('tabs.siteTools') : t('tabs.more'),
+      icon: role === 'super_admin' || role === 'shop_manager' ? ShoppingBag : LayoutGrid,
       hideHeader: true,
-      // Technician + shop_manager land straight in the shop catalog;
+      // Super admins and shop managers land straight in the shop catalog;
       // everyone else lands in the More hub.
-      href: role === 'technician' || role === 'shop_manager' ? '/more/shop' : undefined,
+      href: role === 'super_admin' || role === 'shop_manager' ? '/more/shop' : undefined,
     },
     {
       name: 'profile',

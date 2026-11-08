@@ -1,4 +1,4 @@
-import { request } from './api';
+import { AI_REQUEST_TIMEOUT_MS, request } from './api';
 import type { RankingMode, TechnicianAvailability, TechnicianInvitationInbox, TechnicianInvitationsSent, TechnicianRanking, TechnicianSummary, TechnicianTermsStatus } from '@/types/technician';
 
 export const getTechnicianAvailability = () => request<TechnicianAvailability>('/api/technicians/me/availability');
@@ -17,7 +17,7 @@ export function sendTechnicianInvitations(reportId: number, reason: string, page
 
 export const listTechnicians = () => request<TechnicianSummary[]>('/api/technicians');
 export function rankTechnicians(reportId: number, mode: RankingMode) {
-  return request<TechnicianRanking>(`/api/reports/${reportId}/technician-ranking`, { method: 'POST', body: JSON.stringify({ mode }) });
+  return request<TechnicianRanking>(`/api/reports/${reportId}/technician-ranking`, { method: 'POST', body: JSON.stringify({ mode }), timeoutMs: mode === 'AI' ? AI_REQUEST_TIMEOUT_MS : undefined });
 }
 
 export function getTechnicianTerms(): Promise<TechnicianTermsStatus> {
@@ -28,12 +28,16 @@ export function acceptTechnicianTerms(version: string): Promise<TechnicianTermsS
   return request('/api/technician-terms/accept', { method: 'POST', body: JSON.stringify({ version }) });
 }
 
+export type TechnicianTrade = { id: number; category: string; specialty: string | null; proficiency: number };
+export const listMyTechnicianSkills = (signal?: AbortSignal) =>
+  request<TechnicianTrade[]>('/api/technician-skills/me', { signal });
+
 export function addTechnicianSkill(technicianId: number, category: string, specialty: string, proficiency: string) {
   const level = Number(proficiency);
   if (!category.trim() || category.trim().length > 128) throw new Error('Enter a trade of up to 128 characters.');
   if (specialty.trim().length > 128) throw new Error('Enter a specialty of up to 128 characters.');
   if (!Number.isInteger(level) || level < 1 || level > 5) throw new Error('Choose a self-assessed proficiency from 1 to 5.');
-  return request<{ id: number; category: string; specialty: string | null; proficiency: number }>('/api/technician-skills', {
+  return request<TechnicianTrade>('/api/technician-skills', {
     method: 'POST', body: JSON.stringify({ technicianId, category: category.trim(), specialty: specialty.trim() || null, proficiency: level }),
   });
 }

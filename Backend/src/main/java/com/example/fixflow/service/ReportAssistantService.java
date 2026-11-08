@@ -144,7 +144,7 @@ public class ReportAssistantService {
         };
     }
 
-    private List<Turn> sanitize(List<Turn> messages) {
+    static List<Turn> sanitize(List<Turn> messages) {
         if (messages == null || messages.isEmpty()) {
             throw new ApiException(400, "messages must contain at least one turn");
         }
@@ -171,7 +171,7 @@ public class ReportAssistantService {
         return sanitized;
     }
 
-    private boolean tryAcquireRateLimit(Long userId) {
+    boolean tryAcquireRateLimit(Long userId) {
         if (userId == null) {
             return false;
         }

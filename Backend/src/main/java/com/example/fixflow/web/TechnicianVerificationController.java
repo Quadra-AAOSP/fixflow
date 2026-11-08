@@ -22,12 +22,22 @@ public class TechnicianVerificationController {
  private final TechnicianVerificationRepository records;
  private final TechnicianVerificationAuditRepository audits;
  private final UserRepository users;
- public TechnicianVerificationController(TechnicianVerificationRepository records,TechnicianVerificationAuditRepository audits,UserRepository users){this.records=records;this.audits=audits;this.users=users;}
+ private final com.example.fixflow.repository.TechnicianSkillRepository skills;
+ public TechnicianVerificationController(TechnicianVerificationRepository records,TechnicianVerificationAuditRepository audits,UserRepository users,com.example.fixflow.repository.TechnicianSkillRepository skills){this.records=records;this.audits=audits;this.users=users;this.skills=skills;}
  private void role(AppUserDetails actor,UserRole expected){
   if(actor==null || actor.getRole()!=expected || users.findById(actor.getId()).map(User::getRole).orElse(null)!=expected) throw new ApiException(403,"Role not authorized");
  }
  @GetMapping("/api/technician-verification/me") public TechnicianVerification mine(@AuthenticationPrincipal AppUserDetails actor){
-  role(actor,UserRole.technician);return records.findById(actor.getId()).orElseGet(()->{var value=new TechnicianVerification();value.setTechnicianId(actor.getId());return value;});
+  role(actor,UserRole.technician);return records.findById(actor.getId()).orElseGet(()->{
+   var user=users.findById(actor.getId()).orElseThrow(()->new ApiException(401,"User not found"));
+   var value=new TechnicianVerification();value.setTechnicianId(actor.getId());
+   value.setEmail(user.getEmail());value.setPhone(user.getPhone());
+   String trades=skills.findByTechnician_IdInOrderByIdAsc(List.of(actor.getId())).stream()
+     .map(skill->skill.getCategory()+(skill.getSpecialty()==null?"":" — "+skill.getSpecialty()))
+     .collect(java.util.stream.Collectors.joining(", "));
+   if(trades.length()<=2000)value.setTrades(trades);
+   return value;
+  });
  }
  @PostMapping("/api/technician-verification/me") public TechnicianVerification submit(@Valid @RequestBody Submission body,@AuthenticationPrincipal AppUserDetails actor){
   role(actor,UserRole.technician);var value=records.findById(actor.getId()).orElseGet(TechnicianVerification::new);

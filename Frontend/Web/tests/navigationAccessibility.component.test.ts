@@ -9,6 +9,7 @@ import { usePageNavigation } from '../src/composables/usePageNavigation';
 import { useAuthStore } from '../src/stores/auth';
 import { useMaintenanceStore } from '../src/stores/maintenance';
 import { setLocale } from '../src/i18n';
+import * as notifications from '../src/services/notifications';
 const media = { matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() };
 const showModal = vi.fn(function(this: HTMLDialogElement) { this.setAttribute('open', ''); });
 const close = vi.fn(function(this: HTMLDialogElement) { this.removeAttribute('open'); this.dispatchEvent(new Event('close')); });
@@ -83,11 +84,49 @@ describe('workspace keyboard navigation', () => {
       expect(wrapper.find(`${selector} a[href="/reports"]`).exists()).toBe(false);
     }
   });
+  it('keeps additional destinations behind More and returns keyboard focus when it closes', async () => {
+    useAuthStore().user!.role = 'super_admin';
+    useAuthStore().user!.siteId = null;
+    await render();
+    for (const selector of ['.desktop-sidebar', '#mobile-navigation']) {
+      const nav = wrapper.get(`${selector} nav`);
+      expect(nav.element.children).toHaveLength(4);
+      expect(nav.find(':scope > a[href="/site-applications"]').exists()).toBe(false);
+      expect(nav.get('details a[href="/site-applications"]').exists()).toBe(true);
+    }
+    const more = wrapper.get('.desktop-sidebar details');
+    expect(more.attributes('open')).toBeUndefined();
+    more.element.setAttribute('open', '');
+    const link = more.get('a[href="/site-applications"]');
+    (link.element as HTMLElement).focus();
+    await link.trigger('keydown', { key: 'Escape' });
+    expect(more.attributes('open')).toBeUndefined();
+    expect(document.activeElement).toBe(more.get('summary').element);
+  });
 });
 it('does not offer maintenance search or report notifications on the shop-manager profile', async () => {
   useAuthStore().user!.role = 'shop_manager'; await render();
   expect(wrapper.find('form[role="search"]').exists()).toBe(false);
-  expect(wrapper.find('button[aria-label="Notification availability"]').exists()).toBe(false);
+  expect(wrapper.find('button[aria-label="Notifications"]').exists()).toBe(false);
+});
+it('opens the inbox for a technician without a selected site and displays report changes', async () => {
+  useAuthStore().user!.role = 'technician';
+  useAuthStore().user!.siteId = null;
+  const load = vi.spyOn(notifications, 'listNotifications').mockResolvedValue({
+    content: [
+      { id: 2, reportId: 81, type: 'report_deleted', createdAt: '2026-11-06T07:00:00Z' },
+      { id: 1, reportId: 80, type: 'report_edited', createdAt: '2026-11-06T06:00:00Z' },
+    ],
+    hasMore: false,
+  });
+  await render();
+  await wrapper.get('button[aria-label="Notifications"]').trigger('click');
+  await flushPromises();
+  expect(load).toHaveBeenCalledWith(0);
+  const inbox = wrapper.get('dialog[aria-label="Notifications"]');
+  expect(inbox.attributes('open')).toBeDefined();
+  expect(inbox.text()).toContain('Report #81 was archived.');
+  expect(inbox.text()).toContain('Report #80 was edited.');
 });
 it('keeps independent technicians away from unavailable report searches until a site is accessible', async () => {
   useAuthStore().user!.role = 'technician'; useAuthStore().user!.siteId = null;

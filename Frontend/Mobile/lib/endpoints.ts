@@ -93,6 +93,7 @@ export const endpoints = {
 
   technicianSkills: {
     create: '/api/technician-skills',
+    me: '/api/technician-skills/me',
   },
 
   technicianContracts: {

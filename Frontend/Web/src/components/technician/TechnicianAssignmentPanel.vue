@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
@@ -83,7 +84,7 @@ async function assign() {
     <p v-if="ranking?.fallbackReason" class="draft-notice" role="status">{{ t(ranking.fallbackReason) }}</p>
     <p v-if="!manager" class="dialog-intro">{{ t("Available technicians with a contract and matching trade are shown. The service checks current terms when you assign. Ranking and workload counts require administrator access.") }}</p>
     <p v-if="error" class="live-error" role="alert">{{ t(error) }}</p><p v-if="directoryError" class="live-error" role="alert">{{ t('Directory: {error}', { error: t(directoryError) }) }}</p>
-    <p v-if="loading" role="status">{{ t("Loading contracted candidates…") }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading contracted candidates…')" />
     <p v-else-if="!error && !directoryError && !candidates.length">{{ t("No matching available contracted technicians were returned. Refresh after a contract, skill, availability, or terms update.") }}</p>
     <form v-else-if="candidates.length" @submit.prevent="assign"><fieldset :disabled="loading || saving || disabled" class="candidate-options">
       <legend class="sr-only">{{ t("Choose a technician") }}</legend>

@@ -11,9 +11,23 @@ class TechnicianVerificationTest {
  TechnicianVerificationRepository records=mock(TechnicianVerificationRepository.class);
  TechnicianVerificationAuditRepository audits=mock(TechnicianVerificationAuditRepository.class);
  UserRepository users=mock(UserRepository.class);
- TechnicianVerificationController controller=new TechnicianVerificationController(records,audits,users);
+ TechnicianSkillRepository skills=mock(TechnicianSkillRepository.class);
+ TechnicianVerificationController controller=new TechnicianVerificationController(records,audits,users,skills);
  AppUserDetails actor(UserRole role){User user=new User();user.setId(1L);user.setRole(role);when(users.findById(1L)).thenReturn(Optional.of(user));return new AppUserDetails(user);}
  @Test void unsubmittedTechnicianIsUnverified(){assertEquals("unverified",controller.mine(actor(UserRole.technician)).getStatus());verifyNoInteractions(audits);}
+ @Test void initialDefaultsReuseAccountAndTradesWithoutReplacingPriorSubmission(){
+  var principal=actor(UserRole.technician);
+  User account=new User();account.setRole(UserRole.technician);account.setEmail("tech@example.test");account.setPhone("123456789");
+  when(users.findById(1L)).thenReturn(Optional.of(account));
+  TechnicianSkill skill=new TechnicianSkill();skill.setCategory("plumbing");skill.setSpecialty("pipes");
+  when(skills.findByTechnician_IdInOrderByIdAsc(java.util.List.of(1L))).thenReturn(java.util.List.of(skill));
+  var initial=controller.mine(principal);
+  assertEquals("tech@example.test",initial.getEmail());assertEquals("123456789",initial.getPhone());assertEquals("plumbing — pipes",initial.getTrades());
+  var rejected=new TechnicianVerification();rejected.setStatus("rejected");rejected.setEmail("corrected@example.test");rejected.setTrades("corrected");
+  when(records.findById(1L)).thenReturn(Optional.of(rejected));
+  assertSame(rejected,controller.mine(principal));assertEquals("corrected@example.test",controller.mine(principal).getEmail());
+  verify(records,never()).save(any());
+ }
  @Test void technicianCannotReview(){assertThrows(ApiException.class,()->controller.list(actor(UserRole.technician)));}
  @Test void staleRoleCannotReview(){var principal=actor(UserRole.super_admin);User changed=new User();changed.setRole(UserRole.reporter);when(users.findById(1L)).thenReturn(Optional.of(changed));assertThrows(ApiException.class,()->controller.list(principal));}
  @Test void approvalRequiresManualChecks(){var actor=actor(UserRole.super_admin);var value=new TechnicianVerification();value.setTechnicianId(7L);value.setVersion(2L);value.setStatus("pending");when(records.findById(7L)).thenReturn(Optional.of(value));assertThrows(ApiException.class,()->controller.decide(7L,new TechnicianVerificationController.Decision("verified","Reviewed",true,false,true,true,2L),actor));verify(records,never()).saveAndFlush(any());}

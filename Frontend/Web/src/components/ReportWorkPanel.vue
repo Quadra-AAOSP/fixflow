@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useLocale } from '@/i18n';
@@ -26,7 +27,7 @@ const resolution = computed(() => resolutions.value.at(-1));
 const canRate = computed(() => props.report.status === 'confirmed' && !!resolution.value
   && resolution.value.technicianId !== user.value?.id && (operator.value || participant.value)
   && !ratings.value.some(rating => rating.ratedByCurrentUser && rating.resolutionId === resolution.value?.id));
-const description = ref('');
+const description = defineModel<string>('description', { default: '' });
 const concern = ref('');
 const score = ref<number | null>(null);
 const feedback = ref('');
@@ -136,7 +137,7 @@ function rate() {
       </form>
     </details>
     <template v-if="showOutcome">
-      <p v-if="loading" role="status">{{ t('Loading work and feedback…') }}</p>
+      <LoadingStatus v-if="loading" :label="t('Loading work and feedback…')" />
       <p v-else-if="loadError" role="alert" class="live-error">{{ t(loadError) }} <button type="button" class="text-action" @click="loadOutcome">{{ t('Retry') }}</button></p>
       <template v-else>
         <article v-for="entry in resolutions" :key="entry.id" class="detail-section">

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { mount } from '@vue/test-utils';
 import { createMemoryHistory, createRouter } from 'vue-router';
-import { workspaceLinks } from '../src/utils/workspaceAccess';
+import { workspaceLinks, workspaceNavigation } from '../src/utils/workspaceAccess';
 import ReporterHomeView from '../src/views/app/ReporterHomeView.vue';
 import { useAuthStore } from '../src/stores/auth';
 import { useMaintenanceStore } from '../src/stores/maintenance';
@@ -21,7 +21,21 @@ describe('role-specific workspace menus', () => {
     ['technician', ['/technician', '/reports', '/contracts', '/technician/invitations', '/marketplace', '/shop']],
     ['shop_manager', ['/shop', '/shop/manage', '/profile']],
   ] as [UserRole, string[]][])('shows only relevant links for %s', (role, expected) => {
-    expect(workspaceLinks({ ...account, role }, true).map(link => link.to)).toEqual(expected);
+    const user = { ...account, role };
+    expect(workspaceLinks(user, true).map(link => link.to)).toEqual(expected);
+    const { primary, more } = workspaceNavigation(user, true);
+    expect(primary.length + Number(more.length > 0)).toBeLessThanOrEqual(4);
+    expect([...primary, ...more].map(link => link.to).sort()).toEqual([...expected].sort());
+  });
+  it.each([
+    ['reporter', ['/reporter', '/reports', '/sites', '/shop']],
+    ['staff', ['/', '/reports', '/assignments']],
+    ['admin', ['/', '/reports', '/team-access']],
+    ['super_admin', ['/', '/sites', '/shop']],
+    ['technician', ['/technician', '/marketplace', '/shop']],
+    ['shop_manager', ['/shop', '/shop/manage', '/profile']],
+  ] as [UserRole, string[]][])('prioritizes the primary destinations for %s', (role, expected) => {
+    expect(workspaceNavigation({ ...account, role }, true).primary.map(link => link.to)).toEqual(expected);
   });
   it('hides site report browsing for independent technicians without an accessible site', () => {
     expect(workspaceLinks({ ...account, role: 'technician', siteId: null }, false).map(link => link.to)).not.toContain('/reports');
