@@ -58,7 +58,7 @@ export function workspaceNavigation(user: User | null, hasSite: boolean) {
   if (!user) return { primary: [], more: [] };
   const destinations = primaryDestinations[user.role];
   const primary = destinations.flatMap(destination => links.filter(link => link.to === destination));
-  return { primary, more: links.filter(link => !destinations.includes(link.to)) };
+  return { primary, more: user.role === 'reporter' ? [] : links.filter(link => !destinations.includes(link.to)) };
 }
 
 /** Shared by initial routing and subsequent authenticated role changes. */

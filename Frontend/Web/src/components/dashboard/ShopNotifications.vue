@@ -4,6 +4,7 @@ import { useAuth } from "@/composables/useAuth";
 import { useLocale } from "@/i18n";
 import { listShopNotifications } from "@/services/shop";
 import type { ShopNotice } from "@/types/shop";
+import { markNoticesSeen } from '@/utils/notificationSeen';
 const { user } = useAuth();
 const { t } = useLocale();
 const notices = ref<ShopNotice[]>([]);
@@ -14,6 +15,7 @@ const page = ref(0);
 let generation = 0;
 async function load(next = 0) {
   const current = ++generation;
+  const accountId = user.value?.id;
   if (!user.value) {
     notices.value = [];
     return;
@@ -22,7 +24,8 @@ async function load(next = 0) {
   error.value = false;
   try {
     const result = await listShopNotifications(next);
-    if (current === generation) {
+    if (current === generation && accountId === user.value?.id) {
+      if (accountId != null) void markNoticesSeen(accountId, 'shop', result.content);
       notices.value = next
         ? [...notices.value, ...result.content]
         : result.content;

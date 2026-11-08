@@ -25,7 +25,10 @@ describe('role-specific workspace menus', () => {
     expect(workspaceLinks(user, true).map(link => link.to)).toEqual(expected);
     const { primary, more } = workspaceNavigation(user, true);
     expect(primary.length + Number(more.length > 0)).toBeLessThanOrEqual(4);
-    expect([...primary, ...more].map(link => link.to).sort()).toEqual([...expected].sort());
+    const visible = [...primary, ...more].map(link => link.to).sort();
+    const expectedVisible = role === 'reporter' ? expected.filter(to => to !== '/shop') : expected;
+    expect(visible).toEqual([...expectedVisible].sort());
+    if (role === 'reporter') expect(more).toEqual([]);
   });
   it.each([
     ['reporter', ['/reporter', '/reports', '/sites']],
