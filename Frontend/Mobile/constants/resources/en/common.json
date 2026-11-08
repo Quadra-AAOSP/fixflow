@@ -90,7 +90,34 @@
   },
   "offlineBanner": {
     "offlineText": "Offline — check your connection. Reports can't be filed or updated until the app reconnects.",
-    "retry": "Retry"
+    "offlineWithPending": "Offline — {count} report(s) saved on this device will be sent when the connection returns.",
+    "pending": "{count} report(s) waiting to be sent.",
+    "retry": "Retry",
+    "retryHint": "Retry the connection and send queued reports."
+  },
+  "notifications": {
+    "event": {
+      "assignment": {
+        "title": "New assignment",
+        "body": "Report #{id} has been assigned to you."
+      },
+      "reassignment": {
+        "title": "Report reassigned",
+        "body": "Report #{id} has a new technician."
+      },
+      "status": {
+        "title": "Report updated",
+        "body": "The status of report #{id} has changed."
+      },
+      "pendingResolution": {
+        "title": "Confirm the fix",
+        "body": "Report #{id} is marked complete and needs your confirmation."
+      },
+      "confirmation": {
+        "title": "Report confirmed",
+        "body": "Report #{id} has been confirmed as resolved."
+      }
+    }
   },
   "auth": {
     "login": {
@@ -404,6 +431,7 @@
       "allReports": "All reports",
       "title": "Report an issue",
       "submitted": "Report submitted.",
+      "queuedOffline": "No connection — this report was saved and will be sent automatically.",
       "intro": "Describe what needs attention at {site}.",
       "savedNotice": "Your report will be saved to the maintenance system and routed to a technician.",
       "descLabel": "What happened?",

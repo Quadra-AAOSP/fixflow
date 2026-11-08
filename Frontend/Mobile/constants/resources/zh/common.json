@@ -90,7 +90,34 @@
   },
   "offlineBanner": {
     "offlineText": "离线状态 — 请检查您的网络连接。在应用恢复连接之前，无法提交或更新报修。",
-    "retry": "重试"
+    "offlineWithPending": "离线状态 — 本设备上保存的 {count} 份报修将在网络恢复后发送。",
+    "pending": "{count} 份报修等待发送。",
+    "retry": "重试",
+    "retryHint": "重试连接并发送已排队的报修。"
+  },
+  "notifications": {
+    "event": {
+      "assignment": {
+        "title": "新任务指派",
+        "body": "报修 #{id} 已指派给您。"
+      },
+      "reassignment": {
+        "title": "报修已改派",
+        "body": "报修 #{id} 已更换技术人员。"
+      },
+      "status": {
+        "title": "报修已更新",
+        "body": "报修 #{id} 的状态已变更。"
+      },
+      "pendingResolution": {
+        "title": "请确认修复",
+        "body": "报修 #{id} 已标记为完成，需要您确认。"
+      },
+      "confirmation": {
+        "title": "报修已确认",
+        "body": "报修 #{id} 已确认解决。"
+      }
+    }
   },
   "auth": {
     "login": {
@@ -404,6 +431,7 @@
       "allReports": "全部报修",
       "title": "提交问题",
       "submitted": "报修已提交。",
+      "queuedOffline": "无网络连接 — 报修已保存，将自动发送。",
       "intro": "描述需要 {site} 关注的事项。",
       "savedNotice": "您的报修将被保存到维护系统并分派给技师。",
       "descLabel": "发生了什么？",
