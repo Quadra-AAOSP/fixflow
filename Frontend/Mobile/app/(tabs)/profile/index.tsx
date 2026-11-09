@@ -74,25 +74,24 @@ export default function ProfileScreen() {
         {/* HERO — identity block with top-right settings. */}
         <View
           className="relative overflow-hidden border-b border-dashboard-card-line pb-6 pt-8"
-          style={{ backgroundColor: dashboardColors.bannerBg }}
+          style={{ backgroundColor: dashboardColors.statMintSoft }}
         >
-          {/* Soft radial accents in the brand mint, consistent with the
-              rest of the app's editorial hero treatment. */}
+          {/* Soft radial accents so the tinted hero still has depth. */}
           <View
             className="absolute -right-10 -top-10 h-36 w-36 rounded-full opacity-40"
-            style={{ backgroundColor: dashboardColors.statMintSoft }}
+            style={{ backgroundColor: dashboardColors.cardBg }}
           />
           <View
-            className="absolute -left-6 top-24 h-24 w-24 rounded-full opacity-30"
-            style={{ backgroundColor: dashboardColors.statCitronSoft }}
+            className="absolute -left-6 top-24 h-24 w-24 rounded-full opacity-25"
+            style={{ backgroundColor: dashboardColors.cardBg }}
           />
 
           <View className="relative px-5">
             {/* Top row: quiet kicker on the left, settings affordance right. */}
             <View className="mb-4 flex-row items-center justify-between">
               <Text
-                className="text-[10.5px] font-semibold uppercase text-dashboard-caption"
-                style={{ letterSpacing: 0.8 }}
+                className="text-[10.5px] font-semibold uppercase"
+                style={{ color: dashboardColors.statMintDeep, letterSpacing: 0.8 }}
               >
                 {t('profile.heroKicker')}
               </Text>
@@ -113,8 +112,8 @@ export default function ProfileScreen() {
                 className="mb-4 h-[88px] w-[88px] items-center justify-center rounded-full"
                 style={{
                   borderWidth: 3,
-                  borderColor: dashboardColors.cardBg,
-                  backgroundColor: dashboardColors.statMintSoft,
+                  borderColor: dashboardColors.teal,
+                  backgroundColor: dashboardColors.cardBg,
                 }}
               >
                 <Text
@@ -136,8 +135,11 @@ export default function ProfileScreen() {
               </Text>
 
               <View className="mt-1 flex-row items-center gap-1.5">
-                <Mail color={dashboardColors.subtitle} size={12} />
-                <Text className="text-[12px] text-dashboard-subtitle">
+                <Mail color={dashboardColors.statMintDeep} size={12} />
+                <Text
+                  className="text-[12px]"
+                  style={{ color: dashboardColors.statMintDeep }}
+                >
                   {user.email}
                 </Text>
               </View>
@@ -145,7 +147,7 @@ export default function ProfileScreen() {
               {/* Role pill — visual anchor. */}
               <View
                 className="mt-3 flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
-                style={{ backgroundColor: dashboardColors.pillBg }}
+                style={{ backgroundColor: dashboardColors.cardBg }}
               >
                 <ShieldCheck color={dashboardColors.teal} size={11} />
                 <Text
@@ -159,7 +161,10 @@ export default function ProfileScreen() {
               {/* Site pill — second identity anchor, hidden when the account
                   is site-agnostic. */}
               {user.siteId !== null ? (
-                <View className="mt-2 flex-row items-center gap-1.5 rounded-full border border-dashboard-card-line px-3 py-1.5">
+                <View
+                  className="mt-2 flex-row items-center gap-1.5 rounded-full border border-dashboard-card-line px-3 py-1.5"
+                  style={{ backgroundColor: dashboardColors.cardBg }}
+                >
                   <Building2 color={dashboardColors.subtitle} size={11} />
                   <Text
                     className="text-[10px] font-semibold uppercase text-dashboard-subtitle"
