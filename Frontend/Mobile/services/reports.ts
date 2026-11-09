@@ -4,6 +4,7 @@ import type {
   AssignTechnicianPayload,
   CreateReportPayload,
   Report,
+  ReportHistoryItem,
   ReportPage,
   ReportPhoto,
   ReportReporter,
@@ -45,6 +46,11 @@ export async function listReports(opts: { siteId: number }): Promise<Report[]> {
 
 export function getReport(id: number): Promise<Report> {
   return api.get<Report>(endpoints.reports.byId(id));
+}
+
+/** Every status transition the report has been through, oldest first. */
+export function listReportHistory(id: number): Promise<ReportHistoryItem[]> {
+  return api.get<ReportHistoryItem[]>(endpoints.reports.history(id));
 }
 
 export type ReportEdit = Pick<Report, 'description' | 'address' | 'reporterUrgency' | 'reporterReason'>;

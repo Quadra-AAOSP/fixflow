@@ -102,6 +102,7 @@ describe('endpoint registry', () => {
     expect(endpoints.reports.resolve(7)).toBe('/api/reports/7/resolve');
     expect(endpoints.reports.urgency(7)).toBe('/api/reports/7/urgency');
     expect(endpoints.reports.update(7)).toBe('/api/reports/7');
+    expect(endpoints.reports.history(7)).toBe('/api/reports/7/history');
     expect(endpoints.reports.claim(7)).toBe('/api/reports/7/claim');
     expect(endpoints.technicians.myAvailability).toBe(
       '/api/technicians/me/availability',

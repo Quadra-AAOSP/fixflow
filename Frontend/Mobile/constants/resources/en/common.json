@@ -554,6 +554,10 @@
       "suggestionFailed": "Could not send the suggestion."
     },
     "detail": {
+      "timeline": {
+        "title": "Progress timeline",
+        "current": "Current"
+      },
       "allReports": "All reports",
       "screenTitle": "Report",
       "title": "Report #{id}",

@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { ReportWorkActions } from '@/components/reports/ReportWorkActions';
 import { ReportChangeActions } from '@/components/reports/ReportChangeActions';
+import { ReportTimeline } from '@/components/reports/ReportTimeline';
 import { Card } from '@/components/ui/Card';
 import { ReportAssistantChat } from '@/components/chat/ReportAssistantChat';
 import { ModalSheet } from '@/components/ui/ModalSheet';
@@ -46,6 +47,7 @@ import {
   getVisionJobStatus,
   joinReport,
   listReporters,
+  listReportHistory,
   reopenReport,
   triggerVisionProcessing,
   getReportPhotos,
@@ -67,6 +69,7 @@ import {
 import type {
   RankingMode,
   Report,
+  ReportHistoryItem,
   ReportPhoto,
   ReportReporter,
   TechnicianInvitationsSent,
@@ -100,6 +103,7 @@ export default function ReportDetailScreen() {
   const { sites } = useCurrentSite();
 
   const [report, setReport] = useState<Report | null>(null);
+  const [history, setHistory] = useState<ReportHistoryItem[]>([]);
   const [reporters, setReporters] = useState<ReportReporter[] | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -193,9 +197,13 @@ export default function ReportDetailScreen() {
     setLoading(true);
     setLoadError(null);
     try {
-      const next = await getReport(reportId);
+      const [next, entries] = await Promise.all([
+        getReport(reportId),
+        listReportHistory(reportId).catch(() => null),
+      ]);
       if (revision !== loadRevision.current) return;
       setReport(next);
+      setHistory(entries ?? []);
       setReporters(null);
       setSelectedTechnicianId(null);
       setPhotoUrls({});
@@ -721,7 +729,10 @@ export default function ReportDetailScreen() {
           <Text className="mb-2 text-[14px] leading-[1.8] text-ink">
             {report.description}
           </Text>
-          <ReportChangeActions key={report.id} report={report} onSaved={setReport}
+          <ReportChangeActions key={report.id} report={report} onSaved={updated => {
+            setReport(updated);
+            void listReportHistory(reportId).then(setHistory).catch(() => {});
+          }}
             onDeleted={() => router.replace('/reports')} />
           {reporters && reporters.some(r => r.userId === user?.id) && (
             <Card className="mb-4">
@@ -737,10 +748,13 @@ export default function ReportDetailScreen() {
           )}
         </View>
 
+        <ReportTimeline items={history} />
+
         {isAssignedTechnician || isOperator || canReadWork ? (
           <ReportWorkActions key={report.id} report={report} isAssignedTechnician={isAssignedTechnician}
             canRate={canRate} isOperator={isOperator} canReadWork={canReadWork} currentUserId={user?.id} onReportChanged={updated => {
               if (reportRevision === loadRevision.current) setReport(updated);
+              void listReportHistory(reportId).then(setHistory).catch(() => {});
             }} />
         ) : null}
 

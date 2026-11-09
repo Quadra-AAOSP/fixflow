@@ -76,6 +76,8 @@ export const endpoints = {
     urgency: (id: number | string) => `/api/reports/${id}/urgency`,
     /** PATCH — reporter/ops edits a still-editable report. */
     update: (id: number | string) => `/api/reports/${id}`,
+    /** GET — every status transition recorded for the report. */
+    history: (id: number | string) => `/api/reports/${id}/history`,
     /** POST — stateless AI chat about one report; body carries the message history. */
     assistant: (id: number | string) => `/api/reports/${id}/assistant`,
     /** POST — natural-language query → structured filters (NL smart search). */

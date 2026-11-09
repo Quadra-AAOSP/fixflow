@@ -1,5 +1,15 @@
 import type { Urgency } from './common';
 
+/** Mirrors backend `ReportWorkflowService.HistoryItem` (ascending by time). */
+export type ReportHistoryItem = {
+  id: number;
+  fromStatus: string | null;
+  toStatus: string;
+  changedByUserId: number | null;
+  note: string | null;
+  createdAt: string;
+};
+
 /** Mirrors backend `ReportVisibility` (JSON values are lowercase). */
 export type ReportVisibility = 'public' | 'private';
 

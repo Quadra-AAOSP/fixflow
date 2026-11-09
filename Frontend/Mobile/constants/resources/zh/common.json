@@ -554,6 +554,10 @@
       "suggestionFailed": "无法发送建议。"
     },
     "detail": {
+      "timeline": {
+        "title": "处理进度",
+        "current": "当前"
+      },
       "allReports": "全部报修",
       "screenTitle": "报修详情",
       "title": "报修 #{id}",
