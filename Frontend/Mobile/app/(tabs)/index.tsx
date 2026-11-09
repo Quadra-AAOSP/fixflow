@@ -2,6 +2,7 @@ import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import {
   Activity,
   ArrowRight,
+  Bell,
   Building2,
   CheckCircle2,
   ChevronRight,
@@ -40,8 +41,9 @@ import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { StatCard, type DashboardStatTone } from '@/components/ui/StatCard';
 import { StateView } from '@/components/ui/StateView';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
+import { ProgressRing } from '@/components/ui/ProgressRing';
 import { WeeklyChart } from '@/components/ui/WeeklyChart';
-import { dashboardColors, themeColors } from '@/constants/theme';
+import { dashboardColors, colors, themeColors } from '@/constants/theme';
 import {
   canManageSubsites,
   canProvision,
@@ -243,6 +245,16 @@ function Dashboard() {
 
   const allReports = reports ?? [];
   const summary = summarize(allReports);
+  const myReports = user
+    ? allReports.filter(
+        (report) => report.createdByUserId === user.id || report.policy.participant,
+      )
+    : [];
+  const mySummary = summarize(myReports);
+  const awaitingConfirmation = myReports.filter(
+    (report) =>
+      report.status === 'resolved_pending_confirmation' && report.policy.participant,
+  ).length;
   const weekBuckets = weeklyChart(allReports, period);
   const isChartEmpty = weekBuckets.every((bucket) =>
     bucket.values.every((value) => value === 0),
@@ -531,7 +543,24 @@ function Dashboard() {
                   reportCount={attentionReportCount}
                   onPressItem={gotoReports}
                 />
-              ) : null}
+              ) : (
+                <>
+                  <ReportsInsightCard
+                    t={t}
+                    summary={mySummary}
+                    total={myReports.length}
+                    pending={awaitingConfirmation}
+                    onPressAll={() => gotoReports('all')}
+                    onPressPending={() => gotoReports('confirmation')}
+                  />
+                  <QuickActionRow
+                    t={t}
+                    onPressFile={gotoNewReport}
+                    onPressTrack={() => gotoReports('all')}
+                    onPressAlerts={() => router.push('/more/notifications')}
+                  />
+                </>
+              )}
 
               <View className="mb-3 flex-row gap-2">
                 {statSet.slice(0, 2).map((stat) => (
@@ -563,25 +592,23 @@ function Dashboard() {
               </View>
 
               {isOps ? (
-                <>
-                  <MaintenanceOverviewCard
-                    t={t}
-                    period={period}
-                    onChangePeriod={setPeriod}
-                    buckets={weekBuckets}
-                    isEmpty={isChartEmpty}
-                    loading={loading}
-                    subtitle={overviewSubtitle}
-                  />
-
-                  <CategoryCard
-                    t={t}
-                    slices={categorySlices}
-                    onPressCategory={gotoCategory}
-                    onPressAll={() => gotoReports('all')}
-                  />
-                </>
+                <MaintenanceOverviewCard
+                  t={t}
+                  period={period}
+                  onChangePeriod={setPeriod}
+                  buckets={weekBuckets}
+                  isEmpty={isChartEmpty}
+                  loading={loading}
+                  subtitle={overviewSubtitle}
+                />
               ) : null}
+
+              <CategoryCard
+                t={t}
+                slices={categorySlices}
+                onPressCategory={gotoCategory}
+                onPressAll={() => gotoReports('all')}
+              />
 
               <RecentReportsCard
                 t={t}
@@ -1072,6 +1099,197 @@ type CategorySlice = {
   open: number;
   share: number;
 };
+
+/**
+ * Reporter-facing snapshot: a donut of their own reports plus a nudge when a
+ * technician has finished work and is waiting on their confirmation.
+ */
+function ReportsInsightCard({
+  t,
+  summary,
+  total,
+  pending,
+  onPressAll,
+  onPressPending,
+}: {
+  t: TranslateFn;
+  summary: ReturnType<typeof summarize>;
+  total: number;
+  pending: number;
+  onPressAll: () => void;
+  onPressPending: () => void;
+}) {
+  const resolvedPct = total === 0 ? 0 : Math.round((summary.resolved / total) * 100);
+
+  return (
+    <Card className="mb-3">
+      <View className="flex-row items-center justify-between">
+        <Text
+          className="text-[15px] font-semibold text-ink"
+          style={{ letterSpacing: -0.4 }}
+        >
+          {t('home.insights.title')}
+        </Text>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('home.insights.viewAll')}
+          onPress={onPressAll}
+          className="flex-row items-center gap-1 active:opacity-70"
+        >
+          <Text className="text-[11px] font-medium text-dashboard-teal">
+            {t('home.insights.viewAll')}
+          </Text>
+          <ArrowRight color={dashboardColors.teal} size={12} />
+        </Pressable>
+      </View>
+
+      <View className="mt-4 flex-row items-center gap-5">
+        <ProgressRing
+          size={96}
+          thickness={10}
+          trackColor={dashboardColors.bannerBorder}
+          segments={[
+            { value: summary.open, color: colors.primary },
+            { value: summary.progress, color: colors.accent },
+            { value: summary.resolved, color: colors.lime },
+          ]}
+        >
+          <Text
+            className="text-[22px] font-semibold text-ink"
+            style={{ letterSpacing: -0.8 }}
+          >
+            {resolvedPct}%
+          </Text>
+          <Text
+            className="text-[8px] font-medium uppercase text-dashboard-subtitle"
+            style={{ letterSpacing: 0.6 }}
+          >
+            {t('home.insights.resolved')}
+          </Text>
+        </ProgressRing>
+
+        <View className="flex-1 gap-2.5">
+          <InsightRow
+            label={t('home.insights.legendOpen')}
+            value={summary.open}
+            color={colors.primary}
+          />
+          <InsightRow
+            label={t('home.insights.legendProgress')}
+            value={summary.progress}
+            color={colors.accent}
+          />
+          <InsightRow
+            label={t('home.insights.legendResolved')}
+            value={summary.resolved}
+            color={colors.lime}
+          />
+        </View>
+      </View>
+
+      {pending > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('home.insights.pending', { count: pending })}
+          onPress={onPressPending}
+          className="mt-4 min-h-[44px] flex-row items-center gap-2 rounded-xl px-3 py-2.5 active:opacity-80"
+          style={{ backgroundColor: dashboardColors.statCitronSoft }}
+        >
+          <Hourglass color={dashboardColors.statCitronDeep} size={15} strokeWidth={2} />
+          <Text className="flex-1 text-[11.5px] font-medium text-ink">
+            {t('home.insights.pending', { count: pending })}
+          </Text>
+          <ChevronRight color={dashboardColors.statCitronDeep} size={14} />
+        </Pressable>
+      ) : null}
+    </Card>
+  );
+}
+
+function InsightRow({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <View className="flex-row items-center gap-2">
+      <View style={{ backgroundColor: color }} className="h-2 w-2 rounded-full" />
+      <Text className="flex-1 text-[11.5px] text-dashboard-subtitle">{label}</Text>
+      <Text className="text-[13px] font-semibold text-ink">{value}</Text>
+    </View>
+  );
+}
+
+/** Three tappable shortcuts reporters reach for most often. */
+function QuickActionRow({
+  t,
+  onPressFile,
+  onPressTrack,
+  onPressAlerts,
+}: {
+  t: TranslateFn;
+  onPressFile: () => void;
+  onPressTrack: () => void;
+  onPressAlerts: () => void;
+}) {
+  const actions = [
+    {
+      key: 'file',
+      label: t('home.quick.file'),
+      icon: Plus,
+      soft: dashboardColors.statCoralSoft,
+      ink: dashboardColors.statCoralDeep,
+      onPress: onPressFile,
+    },
+    {
+      key: 'track',
+      label: t('home.quick.track'),
+      icon: ClipboardList,
+      soft: dashboardColors.statMintSoft,
+      ink: dashboardColors.statMintDeep,
+      onPress: onPressTrack,
+    },
+    {
+      key: 'alerts',
+      label: t('home.quick.alerts'),
+      icon: Bell,
+      soft: dashboardColors.statCitronSoft,
+      ink: dashboardColors.statCitronDeep,
+      onPress: onPressAlerts,
+    },
+  ];
+
+  return (
+    <View className="mb-3 flex-row gap-2">
+      {actions.map((action) => {
+        const Icon = action.icon;
+        return (
+          <Pressable
+            key={action.key}
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            onPress={action.onPress}
+            className="min-h-[64px] flex-1 items-center justify-center rounded-2xl border border-dashboard-card-line bg-dashboard-card-bg px-2 py-3 active:opacity-80"
+          >
+            <View
+              className="h-8 w-8 items-center justify-center rounded-full"
+              style={{ backgroundColor: action.soft }}
+            >
+              <Icon color={action.ink} size={15} strokeWidth={2} />
+            </View>
+            <Text className="mt-1.5 text-center text-[10.5px] font-medium text-ink">
+              {action.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 /**
  * Where the reports are concentrated. Proportion bars make the dominant

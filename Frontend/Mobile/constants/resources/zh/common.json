@@ -265,6 +265,20 @@
     }
   },
   "home": {
+    "insights": {
+      "title": "你的报修概览",
+      "viewAll": "查看全部",
+      "resolved": "已解决",
+      "legendOpen": "待处理",
+      "legendProgress": "处理中",
+      "legendResolved": "已解决",
+      "pending": "{count} 项修复待你确认"
+    },
+    "quick": {
+      "file": "提交报修",
+      "track": "查看进度",
+      "alerts": "通知"
+    },
     "greetings": {
       "morning": "早上好",
       "afternoon": "下午好",

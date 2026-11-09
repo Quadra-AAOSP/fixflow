@@ -265,6 +265,20 @@
     }
   },
   "home": {
+    "insights": {
+      "title": "Your reports at a glance",
+      "viewAll": "View all",
+      "resolved": "resolved",
+      "legendOpen": "Open",
+      "legendProgress": "In progress",
+      "legendResolved": "Resolved",
+      "pending": "{count} fix needs your confirmation"
+    },
+    "quick": {
+      "file": "File a report",
+      "track": "Track reports",
+      "alerts": "Alerts"
+    },
     "greetings": {
       "morning": "Good morning",
       "afternoon": "Good afternoon",
