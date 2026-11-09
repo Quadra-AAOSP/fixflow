@@ -190,11 +190,12 @@ function Dashboard() {
   const [period, setPeriod] = useState<0 | -1>(0);
 
   const load = useCallback(async () => {
-    if (!site) return;
     setError(null);
     if (reports === null) setLoading(true);
     try {
-      const result = await listReports({ siteId: site.id });
+      const result = site
+        ? await listReports({ siteId: site.id })
+        : await listReports({ mine: true });
       setReports(result);
       setLastSynced(new Date());
     } catch (err) {
@@ -333,7 +334,7 @@ function Dashboard() {
     .slice(0, RECENT_UPDATES_LIMIT);
 
   const canFile =
-    site !== null && user !== null && user.role !== 'technician';
+    user !== null && user.role !== 'technician' && user.role !== 'shop_manager';
 
   /**
    * Staff, site admins and super_admins run the site; reporters and
@@ -372,10 +373,10 @@ function Dashboard() {
       (site !== null || user?.siteId != null),
   };
 
-  const fileDisabledReason = !site
-    ? t('home.reportDisabledReasons.noSite')
-    : user?.role === 'technician'
-      ? t('home.reportDisabledReasons.technician')
+  const fileDisabledReason = user?.role === 'technician'
+    ? t('home.reportDisabledReasons.technician')
+    : user?.role === 'shop_manager'
+      ? t('home.reportDisabledReasons.shopManager')
       : null;
 
   const greeting = (() => {
@@ -524,12 +525,12 @@ function Dashboard() {
 
         {reports === null && loading ? <StateView variant="loading" title={t('home.loadingDashboard')} /> : null}
 
-        {reports !== null && site ? (
+        {reports !== null ? (
           allReports.length === 0 ? (
             <>
               <EmptyHomeCard
                 t={t}
-                siteName={site.name}
+                siteName={site?.name ?? null}
                 onPressReport={gotoNewReport}
               />
               {isOps ? null : (
@@ -1734,7 +1735,7 @@ function EmptyHomeCard({
   onPressReport,
 }: {
   t: TranslateFn;
-  siteName: string;
+  siteName: string | null;
   onPressReport: () => void;
 }) {
   const steps = [
@@ -1778,7 +1779,9 @@ function EmptyHomeCard({
           className="mt-3 text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          {t('home.emptyHome.title', { site: siteName })}
+          {siteName
+            ? t('home.emptyHome.title', { site: siteName })
+            : t('home.emptyHome.titleNoSite')}
         </Text>
         <Text className="mt-1 text-center text-[11px] leading-[1.7] text-dashboard-subtitle">
           {t('home.emptyHome.subtitle')}

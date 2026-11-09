@@ -372,6 +372,7 @@
     },
     "emptyHome": {
       "title": "{site} 尚无报修",
+      "titleNoSite": "还没有报修——提交第一条后会显示在这里。",
       "subtitle": "提交第一条报修，此面板就会开始跟踪待处理工作、紧急程度和每周进度。",
       "stepFile": "提交报修",
       "stepFix": "维修处理",
@@ -387,7 +388,8 @@
     },
     "reportDisabledReasons": {
       "noSite": "提交报修前必须先关联站点。",
-      "technician": "技师账户负责处理报修，而非提交。"
+      "technician": "技师账户负责处理报修，而非提交。",
+      "shopManager": "店铺管理员负责采购；报修来自报告人和站点团队。"
     },
     "loadingDashboard": "正在加载面板",
     "loading": "正在加载报修…",
@@ -498,6 +500,7 @@
       "pickSiteHint": "请选择问题所在站点，然后描述需要处理的事项。",
       "noSiteTitle": "未关联站点",
       "noSiteDesc": "提交报修前必须先关联站点。",
+      "noBuildingsInline": "该站点尚未设置建筑——请在地址栏中描述具体位置。",
       "noBuildingsTitle": "尚未设置任何建筑",
       "noBuildingsDescAdmin": "在站点可以提交报修之前，请至少添加一栋建筑或区域。",
       "noBuildingsDescReporter": "您的站点管理员尚未添加任何建筑，在至少添加一个之前无法提交报修。",
@@ -1006,7 +1009,7 @@
       }
     },
     "notifications": {
-      "workCompleted": "报告 #{{id}} 已完成，等待您确认。",
+      "workCompleted": "报告 #{id} 已完成，等待您确认。",
       "title": "通知",
       "emptyTitle": "暂无通知。",
       "edited": "报修 #{id} 已编辑。",

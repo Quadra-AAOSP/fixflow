@@ -372,6 +372,7 @@
     },
     "emptyHome": {
       "title": "No reports yet at {site}",
+      "titleNoSite": "Nothing filed yet — your first report will show up here.",
       "subtitle": "File the first report and this dashboard starts tracking open work, urgency, and weekly progress.",
       "stepFile": "File a report",
       "stepFix": "We fix it",
@@ -387,7 +388,8 @@
     },
     "reportDisabledReasons": {
       "noSite": "A site must be linked before reports can be filed.",
-      "technician": "Technician accounts resolve reports rather than file them."
+      "technician": "Technician accounts resolve reports rather than file them.",
+      "shopManager": "Shop managers order supplies; reports come from reporters and site teams."
     },
     "loadingDashboard": "Loading dashboard",
     "loading": "Loading reports…",
@@ -498,6 +500,7 @@
       "pickSiteHint": "Pick the site where the issue is, then describe what needs attention.",
       "noSiteTitle": "No site linked",
       "noSiteDesc": "A site must be linked before you can file a report.",
+      "noBuildingsInline": "No buildings are set up for this site yet — describe the location in the address field.",
       "noBuildingsTitle": "No buildings set up yet",
       "noBuildingsDescAdmin": "Add at least one building or area before reports can be filed at this site.",
       "noBuildingsDescReporter": "Your site administrator has not added any buildings yet. Reports cannot be filed until at least one exists.",
@@ -1006,7 +1009,7 @@
       }
     },
     "notifications": {
-      "workCompleted": "Report #{{id}} is ready for your confirmation.",
+      "workCompleted": "Report #{id} is ready for your confirmation.",
       "title": "Notifications",
       "emptyTitle": "No notifications yet.",
       "edited": "Report #{id} was edited.",
