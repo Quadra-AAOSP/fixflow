@@ -1425,7 +1425,7 @@
       }
     },
     "invitations": {
-      "title": "Assignment invitations",
+      "title": "Site invitations",
       "intro": "Invitations are sent for a site and category. Request a contract for the site if you want to take on its jobs.",
       "loading": "Loading invitations…",
       "createdAt": "Created {date}",
@@ -1562,7 +1562,7 @@
       "save": "Save trade details",
       "beforeYouStart": "Before you start work at a site",
       "reviewBody": "Arrange a review with the site administrator covering your identity, relevant work history and references, qualifications, applicable trade licences and expiry dates, and insurance appropriate to the work. Requirements depend on the trade and location.",
-      "evidenceNote": "Secure evidence uploads and approval tracking are not available yet. Do not enter identity numbers or document links here. A saved trade or site contract is not proof of vetting.",
+      "evidenceNote": "Site vetting approval is required before work. Contact your site administrator to request a review. Do not enter identity numbers or document links here. A saved trade or site contract is not proof of vetting.",
       "levels": {
         "beginner": "Beginner",
         "basicExperience": "Basic practical experience",
@@ -1731,3 +1731,4 @@
     }
   }
 }
+

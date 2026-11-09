@@ -20,10 +20,11 @@ public class TechnicianInvitationService {
     private final TechnicianSkillRepository skills;
     private final TechnicianContractRepository contracts;
     private final TechnicianInvitationRepository invitations;
+    private final ReportNotificationRepository notifications;
     public TechnicianInvitationService(ReportRepository reports, UserRepository users, TechnicianSkillRepository skills,
-            TechnicianContractRepository contracts, TechnicianInvitationRepository invitations) {
+            TechnicianContractRepository contracts, TechnicianInvitationRepository invitations, ReportNotificationRepository notifications) {
         this.reports = reports; this.users = users; this.skills = skills;
-        this.contracts = contracts; this.invitations = invitations;
+        this.contracts = contracts; this.invitations = invitations; this.notifications = notifications;
     }
     @Transactional
     public Sent invite(Long id, String reason, int page, AppUserDetails actor) {
@@ -42,7 +43,8 @@ public class TechnicianInvitationService {
                     || invitations.existsByReport_IdAndTechnician_Id(id, technician.getId())) continue;
             TechnicianInvitation invitation = new TechnicianInvitation(); invitation.setReport(report);
             invitation.setTechnician(technician); invitation.setInvitedBy(users.getReferenceById(actor.getId()));
-            invitation.setReason(reason.trim()); invitations.saveAndFlush(invitation); created++;
+            invitation.setReason(reason.trim()); invitations.saveAndFlush(invitation);
+            notifications.save(new ReportNotification(technician.getId(), report.getId(), ReportNotification.Type.site_invitation, Instant.now())); created++;
         }
         return new Sent(created, page, matches.hasNext());
     }
@@ -53,6 +55,12 @@ public class TechnicianInvitationService {
         var result = invitations.findByTechnician_IdOrderByCreatedAtDescIdDesc(actor.getId(), PageRequest.of(page, 50));
         return new Inbox(result.stream().map(i -> new Invitation(i.getId(), i.getReport().getSite().getId(),
                 i.getReport().getCategory(), i.getReport().getSpecialty(), i.getReason(), i.getCreatedAt())).toList(), page, result.hasNext());
+    }
+    @Transactional(readOnly = true)
+    public Invitation detail(Long id, AppUserDetails actor) {
+        if (actor.getRole() != UserRole.technician) throw new ApiException(403, "Only technicians have invitations");
+        var i = invitations.findByIdAndTechnician_Id(id, actor.getId()).orElseThrow(() -> new ApiException(404, "Invitation not found"));
+        return new Invitation(i.getId(), i.getReport().getSite().getId(), i.getReport().getCategory(), i.getReport().getSpecialty(), i.getReason(), i.getCreatedAt());
     }
     private void checkPage(int page) { if (page < 0 || page > 10000) throw new ApiException(400, "Page must be between 0 and 10000"); }
 }

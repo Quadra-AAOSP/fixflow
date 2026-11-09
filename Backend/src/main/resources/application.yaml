@@ -83,6 +83,9 @@ fixflow:
   bootstrap:
     super-admin-email: ${FIXFLOW_SUPER_ADMIN_EMAIL:admin@fixflow.local}
     super-admin-password: ${FIXFLOW_SUPER_ADMIN_PASSWORD:changeme}
+  urgency:
+    medium-reporters: ${REPORT_URGENCY_MEDIUM_REPORTERS:3}
+    high-reporters: ${REPORT_URGENCY_HIGH_REPORTERS:5}
   storage:
     local-directory: ${FIXFLOW_STORAGE_LOCAL_DIRECTORY:./data/report-photos}
   minio:

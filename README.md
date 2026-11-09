@@ -242,3 +242,7 @@ Live responses can take longer than normal API calls.
 - Author of a feature writes its tests
 - CI (planned): lint + test + build + Docker build on every PR
 
+
+### Participation-based urgency
+
+Distinct report participants include the creator. `fixflow.urgency.medium-reporters` (default 3) and `fixflow.urgency.high-reporters` (default 5) set the minimum participant counts for raising urgency to medium and high. The calculation preserves a higher reporter urgency, including critical. A manual final urgency takes precedence. Joining or leaving and editing the reporter urgency recalculate the stored value. Existing reports are backfilled at startup using the configured thresholds.

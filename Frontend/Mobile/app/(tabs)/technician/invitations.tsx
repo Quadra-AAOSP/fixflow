@@ -1,5 +1,5 @@
 import { StateView } from '@/components/ui/StateView';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -10,7 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listTechnicianInvitations } from '@/services/technician';
+import { listTechnicianInvitations, getTechnicianInvitation } from '@/services/technician';
 import { listSites } from '@/services/sites';
 import type { Site } from '@/types';
 import type { TechnicianInvitationInbox } from '@/types/technician';
@@ -24,6 +24,7 @@ import { formatDate, humanize } from '@/utils/format';
 export default function TechnicianInvitationsScreen() {
   const { t } = useTranslation('common');
   const router = useRouter();
+  const { invitationId } = useLocalSearchParams<{ invitationId?: string }>();
   const { user } = useAuth();
 
   const [inbox, setInbox] = useState<TechnicianInvitationInbox | null>(null);
@@ -38,7 +39,7 @@ export default function TechnicianInvitationsScreen() {
       setError(null);
       try {
         const [next, directory] = await Promise.all([
-          listTechnicianInvitations(page),
+          invitationId ? getTechnicianInvitation(Number(invitationId)).then(item => ({ items: [item], page: 0, hasNext: false })) : listTechnicianInvitations(page),
           listSites().catch(() => [] as Site[]),
         ]);
         setInbox(next);
@@ -53,7 +54,7 @@ export default function TechnicianInvitationsScreen() {
         setLoading(false);
       }
     },
-    [user, t],
+    [user, t, invitationId],
   );
 
   useEffect(() => {

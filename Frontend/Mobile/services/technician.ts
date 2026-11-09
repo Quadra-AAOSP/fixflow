@@ -8,6 +8,7 @@ import type {
   TechnicianContractPayload,
   TechnicianContractRequest,
   TechnicianContractRequestPayload,
+  TechnicianInvitation,
   TechnicianInvitationInbox,
   TechnicianInvitationsSent,
   TechnicianRanking,
@@ -176,3 +177,5 @@ export function updateMyAvailability(
     { status: available ? 'available' : 'unavailable' },
   );
 }
+
+export function getTechnicianInvitation(id: number): Promise<TechnicianInvitation> { return api.get<TechnicianInvitation>(`/api/technician-invitations/${id}`); }

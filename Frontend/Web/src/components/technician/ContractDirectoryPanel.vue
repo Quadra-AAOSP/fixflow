@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SiteVettingPanel from '@/components/technician/SiteVettingPanel.vue';
 import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
@@ -82,6 +83,7 @@ watch(() => [scopeId.value, user.value?.id, props.revision], load, { immediate: 
 </script>
 
 <template>
+  <SiteVettingPanel v-if="scopeId" :key="scopeId" :site-id="scopeId" :technicians="contracts?.map(c => c.technicianId) ?? []" />
   <section v-if="allowed" class="contract-choice contract-directory">
     <div class="card-heading">
       <div><h2>{{ t('Recorded site contracts') }}</h2><p v-if="data.selectedSite">{{ data.selectedSite.name }}</p></div>
@@ -126,3 +128,4 @@ watch(() => [scopeId.value, user.value?.id, props.revision], load, { immediate: 
 .contract-confirmation,.terms-inspection{display:block;line-height:1.8}.contract-confirmation p,.terms-inspection p{margin:8px 0}.contract-confirmation button{margin-right:18px}.terms-inspection h3{font-size:14px;font-weight:650}
 .contract-records{display:grid;gap:10px;margin-top:14px}.contract-records li{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;border:1px solid #e4ebe7;border-radius:10px;padding:14px;overflow-wrap:anywhere}.contract-records li span{color:#536984;font-size:13px}
 </style>
+

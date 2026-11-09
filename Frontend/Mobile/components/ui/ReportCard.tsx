@@ -29,7 +29,7 @@ type ReportCardProps = {
 export function ReportCard({ report, siteName, onPress }: ReportCardProps) {
   const { t } = useTranslation('common');
   const visibleUrgency: Urgency =
-    report.finalUrgency ?? report.aiUrgency ?? report.reporterUrgency;
+    report.finalUrgency ?? report.calculatedUrgency ?? report.reporterUrgency;
 
   return (
     <Pressable

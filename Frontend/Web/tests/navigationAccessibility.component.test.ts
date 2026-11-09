@@ -78,7 +78,7 @@ describe('workspace keyboard navigation', () => {
     useAuthStore().user!.role = 'technician'; useAuthStore().user!.siteId = null;
     await render();
     for (const selector of ['.desktop-sidebar', '#mobile-navigation']) {
-      expect(wrapper.find(`${selector} a[href="/technician/invitations"]`).exists()).toBe(true);
+      expect(wrapper.find(`${selector} a[href="/technician/invitations"]`).exists()).toBe(false);
       expect(wrapper.find(`${selector} a[href="/contracts"]`).exists()).toBe(true);
       expect(wrapper.find(`${selector} a[href="/team-access"]`).exists()).toBe(false);
       expect(wrapper.find(`${selector} a[href="/reports"]`).exists()).toBe(false);
@@ -114,17 +114,19 @@ it('opens the inbox for a technician without a selected site and displays report
   useAuthStore().user!.siteId = null;
   const load = vi.spyOn(notifications, 'listNotifications').mockResolvedValue({
     content: [
+      { id: 3, reportId: null, invitationId: 42, type: 'site_invitation', createdAt: '2026-11-06T08:00:00Z' },
       { id: 2, reportId: 81, type: 'report_deleted', createdAt: '2026-11-06T07:00:00Z' },
       { id: 1, reportId: 80, type: 'report_edited', createdAt: '2026-11-06T06:00:00Z' },
     ],
     hasMore: false,
   });
   await render();
-  await wrapper.get('button[aria-label="Notifications"]').trigger('click');
+  await wrapper.get('button.notification-indicator-button').trigger('click');
   await flushPromises();
   expect(load).toHaveBeenCalledWith(0);
   const inbox = wrapper.get('dialog[aria-label="Notifications"]');
   expect(inbox.attributes('open')).toBeDefined();
+  expect(inbox.get('a[href="/technician/invitations?invitationId=42"]').text()).toContain('Site invitations');
   expect(inbox.text()).toContain('Report #81 was archived.');
   expect(inbox.text()).toContain('Report #80 was edited.');
 });

@@ -110,8 +110,9 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
       <p v-else-if="!notices.length && !noticeError" class="dialog-intro">{{ t('No notifications yet.') }}</p>
       <ul v-if="notices.length" class="reporter-list">
         <li v-for="notice in notices" :key="notice.id">
-          <RouterLink v-if="notice.type === 'work_completed'" :to="`/reports/${notice.reportId}`" @click="notificationDialog?.close()">{{ t('Report #{id} is ready for your confirmation.', { id: notice.reportId }) }}</RouterLink>
-          <template v-else>{{ t(notice.type === 'report_edited' ? 'Report #{id} was edited.' : 'Report #{id} was archived.', { id: notice.reportId }) }}</template>
+          <RouterLink v-if="notice.type === 'work_completed'" :to="`/reports/${notice.reportId}`" @click="notificationDialog?.close()">{{ t('Report #{id} is ready for your confirmation.', { id: notice.reportId ?? '' }) }}</RouterLink>
+          <RouterLink v-else-if="notice.type === 'site_invitation'" :to="{ path: '/technician/invitations', query: { invitationId: notice.invitationId } }" @click="notificationDialog?.close()">{{ t('Site invitations') }}</RouterLink>
+          <template v-else>{{ t(notice.type === 'report_edited' ? 'Report #{id} was edited.' : 'Report #{id} was archived.', { id: notice.reportId ?? '' }) }}</template>
           <span>{{ formatDate(notice.createdAt, true) }}</span>
         </li>
       </ul>

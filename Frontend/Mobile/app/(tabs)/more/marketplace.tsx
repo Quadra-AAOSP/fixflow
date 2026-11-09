@@ -1,3 +1,4 @@
+import { SiteVetting } from '@/components/technician/SiteVetting';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
@@ -208,6 +209,7 @@ export default function MarketplaceScreen() {
                       <View key={application.id} className="my-2 border-t border-dashboard-card-line pt-3">
                         <Text className="font-bold text-ink">{application.technicianName} · {t(`marketplace.states.${application.status}`)}</Text>
                         <Text className="text-ink">{application.note}</Text>
+                        {user?.siteId ? <SiteVetting siteId={user.siteId} technicianId={application.technicianId} admin /> : null}
                         <Text className="text-ink">{t('marketplace.workload', {
                           active: application.activeCases, completed: application.completedJobs,
                           cancellations: application.cancellations,
@@ -257,3 +259,4 @@ export default function MarketplaceScreen() {
     </Screen>
   );
 }
+

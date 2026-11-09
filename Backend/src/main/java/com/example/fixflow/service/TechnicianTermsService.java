@@ -16,6 +16,10 @@ import com.example.fixflow.web.ApiException;
 
 @Service
 public class TechnicianTermsService {
+    public record CurrentTerms(String currentVersion, String documentUrl) { }
+    public CurrentTerms currentTerms() {
+        return new CurrentTerms(version.isEmpty() ? null : version, documentUrl.isEmpty() ? null : documentUrl);
+    }
     public record Acceptance(String version, String documentUrl, Instant acceptedAt) { }
     public record Status(Long technicianId, String currentVersion, String documentUrl,
             boolean enforcementRequired, boolean acceptedCurrentVersion, List<Acceptance> acceptances) { }
@@ -49,7 +53,7 @@ public class TechnicianTermsService {
 
     @Transactional(readOnly = true)
     public boolean permitsWork(Long technicianId) {
-        return !required || acceptances.existsByTechnician_IdAndTermsVersion(technicianId, version);
+        return !version.isEmpty() && !documentUrl.isEmpty() && acceptances.existsByTechnician_IdAndTermsVersion(technicianId, version);
     }
 
     @Transactional
@@ -79,6 +83,7 @@ public class TechnicianTermsService {
         List<Acceptance> history = acceptances.findByTechnician_IdOrderByAcceptedAtDesc(technicianId).stream()
                 .map(a -> new Acceptance(a.getTermsVersion(), a.getDocumentUrl(), a.getAcceptedAt())).toList();
         return new Status(technicianId, version.isEmpty() ? null : version, documentUrl.isEmpty() ? null : documentUrl,
-                required, history.stream().anyMatch(a -> a.version().equals(version)), history);
+                true, !version.isEmpty() && !documentUrl.isEmpty() && history.stream().anyMatch(a -> a.version().equals(version)), history);
     }
 }
+

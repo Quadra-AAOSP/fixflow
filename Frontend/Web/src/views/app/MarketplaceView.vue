@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SiteVettingPanel from '@/components/technician/SiteVettingPanel.vue';
 import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
@@ -176,7 +177,7 @@ onBeforeUnmount(() => { revision++; listingRequest?.abort(); applicantRequest?.a
           <p v-else-if="!applicants.length">{{ t('No applications yet.') }}</p>
           <section v-for="applicant in applicants" :key="applicant.id" class="detail-section">
             <h3>{{ applicant.technicianName }} · {{ t(humanize(applicant.status)) }}</h3>
-            <p class="marketplace-note">{{ applicant.note }}</p>
+            <p class="marketplace-note">{{ applicant.note }}</p><SiteVettingPanel v-if="user?.siteId" :site-id="user.siteId" :technicians="[applicant.technicianId]" :initial-technician-id="applicant.technicianId" />
             <dl class="report-detail-grid">
               <div><dt>{{ t('Active cases') }}</dt><dd>{{ applicant.activeCases ?? t('Not available') }}</dd></div>
               <div><dt>{{ t('Completed jobs') }}</dt><dd>{{ applicant.completedJobs ?? t('Not available') }}</dd></div>
@@ -218,3 +219,4 @@ onBeforeUnmount(() => { revision++; listingRequest?.abort(); applicantRequest?.a
 .marketplace-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-block: .75rem; }
 .marketplace-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
+
