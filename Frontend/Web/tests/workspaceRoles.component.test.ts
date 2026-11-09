@@ -14,7 +14,7 @@ const account: User = { id: 1, role: 'reporter', siteId: 7, firstName: 'Test', l
 beforeEach(() => { setActivePinia(createPinia()); setLocale('en'); });
 describe('role-specific workspace menus', () => {
   it.each([
-    ['reporter', ['/reporter', '/building-suggestions', '/reports', '/sites', '/shop']],
+    ['reporter', ['/reporter', '/building-suggestions', '/sites', '/shop']],
     ['staff', ['/', '/reports', '/sites', '/assignments', '/shop']],
     ['admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop']],
     ['super_admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop/manage', '/shop']],

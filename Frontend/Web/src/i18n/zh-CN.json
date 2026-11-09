@@ -1021,5 +1021,8 @@
   "Saved by the service.": "已由服务保存。",
   "Repair workflow updated by the service.": "服务已更新维修流程。",
   "The report response did not match the requested report.": "返回的报告与请求的报告不匹配。",
-  "Resolved pending confirmation": "已处理，等待确认"
+  "Resolved pending confirmation": "已处理，等待确认",
+  "Requested building: {name}": "申请的楼宇：{name}",
+  "Once approved, refresh the building list and select it above.": "获批后，请刷新楼宇列表并在上方选择。",
+  "Fetch the latest site and report data": "获取最新场地和报修数据"
 }

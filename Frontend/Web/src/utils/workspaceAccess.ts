@@ -25,7 +25,7 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
   if (role === 'reporter') links.push({ to: '/reporter', label: 'My reports', icon: 'home' }, { to: '/building-suggestions', label: 'My building suggestions', icon: 'sites' });
   else if (role === 'technician') links.push({ to: '/technician', label: 'My workspace', icon: 'technician' });
   else if (workspaceRoles.dashboard.some(value => value === role)) links.push({ to: '/', label: 'Dashboard', icon: 'home' });
-  if (role !== 'technician' || hasSite) links.push({ to: '/reports', label: 'Reports', icon: 'reports' });
+  if (role !== 'reporter' && (role !== 'technician' || hasSite)) links.push({ to: '/reports', label: 'Reports', icon: 'reports' });
   if (workspaceRoles.sites.some(value => value === role)) links.push({ to: '/sites', label: 'Sites', icon: 'sites' });
   if (workspaceRoles.assignments.some(value => value === role)) links.push({ to: '/assignments', label: 'Assignments', icon: 'assignments' });
   if (workspaceRoles.contracts.some(value => value === role)) links.push({ to: '/contracts', label: 'Site contracts', icon: 'contracts' });

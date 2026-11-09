@@ -56,6 +56,10 @@ onBeforeUnmount(() => { disposed = true; quoteVersion++; ordersVersion++; });
 
 const categories = computed(() => [...new Set(shop.catalog?.products.map(p => p.category) ?? [])].sort());
 const selected = computed(() => shop.catalog?.products.find(p => p.id === detailId.value));
+const hasMixedAvailability = computed(() => {
+  const stock = shop.catalog?.products.map(product => product.stock) ?? [];
+  return stock.some(count => count > 0) && stock.some(count => count === 0);
+});
 const products = computed(() => (shop.catalog?.products ?? []).filter(p => {
   return (!category.value || p.category === category.value) && (!availableOnly.value || p.stock > 0)
     && `${p.name} ${p.brand ?? ''} ${p.description} ${p.category}`.toLowerCase().includes(query.value.trim().toLowerCase());
@@ -257,7 +261,7 @@ onMounted(async () => {
           <button type="button" :aria-pressed="!category" @click="category = ''">{{ t("All products") }}</button>
           <button v-for="item in categories" :key="item" type="button" :aria-pressed="category === item" @click="category = item">{{ item }}</button>
         </div>
-        <label><input v-model="availableOnly" type="checkbox" />{{ t("In stock only") }}</label>
+        <label v-if="hasMixedAvailability"><input v-model="availableOnly" type="checkbox" />{{ t("In stock only") }}</label>
       </div>
       <div v-if="shop.loading" class="shop-state" role="status"><RefreshCw :size="28" /><h3>{{ t("Finding your essentials…") }}</h3><p>{{ t("Loading the latest catalogue.") }}</p></div>
       <div v-else-if="shop.error" class="shop-state">
@@ -284,7 +288,7 @@ onMounted(async () => {
             <button class="shop-product-name" type="button" @click="inspect(product.id)">{{ product.name }}</button>
             <p v-if="product.brand">{{ product.brand }}</p>
             <div class="shop-product-bottom">
-              <div><strong>{{ shop.money(product.priceMinor) }}</strong><small>{{ t(product.stock ? 'In stock' : 'Out of stock') }}</small></div>
+              <div><strong>{{ shop.money(product.priceMinor) }}</strong><small :class="{ 'shop-stock-empty': !product.stock }" :aria-label="t(product.stock ? '{count} available' : 'Out of stock', { count: product.stock })">{{ product.stock ? t('{count} available', { count: product.stock }) : t('Out of stock') }}</small></div>
               <button class="shop-add" type="button" :disabled="!product.stock || (shop.quantities[product.id] || 0) >= product.stock" :aria-label="t('Add {name} to basket', { name: product.name })" @click="add(product.id)"><Plus :size="20" /></button>
             </div>
           </div>

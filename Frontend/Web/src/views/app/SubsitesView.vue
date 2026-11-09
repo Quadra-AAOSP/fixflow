@@ -23,6 +23,7 @@ const loading = ref(false);
 const saving = ref(false);
 const actionId = ref('');
 const editingId = ref<number | null>(null);
+const accepting = ref<SubsiteAlert | null>(null);
 const loadError = ref('');
 const requestsError = ref('');
 const formError = ref('');
@@ -72,7 +73,18 @@ async function submit() {
     if (current !== generation || siteId.value !== id) return;
     items.value = [...items.value.filter(item => item.id !== saved.id), saved].sort((a, b) => a.label.localeCompare(b.label));
     success.value = { key: '{label} · {name} saved for {site}.', values: { label: saved.label, name: saved.name, site: site.value?.name ?? '' } };
+    const accepted = accepting.value;
     cancelEdit();
+    if (accepted) {
+      try {
+        await resolveSubsiteRequest(id, accepted.id);
+        if (current !== generation) return;
+        requests.value = requests.value.filter(row => row.id !== accepted.id);
+      } catch (err) {
+        if (current !== generation) return;
+        requestsError.value = `Building saved. The suggestion could not be closed; use Mark resolved to retry. ${errorMessage(err)}`;
+      }
+    }
     await nextTick();
     if (current === generation && siteId.value === id) savedNotice.value?.focus();
     if (user.value?.siteOnboarding?.siteId === id) {
@@ -104,6 +116,7 @@ async function cancelAndReturn() {
 }
 function cancelEdit() {
   editingId.value = null;
+  accepting.value = null;
   editTrigger = null;
   Object.assign(form, { label: '', name: '', description: '' });
 }
@@ -124,6 +137,17 @@ async function archive(item: Subsite) {
     }
   } catch (err) { if (current === generation && siteId.value === id) loadError.value = errorMessage(err); }
   finally { actionId.value = ''; }
+}
+async function accept(item: SubsiteAlert) {
+  if (!canManage.value || saving.value || actionId.value || loading.value) return;
+  cancelEdit();
+  accepting.value = item;
+  form.name = (item.note ?? '').trim().slice(0, 255);
+  form.description = item.note ?? '';
+  formError.value = ''; success.value = null;
+  await nextTick();
+  labelInput.value?.focus();
+  labelInput.value?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
 }
 async function resolve(item: SubsiteAlert) {
   if (!site.value || !canManage.value || saving.value || actionId.value) return;
@@ -156,15 +180,15 @@ async function resolve(item: SubsiteAlert) {
           <p v-else-if="!items.length" class="live-empty">{{ t("No buildings are configured yet. A site admin can add the first labelled location here.") }}</p>
           <ul v-else class="subsite-list"><li v-for="item in items" :key="item.id"><span class="subsite-code">{{ item.label }}</span><div class="subsite-row-copy"><strong>{{ item.name }}</strong><p v-if="item.description">{{ item.description }}</p></div><div v-if="canManage" class="subsite-row-actions"><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Edit {name}', { name: item.name })" @click="edit(item, $event)"><Pencil :size="15" />{{ t("Edit") }}</button><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Archive {name}', { name: item.name })" @click="archive(item)"><Archive :size="15" />{{ t(actionId === `archive-${item.id}` ? 'Archiving…' : 'Archive') }}</button></div></li></ul>
         </section>
-        <section v-if="canManage" class="dashboard-card"><div class="card-heading"><div><h2>{{ t(editingId == null ? 'Add a building' : 'Edit building') }}</h2><p>{{ t("Give reporters a clear location to choose when filing an issue.") }}</p></div><Plus :size="20" /></div>
+        <section v-if="canManage" class="dashboard-card"><div class="card-heading"><div><h2>{{ t(accepting ? 'Accept building suggestion' : editingId == null ? 'Add a building' : 'Edit building') }}</h2><p>{{ t(accepting ? 'Review the suggested name and add a short label. Saving creates the building and resolves the suggestion.' : 'Give reporters a clear location to choose when filing an issue.') }}</p></div><Plus :size="20" /></div>
           <p v-if="formError" class="live-error" role="alert">{{ t(formError) }}</p>
-          <form class="draft-form" @submit.prevent="submit"><fieldset class="report-fields" :disabled="saving || loading || !!actionId"><label>{{ t("Short label") }}<input ref="labelInput" v-model="form.label" maxlength="64" :placeholder="t('e.g. A')" required /></label><label>{{ t("Building or location name") }}<input v-model="form.name" maxlength="255" :placeholder="t('e.g. Main Building')" required /></label><label>{{ t("Description (optional)") }}<textarea v-model="form.description" maxlength="2000" rows="3" :placeholder="t('Floor, wing or wayfinding details')" /></label><div class="subsite-form-actions"><button class="report-issue-button" type="submit" :disabled="saving">{{ t(saving ? 'Saving…' : editingId == null ? 'Add building' : 'Save changes') }}</button><button v-if="editingId != null" class="text-action" type="button" @click="cancelAndReturn">{{ t("Cancel editing") }}</button></div></fieldset></form>
+          <form class="draft-form" @submit.prevent="submit"><fieldset class="report-fields" :disabled="saving || loading || !!actionId"><label>{{ t("Short label") }}<input ref="labelInput" v-model="form.label" maxlength="64" :placeholder="t('e.g. A')" required /></label><label>{{ t("Building or location name") }}<input v-model="form.name" maxlength="255" :placeholder="t('e.g. Main Building')" required /></label><label>{{ t("Description (optional)") }}<textarea v-model="form.description" maxlength="2000" rows="3" :placeholder="t('Floor, wing or wayfinding details')" /></label><div class="subsite-form-actions"><button class="report-issue-button" type="submit" :disabled="saving">{{ t(saving ? 'Saving…' : accepting ? 'Accept and add building' : editingId == null ? 'Add building' : 'Save changes') }}</button><button v-if="editingId != null || accepting" class="text-action" type="button" @click="cancelAndReturn">{{ t("Cancel editing") }}</button></div></fieldset></form>
         </section>
-        <section v-if="canManage" class="dashboard-card subsite-requests"><div class="card-heading"><div><h2>{{ t("Missing-building requests") }}</h2><p>{{ t("Review the location, add it above if needed, then mark the request resolved.") }}</p></div><span v-if="!loading && !requestsError" class="status-badge mint">{{ t('{count} pending', { count: requests.length }) }}</span></div>
+        <section v-if="canManage" class="dashboard-card subsite-requests"><div class="card-heading"><div><h2>{{ t("Missing-building requests") }}</h2><p>{{ t("Accept a suggestion to review and add the building, or resolve it if the location already exists.") }}</p></div><span v-if="!loading && !requestsError" class="status-badge mint">{{ t('{count} pending', { count: requests.length }) }}</span></div>
           <p v-if="requestsError" class="live-error" role="alert">{{ t(requestsError) }} <button type="button" @click="load">{{ t("Try again") }}</button></p>
           <p v-else-if="loading" class="live-empty" role="status">{{ t("Loading requests…") }}</p>
           <p v-else-if="!requests.length" class="live-empty">{{ t("No pending building requests.") }}</p>
-          <ul v-else class="subsite-list"><li v-for="item in requests" :key="item.id"><span class="subsite-code">#{{ item.id }}</span><div class="subsite-row-copy"><strong>{{ t('Requested by account #{id}', { id: item.requestedByUserId }) }}</strong><p>{{ item.note || t('No description provided.') }}</p></div><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Resolve request {id}', { id: item.id })" @click="resolve(item)"><Check :size="15" />{{ t(actionId === `request-${item.id}` ? 'Resolving…' : 'Mark resolved') }}</button></li></ul>
+          <ul v-else class="subsite-list"><li v-for="item in requests" :key="item.id"><span class="subsite-code">#{{ item.id }}</span><div class="subsite-row-copy"><strong>{{ t('Requested by account #{id}', { id: item.requestedByUserId }) }}</strong><p>{{ item.note || t('No description provided.') }}</p></div><button class="text-action" type="button" :disabled="saving || loading || !!actionId" @click="accept(item)">{{ t("Accept suggestion") }}</button><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Resolve request {id}', { id: item.id })" @click="resolve(item)"><Check :size="15" />{{ t(actionId === `request-${item.id}` ? 'Resolving…' : 'Mark resolved') }}</button></li></ul>
         </section>
       </div>
     </template>

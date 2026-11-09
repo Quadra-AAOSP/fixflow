@@ -75,6 +75,24 @@ it('gives visible feedback when adding a product', async () => {
   expect(wrapper.get('.shop-feedback').classes()).not.toContain('sr-only');
   expect(useShopStore().count).toBe(1);
 });
+it('gives technicians visible feedback when they add a product to their basket', async () => {
+  useAuthStore().user!.role = 'technician';
+  await render();
+  await wrapper.get('.shop-add').trigger('click'); await flushPromises();
+  expect(wrapper.get('.shop-feedback').text()).toContain('Tool added to your basket');
+  expect(useShopStore().count).toBe(1);
+});
+it('hides the in-stock filter for all-stock catalogues and shows stock counts', async () => {
+  await render();
+  expect(wrapper.text()).not.toContain('In stock only');
+  expect(wrapper.get('.shop-product-bottom small').text()).toBe('3 available');
+});
+it('shows the in-stock filter when catalogue availability is mixed', async () => {
+  useShopStore().catalog!.products.push({ ...product, id: 'empty', name: 'Empty tool', stock: 0 });
+  await render();
+  expect(wrapper.text()).toContain('In stock only');
+  expect(wrapper.findAll('.shop-product-bottom small').map(stock => stock.text())).toContain('Out of stock');
+});
 it('shows a simulation step and waits for an explicit payment action', async () => {
   await render(); useShopStore().setQuantity('tool', 1); await flushPromises();
   vi.mocked(api.createOrder).mockResolvedValue({ orderId: 'dev-fixture', totalMinor: 1000, paymentProvider: 'dev', checkoutUrl: 'http://localhost/dev' });

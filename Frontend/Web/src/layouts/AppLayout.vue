@@ -10,6 +10,7 @@ import { useLocale } from '@/i18n';
 import { initials, formatDate } from '@/utils/maintenance';
 import WorkspaceNavigation from '@/components/dashboard/WorkspaceNavigation.vue';
 import SkipLink from '@/components/ui/SkipLink.vue';
+import NotificationsPanel from '@/components/NotificationsPanel.vue';
 import '@/styles/dashboard.css';
 
 const route = useRoute();
@@ -43,7 +44,7 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
       <WorkspaceNavigation />
     </aside>
     <dialog id="mobile-navigation" ref="mobileNavigation" class="dashboard-sidebar mobile-sidebar" :aria-label="t('Main navigation')" @close="mobileOpen = false" @click="event => { if (event.target === mobileNavigation) closeNavigation(); }">
-      <div class="mobile-navigation-heading"><strong>{{ t('Navigation') }}</strong><button type="button" autofocus class="icon-button" :aria-label="t('Close navigation')" @click="closeNavigation"><X :size="22" /></button></div>
+      <div class="mobile-navigation-heading"><button type="button" autofocus class="icon-button" :aria-label="t('Close navigation')" @click="closeNavigation"><X :size="22" /></button></div>
       <WorkspaceNavigation @navigate="closeNavigation" />
     </dialog>
     <div class="dashboard-workspace">
@@ -53,7 +54,7 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
       </header>
       <main id="main-content" tabindex="-1" class="dashboard-main">
         <div class="workspace-language"><LanguageSelector /></div>
-        <div v-if="user?.role !== 'shop_manager'" class="live-toolbar"><label v-if="user?.role === 'super_admin' && data.sites.length" class="site-selector">{{ t("Site") }}<select :value="data.selectedSiteId" :disabled="data.loading" @change="data.selectSite(Number(($event.target as HTMLSelectElement).value))"><option v-for="site in data.sites" :key="site.id" :value="site.id">{{ site.name }}</option></select></label><span v-else>{{ data.selectedSite?.name || t(data.loading ? 'Loading your site…' : user?.role === 'technician' ? 'Technician account' : 'No site available') }}</span><span class="live-sync">{{ data.loading ? t('Refreshing…') : data.lastSynced ? t('Updated {date}', { date: formatDate(data.lastSynced, true) }) : t('Not synced') }}<button class="icon-button" :disabled="data.loading" :aria-label="t('Refresh live data')" @click="data.refresh()"><RefreshCw :size="16" /></button></span></div>
+        <div v-if="user?.role !== 'shop_manager'" class="live-toolbar"><label v-if="user?.role === 'super_admin' && data.sites.length" class="site-selector">{{ t("Site") }}<select :value="data.selectedSiteId" :disabled="data.loading" @change="data.selectSite(Number(($event.target as HTMLSelectElement).value))"><option v-for="site in data.sites" :key="site.id" :value="site.id">{{ site.name }}</option></select></label><span v-else>{{ data.selectedSite?.name || t(data.loading ? 'Loading your site…' : user?.role === 'technician' ? 'Technician account' : 'No site available') }}</span><span class="live-sync">{{ data.loading ? t('Refreshing…') : data.lastSynced ? t('Updated {date}', { date: formatDate(data.lastSynced, true) }) : t('Not synced') }}<button class="icon-button" :disabled="data.loading" :aria-label="t('Refresh live data')" :title="t('Fetch the latest site and report data')" @click="data.refresh()"><RefreshCw :size="16" /></button></span></div>
         <div v-if="data.sitesError" class="live-error" role="alert">{{ t(data.sitesError) }} <button @click="data.refresh()">{{ t("Retry") }}</button></div>
         <p v-else-if="!data.loading && !data.sites.length && user?.role !== 'technician' && user?.role !== 'shop_manager'" class="live-empty">{{ t("No sites are available for this account. Ask your administrator to check your site access.") }}</p>
         <div v-if="user?.siteOnboarding?.setupRequired && user.siteOnboarding.canManageSubsites" class="draft-notice" role="status">
@@ -65,6 +66,6 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
       </main>
       <footer class="dashboard-footer"><span><b>FixFlow</b> {{ t('© {year} FixFlow. Keeping spaces working beautifully.', { year: new Date().getFullYear() }) }}</span><span><Heart :size="13" fill="currentColor" />{{ t("Better spaces. Brighter tomorrows.") }}</span></footer>
     </div>
-    <dialog ref="notificationDialog" class="dashboard-dialog" :aria-label="t('Notifications')"><div class="dialog-heading"><h2>{{ t("Notifications") }}</h2><button class="icon-button" :aria-label="t('Close dialog')" @click="notificationDialog?.close()"><X :size="22" /></button></div><p class="dialog-intro">{{ t("Notifications are not available yet. You can check current report statuses on the Reports page.") }}</p><RouterLink class="text-action" to="/reports" @click="notificationDialog?.close()">{{ t("View reports") }}</RouterLink></dialog>
+    <dialog ref="notificationDialog" class="dashboard-dialog" :aria-label="t('Notifications')"><div class="dialog-heading"><h2>{{ t("Notifications") }}</h2><button class="icon-button" :aria-label="t('Close dialog')" @click="notificationDialog?.close()"><X :size="22" /></button></div><NotificationsPanel @close="notificationDialog?.close()" /></dialog>
   </div>
 </template>
