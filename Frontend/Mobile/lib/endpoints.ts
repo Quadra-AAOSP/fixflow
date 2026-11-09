@@ -64,6 +64,7 @@ export const endpoints = {
     list: '/api/reports',
     byId: (id: number | string) => `/api/reports/${id}`,
     join: (id: number | string) => `/api/reports/${id}/join`,
+    leave: (id: number | string) => `/api/reports/${id}/leave`,
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
     /** POST — a contracted technician takes an unassigned queue item. */

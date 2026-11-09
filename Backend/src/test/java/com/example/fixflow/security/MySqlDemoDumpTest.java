@@ -31,7 +31,7 @@ class MySqlDemoDumpTest {
                     assertThat(encoder.matches(rows.getString(1), rows.getString(2))).isTrue();
                     accounts++;
                 }
-                assertThat(accounts).isEqualTo(12);
+                assertThat(accounts).isEqualTo(70);
             }
         }
     }
