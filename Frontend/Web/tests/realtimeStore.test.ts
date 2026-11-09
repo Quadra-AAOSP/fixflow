@@ -9,7 +9,7 @@ import type { ReportRealtimeClient, ReportEvent } from '../src/services/reportRe
 import * as authApi from '../src/services/auth';
 import * as api from '../src/services/maintenance';
 import { ApiError } from '../src/services/api';
-import { report, site } from './fixtures';
+import { report, reportPage, site } from './fixtures';
 
 const harness = vi.hoisted(() => ({
   callbacks: undefined as unknown as ConstructorParameters<typeof ReportRealtimeClient>[1],
@@ -25,7 +25,7 @@ vi.mock('../src/services/reportRealtime', () => ({
   },
 }));
 vi.mock('../src/services/auth', () => ({ getMe: vi.fn() }));
-vi.mock('../src/services/maintenance', () => ({ listSites: vi.fn(), listReports: vi.fn(), listRules: vi.fn() }));
+vi.mock('../src/services/maintenance', () => ({ listSites: vi.fn(), listReportPage: vi.fn(), listRules: vi.fn(), getReport: vi.fn() }));
 const user = { id: 54, role: 'admin' as const, siteId: 7,
   firstName: 'Test', lastName: 'Admin', email: 'test@example.invalid', phone: null, address: null };
 const event: ReportEvent = { eventId: 'event-1', eventType: 'report.reassignment.v1', schemaVersion: 1,
@@ -36,7 +36,8 @@ beforeEach(() => {
   useAuthStore().user = { ...user };
   vi.mocked(authApi.getMe).mockResolvedValue({ ...user });
   vi.mocked(api.listSites).mockResolvedValue([site(7)]);
-  vi.mocked(api.listReports).mockResolvedValue([report({ description: 'Authorized REST data' })]);
+  vi.mocked(api.listReportPage).mockResolvedValue(reportPage([report({ description: 'Authorized REST data' })]));
+  vi.mocked(api.getReport).mockImplementation(async id => report({ id, description: 'Authorized REST detail' }));
   vi.mocked(api.listRules).mockResolvedValue([]);
 });
 afterEach(() => { useRealtimeStore().stop(); vi.useRealTimers(); });
@@ -46,6 +47,20 @@ async function connect() {
   return { store, expire };
 }
 describe('realtime REST synchronization and private cache lifecycle', () => {
+  it('preserves the selected site and taxonomy during a temporary disconnect', async () => {
+    const { store } = await connect();
+    const data = useMaintenanceStore();
+    let finish!: (value: typeof user) => void;
+    vi.mocked(authApi.getMe).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const previous = store.accessRevision;
+    harness.callbacks.state('offline'); harness.callbacks.disconnected();
+    expect(data.selectedSiteId).toBe(7);
+    expect(data.sites).toHaveLength(1);
+    expect(data.reports).toEqual([]);
+    expect(store.accessRevision).toBe(previous + 1);
+    finish(user); await flushPromises();
+    expect(data.selectedSiteId).toBe(7);
+  });
   it('revalidates the session before refreshing and subscribes only to readable report details', async () => {
     const { store } = await connect();
     expect(authApi.getMe).toHaveBeenCalledOnce();
@@ -56,14 +71,15 @@ describe('realtime REST synchronization and private cache lifecycle', () => {
       statusGroup: 'open', effectiveUrgency: 'medium', urgent: false, inAssignmentQueue: false } }));
     expect(harness.client.setSubscriptions).toHaveBeenLastCalledWith(['/sites/7/events', '/reports/1/events']);
   });
-  it('coalesces events into one REST refresh and never merges event fields into reports', async () => {
+  it('refreshes only changed report IDs and never merges event fields into reports', async () => {
     const { store } = await connect();
-    vi.mocked(api.listReports).mockClear();
+    vi.mocked(api.listReportPage).mockClear();
     harness.callbacks.event(event); harness.callbacks.event({ ...event, eventId: 'event-2', reportId: 92 });
     await vi.advanceTimersByTimeAsync(150); await flushPromises();
-    expect(api.listReports).toHaveBeenCalledOnce();
+    expect(api.listReportPage).not.toHaveBeenCalled();
+    expect(vi.mocked(api.getReport).mock.calls.map(call => call[0])).toEqual([91, 92]);
     expect(store.changedReportIds).toEqual([91, 92]);
-    expect(useMaintenanceStore().reports[0]?.description).toBe('Authorized REST data');
+    expect(useMaintenanceStore().reports.find(row => row.id === 91)?.description).toBe('Authorized REST detail');
   });
   it('clears caches immediately on reassignment revocation before the authorization check finishes', async () => {
     const { store } = await connect();

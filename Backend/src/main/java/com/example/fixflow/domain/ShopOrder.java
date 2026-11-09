@@ -88,6 +88,20 @@ public class ShopOrder {
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "fulfillment_status", length = 20)
+	private ShopFulfillmentStatus fulfillmentStatus;
+	@Column(name = "processing_at")
+	private Instant processingAt;
+	@Column(name = "shipped_at")
+	private Instant shippedAt;
+	@Column(name = "delivery_confirmed_at")
+	private Instant deliveryConfirmedAt;
+	@Column(name = "delivery_signed_name", length = 255)
+	private String deliverySignedName;
+	@Column(name = "delivery_confirmed_by")
+	private Long deliveryConfirmedBy;
+
 	@PrePersist
 	void onCreate() {
 		Instant now = Instant.now();

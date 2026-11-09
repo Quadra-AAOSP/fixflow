@@ -78,7 +78,7 @@ describe('site-admin application review', () => {
 });
 
 it.each([
-  ['pending', '待审核', '目前具有报修人权限'],
+  ['pending', '待审核', '等待审批期间，您可以查看申请状态。'],
   ['approved', '已批准', '请退出后重新登录'],
   ['rejected', '已拒绝', '您的申请未获批准'],
 ] as const)('shows the Chinese %s application status and next steps', async (status, label, guidance) => {
@@ -88,6 +88,7 @@ it.each([
   await flushPromises();
   expect(wrapper.text()).toContain('状态：' + label);
   expect(wrapper.text()).toContain(guidance);
+  if (status === 'pending') expect(wrapper.text()).not.toContain('目前具有报修人权限');
   expect(wrapper.text()).toContain('2026年10月20日');
 });
 

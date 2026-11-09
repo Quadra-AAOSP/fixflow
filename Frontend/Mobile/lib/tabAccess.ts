@@ -1,32 +1,120 @@
 import type { UserRole } from '@/types';
 
-export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'more' | 'profile' | 'staff-dashboard';
+export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'staff-dashboard' | 'more' | 'profile';
 
-/** Routes visible in the tab bar for a given role. */
+/**
+ * The six roles defined by the backend (source of truth):
+ *   reporter, technician, staff, admin, super_admin, shop_manager
+ *
+ * Backend SecurityConfig permission model — this dictates EVERYTHING below:
+ *   /api/admin/**        → ADMIN, SUPER_ADMIN only (site + platform admin)
+ *   /api/admin/shop/**   → SUPER_ADMIN, SHOP_MANAGER only (shop management)
+ *   /api/**              → authenticated (everyone)
+ *
+ * Tab bar (at most 4 slots — first visible tab = home):
+ *
+ *   reporter      → Home (index), Reports,                        Profile
+ *   technician    → Workspace,    Assignments,       More(Shop), Profile
+ *   staff         → Home (index), Reports,            More,       Profile
+ *   admin (site)  → Home (index), Reports,            More,       Profile
+ *   super_admin   → Home (index), Reports,            More(Shop+mgmt), Profile
+ *   shop_manager  → Home (index), More(Shop),        Profile      (only 3)
+ *
+ * Staff was previously routed to a broken `staff-dashboard` stub that showed
+ * raw text rows with no hero / stat cards / site switcher. We merged staff
+ * onto `index.tsx` which already has OPS_STATS (unassigned, urgent,
+ * confirmation, progress) tailored for operations roles. The old stub was
+ * deleted on 2026-11-04.
+ */
 export function isTabVisible(role: UserRole, tab: TabName): boolean {
-  const isTechnician = role === 'technician';
-  const isStaff = role === 'staff';
   switch (tab) {
+    // ── Home tabs (one per role family) ──────────────────────────────────
     case 'index':
-    case 'reports':
-      return !isTechnician && !isStaff;
+      // Everyone EXCEPT technician (they have workspace).
+      return role !== 'technician';
+
     case 'workspace':
     case 'assignments':
-      return isTechnician;
+      return role === 'technician';
+
+    // staff-dashboard was merged into index — nobody should hit it.
+    case 'staff-dashboard':
+      return false;
+
+    // ── Reports tab ──────────────────────────────────────────────────────
+    // Everyone who creates or reviews reports. Technician uses Assignments
+    // instead. Shop manager is shop-only, never reports.
+    case 'reports':
+      return role === 'reporter' || role === 'staff' || role === 'admin' || role === 'super_admin';
+
+    // ── More tab — operations and shop tools only ───────────────────────
     case 'more':
-      // For technicians and super admins this slot is relabeled "Shop" and
-      // deep-links into the shop catalog; staff use the Staff Dashboard tab.
-      return !isStaff;
+      return role !== 'reporter';
+
+    // ── Profile — everyone ───────────────────────────────────────────────
     case 'profile':
       return true;
-    case 'staff-dashboard':
-      return isStaff;
+
     default:
       return false;
   }
+}
+
+/** Filesystem routes that must be declared explicitly to avoid automatic tabs. */
+export const TAB_ROUTES = ['index', 'reports', 'workspace', 'assignments', 'more', 'profile'] as const;
+export function hiddenTabRoutes(role: UserRole): string[] {
+  return [...TAB_ROUTES.filter(tab => !isTabVisible(role, tab)), 'technician'];
 }
 
 /** Technician must be bounced off Home / Reports routes when deep-linked. */
 export function isTechnicianForbiddenRoute(role: UserRole | null, pathname: string): boolean {
   return role === 'technician' && (pathname === '/' || pathname.startsWith('/reports'));
 }
+
+/** The home tab route each role lands on after sign-in. */
+export function homeRouteForRole(role: UserRole): string {
+  if (role === 'technician') return '/(tabs)/workspace';
+  // reporter, staff, admin, super_admin, shop_manager → Home at /(tabs)
+  return '/(tabs)';
+}
+
+/**
+ * Maps a pathname to its top-level tab so we can bounce a role off a route
+ * it has no business on (e.g. technician deep-linked into `/reports`, a
+ * reporter deep-linked into `/workspace`). Returns the role's home route, or
+ * null when the current route is valid for them.
+ */
+export function landingRedirectForRoute(role: UserRole | null, pathname: string): string | null {
+  if (!role) return null;
+  const path = pathname.replace(/^\/\(tabs\)/, '') || '/';
+  const home = homeRouteForRole(role);
+  const homePath = home.replace(/^\/\(tabs\)/, '') || '/';
+
+  if (path === '/') {
+    return homePath === '/' ? null : home;
+  }
+
+  const match = PATH_TO_TAB.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
+  const tab = match ? match[1] : 'index';
+  if (!isTabVisible(role, tab) && !isDeepLinkAllowed(role, path)) {
+    return home;
+  }
+  return null;
+}
+
+/**
+ * Screens reachable without their parent tab. Reporters have no More tab, but
+ * the home bell still opens the notification feed.
+ */
+function isDeepLinkAllowed(role: UserRole, path: string): boolean {
+  return role === 'reporter' && path === '/more/notifications';
+}
+
+const PATH_TO_TAB: ReadonlyArray<readonly [string, TabName]> = [
+  ['/workspace', 'workspace'],
+  ['/assignments', 'assignments'],
+  ['/staff-dashboard', 'staff-dashboard'],
+  ['/reports', 'reports'],
+  ['/more', 'more'],
+  ['/profile', 'profile'],
+];

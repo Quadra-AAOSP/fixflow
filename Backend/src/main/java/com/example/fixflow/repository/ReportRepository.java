@@ -12,7 +12,10 @@ import org.springframework.data.repository.query.Param;
 import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportStatus;
 
-public interface ReportRepository extends JpaRepository<Report, Long> {
+public interface ReportRepository extends JpaRepository<Report, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Report> {
+    long countByAssignedTechnician_IdAndStatusIn(Long technicianId, java.util.Collection<ReportStatus> statuses);
+    long countByAssignedTechnician_IdAndStatus(Long technicianId, ReportStatus status);
+
     long countByAssignedTechnician_IdAndSite_IdAndStatusIn(Long technicianId, Long siteId,
             java.util.Collection<com.example.fixflow.domain.ReportStatus> statuses);
 
@@ -67,6 +70,18 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 			@Param("confirmed") ReportStatus confirmed,
 			Pageable pageable
 	);
+
+	@Query("""
+			select r from Report r
+			join fetch r.site
+			join fetch r.createdBy
+			left join fetch r.assignedTechnician
+			left join fetch r.subsite
+			left join fetch r.confirmedBy
+			where r.createdBy.id = :userId
+			order by r.createdAt desc
+			""")
+	List<Report> findDetailedByCreatorId(@Param("userId") Long userId);
 
 	@Query("""
 			select r from Report r

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Archive, ArrowLeft, Building2, Check, Pencil, Plus, RefreshCw } from '@lucide/vue';
@@ -169,14 +170,14 @@ async function resolve(item: SubsiteAlert) {
     <RouterLink to="/sites" class="text-action subsite-back"><ArrowLeft :size="16" /> {{ t("All sites") }}</RouterLink>
     <div class="card-heading"><div><h1>{{ t("Buildings & locations") }}</h1><p v-if="site">{{ t('{site} · labelled places for maintenance reports', { site: site.name }) }}</p></div><Building2 :size="30" /></div>
     <p v-if="!Number.isSafeInteger(siteId) || siteId <= 0" class="live-error" role="alert">{{ t("This site link is invalid.") }}</p>
-    <p v-else-if="!site && data.loading" class="live-empty" role="status">{{ t("Loading your sites…") }}</p>
+    <LoadingStatus v-else-if="!site && data.loading" :label="t('Loading your sites…')" />
     <p v-else-if="!site" class="live-error" role="alert">{{ t("This site is not available to your account.") }} <RouterLink to="/sites">{{ t("Choose an accessible site") }}</RouterLink>.</p>
     <template v-else>
       <p v-if="success" ref="savedNotice" class="draft-notice" role="status" tabindex="-1">{{ t(success.key, success.values) }} <span v-if="sessionRefreshNeeded">{{ t('Refresh your session to update the site setup prompt.') }}</span></p>
       <div class="subsite-grid">
         <section class="dashboard-card"><div class="card-heading"><div><h2>{{ t("Saved buildings") }}</h2><p v-if="!loading && !loadError">{{ t(items.length === 1 ? '{count} active location' : '{count} active locations', { count: items.length }) }}</p></div><button class="icon-button" type="button" :disabled="loading || saving || !!actionId" :aria-label="t('Refresh buildings')" @click="load"><RefreshCw :size="18" /></button></div>
           <p v-if="loadError" class="live-error" role="alert">{{ t(loadError) }} <button type="button" @click="load">{{ t("Try again") }}</button></p>
-          <p v-else-if="loading" class="live-empty" role="status">{{ t("Loading buildings…") }}</p>
+          <LoadingStatus v-else-if="loading" :label="t('Loading buildings…')" />
           <p v-else-if="!items.length" class="live-empty">{{ t("No buildings are configured yet. A site admin can add the first labelled location here.") }}</p>
           <ul v-else class="subsite-list"><li v-for="item in items" :key="item.id"><span class="subsite-code">{{ item.label }}</span><div class="subsite-row-copy"><strong>{{ item.name }}</strong><p v-if="item.description">{{ item.description }}</p></div><div v-if="canManage" class="subsite-row-actions"><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Edit {name}', { name: item.name })" @click="edit(item, $event)"><Pencil :size="15" />{{ t("Edit") }}</button><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Archive {name}', { name: item.name })" @click="archive(item)"><Archive :size="15" />{{ t(actionId === `archive-${item.id}` ? 'Archiving…' : 'Archive') }}</button></div></li></ul>
         </section>
@@ -186,7 +187,7 @@ async function resolve(item: SubsiteAlert) {
         </section>
         <section v-if="canManage" class="dashboard-card subsite-requests"><div class="card-heading"><div><h2>{{ t("Missing-building requests") }}</h2><p>{{ t("Accept a suggestion to review and add the building, or resolve it if the location already exists.") }}</p></div><span v-if="!loading && !requestsError" class="status-badge mint">{{ t('{count} pending', { count: requests.length }) }}</span></div>
           <p v-if="requestsError" class="live-error" role="alert">{{ t(requestsError) }} <button type="button" @click="load">{{ t("Try again") }}</button></p>
-          <p v-else-if="loading" class="live-empty" role="status">{{ t("Loading requests…") }}</p>
+          <LoadingStatus v-else-if="loading" :label="t('Loading requests…')" />
           <p v-else-if="!requests.length" class="live-empty">{{ t("No pending building requests.") }}</p>
           <ul v-else class="subsite-list"><li v-for="item in requests" :key="item.id"><span class="subsite-code">#{{ item.id }}</span><div class="subsite-row-copy"><strong>{{ t('Requested by account #{id}', { id: item.requestedByUserId }) }}</strong><p>{{ item.note || t('No description provided.') }}</p></div><button class="text-action" type="button" :disabled="saving || loading || !!actionId" @click="accept(item)">{{ t("Accept suggestion") }}</button><button class="text-action" type="button" :disabled="saving || !!actionId" :aria-label="t('Resolve request {id}', { id: item.id })" @click="resolve(item)"><Check :size="15" />{{ t(actionId === `request-${item.id}` ? 'Resolving…' : 'Mark resolved') }}</button></li></ul>
         </section>

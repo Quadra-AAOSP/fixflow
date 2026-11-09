@@ -27,7 +27,7 @@
 // }
 
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { FlatList, Modal, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import {
   ArrowRight,
@@ -51,10 +51,13 @@ import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReportsPage } from '@/services/reports';
-import { searchReportsNl } from '@/services/searchNl';
+import { searchReportsNl, searchReportPage } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
+import { useConnectivity } from '@/hooks/useConnectivity';
 import type { NlSearchFilters, Report, ReportStatus } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
+import { appendReportPage, createReportPageRequests, nextReportPage } from '@/utils/requestGate';
 import {
   REPORT_FILTERS,
   ReportFilter as FilterValue,
@@ -84,7 +87,13 @@ export default function ReportsScreen() {
     refresh: refreshSite,
   } = useCurrentSite();
 
-  const params = useLocalSearchParams<{ filter?: string; q?: string }>();
+  const params = useLocalSearchParams<{ filter?: string; q?: string; mine?: string }>();
+  /**
+   * Track reports: the caller's own filings, across every site.
+   * Accounts registered without a site (common for reporters) default to
+   * their own reports so the tab still works.
+   */
+  const mineMode = params.mine === '1' || site === null;
   const initialFilter: FilterValue = FILTER_VALUES.includes(
     params.filter as FilterValue,
   )
@@ -97,42 +106,49 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState(params.q ?? '');
   const [filter, setFilter] = useState<FilterValue>(initialFilter);
+  const [visibility, setVisibility] = useState('all');
 
   // Pagination state — the backend returns page/size/totalPages/totalElements.
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
-  const loadGeneration = useRef(0);
+  const loadGeneration = useRef(createReportPageRequests());
 
   // A3 smart search: structured filters parsed from a natural-language query.
+  const searchGeneration = useRef(0);
   const [nlFilters, setNlFilters] = useState<NlSearchFilters | null>(null);
+  useEffect(() => { searchGeneration.current++; setNlFilters(null); setInterpretation(null); }, [site?.id, user?.id]);
   const [interpretation, setInterpretation] = useState<string | null>(null);
   const [askOpen, setAskOpen] = useState(false);
   const [askQuery, setAskQuery] = useState('');
   const [askLoading, setAskLoading] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
 
-  const load = useCallback(async (reset = false) => {
-    if (!site) return;
+  const load = useCallback(async (targetPage = 0) => {
+    if (!mineMode && !site) return;
+    const gen = loadGeneration.current.begin(targetPage);
+    if (gen === null) return;
     setError(null);
-    const targetPage = reset ? 0 : page;
-    const gen = ++loadGeneration.current;
     if (targetPage === 0) setLoading(true);
     else setLoadingMore(true);
     try {
-      const result = await listReportsPage({
-        siteId: site.id,
-        page: targetPage,
-        size: PAGE_SIZE,
-      });
-      if (gen !== loadGeneration.current) return;
+      const result = nlFilters && !mineMode && site
+        ? await searchReportPage(site.id, { ...nlFilters, ...(visibility !== 'all' ? { visibility } : {}) }, targetPage, PAGE_SIZE)
+        : await listReportsPage({
+            siteId: mineMode ? undefined : site!.id,
+            mine: mineMode || undefined,
+            page: targetPage,
+            size: PAGE_SIZE,
+            category: nlFilters?.category ?? undefined,
+          });
+      if (!loadGeneration.current.current(gen)) return;
       setReports((prev) =>
-        targetPage === 0 ? result.content : [...(prev ?? []), ...result.content],
+        targetPage === 0 ? result.content : appendReportPage(prev ?? [], result.content),
       );
       setPage(targetPage);
-      setTotalPages(result.totalPages);
+      setTotalPages('hasMore' in result ? targetPage + (result.hasMore ? 2 : 1) : result.totalPages);
     } catch (err) {
-      if (gen !== loadGeneration.current) return;
+      if (!loadGeneration.current.current(gen)) return;
       if (err instanceof ApiError && err.status === 401) {
         await logout().catch(() => {});
         return;
@@ -141,33 +157,54 @@ export default function ReportsScreen() {
         err instanceof ApiError ? err.message : t('reports.list.errors.couldNotLoad'),
       );
     } finally {
-      if (gen === loadGeneration.current) {
+      if (loadGeneration.current.finish(gen)) {
         setLoading(false);
         setLoadingMore(false);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site?.id, logout]);
+  }, [site?.id, user?.id, logout, nlFilters, visibility, mineMode]);
 
   useFocusEffect(
     useCallback(() => {
-      void load(true);
+      setReports(null);
+      setPage(0);
+      setTotalPages(0);
+      void load(0);
+      return () => { loadGeneration.current.invalidate(); };
     }, [load]),
+  );
+
+  // Live site events keep the list in sync (new reports, status changes,
+  // assignments). Debounced so a burst of events becomes one refetch.
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load(0);
+    }, 600);
+  }, [load]);
+  useRealtimeEvents(
+    site ? `/sites/${site.id}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await load(true);
+      await load(0);
     } finally {
       setRefreshing(false);
     }
   }, [load]);
 
   const onLoadMore = useCallback(async () => {
-    if (loadingMore || loading || refreshing || page + 1 >= totalPages) return;
+    const next = nextReportPage(page, totalPages);
+    if (loadingMore || loading || refreshing || next === null) return;
     setLoadingMore(true);
-    await load(false);
+    await load(next);
   }, [loadingMore, loading, refreshing, page, totalPages, load]);
 
   const siteName = useCallback(
@@ -179,33 +216,25 @@ export default function ReportsScreen() {
   const filtered = useMemo(
     // Newest first — matches the web's sort in `ReportsView.vue`.
     () =>
-      searchReports(reports ?? [], query, siteName, filter, nlFilters).sort(
+      (nlFilters ? (reports ?? []) : searchReports(reports ?? [], query, siteName, filter)).filter(report => user?.role !== 'reporter' || visibility === 'all' || report.visibility === visibility).sort(
         (a, b) =>
           Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''),
       ),
-    [reports, query, siteName, filter, nlFilters],
+    [reports, query, siteName, filter, nlFilters, user?.role, visibility],
   );
 
   async function onAskSubmit() {
     if (!site || !askQuery.trim() || askLoading) return;
+    const generation = ++searchGeneration.current;
     setAskLoading(true);
     setAskError(null);
     try {
       const result = await searchReportsNl(site.id, askQuery.trim());
-      const hasAny =
-        result.filters.status ||
-        result.filters.category ||
-        result.filters.urgency ||
-        result.filters.from ||
-        result.filters.to ||
-        result.filters.text;
-      setNlFilters(hasAny ? result.filters : null);
+      if (generation !== searchGeneration.current) return;
+      setNlFilters(result.filters);
       setInterpretation(result.interpretation);
-      if (result.filters.text) {
-        // Let the NL `text` act as the free-text query too, so haystack
-        // matching still applies alongside the structured filters.
-        setQuery(result.filters.text);
-      }
+      if (result.fallback) { setInterpretation(t('reports.list.nl.error')); }
+
       setAskOpen(false);
       setAskQuery('');
     } catch (err) {
@@ -227,13 +256,12 @@ export default function ReportsScreen() {
     setNlFilters((prev) => {
       if (!prev) return null;
       const next = { ...prev, [key]: null };
-      const remaining =
-        next.status || next.category || next.urgency || next.from || next.to || next.text;
-      return remaining ? next : null;
+      return next;
     });
   }
 
   function clearAllNl() {
+    searchGeneration.current++;
     setNlFilters(null);
     setInterpretation(null);
   }
@@ -266,8 +294,8 @@ export default function ReportsScreen() {
    * every state below renders inside the card's `ListEmptyComponent` instead
    * of short-circuiting the whole screen.
    */
-  const canCreate = site != null && (user?.capabilities.createReport ?? false);
-  const list = site != null && error === null ? filtered : [];
+  const canCreate = (mineMode || site != null) && (user?.capabilities.createReport ?? false);
+  const list = (mineMode || site != null) && error === null ? filtered : [];
 
   return (
     <Screen className="px-0 pt-0">
@@ -294,14 +322,17 @@ export default function ReportsScreen() {
               />
             }
             ListHeaderComponent={
-              <ReportsHeader
+              <View>
+                <PendingQueueBanner />
+                <ReportsHeader
                 t={t}
+                title={mineMode ? t('reports.list.myReports') : undefined}
                 siteName={site?.name ?? ''}
                 contractStatus={isOps ? site?.contractStatus ?? null : null}
                 canCreate={canCreate}
                 onCreate={() => router.push('/reports/new')}
                 query={query}
-                onChangeQuery={setQuery}
+                onChangeQuery={(value) => { setQuery(value); if (nlFilters) clearAllNl(); }}
                 filter={filter}
                 onChangeFilter={setFilter}
                 filterOptions={filterSelectOptions}
@@ -312,13 +343,15 @@ export default function ReportsScreen() {
                 onOpenAsk={() => { setAskError(null); setAskOpen(true); }}
                 onClearNlChip={clearNlChip}
                 onClearAllNl={clearAllNl}
-              />
+                />
+                {user?.role === 'reporter' && <View className="px-4 pb-3"><Picker label={t('Visibility')} value={visibility} onChange={setVisibility} options={[{value:'all',label:t('All')},{value:'public',label:t('Public')},{value:'private',label:t('Private')}]} /></View>}
+              </View>
             }
             ItemSeparatorComponent={() => (
               <View className="h-px bg-dashboard-card-line" />
             )}
             ListEmptyComponent={
-              site == null ? (
+              !mineMode && site == null ? (
                 siteLoading ? (
                   <StateView variant="loading" title={t('reports.list.loadingSite')} />
                 ) : siteError != null ? (
@@ -344,7 +377,7 @@ export default function ReportsScreen() {
                   description={error}
                   actionLabel={t('reports.list.errors.retry')}
                   onAction={() => {
-                    void load(true);
+                    void load(reports !== null && reports.length > 0 ? page + 1 : 0);
                   }}
                 />
               ) : loading ? (
@@ -355,13 +388,17 @@ export default function ReportsScreen() {
                   icon={reports && reports.length === 0 ? ClipboardList : Search}
                   title={
                     reports && reports.length === 0
-                      ? t('reports.list.noReportsTitle')
+                      ? mineMode
+                        ? t('reports.list.myEmptyTitle')
+                        : t('reports.list.noReportsTitle')
                       : t('reports.list.noMatchesTitle')
                   }
                   description={
                     reports && reports.length === 0
-                      ? t('reports.list.noReportsDesc')
-                      : t('reports.list.noMatchesDesc')
+                      ? mineMode
+                        ? t('reports.list.myEmptyDesc')
+                        : t('reports.list.noReportsDesc')
+                      : page + 1 < totalPages ? t('reports.list.partialSearch') : t('reports.list.noMatchesDesc')
                   }
                 />
               )
@@ -374,7 +411,7 @@ export default function ReportsScreen() {
                 onPress={() => router.push(`/reports/${item.id}`)}
               />
             )}
-            onEndReached={onLoadMore}
+            onEndReached={(nlFilters || (!query.trim() && filter === 'all')) && !error ? onLoadMore : undefined}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
               loadingMore ? (
@@ -383,11 +420,17 @@ export default function ReportsScreen() {
                     {t('reports.list.loadingMore')}
                   </Text>
                 </View>
-              ) : page + 1 < totalPages && reports !== null && reports.length > 0 ? (
+              ) : page + 1 < totalPages && reports !== null ? (
                 <View className="py-3">
-                  <Text className="text-center text-[10px] text-dashboard-caption">
-                    {t('reports.list.scrollForMore')}
-                  </Text>
+                  {!nlFilters && (query.trim() || filter !== 'all') ? (
+                    <Text className="text-center text-dashboard-caption">{t('reports.list.partialSearch')}</Text>
+                  ) : null}
+                  {error ? <Text accessibilityRole="alert" className="text-center text-dashboard-caption">{error}</Text> : null}
+                  <Pressable accessibilityRole="button" className="min-h-[48px] justify-center" onPress={onLoadMore}>
+                    <Text className="text-center text-[12px] text-dashboard-caption">
+                      {t('reports.list.loadMore')}
+                    </Text>
+                  </Pressable>
                 </View>
               ) : null
             }
@@ -504,8 +547,41 @@ function AskModal({
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
+/** Shows queued offline reports and lets the user force a send attempt. */
+function PendingQueueBanner() {
+  const { pendingCount, offline, flush } = useConnectivity();
+  const { t } = useTranslation('common');
+  if (pendingCount === 0) return null;
+  return (
+    <View
+      className="mb-3 flex-row items-center justify-between rounded-[10px] px-3 py-2.5"
+      style={{ backgroundColor: dashboardColors.statCitronSoft }}
+    >
+      <Text className="flex-1 text-[11px] leading-[1.6] text-dashboard-stat-citron-deep">
+        {offline
+          ? t('offlineBanner.offlineWithPending', { count: pendingCount })
+          : t('offlineBanner.pending', { count: pendingCount })}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('offlineBanner.retry')}
+        onPress={() => {
+          void flush();
+        }}
+        className="ml-3 rounded-md px-2 py-1 active:opacity-70"
+      >
+        <Text className="text-[10px] font-semibold text-dashboard-stat-citron-deep">
+          {t('offlineBanner.retry')}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 type ReportsHeaderProps = {
   t: TranslateFn;
+  /** Overrides the default “Reports” heading (used by Track reports). */
+  title?: string;
   siteName: string;
   contractStatus?: 'contracted' | 'uncontracted' | null;
   canCreate: boolean;
@@ -531,6 +607,7 @@ type ReportsHeaderProps = {
  */
 function ReportsHeader({
   t,
+  title,
   siteName,
   contractStatus,
   canCreate,
@@ -566,7 +643,7 @@ function ReportsHeader({
             className="text-[22px] font-semibold text-ink"
             style={{ letterSpacing: -0.7 }}
           >
-            {t('reports.list.title')}
+            {title ?? t('reports.list.title')}
           </Text>
           <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
             {siteName}
@@ -686,7 +763,7 @@ function ReportsHeader({
       ) : null}
 
       <View className="flex-row flex-wrap items-center gap-x-4 gap-y-2">
-        <Picker
+        {!nlFilters && <Picker
           label={t('reports.list.status')}
           value={filter}
           options={filterOptions}
@@ -709,7 +786,7 @@ function ReportsHeader({
               </Pressable>
             </View>
           )}
-        />
+        />}
         {loaded ? (
           <Text className="text-[12px] text-dashboard-subtitle">
             {t('reports.list.matchingCount', {

@@ -26,4 +26,8 @@ public interface ShopProductRepository extends JpaRepository<ShopProduct, String
 			+ "where p.id = :id and :quantity > 0")
 	int restoreStock(@Param("id") String id, @Param("quantity") int quantity,
 			@Param("now") java.time.Instant now);
+	long countByActiveTrue();
+	long countByActiveTrueAndStockGreaterThan(int stock);
+	long countByActiveTrueAndStockLessThanEqual(int stock);
+
 }

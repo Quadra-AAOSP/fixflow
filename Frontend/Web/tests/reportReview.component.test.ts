@@ -20,8 +20,9 @@ describe('repair confirmation and reopen interaction', () => {
   it('lets an attached reporter confirm a repair awaiting confirmation', async () => {
     vi.mocked(api.confirmReport).mockResolvedValue(report({ status: 'confirmed' }));
     wrapper = mount(ReportReviewPanel, { props: { report: report({ status: 'resolved_pending_confirmation', createdByUserId: 54 }) } });
+    await wrapper.get('input').setValue('Test Reporter');
     await wrapper.findAll('button').find(button => button.text() === 'Confirm issue is fixed')!.trigger('click'); await flushPromises();
-    expect(api.confirmReport).toHaveBeenCalledWith(1);
+    expect(api.confirmReport).toHaveBeenCalledWith(1, 'Test Reporter');
     expect(wrapper.emitted('saved')?.[0]?.[0]).toMatchObject({ status: 'confirmed' });
   });
   it('submits the supplied reason for reopening a confirmed report', async () => {
@@ -41,6 +42,7 @@ describe('repair confirmation and reopen interaction', () => {
   it('keeps a rejected decision visible as an error without claiming success', async () => {
     vi.mocked(api.confirmReport).mockRejectedValue(new Error('Report is no longer awaiting confirmation'));
     wrapper = mount(ReportReviewPanel, { props: { report: report({ status: 'resolved_pending_confirmation', createdByUserId: 54 }) } });
+    await wrapper.get('input').setValue('Test Reporter');
     await wrapper.findAll('button').find(button => button.text() === 'Confirm issue is fixed')!.trigger('click'); await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toContain('no longer awaiting confirmation');
     expect(wrapper.emitted('saved')).toBeUndefined();

@@ -4,6 +4,10 @@ import type { ApiErrorBody } from '@/types';
 /** Default request timeout in milliseconds. */
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+// Synchronous AI calls can span multiple provider attempts before the server responds.
+export const AI_REQUEST_OPTIONS = { timeoutMs: 120_000 };
+type RequestOptions = RequestInit & { timeoutMs?: number };
+
 /**
  * Timeout used when retrying a request against a fallback base URL. A host
  * that is actually reachable answers in milliseconds, so this just caps how
@@ -144,10 +148,12 @@ function buildHeaders(init?: RequestInit): Record<string, string> {
 
 async function request<T>(
   path: string,
-  init?: RequestInit,
+  init?: RequestOptions,
+  decode: (response: Response) => Promise<T> = response => response.json(),
 ): Promise<T> {
   const base = await selectBase();
-  const { signal, cancel } = withTimeout(init?.signal, DEFAULT_TIMEOUT_MS);
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchInit } = init ?? {};
+  const { signal, cancel } = withTimeout(fetchInit.signal, timeoutMs);
   try {
     const headers = buildHeaders(init);
     if (!['GET', 'HEAD', 'OPTIONS'].includes((init?.method ?? 'GET').toUpperCase())) {
@@ -155,7 +161,7 @@ async function request<T>(
       headers[csrf.headerName] = csrf.token;
     }
     const response = await fetch(`${base}${path}`, {
-      ...init,
+      ...fetchInit,
       redirect: 'error',
       credentials: 'include',
       headers,
@@ -167,18 +173,20 @@ async function request<T>(
     if (response.status === 204) {
       return undefined as T;
     }
-    return (await response.json()) as T;
+    return await decode(response);
   } finally {
     cancel();
   }
 }
 
 export const api = {
+  getBlob: (path: string, signal?: AbortSignal): Promise<Blob> =>
+    request<Blob>(path, { method: 'GET', headers: { Accept: 'image/*' }, signal }, response => response.blob()),
   get: <T>(path: string, init?: RequestInit): Promise<T> =>
     request<T>(path, { ...init, method: 'GET' }),
 
-  post: <T>(path: string, body?: unknown, init?: RequestInit): Promise<T> => {
-    const initWithBody: RequestInit | undefined =
+  post: <T>(path: string, body?: unknown, init?: RequestOptions): Promise<T> => {
+    const initWithBody: RequestOptions | undefined =
       body === undefined ? init : { ...init, body: JSON.stringify(body) };
     return request<T>(path, { ...initWithBody, method: 'POST' });
   },

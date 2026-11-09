@@ -1,17 +1,18 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
-import { ScrollView } from 'react-native';
 import { ClipboardList, Search, Wrench } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/Button';
+import { Picker } from '@/components/ui/Picker';
 import { FilterTabs } from '@/components/ui/FilterTabs';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
@@ -19,13 +20,16 @@ import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
+import { useToast } from '@/components/ui/useToastContext';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listReports } from '@/services/reports';
+import { claimReport, listReports } from '@/services/reports';
 import { listTechnicianContracts } from '@/services/technician';
+import { searchReportsNl, searchReportPage } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
-import type { Report, Urgency } from '@/types';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
+import type { NlSearchFilters, Report, Urgency } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import {
   REPORT_FILTERS,
@@ -54,6 +58,7 @@ export default function AssignmentsScreen() {
   const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   const { site: currentSite, sites, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
 
@@ -64,7 +69,27 @@ export default function AssignmentsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
+  const [nlFilters, setNlFilters] = useState<NlSearchFilters | null>(null);
+  const [searchSiteId, setSearchSiteId] = useState<number | null>(null);
+  const [contractSiteIds, setContractSiteIds] = useState<number[]>([]);
+  const [searchResults, setSearchResults] = useState<Report[]>([]);
+  const [searchPage, setSearchPage] = useState(0);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const searchGeneration = useRef(0);
+  useEffect(() => { searchGeneration.current++; setNlFilters(null); setSearchResults([]); }, [searchSiteId, user?.id]);
+  async function fetchSearch(filters: NlSearchFilters, page: number, siteId: number, generation: number) {
+    const result = await searchReportPage(siteId, filters, page, 20);
+    if (generation !== searchGeneration.current) return;
+    setSearchResults(previous => page ? [...previous, ...result.content] : result.content);
+    setSearchPage(page); setSearchHasMore(result.hasMore);
+  }
+  const [searchBusy, setSearchBusy] = useState(false);
   const [filter, setFilter] = useState<ReportFilter>('all');
+  // Number of sites this technician is contracted to. Technicians have no
+  // account-level site, so their queue is scoped by contracts instead.
+  const [contractSiteCount, setContractSiteCount] = useState(0);
+  // Which claimable report is currently being claimed (spinner + lockout).
+  const [claimingId, setClaimingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -74,12 +99,15 @@ export default function AssignmentsScreen() {
     try {
       if (isTechnician) {
         // Technicians may be contracted without an account site. Their
-        // contracts — not the account site — define which reports are reachable,
+        // contracts â€” not the account site â€” define which reports are reachable,
         // so fan out over every contract site and merge by report id.
         const contracts = await listTechnicianContracts();
         const siteIds = Array.from(new Set(contracts.map((contract) => contract.siteId)));
+        setContractSiteCount(siteIds.length);
+        setContractSiteIds(siteIds);
+        setSearchSiteId(previous => previous && siteIds.includes(previous) ? previous : siteIds[0] ?? null);
         const pages = await Promise.all(
-          siteIds.map((siteId) => listReports({ siteId }).catch(() => [])),
+          siteIds.map((siteId) => listReports({ siteId })),
         );
         const merged = new Map<number, Report>();
         for (const report of pages.flat()) merged.set(report.id, report);
@@ -92,6 +120,8 @@ export default function AssignmentsScreen() {
       setError(
         err instanceof ApiError ? err.message : t('assignments.errors.couldNotLoad'),
       );
+      // Surface the failure instead of leaving a stale list on screen.
+      if (reports === null) setReports(null);
     } finally {
       setLoading(false);
     }
@@ -104,6 +134,20 @@ export default function AssignmentsScreen() {
     }, [load]),
   );
 
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load();
+    }, 600);
+  }, [load]);
+  useRealtimeEvents(
+    currentSite ? `/sites/${currentSite.id}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
+  );
+
   async function onRefresh() {
     setRefreshing(true);
     try {
@@ -111,6 +155,28 @@ export default function AssignmentsScreen() {
       await refreshSite();
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  /**
+   * Claim an unassigned queue item. The backend gates this on an active
+   * contract at the report's site plus accepted terms, so a rejection (403 /
+   * 409) is surfaced verbatim instead of being swallowed.
+   */
+  async function onClaim(id: number) {
+    if (claimingId !== null) return;
+    setClaimingId(id);
+    try {
+      await claimReport(id);
+      showToast(t('assignments.claimed'), 'success');
+      await load();
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : t('assignments.claimFailed'),
+        'error',
+      );
+    } finally {
+      setClaimingId(null);
     }
   }
 
@@ -122,14 +188,14 @@ export default function AssignmentsScreen() {
   // technician UI, so they have a clean two-section view.
   const assignedToMe = useMemo(() => {
     if (!reports || !isTechnician) return [];
-    return reports.filter(
+    return (nlFilters ? searchResults : reports).filter(
       (r) => r.policy.inAssignmentQueue && r.assignedTechnicianId === user?.id,
     );
-  }, [reports, isTechnician, user?.id]);
+  }, [reports, isTechnician, user?.id, nlFilters, searchResults]);
 
   const availableToClaim = useMemo(() => {
     if (!reports || !isTechnician) return [];
-    return reports.filter(
+    return (nlFilters ? searchResults : reports).filter(
       (r) => r.policy.inAssignmentQueue && r.assignedTechnicianId === null,
     );
   }, [reports, isTechnician]);
@@ -143,16 +209,24 @@ export default function AssignmentsScreen() {
         (r) => r.assignedTechnicianId === null || r.assignedTechnicianId === user?.id,
       );
     }
-    // Staff/admin see everything unresolved — sorted by assignee.
+    // Staff/admin see everything unresolved â€” sorted by assignee.
     return base.sort(
       (a, b) => (a.assignedTechnicianId ?? 0) - (b.assignedTechnicianId ?? 0),
     );
-  }, [reports, isTechnician, user?.id]);
+  }, [reports, isTechnician, user?.id, nlFilters, searchResults]);
+
+  // Report lists from technicians span several contract sites, so resolve
+  // names from the full site directory rather than only the active site.
+  const siteNames = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const site of sites) map.set(site.id, site.name);
+    if (currentSite) map.set(currentSite.id, currentSite.name);
+    return map;
+  }, [sites, currentSite]);
 
   const siteName = useCallback(
-    (id: number | null) =>
-      id !== null && currentSite && id === currentSite.id ? currentSite.name : '',
-    [currentSite],
+    (id: number | null) => (id === null ? '' : siteNames.get(id) ?? ''),
+    [siteNames],
   );
 
   const filtered = useMemo(
@@ -160,7 +234,7 @@ export default function AssignmentsScreen() {
     [scoped, query, siteName, filter],
   );
 
-  // Unique assignees among the scoped (unresolved, assigned) set — mirrors
+  // Unique assignees among the scoped (unresolved, assigned) set â€” mirrors
   // the web, which counts over `assignments`, not the raw report list.
   const technicianCount = useMemo(() => {
     const seen = new Set<number>();
@@ -229,7 +303,7 @@ export default function AssignmentsScreen() {
 
   if (isTechnician) {
     // Technician UI splits into two explicit sections so the queue is legible
-    // at a glance — "Assigned to me" and "Available to claim".
+    // at a glance â€” "Assigned to me" and "Available to claim".
     return (
       <Screen>
         <ScrollView
@@ -258,11 +332,16 @@ export default function AssignmentsScreen() {
                 {t('assignments.myAssignmentsTitle')}
               </Text>
               <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-                {currentSite?.name ?? ''}
+                {isTechnician
+                  ? t('assignments.contractSites', {
+                      count: contractSiteCount,
+                      plural: contractSiteCount === 1 ? '' : 's',
+                    })
+                  : currentSite?.name ?? ''}
                 {reports !== null
-                  ? ` · ${t('assignments.assignedCount', { count: assignedToMe.length })}${
+                  ? ` Â· ${t('assignments.assignedCount', { count: assignedToMe.length })}${
                       availableToClaim.length > 0
-                        ? ` · ${t('assignments.claimableCount', { count: availableToClaim.length })}`
+                        ? ` Â· ${t('assignments.claimableCount', { count: availableToClaim.length })}`
                         : ''
                     }`
                   : ''}
@@ -270,6 +349,23 @@ export default function AssignmentsScreen() {
             </View>
           </View>
 
+          {contractSiteIds.length > 1 && <Picker label="Search site" value={String(searchSiteId ?? '')} onChange={value => setSearchSiteId(Number(value))} options={contractSiteIds.map(id => ({ value: String(id), label: siteName(id) || `Site #${id}` }))} />}
+          <SearchField value={query} onChangeText={(value) => { searchGeneration.current++; setQuery(value); setNlFilters(null); }} placeholder={t('assignments.searchPlaceholder')} />
+          <Button disabled={!query.trim() || !searchSiteId || searchBusy} onPress={async () => {
+            if (!searchSiteId) return;
+            const generation = ++searchGeneration.current;
+            setSearchBusy(true);
+            try {
+              const result = await searchReportsNl(searchSiteId, query.trim());
+              if (generation !== searchGeneration.current) return;
+              await fetchSearch(result.filters, 0, searchSiteId, generation);
+              if (generation !== searchGeneration.current) return;
+              setNlFilters(result.filters);
+              if (result.fallback) showToast('AI search unavailable; using text search.', 'error');
+            } catch (err) { showToast(err instanceof Error ? err.message : 'Search failed', 'error'); }
+            finally { setSearchBusy(false); }
+          }}>{searchBusy ? 'Searchingâ€¦' : 'Search with AI'}</Button>
+          {nlFilters && <View className="my-2"><Text className="text-dashboard-subtitle">{Object.entries(nlFilters).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(' · ') || 'All reports'}</Text><Pressable accessibilityRole="button" onPress={() => { searchGeneration.current++; setNlFilters(null); setSearchResults([]); setQuery(''); }}><Text className="text-dashboard-teal">Clear search</Text></Pressable></View>}
           {loading ? (
             <StateView variant="loading" title={t('assignments.loading')} />
           ) : error && reports === null ? (
@@ -283,12 +379,15 @@ export default function AssignmentsScreen() {
           ) : (
             <TechnicianSections
               t={t}
-              assigned={assignedToMe}
-              available={availableToClaim}
+              assigned={nlFilters ? assignedToMe : searchReports(assignedToMe, query, siteName, 'all')}
+              available={nlFilters ? availableToClaim : searchReports(availableToClaim, query, siteName, 'all')}
               onOpen={(id) => router.push(`/reports/${id}`)}
+              onClaim={onClaim}
+              claimingId={claimingId}
               siteName={(id) => siteName(id)}
             />
           )}
+          {nlFilters && searchHasMore && <Button disabled={searchBusy} onPress={async () => { if (!searchSiteId) return; setSearchBusy(true); try { await fetchSearch(nlFilters, searchPage + 1, searchSiteId, searchGeneration.current); } catch (err) { showToast(err instanceof Error ? err.message : 'Search failed', 'error'); } finally { setSearchBusy(false); } }}>Load more</Button>}
         </ScrollView>
       </Screen>
     );
@@ -331,10 +430,10 @@ export default function AssignmentsScreen() {
                 <Text className="mt-0.5 text-xs text-dashboard-subtitle">
                   {currentSite?.name ?? ''}
                   {reports !== null
-                    ? ` · ${t('assignments.activeReportCount', {
+                    ? ` Â· ${t('assignments.activeReportCount', {
                         count: scoped.length,
                         plural: scoped.length === 1 ? '' : 's',
-                      })} · ${t('assignments.assignedTechnicianCount', {
+                      })} Â· ${t('assignments.assignedTechnicianCount', {
                         count: technicianCount,
                         plural: technicianCount === 1 ? '' : 's',
                       })}`
@@ -463,7 +562,7 @@ function ReportCard({
         <UrgencyChip level={urgency} />
         <Text className="text-xs text-dashboard-caption">#{report.id}</Text>
       </View>
-      {/* Site / created / assignee — the remaining ReportTable columns
+      {/* Site / created / assignee â€” the remaining ReportTable columns
           from the web's `ReportTable.vue`. */}
       <View className="mt-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
         <Text className="text-[11px] text-dashboard-subtitle" numberOfLines={1}>
@@ -482,23 +581,26 @@ function ReportCard({
 }
 
 /**
- * Two-section rendering for the technician queue — the split UI spec item
- * 8.2 ("assigned section") + 8.3 ("claimable section"). "Available to claim"
- * items show an inline pill; tapping navigates to the report detail which
- * will still show the "unassigned" card (backend `POST /claim` doesn't exist
- * yet, so claiming is read-only for now).
+ * Two-section rendering for the technician queue â€” the split UI spec item
+ * 8.2 ("assigned section") + 8.3 ("claimable section"). Claimable items carry
+ * a Claim action backed by `POST /api/reports/{id}/claim`; tapping the card
+ * still opens the report detail.
  */
 function TechnicianSections({
   t,
   assigned,
   available,
   onOpen,
+  onClaim,
+  claimingId,
   siteName,
 }: {
   t: TranslateFn;
   assigned: Report[];
   available: Report[];
   onOpen: (id: number) => void;
+  onClaim: (id: number) => void;
+  claimingId: number | null;
   siteName: (id: number | null) => string;
 }) {
   if (assigned.length === 0 && available.length === 0) {
@@ -527,13 +629,21 @@ function TechnicianSections({
       {available.map((r) => (
         <View key={r.id} className="mb-3">
           <ReportCard t={t} report={r} siteName={siteName(r.siteId)} onPress={() => onOpen(r.id)} />
+          <Button
+            variant="cta"
+            className="mt-2 min-h-0 py-2"
+            label={claimingId === r.id ? t('assignments.claiming') : t('assignments.claim')}
+            loading={claimingId === r.id}
+            disabled={claimingId !== null}
+            onPress={() => onClaim(r.id)}
+          />
         </View>
       ))}
     </View>
   );
 }
 
-/** Mini section header for the technician queue split — colored dot + title. */
+/** Mini section header for the technician queue split â€” colored dot + title. */
 function SectionHeader({ title, tone }: { title: string; tone: 'mint' | 'citron' }) {
   const bg = tone === 'mint' ? dashboardColors.statMintDeep : dashboardColors.statCitronDeep;
   return (

@@ -1,4 +1,5 @@
 import { request } from './api';
+import { API_BASE_URL } from '@/constants/config';
 import type { ReportPhoto } from '@/types/maintenance';
 
 // Upload constraints from ReportPhotoValidator; the API enforces them again.
@@ -12,6 +13,7 @@ export function validateReportPhoto(file: File) {
 }
 export function safePhotoUrl(value: string | null): string | undefined {
   if (!value) return undefined;
+  if (/^\/api\/reports\/\d+\/photos\/\d+\/content$/.test(value)) return API_BASE_URL + value;
   try {
     const url = new URL(value);
     return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? url.href : undefined;

@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import {
   Activity,
   ArrowRight,
@@ -19,9 +19,10 @@ import {
   TriangleAlert,
   UserPlus,
   Users,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { Fragment, useCallback, useRef, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -31,6 +32,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { HomeNotificationBell } from '@/components/dashboard/HomeNotificationBell';
+import { ShopDashboard } from '@/components/dashboard/ShopDashboard';
 import { PlantArt } from '@/components/dashboard/PlantArt';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -39,13 +42,15 @@ import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { StatCard, type DashboardStatTone } from '@/components/ui/StatCard';
 import { StateView } from '@/components/ui/StateView';
 import { UrgencyChip } from '@/components/ui/UrgencyChip';
+import { ProgressRing } from '@/components/ui/ProgressRing';
 import { WeeklyChart } from '@/components/ui/WeeklyChart';
-import { dashboardColors, themeColors } from '@/constants/theme';
+import { dashboardColors, colors, themeColors } from '@/constants/theme';
 import {
   canManageSubsites,
   canProvision,
 } from '@/constants/access';
 import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
 
@@ -165,6 +170,11 @@ const ATTENTION_LABELS: Record<'coral' | 'mint' | 'citron', {
  * next?" without opening the Reports tab:
  */
 export default function HomeScreen() {
+  const { user } = useAuth();
+  return user?.role === 'technician' ? <Redirect href="/(tabs)/workspace" /> : user?.role === 'shop_manager' ? <ShopDashboard key={user.id} /> : <Dashboard />;
+}
+
+function Dashboard() {
   const { t } = useTranslation('common');
   const palette = themeColors();
   const router = useRouter();
@@ -180,11 +190,12 @@ export default function HomeScreen() {
   const [period, setPeriod] = useState<0 | -1>(0);
 
   const load = useCallback(async () => {
-    if (!site) return;
     setError(null);
     if (reports === null) setLoading(true);
     try {
-      const result = await listReports({ siteId: site.id });
+      const result = site
+        ? await listReports({ siteId: site.id })
+        : await listReports({ mine: true });
       setReports(result);
       setLastSynced(new Date());
     } catch (err) {
@@ -209,6 +220,22 @@ export default function HomeScreen() {
     }, [load]),
   );
 
+  // Report events keep the dashboard (and its weekly graph) current without
+  // waiting for a manual refresh.
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load();
+    }, 600);
+  }, [load]);
+  useRealtimeEvents(
+    site ? `/sites/${site.id}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
+  );
+
   async function onRefresh() {
     setRefreshing(true);
     try {
@@ -220,6 +247,16 @@ export default function HomeScreen() {
 
   const allReports = reports ?? [];
   const summary = summarize(allReports);
+  const myReports = user
+    ? allReports.filter(
+        (report) => report.createdByUserId === user.id || report.policy.participant,
+      )
+    : [];
+  const mySummary = summarize(myReports);
+  const awaitingConfirmation = myReports.filter(
+    (report) =>
+      report.status === 'resolved_pending_confirmation' && report.policy.participant,
+  ).length;
   const weekBuckets = weeklyChart(allReports, period);
   const isChartEmpty = weekBuckets.every((bucket) =>
     bucket.values.every((value) => value === 0),
@@ -297,7 +334,7 @@ export default function HomeScreen() {
     .slice(0, RECENT_UPDATES_LIMIT);
 
   const canFile =
-    site !== null && user !== null && user.role !== 'technician';
+    user !== null && user.role !== 'technician' && user.role !== 'shop_manager';
 
   /**
    * Staff, site admins and super_admins run the site; reporters and
@@ -336,10 +373,10 @@ export default function HomeScreen() {
       (site !== null || user?.siteId != null),
   };
 
-  const fileDisabledReason = !site
-    ? t('home.reportDisabledReasons.noSite')
-    : user?.role === 'technician'
-      ? t('home.reportDisabledReasons.technician')
+  const fileDisabledReason = user?.role === 'technician'
+    ? t('home.reportDisabledReasons.technician')
+    : user?.role === 'shop_manager'
+      ? t('home.reportDisabledReasons.shopManager')
       : null;
 
   const greeting = (() => {
@@ -365,6 +402,11 @@ export default function HomeScreen() {
       pathname: '/reports',
       params: filter === 'all' ? {} : { filter },
     });
+  }
+
+  /** Track reports: the caller's filings across every site they filed at. */
+  function gotoTrackReports() {
+    router.push({ pathname: '/reports', params: { mine: '1' } });
   }
 
   function gotoReport(id: number) {
@@ -399,6 +441,7 @@ export default function HomeScreen() {
   if (setupRequired) {
     return (
       <Screen>
+        <HomeNotificationBell />
         <View className="flex-1 items-center justify-center px-8">
           <View
             className="mb-5 h-16 w-16 items-center justify-center rounded-2xl"
@@ -436,7 +479,7 @@ export default function HomeScreen() {
   return (
     <Screen>
       <ScrollView
-        contentContainerClassName="px-5 pb-32 pt-4"
+        contentContainerClassName="w-full max-w-[760px] self-center px-5 pb-32 pt-4"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -446,16 +489,7 @@ export default function HomeScreen() {
           />
         }
       >
-        <View className="mb-1 flex-row justify-end px-1">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('home.notifications.accessibilityLabel')}
-            onPress={() => router.push('/more/notifications')}
-            className="active:opacity-70"
-          >
-            <Bell color={dashboardColors.subtitle} size={18} strokeWidth={1.9} />
-          </Pressable>
-        </View>
+        <HomeNotificationBell />
 
         <WelcomeBanner
           t={t}
@@ -489,19 +523,24 @@ export default function HomeScreen() {
           />
         ) : null}
 
-        {reports === null && loading ? <HomeSkeleton /> : null}
+        {reports === null && loading ? <StateView variant="loading" title={t('home.loadingDashboard')} /> : null}
 
-        {loading && !reports && (
-          <StateView variant="loading" title={t('home.loading')} />
-        )}
-
-        {reports !== null && site ? (
+        {reports !== null ? (
           allReports.length === 0 ? (
             <>
               <EmptyHomeCard
                 t={t}
-                siteName={site.name}
+                siteName={site?.name ?? null}
+                onPressReport={gotoNewReport}
               />
+              {isOps ? null : (
+                <QuickActionRow
+                  t={t}
+                  onPressFile={gotoNewReport}
+                  onPressTrack={gotoTrackReports}
+                  onPressAlerts={() => router.push('/more/notifications')}
+                />
+              )}
               <QuickActionsCard
                 t={t}
                 flags={quickActionFlags}
@@ -520,7 +559,24 @@ export default function HomeScreen() {
                   reportCount={attentionReportCount}
                   onPressItem={gotoReports}
                 />
-              ) : null}
+              ) : (
+                <>
+                  <ReportsInsightCard
+                    t={t}
+                    summary={mySummary}
+                    total={myReports.length}
+                    pending={awaitingConfirmation}
+                    onPressAll={() => gotoReports('all')}
+                    onPressPending={() => gotoReports('confirmation')}
+                  />
+                  <QuickActionRow
+                    t={t}
+                    onPressFile={gotoNewReport}
+                    onPressTrack={gotoTrackReports}
+                    onPressAlerts={() => router.push('/more/notifications')}
+                  />
+                </>
+              )}
 
               <View className="mb-3 flex-row gap-2">
                 {statSet.slice(0, 2).map((stat) => (
@@ -552,25 +608,23 @@ export default function HomeScreen() {
               </View>
 
               {isOps ? (
-                <>
-                  <MaintenanceOverviewCard
-                    t={t}
-                    period={period}
-                    onChangePeriod={setPeriod}
-                    buckets={weekBuckets}
-                    isEmpty={isChartEmpty}
-                    loading={loading}
-                    subtitle={overviewSubtitle}
-                  />
-
-                  <CategoryCard
-                    t={t}
-                    slices={categorySlices}
-                    onPressCategory={gotoCategory}
-                    onPressAll={() => gotoReports('all')}
-                  />
-                </>
+                <MaintenanceOverviewCard
+                  t={t}
+                  period={period}
+                  onChangePeriod={setPeriod}
+                  buckets={weekBuckets}
+                  isEmpty={isChartEmpty}
+                  loading={loading}
+                  subtitle={overviewSubtitle}
+                />
               ) : null}
+
+              <CategoryCard
+                t={t}
+                slices={categorySlices}
+                onPressCategory={gotoCategory}
+                onPressAll={() => gotoReports('all')}
+              />
 
               <RecentReportsCard
                 t={t}
@@ -727,14 +781,12 @@ function SiteRow({
   error,
   lastSynced,
   onRefresh,
-  onNotifications,
 }: {
   t: TranslateFn;
   loading: boolean;
   error: string | null;
   lastSynced: Date | null;
   onRefresh: () => void;
-  onNotifications: () => void;
 }) {
   const syncLabel = loading
     ? t('home.sync.refreshing')
@@ -754,14 +806,6 @@ function SiteRow({
         <SiteSwitcher />
       </View>
       <View className="flex-row items-center gap-3">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('home.notifications.accessibilityLabel')}
-          onPress={onNotifications}
-          className="active:opacity-70"
-        >
-          <Bell color={dashboardColors.subtitle} size={16} strokeWidth={1.9} />
-        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('home.sync.accessibilityLabel')}
@@ -1073,6 +1117,197 @@ type CategorySlice = {
 };
 
 /**
+ * Reporter-facing snapshot: a donut of their own reports plus a nudge when a
+ * technician has finished work and is waiting on their confirmation.
+ */
+function ReportsInsightCard({
+  t,
+  summary,
+  total,
+  pending,
+  onPressAll,
+  onPressPending,
+}: {
+  t: TranslateFn;
+  summary: ReturnType<typeof summarize>;
+  total: number;
+  pending: number;
+  onPressAll: () => void;
+  onPressPending: () => void;
+}) {
+  const resolvedPct = total === 0 ? 0 : Math.round((summary.resolved / total) * 100);
+
+  return (
+    <Card className="mb-3">
+      <View className="flex-row items-center justify-between">
+        <Text
+          className="text-[15px] font-semibold text-ink"
+          style={{ letterSpacing: -0.4 }}
+        >
+          {t('home.insights.title')}
+        </Text>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('home.insights.viewAll')}
+          onPress={onPressAll}
+          className="flex-row items-center gap-1 active:opacity-70"
+        >
+          <Text className="text-[11px] font-medium text-dashboard-teal">
+            {t('home.insights.viewAll')}
+          </Text>
+          <ArrowRight color={dashboardColors.teal} size={12} />
+        </Pressable>
+      </View>
+
+      <View className="mt-4 flex-row items-center gap-5">
+        <ProgressRing
+          size={96}
+          thickness={10}
+          trackColor={dashboardColors.bannerBorder}
+          segments={[
+            { value: summary.open, color: colors.primary },
+            { value: summary.progress, color: colors.accent },
+            { value: summary.resolved, color: colors.lime },
+          ]}
+        >
+          <Text
+            className="text-[22px] font-semibold text-ink"
+            style={{ letterSpacing: -0.8 }}
+          >
+            {resolvedPct}%
+          </Text>
+          <Text
+            className="text-[8px] font-medium uppercase text-dashboard-subtitle"
+            style={{ letterSpacing: 0.6 }}
+          >
+            {t('home.insights.resolved')}
+          </Text>
+        </ProgressRing>
+
+        <View className="flex-1 gap-2.5">
+          <InsightRow
+            label={t('home.insights.legendOpen')}
+            value={summary.open}
+            color={colors.primary}
+          />
+          <InsightRow
+            label={t('home.insights.legendProgress')}
+            value={summary.progress}
+            color={colors.accent}
+          />
+          <InsightRow
+            label={t('home.insights.legendResolved')}
+            value={summary.resolved}
+            color={colors.lime}
+          />
+        </View>
+      </View>
+
+      {pending > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('home.insights.pending', { count: pending })}
+          onPress={onPressPending}
+          className="mt-4 min-h-[44px] flex-row items-center gap-2 rounded-xl px-3 py-2.5 active:opacity-80"
+          style={{ backgroundColor: dashboardColors.statCitronSoft }}
+        >
+          <Hourglass color={dashboardColors.statCitronDeep} size={15} strokeWidth={2} />
+          <Text className="flex-1 text-[11.5px] font-medium text-ink">
+            {t('home.insights.pending', { count: pending })}
+          </Text>
+          <ChevronRight color={dashboardColors.statCitronDeep} size={14} />
+        </Pressable>
+      ) : null}
+    </Card>
+  );
+}
+
+function InsightRow({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <View className="flex-row items-center gap-2">
+      <View style={{ backgroundColor: color }} className="h-2 w-2 rounded-full" />
+      <Text className="flex-1 text-[11.5px] text-dashboard-subtitle">{label}</Text>
+      <Text className="text-[13px] font-semibold text-ink">{value}</Text>
+    </View>
+  );
+}
+
+/** Three tappable shortcuts reporters reach for most often. */
+function QuickActionRow({
+  t,
+  onPressFile,
+  onPressTrack,
+  onPressAlerts,
+}: {
+  t: TranslateFn;
+  onPressFile: () => void;
+  onPressTrack: () => void;
+  onPressAlerts: () => void;
+}) {
+  const actions = [
+    {
+      key: 'file',
+      label: t('home.quick.file'),
+      icon: Plus,
+      soft: dashboardColors.statCoralSoft,
+      ink: dashboardColors.statCoralDeep,
+      onPress: onPressFile,
+    },
+    {
+      key: 'track',
+      label: t('home.quick.track'),
+      icon: ClipboardList,
+      soft: dashboardColors.statMintSoft,
+      ink: dashboardColors.statMintDeep,
+      onPress: onPressTrack,
+    },
+    {
+      key: 'alerts',
+      label: t('home.quick.alerts'),
+      icon: Bell,
+      soft: dashboardColors.statCitronSoft,
+      ink: dashboardColors.statCitronDeep,
+      onPress: onPressAlerts,
+    },
+  ];
+
+  return (
+    <View className="mb-3 flex-row gap-2">
+      {actions.map((action) => {
+        const Icon = action.icon;
+        return (
+          <Pressable
+            key={action.key}
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            onPress={action.onPress}
+            className="min-h-[64px] flex-1 items-center justify-center rounded-2xl border border-dashboard-card-line bg-dashboard-card-bg px-2 py-3 active:opacity-80"
+          >
+            <View
+              className="h-8 w-8 items-center justify-center rounded-full"
+              style={{ backgroundColor: action.soft }}
+            >
+              <Icon color={action.ink} size={15} strokeWidth={2} />
+            </View>
+            <Text className="mt-1.5 text-center text-[10.5px] font-medium text-ink">
+              {action.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/**
  * Where the reports are concentrated. Proportion bars make the dominant
  * category obvious at a glance; tapping one runs a search for that category
  * on the Reports tab (the list screen already supports `?q=`).
@@ -1380,6 +1615,8 @@ function QuickActionsCard({
   onPressTeamAccess: () => void;
   onPressApplications: () => void;
 }) {
+  if (!flags.canSetupSite && !flags.canProvisionUsers && !flags.reviewApplications && !flags.canManageSites) return null;
+
   return (
     <Card padded={false} className="mb-4">
       <View className="px-4 pb-2 pt-4">
@@ -1489,19 +1726,45 @@ function ActionTile({
 
 /**
  * First-run state for a site that has never had a report filed. It explains
- * the empty analysis; the create-report action lives in the banner CTA and the
- * floating button, so it is not repeated here.
+ * the empty analysis, previews the three-step resolution flow and offers the
+ * create-report action.
  */
 function EmptyHomeCard({
   t,
   siteName,
+  onPressReport,
 }: {
   t: TranslateFn;
-  siteName: string;
+  siteName: string | null;
+  onPressReport: () => void;
 }) {
+  const steps = [
+    {
+      key: 'file',
+      label: t('home.emptyHome.stepFile'),
+      Icon: Plus,
+      soft: dashboardColors.statCoralSoft,
+      ink: dashboardColors.statCoralDeep,
+    },
+    {
+      key: 'fix',
+      label: t('home.emptyHome.stepFix'),
+      Icon: Wrench,
+      soft: dashboardColors.statMintSoft,
+      ink: dashboardColors.statMintDeep,
+    },
+    {
+      key: 'confirm',
+      label: t('home.emptyHome.stepConfirm'),
+      Icon: CheckCircle2,
+      soft: dashboardColors.statCitronSoft,
+      ink: dashboardColors.statCitronDeep,
+    },
+  ];
+
   return (
-    <Card className="mb-4">
-      <View className="items-center px-2 py-3">
+    <Card className="mb-3">
+      <View className="items-center px-2 pt-3">
         <View
           className="h-14 w-14 items-center justify-center rounded-full"
           style={{ backgroundColor: dashboardColors.tealSoft }}
@@ -1516,37 +1779,49 @@ function EmptyHomeCard({
           className="mt-3 text-[15px] font-semibold text-ink"
           style={{ letterSpacing: -0.3 }}
         >
-          {t('home.emptyHome.title', { site: siteName })}
+          {siteName
+            ? t('home.emptyHome.title', { site: siteName })
+            : t('home.emptyHome.titleNoSite')}
         </Text>
         <Text className="mt-1 text-center text-[11px] leading-[1.7] text-dashboard-subtitle">
           {t('home.emptyHome.subtitle')}
         </Text>
       </View>
-    </Card>
-  );
-}
 
-/**
- * Placeholder geometry for the first load — it mirrors the real block order
- * (attention, two stat rows, chart, list) so the dashboard does not jump
- * when the data arrives.
- */
-function HomeSkeleton() {
-  const { t } = useTranslation('common');
-  return (
-    <View accessibilityLabel={t('home.loadingDashboard')}>
-      <View className="mb-4 h-[104px] rounded-[11px] border border-dashboard-card-line bg-dashboard-card-bg" />
-      <View className="mb-3 flex-row gap-2">
-        <View className="h-[76px] flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg" />
-        <View className="h-[76px] flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg" />
+      <View
+        className="mt-4 flex-row items-start rounded-2xl px-2 py-3"
+        style={{ backgroundColor: dashboardColors.tealSoft }}
+      >
+        {steps.map((step, index) => (
+          <Fragment key={step.key}>
+            <View className="flex-1 items-center">
+              <View
+                className="h-9 w-9 items-center justify-center rounded-full"
+                style={{ backgroundColor: step.soft }}
+              >
+                <step.Icon color={step.ink} size={16} strokeWidth={2} />
+              </View>
+              <Text className="mt-1.5 text-center text-[10px] font-medium leading-[1.4] text-ink">
+                {step.label}
+              </Text>
+            </View>
+            {index < steps.length - 1 ? (
+              <ChevronRight
+                color={dashboardColors.teal}
+                size={14}
+                style={{ marginTop: 11 }}
+              />
+            ) : null}
+          </Fragment>
+        ))}
       </View>
-      <View className="mb-5 flex-row gap-2">
-        <View className="h-[76px] flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg" />
-        <View className="h-[76px] flex-1 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg" />
-      </View>
-      <View className="mb-4 h-[180px] rounded-[11px] border border-dashboard-card-line bg-dashboard-card-bg" />
-      <View className="mb-4 h-[150px] rounded-[11px] border border-dashboard-card-line bg-dashboard-card-bg" />
-    </View>
+
+      <Button
+        label={t('home.reportIssue')}
+        onPress={onPressReport}
+        className="mt-4"
+      />
+    </Card>
   );
 }
 

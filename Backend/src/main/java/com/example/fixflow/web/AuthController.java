@@ -1,5 +1,7 @@
 package com.example.fixflow.web;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.fixflow.dto.JoinableSiteResponse;
 import com.example.fixflow.dto.LoginRequest;
 import com.example.fixflow.dto.RegisterRequest;
 import com.example.fixflow.dto.UserResponse;
@@ -44,14 +47,19 @@ public class AuthController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
 	}
 
+    @GetMapping("/sites")
+    public List<JoinableSiteResponse> sites() {
+        return authService.joinableSites();
+    }
+
     @GetMapping("/policy")
     public java.util.Map<String, Object> policy() {
         return java.util.Map.of(
                 "passwordMinLength", com.example.fixflow.service.AccountPolicy.PASSWORD_MIN_LENGTH,
-                "selfRegistrationRoles", java.util.List.of("reporter", "technician", "admin"),
+                "selfRegistrationRoles", java.util.List.of("reporter", "technician"),
                 "siteAdminApprovalRequired", true,
                 "siteAdminApplicationStatusEndpoint", "/api/auth/site-admin-application",
-                "managedRoleMessage", "Site admin applicants start as reporters until super-admin approval. "
+                "managedRoleMessage", "Site administrator access is created after approval of a new site application. "
                         + "Identity checks, independent approval and MFA are policy requirements, "
                         + "not currently automated checks in this application.");
     }

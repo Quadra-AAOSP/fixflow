@@ -14,7 +14,8 @@ public record UserResponse(
 		Long siteId,
         UserCapabilities capabilities,
         SiteOnboarding siteOnboarding,
-        AdminApplication adminApplication
+        AdminApplication adminApplication,
+        boolean applicationOnly
 ) {
 	public record AdminApplication(Long id, String status) { }
 	public record SiteOnboarding(Long siteId, boolean reportingReady, boolean setupRequired,
@@ -25,6 +26,7 @@ public record UserResponse(
 	}
 
 	public static UserResponse from(User user, SiteOnboarding onboarding, AdminApplication application) {
+        boolean applicationOnly = user.getRole() == UserRole.reporter && application != null;
 		return new UserResponse(
 				user.getId(),
 				user.getEmail(),
@@ -34,9 +36,11 @@ public record UserResponse(
 				user.getAddress(),
 				user.getRole(),
 				user.getSite() != null ? user.getSite().getId() : null,
-                UserCapabilities.forRole(user.getRole()),
-                onboarding,
-                application
+                applicationOnly ? new UserCapabilities(false, false, false, false, false, false,
+                        java.util.List.of(), false) : UserCapabilities.forRole(user.getRole()),
+                applicationOnly ? null : onboarding,
+                application,
+                applicationOnly
 		);
 	}
 }

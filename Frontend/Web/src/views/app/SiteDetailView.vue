@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
@@ -50,7 +51,7 @@ async function remove() {
 <template>
   <section class="dashboard-card live-page site-details">
     <div class="card-heading"><RouterLink to="/sites" class="text-action">{{ t('Your Sites') }}</RouterLink><button class="text-action" type="button" :disabled="loading || busy" @click="load">{{ t('Refresh') }}</button></div>
-    <p v-if="loading" class="live-empty" role="status">{{ t('Loading site details…') }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading site details…')" />
     <p v-else-if="error" class="live-error" role="alert">{{ t(error) }}</p>
     <template v-else-if="site">
       <h1>{{ site.name }}</h1><p>{{ site.description || t('No description provided.') }}</p><p>{{ site.address || t('No address provided.') }}</p>

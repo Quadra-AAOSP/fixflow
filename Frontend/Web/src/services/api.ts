@@ -39,7 +39,11 @@ function csrfToken(signal: AbortSignal): Promise<CsrfToken> {
   });
 }
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+// OpenRouter may use three 30-second attempts and backoff before returning.
+export const AI_REQUEST_TIMEOUT_MS = 120_000;
+
+export async function request<T>(path: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
+  const { timeoutMs = 20_000, ...init } = options;
   const requestRevision = sessionRevision;
   const controller = new AbortController();
   pendingControllers.add(controller);
@@ -47,7 +51,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     if (requestRevision !== sessionRevision || controller.signal.aborted) throw new DOMException('Request cancelled.', 'AbortError');
   };
   let timedOut = false;
-  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 20_000);
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
   const cancel = () => controller.abort();
   if (init.signal?.aborted) cancel();
   else init.signal?.addEventListener('abort', cancel, { once: true });

@@ -26,6 +26,9 @@ class ReportWorkflowIntegrationTest {
     @Autowired ReportRepository reports;
     @Autowired TechnicianContractRepository contracts;
     @Autowired ReportResolutionRepository resolutions;
+    @Autowired ReportNotificationRepository notifications;
+    @Autowired com.example.fixflow.service.ReportWorkflowService workflow;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     MockMvc mvc;
     User admin, reporter, technician;
     Report report;
@@ -59,8 +62,24 @@ class ReportWorkflowIntegrationTest {
         mvc.perform(post(base + "/resolve").with(user(new AppUserDetails(technician)))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"description\":\"Replaced damaged pipe\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("status").value("resolved_pending_confirmation"));
+        mvc.perform(get("/api/notifications").with(user(new AppUserDetails(reporter))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].type").value("work_completed"))
+                .andExpect(jsonPath("$.content[0].reportId").value(report.getId()));
+        mvc.perform(get("/api/notifications").with(user(new AppUserDetails(admin))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(0));
         mvc.perform(get(base + "/history").with(user(new AppUserDetails(reporter))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3));
+    }
+
+    @Test void rolledBackResolutionDoesNotNotify() {
+        report.setAssignedTechnician(technician); report.setStatus(ReportStatus.in_progress); reports.save(report);
+        new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(tx -> {
+            workflow.resolve(report.getId(), "Repair", new AppUserDetails(technician));
+            tx.setRollbackOnly();
+        });
+        org.assertj.core.api.Assertions.assertThat(notifications.findByRecipientIdOrderByIdDesc(reporter.getId(),
+                org.springframework.data.domain.PageRequest.of(0, 20)).getContent()).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(resolutions.findByReport_IdOrderByIdAsc(report.getId())).isEmpty();
     }
 
     @Test void reporterCannotClaimAndUnassignedTechnicianCannotStart() throws Exception {
@@ -86,7 +105,7 @@ class ReportWorkflowIntegrationTest {
         String rating="{\"resolutionId\":"+resolution+",\"score\":5,\"feedback\":\"Repair worked\"}";
         mvc.perform(post(base+"/ratings").with(user(new AppUserDetails(reporter)))
                 .contentType(MediaType.APPLICATION_JSON).content(rating)).andExpect(status().isConflict());
-        mvc.perform(post(base+"/confirm").with(user(new AppUserDetails(reporter)))).andExpect(status().isOk());
+        mvc.perform(post(base+"/confirm").contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter\"}").with(user(new AppUserDetails(reporter)))).andExpect(status().isOk());
         mvc.perform(post(base+"/ratings").with(user(new AppUserDetails(reporter)))
                 .contentType(MediaType.APPLICATION_JSON).content(rating)).andExpect(status().isOk())
                 .andExpect(jsonPath("score").value(5));

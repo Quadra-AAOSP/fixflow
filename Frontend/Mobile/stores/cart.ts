@@ -19,8 +19,12 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       basket: [],
+      // Adds are clamped to the product's stock snapshot, mirroring the web
+      // shop's `setQuantity` behaviour (the + button disables at the cap).
       addToBasket: (product, quantity = 1) => {
         set((state) => {
+          const cap = Math.max(0, product.stock);
+          if (cap === 0) return state;
           const existing = state.basket.find(
             (item) => item.product.id === product.id,
           );
@@ -28,20 +32,44 @@ export const useCartStore = create<CartState>()(
             return {
               basket: state.basket.map((item) =>
                 item.product.id === product.id
-                  ? { ...item, quantity: item.quantity + quantity }
+                  ? {
+                      ...item,
+                      quantity: Math.min(cap, item.quantity + quantity),
+                    }
                   : item,
               ),
             };
           }
-          return { basket: [...state.basket, { product, quantity }] };
+          return {
+            basket: [
+              ...state.basket,
+              { product, quantity: Math.min(cap, quantity) },
+            ],
+          };
         });
       },
+      // Stepping a line down to 0 removes it, matching the web basket's
+      // per-line Remove affordance.
       updateBasketQuantity: (productId, quantity) => {
-        set((state) => ({
-          basket: state.basket.map((item) =>
-            item.product.id === productId ? { ...item, quantity } : item,
-          ),
-        }));
+        set((state) => {
+          if (quantity <= 0) {
+            return {
+              basket: state.basket.filter(
+                (item) => item.product.id !== productId,
+              ),
+            };
+          }
+          return {
+            basket: state.basket.map((item) =>
+              item.product.id === productId
+                ? {
+                    ...item,
+                    quantity: Math.min(quantity, Math.max(1, item.product.stock)),
+                  }
+                : item,
+            ),
+          };
+        });
       },
       removeFromBasket: (productId) => {
         set((state) => ({

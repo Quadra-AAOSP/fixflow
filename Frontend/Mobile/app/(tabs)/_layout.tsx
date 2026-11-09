@@ -5,55 +5,154 @@ import {
   User,
   Wrench,
 } from 'lucide-react-native';
-import { Redirect, Tabs, usePathname } from 'expo-router';
+import { Redirect, Tabs, usePathname, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SiteProvider } from '@/stores/site';
+import { NotificationsProvider } from '@/stores/notifications';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
-import { isTabVisible, isTechnicianForbiddenRoute } from '@/lib/tabAccess';
+import { isTabVisible, landingRedirectForRoute } from '@/lib/tabAccess';
+
+type TabConfig = {
+  name: string;
+  visible: boolean;
+  title: string;
+  icon: typeof House;
+  hideHeader?: boolean;
+  href?: string;
+};
 
 /**
- * Role-aware bottom tabs. Mirrors the web sidebar navigation:
- *   - `reporter | admin`                     → Home / Reports / More / Profile
- *   - `staff`                                → Staff Dashboard / Profile
- *   - `technician`                           → Workspace / Assignments / Shop / Profile
- *   - `super_admin`                          → Home / Reports / Shop / Profile
+ * Role-aware bottom tabs. Six backend roles — one tab bar per role:
  *
- * For technicians and super_admins the "More" slot is relabeled "Shop" and
- * deep-links straight into the shop catalog — settings/profile functions live
- * under the Profile tab instead.
+ *   reporter      → Home, Reports,                        Profile
+ *   technician    → Workspace,    Assignments,  More(Shop), Profile
+ *   staff         → Home, Reports,            More,       Profile
+ *   admin         → Home, Reports,            More,       Profile
+ *   super_admin   → Home, Reports,            More(Shop+mgmt), Profile
+ *   shop_manager  → Home, More(Shop),         Profile    (only 3)
+ *
+ * EVERY top-level route in this group is declared explicitly. Routes a role
+ * cannot see are declared with `href: null` instead of being omitted —
+ * expo-router auto-registers any undeclared file/directory in the group as
+ * a tab, which is what previously leaked `workspace`, `assignments` and the
+ * `technician` stack into the bar for reporters (7 tabs instead of 4).
+ *
+ * Hidden routes stay mounted so `router.push('/technician/contract-requests')`
+ * still works; they simply never occupy a tab slot.
  */
 export default function TabLayout() {
   const palette = themeColors();
   const { user, isLoading } = useAuth();
-  const pathname = usePathname();
   const { t } = useTranslation('common');
+  const headerShown = useClientOnlyValue(false, true);
+  const pathname = usePathname();
+  const router = useRouter();
 
-  // While auth is hydrating we don't know the role — render a neutral shell so
-  // the navigator mounts and the splash screen can hand off cleanly.
+  // A hidden tab (`href: null`) is not a permission: browser/device back can
+  // still land on it. Bounce any role sitting on a route its tab bar hides.
+  const guardRole = user?.role ?? null;
+  const redirect = landingRedirectForRoute(guardRole, pathname);
+  useEffect(() => {
+    if (redirect) router.replace(redirect as never);
+  }, [redirect, router]);
+
   if (isLoading || !user) {
     return (
       <SiteProvider>
-        <Tabs screenOptions={{ headerShown: false }} />
+        <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }} />
       </SiteProvider>
     );
   }
 
-  // Technician accounts have no Home/Reports tab slots. Only bounce them when
-  // they are actually sitting on one of those routes (deep link, stale
-  // navigation state) — an unconditional <Redirect> would fight the tab
-  // navigator on every remount and block Assignments/More/Profile.
-  const technicianOnForbiddenRoute = isTechnicianForbiddenRoute(user.role, pathname);
+  const role = user.role;
 
-  if (technicianOnForbiddenRoute) {
-    return <Redirect href="/(tabs)/workspace" />;
+  // Render nothing while the bounce is in flight, so the forbidden screen
+  // never paints (or fetches) for the wrong role.
+  if (redirect) {
+    return null;
+  }
+
+  // Label per role for the Home tab — tells the user what kind of home it is.
+  const homeLabel =
+    role === 'super_admin' ? t('tabs.platformConsole')
+    : role === 'shop_manager' ? t('tabs.shopConsole')
+    : role === 'reporter' ? t('tabs.home')
+    : t('tabs.dashboard');
+
+  // Fixed slot order: home/dashboard → reports/technician → more → profile.
+  // First visible tab is the role's default landing.
+  const tabs: TabConfig[] = [
+    {
+      name: 'workspace',
+      visible: isTabVisible(role, 'workspace'),
+      title: t('tabs.workspace'),
+      icon: Wrench,
+      hideHeader: true,
+    },
+    {
+      name: 'index',
+      visible: isTabVisible(role, 'index'),
+      title: homeLabel,
+      icon: House,
+    },
+    {
+      name: 'reports',
+      visible: isTabVisible(role, 'reports'),
+      title: role === 'staff' ? t('tabs.siteReports') : t('tabs.reports'),
+      icon: ClipboardList,
+      hideHeader: true,
+    },
+    {
+      name: 'assignments',
+      visible: isTabVisible(role, 'assignments'),
+      title: t('tabs.assignments'),
+      icon: ClipboardList,
+      hideHeader: true,
+    },
+    {
+      name: 'more',
+      visible: isTabVisible(role, 'more'),
+      title: role === 'staff' ? t('tabs.staffTools') : role === 'admin' ? t('tabs.siteTools') : t('tabs.more'),
+      icon: LayoutGrid,
+      hideHeader: true,
+    },
+    {
+      name: 'profile',
+      visible: isTabVisible(role, 'profile'),
+      title: t('tabs.profile'),
+      icon: User,
+      hideHeader: true,
+    },
+    // Nested stacks — reachable by route push, never a tab slot.
+    {
+      name: 'technician',
+      visible: false,
+      title: t('tabs.technician'),
+      icon: Wrench,
+      hideHeader: true,
+    },
+  ];
+
+  const visibleTabs = tabs.filter((tab) => tab.visible);
+
+  // Defensive — if somehow the role has no visible tabs, bounce to login.
+  if (visibleTabs.length === 0) {
+    return (
+      <SiteProvider>
+        <Redirect href="/(auth)/login" />
+      </SiteProvider>
+    );
   }
 
   return (
     <SiteProvider>
-      <Tabs
+      <NotificationsProvider>
+        <Tabs
+        initialRouteName={visibleTabs[0].name}
         screenOptions={{
           tabBarActiveTintColor: palette.tabIconSelected,
           tabBarInactiveTintColor: palette.tabIconDefault,
@@ -66,77 +165,26 @@ export default function TabLayout() {
           headerTintColor: palette.ink,
           headerTitleStyle: { fontWeight: '600', fontSize: 16 },
           headerShadowVisible: false,
-          headerShown: useClientOnlyValue(false, true),
+          headerShown,
         }}
       >
-        <Tabs.Screen
-          name="index"
-          options={!isTabVisible(user.role, 'index') ? { href: null } : {
-            title: t('tabs.home'),
-            tabBarIcon: ({ color, size }) => <House color={color} size={size} />,
-          }}
-        />
-
-        <Tabs.Screen
-          name="reports"
-          options={!isTabVisible(user.role, 'reports') ? { href: null } : {
-            headerShown: false,
-            title: t('tabs.reports'),
-            tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
-          }}
-        />
-
-        <Tabs.Screen
-          name="workspace"
-          options={isTabVisible(user.role, 'workspace') ? {
-            title: t('tabs.workspace'),
-            tabBarIcon: ({ color, size }) => <Wrench color={color} size={size} />,
-          } : { href: null }}
-        />
-
-        <Tabs.Screen
-          name="assignments"
-          options={isTabVisible(user.role, 'assignments') ? {
-            title: t('tabs.assignments'),
-            tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
-          } : { href: null }}
-        />
-
-        <Tabs.Screen
-          name="more"
-          options={() => {
-            const visible = isTabVisible(user.role, 'more');
-            const shopMode = user?.role === 'technician' || user?.role === 'super_admin';
-            return {
-              headerShown: false,
-              title: shopMode ? t('tabs.shop') : t('tabs.more'),
-              tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size} />,
-              href: !visible ? null : shopMode ? '/more/shop' : undefined,
-            };
-          }}
-        />
-
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: t('tabs.profile'),
-            tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
-            tabBarAccessibilityLabel: t('tabs.profile'),
-            headerShown: false,
-          }}
-        />
-
-        <Tabs.Screen
-          name="staff-dashboard"
-          options={() => (
-            isTabVisible(user.role, 'staff-dashboard') ? {
-              headerShown: false,
-              title: t('tabs.staffDashboard'),
-              tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
-            } : { href: null }
-          )}
-        />
-      </Tabs>
+        {tabs.map((tab) => (
+          <Tabs.Screen
+            key={tab.name}
+            name={tab.name}
+            options={{
+              // Hidden tabs keep their route but leave the bar.
+              href: tab.visible ? tab.href ?? undefined : null,
+              ...(tab.hideHeader ? { headerShown: false } : {}),
+              title: tab.title,
+              tabBarIcon: ({ color, size }) => (
+                <tab.icon color={color} size={size} />
+              ),
+            }}
+          />
+        ))}
+        </Tabs>
+      </NotificationsProvider>
     </SiteProvider>
   );
 }

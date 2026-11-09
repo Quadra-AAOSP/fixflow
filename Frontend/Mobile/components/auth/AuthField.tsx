@@ -50,6 +50,7 @@ export function AuthField({
           error ? 'border-urgency-critical' : 'border-auth-line'
         }`}
         style={{ fontFamily: fontFamilies.body }}
+        accessibilityLabel={label}
         {...props}
       />
       {error ? (

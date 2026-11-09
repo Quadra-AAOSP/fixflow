@@ -2,7 +2,10 @@
 services:
   backend:
     image: ${BACKEND_IMAGE:-fixflow-backend:local}
-    build: .
+    build:
+      context: .
+      args:
+        DOCKER_LIBRARY: ${DOCKER_LIBRARY:-docker.io/library}
     restart: unless-stopped
     ports:
       - '${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-8080}:8080'
@@ -28,9 +31,14 @@ services:
       WEBSOCKET_ALLOWED_ORIGINS: ${WEBSOCKET_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8081}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/free}
+      OPENROUTER_TIMEOUT_SECONDS: ${OPENROUTER_TIMEOUT_SECONDS:-30}
+      OPENROUTER_MAX_RETRIES: ${OPENROUTER_MAX_RETRIES:-2}
+      OPENROUTER_RETRY_BACKOFF_SECONDS: ${OPENROUTER_RETRY_BACKOFF_SECONDS:-1}
+      OPENROUTER_CHAT_MODEL: ${OPENROUTER_CHAT_MODEL:-openrouter/free}
+      OPENROUTER_CHAT_TIMEOUT_SECONDS: ${OPENROUTER_CHAT_TIMEOUT_SECONDS:-120}
       OPENROUTER_VISION_ENABLED: ${OPENROUTER_VISION_ENABLED:-false}
       OPENROUTER_VISION_MODEL: ${OPENROUTER_VISION_MODEL:-nvidia/nemotron-3.5-super-vl:free}
-      OPENROUTER_VISION_FALLBACK_MODEL: ${OPENROUTER_VISION_FALLBACK_MODEL:-minimax/minimax-m3.1-flash:free}
+      OPENROUTER_VISION_FALLBACK_MODEL: ${OPENROUTER_VISION_FALLBACK_MODEL:-nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free}
       OPENROUTER_RANKING_ENABLED: ${OPENROUTER_RANKING_ENABLED:-false}
       OPENROUTER_RANKING_MODEL: ${OPENROUTER_RANKING_MODEL:-openrouter/free}
       OPENROUTER_RANKING_TIMEOUT_SECONDS: ${OPENROUTER_RANKING_TIMEOUT_SECONDS:-15}
@@ -68,13 +76,16 @@ services:
 
   minio:
     image: fixflow-minio:7aac2a2
-    build: docker/minio
+    build:
+      context: docker/minio
+      args:
+        DOCKER_LIBRARY: ${DOCKER_LIBRARY:-docker.io/library}
     pull_policy: build
     command: ['server', '/data', '--console-address', ':9001']
     restart: unless-stopped
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY}}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY}}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY}
       MINIO_BROWSER: 'off'
     ports:
       - '${MINIO_BIND_ADDRESS:-127.0.0.1}:${MINIO_HOST_PORT:-9000}:9000'

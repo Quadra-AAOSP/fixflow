@@ -43,6 +43,14 @@ public class TechnicianContractService {
 
 	@Transactional(readOnly = true)
 	public List<TechnicianContractResponse> list(Long siteId, AppUserDetails actor) {
+		// Technicians read their own contracts — this backs the mobile
+		// Assignments tab and the technician contract screen. Admins /
+		// super admins still get the site-scoped view.
+		if (actor.getRole() == UserRole.technician) {
+			return technicianContractRepository.findByTechnicianIdsWithSite(List.of(actor.getId())).stream()
+					.map(TechnicianContractResponse::from)
+					.toList();
+		}
 		Long scopedSiteId = resolveSiteForAdmin(actor, siteId);
 		return technicianContractRepository.findDetailedBySiteId(scopedSiteId).stream()
 				.map(TechnicianContractResponse::from)

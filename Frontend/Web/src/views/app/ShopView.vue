@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { localeTag, useLocale } from '@/i18n';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -108,7 +109,7 @@ async function refreshQuote() {
   const actorId = auth.user?.id;
   quote.value = null;
   checkoutError.value = '';
-  if (!auth.isAuthenticated || !cartItems.value.length) return;
+  if (!auth.isAuthenticated || auth.user?.role === 'shop_manager' || !cartItems.value.length) return;
   try {
     const result = await quoteCheckout(cartItems.value);
     if (!disposed && current === quoteVersion && actorId === auth.user?.id) quote.value = result;
@@ -118,7 +119,7 @@ async function refreshQuote() {
 }
 
 async function placeOrder() {
-  if (auth.user?.role === 'shop_manager' || checkoutBusy.value || !cartItems.value.length) return;
+  if (checkoutBusy.value || auth.user?.role === 'shop_manager' || !cartItems.value.length) return;
   const actorId = auth.user?.id;
   checkoutError.value = '';
   if (!auth.isAuthenticated) {
@@ -188,6 +189,7 @@ async function openOrders() {
   ordersDialog.value?.showModal();
 }
 
+watch(() => auth.user?.role, role => { if (role === 'shop_manager') { quoteVersion++; quote.value = null; basket.value?.close(); void router.replace('/shop/orders-management'); } }, { immediate: true });
 watch(cartItems, () => { void refreshQuote(); }, { deep: true });
 watch(() => auth.user?.id, () => {
   simulation.value?.close(); simulationOrder.value = null; simulationError.value = '';
@@ -263,7 +265,7 @@ onMounted(async () => {
         </div>
         <label v-if="hasMixedAvailability"><input v-model="availableOnly" type="checkbox" />{{ t("In stock only") }}</label>
       </div>
-      <div v-if="shop.loading" class="shop-state" role="status"><RefreshCw :size="28" /><h3>{{ t("Finding your essentials…") }}</h3><p>{{ t("Loading the latest catalogue.") }}</p></div>
+      <LoadingStatus v-if="shop.loading" :label="t('Loading the latest catalogue.')" />
       <div v-else-if="shop.error" class="shop-state">
         <span class="shop-state-icon"><ShoppingBag :size="29" /></span>
         <span class="shop-eyebrow">{{ t(catalogPath ? 'CATALOGUE UNAVAILABLE' : 'SOMETHING GOOD IS TAKING SHAPE') }}</span>
@@ -377,7 +379,7 @@ onMounted(async () => {
 
     <dialog ref="ordersDialog" class="shop-dialog shop-cart-dialog" aria-labelledby="orders-title">
       <div class="shop-dialog-top"><h2 id="orders-title">{{ t("Your orders") }}</h2><button type="button" :aria-label="t('Close orders')" @click="ordersDialog?.close()"><X :size="22" /></button></div>
-      <p v-if="ordersLoading" role="status">{{ t("Loading orders…") }}</p>
+      <LoadingStatus v-if="ordersLoading" :label="t('Loading orders…')" />
       <p v-if="ordersError" role="alert">{{ t(ordersError) }}</p>
       <div v-if="!ordersLoading && !ordersError && !orders.length" class="shop-state">
         <Package :size="32" />
@@ -387,7 +389,7 @@ onMounted(async () => {
       <article v-for="order in orders" :key="order.orderId" class="shop-cart-line shop-order-card">
         <div>
           <h3><RouterLink :to="{ name: 'shop-order', params: { orderId: order.orderId } }">{{ order.orderId }} · {{ t('View order details') }}</RouterLink></h3>
-          <p>{{ t(order.status.replaceAll('_', ' ')) }} · {{ money(order.totalMinor, order.currency, order.minorUnitDigits) }}</p>
+          <p>{{ t(order.fulfillmentStatus ? ({ ordered: 'Ordered', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered' } as const)[order.fulfillmentStatus] : order.status.replaceAll('_', ' ')) }} · {{ money(order.totalMinor, order.currency, order.minorUnitDigits) }}</p>
           <p>{{ order.items.map(i => `${i.quantity}× ${i.name}`).join(', ') }}</p>
           <RouterLink v-if="order.status === 'pending_payment'" class="shop-remove" :to="{ name: 'shop-order', params: { orderId: order.orderId } }">{{ t('Review cancellation') }}</RouterLink>
         </div>

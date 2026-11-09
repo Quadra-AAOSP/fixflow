@@ -36,6 +36,8 @@ public class ShopOrderService {
 	private final ShopProductRepository shopProductRepository;
 	private final PaymentProvider paymentProvider;
 	private final EntityManager entityManager;
+	private final com.example.fixflow.repository.ShopNotificationRepository notices;
+	private final com.example.fixflow.repository.UserRepository users;
 
 	public ShopOrderService(
 			ShopCatalogService shopCatalogService,
@@ -43,24 +45,28 @@ public class ShopOrderService {
 			ShopProductRepository shopProductRepository,
 			ShopProperties shopProperties,
 			List<PaymentProvider> paymentProviders,
-			EntityManager entityManager
+			EntityManager entityManager,
+			com.example.fixflow.repository.ShopNotificationRepository notices,
+			com.example.fixflow.repository.UserRepository users
 	) {
 		this.shopCatalogService = shopCatalogService;
 		this.shopOrderRepository = shopOrderRepository;
 		this.shopProductRepository = shopProductRepository;
 		this.paymentProvider = selectProvider(paymentProviders, shopProperties);
 		this.entityManager = entityManager;
+		this.notices = notices;
+		this.users = users;
 	}
 
 	@Transactional(readOnly = true)
 	public ShopQuoteResponse quote(ShopQuoteRequest request, AppUserDetails principal) {
-		requireAuth(principal);
+		requireBuyer(principal);
 		return shopCatalogService.priceCart(request.items()).quote();
 	}
 
 	@Transactional
 	public ShopCreateOrderResponse create(ShopCreateOrderRequest request, String idempotencyKey, AppUserDetails principal) {
-		requireAuth(principal);
+		requireBuyer(principal);
 		if (idempotencyKey == null || idempotencyKey.isBlank()) {
 			throw new ApiException(400, "Idempotency-Key header is required");
 		}
@@ -103,13 +109,20 @@ public class ShopOrderService {
 	@Transactional
 	public void markPaid(ShopOrder order, String rawEvent) {
 		order = lockOrder(order);
-		if (order.getStatus() == ShopOrderStatus.paid) {
+		if (order.getStatus() == ShopOrderStatus.paid || order.getStatus() == ShopOrderStatus.fulfilled) {
 			return;
 		}
 		if (order.getStatus() != ShopOrderStatus.pending_payment) {
 			throw new ApiException(409, "Order cannot be marked paid from status " + order.getStatus());
 		}
 		order.setStatus(ShopOrderStatus.paid);
+		order.setFulfillmentStatus(com.example.fixflow.domain.ShopFulfillmentStatus.ordered);
+		java.time.Instant now = java.time.Instant.now();
+		for (var role : java.util.List.of(com.example.fixflow.domain.UserRole.shop_manager, com.example.fixflow.domain.UserRole.super_admin)) {
+			for (var user : users.findByRoleOrderByLastNameAscFirstNameAsc(role)) {
+				notices.save(new com.example.fixflow.domain.ShopNotification(user.getId(), order.getPublicId(), "order_placed", now));
+			}
+		}
 		if (order.getPayment() != null) {
 			order.getPayment().setStatus(ShopPaymentStatus.succeeded);
 			if (rawEvent != null) {
@@ -200,14 +213,7 @@ public class ShopOrderService {
 	}
 
 	private ShopOrder lockOrder(ShopOrder order) {
-		ShopOrder managed = entityManager.find(ShopOrder.class, order.getId());
-		// Read current state under a database lock, not a potentially stale entity
-		// already loaded by a payment callback in this transaction.
-		Object status = entityManager.createNativeQuery(
-				"select status from shop_orders where id = ?1 for update", String.class)
-				.setParameter(1, order.getId()).getSingleResult();
-		managed.setStatus(ShopOrderStatus.valueOf(status.toString()));
-		return managed;
+		return ShopOrderLock.reload(entityManager, order);
 	}
 
 	private ShopOrder requireOwnedOrder(String publicId, Long userId) {
@@ -227,6 +233,13 @@ public class ShopOrderService {
 				.filter(p -> p.type() == wanted)
 				.findFirst()
 				.orElseThrow(() -> new IllegalStateException("No payment provider for " + wanted));
+	}
+
+	private static void requireBuyer(AppUserDetails principal) {
+		requireAuth(principal);
+		if (principal.getRole() == com.example.fixflow.domain.UserRole.shop_manager) {
+			throw new ApiException(403, "Shop managers cannot purchase");
+		}
 	}
 
 	private static void requireAuth(AppUserDetails principal) {

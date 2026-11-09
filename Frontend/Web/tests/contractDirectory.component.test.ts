@@ -107,12 +107,12 @@ it('reads technician-specific terms without accepting them on the technician’s
 });
 it('ignores an old terms response after the selected site changes', async () => {
   useAuthStore().user!.role = 'super_admin';
-  let finish!: (value: any) => void;
+  let finish!: (value: Awaited<ReturnType<typeof technicianApi.getTechnicianTermsFor>>) => void;
   vi.mocked(technicianApi.getTechnicianTermsFor).mockReturnValue(new Promise(resolve => { finish = resolve; }));
   wrapper = mount(ContractDirectoryPanel); await flushPromises();
   await wrapper.get('.contract-records button').trigger('click');
   vi.mocked(api.listSiteContracts).mockResolvedValue([]);
   useMaintenanceStore().selectedSiteId = 8; await flushPromises();
-  finish({ technicianId: 54, currentVersion: 'private-old-version', acceptances: [] }); await flushPromises();
+  finish({ technicianId: 54, currentVersion: 'private-old-version', documentUrl: null, enforcementRequired: true, acceptedCurrentVersion: false, acceptances: [] }); await flushPromises();
   expect(wrapper.text()).not.toContain('private-old-version');
 });

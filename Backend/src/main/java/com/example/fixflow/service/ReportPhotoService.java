@@ -46,13 +46,13 @@ public class ReportPhotoService {
 
 	@Transactional(readOnly = true)
 	public List<ReportPhotoResponse> list(Long reportId, AppUserDetails actor) {
-		loadAndAuthorize(reportId, actor);
-		return listWithPresignedUrls(reportId);
+		loadAndAuthorize(reportId, actor, false);
+		return actor.getRole() == UserRole.technician ? listWithSessionUrls(reportId) : listWithPresignedUrls(reportId);
 	}
 
 	@Transactional
 	public ReportPhotoResponse upload(Long reportId, MultipartFile file, AppUserDetails actor) {
-		Report report = loadAndAuthorize(reportId, actor);
+		Report report = loadAndAuthorize(reportId, actor, true);
 		photoValidator.validateOne(file);
 
 		long existingCount = reportPhotoRepository.countByReportId(reportId);
@@ -88,7 +88,7 @@ public class ReportPhotoService {
 
 	@Transactional
 	public void delete(Long reportId, Long photoId, AppUserDetails actor) {
-		loadAndAuthorize(reportId, actor);
+		loadAndAuthorize(reportId, actor, true);
 
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReportId(photoId, reportId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Photo not found"));
@@ -110,10 +110,10 @@ public class ReportPhotoService {
 
 	@Transactional(readOnly = true)
 	public Map<String, String> presignedUrl(Long reportId, Long photoId, AppUserDetails actor) {
-		loadAndAuthorize(reportId, actor);
+		loadAndAuthorize(reportId, actor, false);
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReportId(photoId, reportId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Photo not found"));
-		return Map.of("url", objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofHours(1)));
+		return Map.of("url", contentPath(reportId, photoId));
 	}
 
 	@Transactional(readOnly = true)
@@ -123,9 +123,36 @@ public class ReportPhotoService {
 				.toList();
 	}
 
-	private Report loadAndAuthorize(Long reportId, AppUserDetails actor) {
+    public List<ReportPhotoResponse> listWithSessionUrls(Long reportId) {
+        return reportPhotoRepository.findByReportIdOrderBySortOrderAscCreatedAtAsc(reportId).stream()
+                .map(photo -> ReportPhotoResponse.from(photo, reportId, contentPath(reportId, photo.getId())))
+                .toList();
+    }
+
+    public static String contentPath(Long reportId, Long photoId) {
+        return "/api/reports/" + reportId + "/photos/" + photoId + "/content";
+    }
+
+    @Transactional(readOnly = true)
+    public ReportPhoto authorizedPhoto(Long reportId, Long photoId, AppUserDetails actor) {
+        loadAndAuthorize(reportId, actor, false);
+        return reportPhotoRepository.findByIdAndReportId(photoId, reportId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Photo not found"));
+    }
+
+    public InputStream content(ReportPhoto photo) {
+        return objectStorageService.getObject(photo.getObjectKey());
+    }
+	private Report loadAndAuthorize(Long reportId, AppUserDetails actor, boolean write) {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
+		if (actor.getRole() == UserRole.technician) {
+			if (write || report.getAssignedTechnician() == null
+					|| !report.getAssignedTechnician().getId().equals(actor.getId())) {
+				throw new ApiException(HttpStatus.FORBIDDEN.value(), "Only the assigned technician can read report photos");
+			}
+			return report;
+		}
 
 		if (actor.getRole() != UserRole.super_admin) {
 			if (actor.getSiteId() == null || !actor.getSiteId().equals(report.getSite().getId())) {
@@ -172,12 +199,6 @@ public class ReportPhotoService {
 	}
 
 	private ReportPhotoResponse toResponse(ReportPhoto photo, Long reportId) {
-		String presigned = null;
-		try {
-			presigned = objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofHours(1));
-		} catch (Exception ignored) {
-			// Leave url null if storage cannot mint a temporary URL.
-		}
-		return ReportPhotoResponse.from(photo, reportId, presigned);
+		return ReportPhotoResponse.from(photo, reportId, contentPath(reportId, photo.getId()));
 	}
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useLocale } from '@/i18n';
 import { useAuth } from '@/composables/useAuth';
@@ -90,7 +91,7 @@ onMounted(load);
       <div class="product-actions"><button type="button" :disabled="busy" @click="confirmDeactivation">{{ t('Confirm deactivation') }}</button><button type="button" :disabled="busy" @click="deactivate = null">{{ t('Cancel') }}</button></div>
     </section>
     <label class="product-search">{{ t('Search products') }}<input v-model="search" type="search" /></label>
-    <p v-if="loading" role="status">{{ t('Loading products…') }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading products…')" />
     <div v-else class="product-table-wrap" tabindex="0" :aria-label="t('Product management')">
       <table class="product-table"><caption>{{ t('Product management') }}</caption><thead><tr><th scope="col">{{ t('Product name') }}</th><th scope="col">{{ t('Category') }}</th><th scope="col">{{ t('Price (minor units)') }}</th><th scope="col">{{ t('Stock') }}</th><th scope="col">{{ t('Status') }}</th><th scope="col">{{ t('Actions') }}</th></tr></thead>
         <tbody><tr v-for="product in visible" :key="product.id"><th scope="row"><div class="product-name-cell"><img v-if="safeImageUrl(product.imageUrl)" :src="safeImageUrl(product.imageUrl)!" alt="" loading="lazy" /><span>{{ product.name }}<small>{{ product.id }}</small></span></div></th><td>{{ product.category }}</td><td>{{ product.priceMinor }}</td><td>{{ product.stock }}</td><td>{{ t(product.active ? 'Active' : 'Inactive') }}</td><td><div class="product-actions"><button type="button" :disabled="busy" @click="edit(product.id)">{{ t('Edit') }}</button><button v-if="product.active" type="button" :disabled="busy" @click="requestDeactivation(product)">{{ t('Deactivate') }}</button></div></td></tr></tbody>

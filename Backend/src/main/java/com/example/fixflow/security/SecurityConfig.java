@@ -30,6 +30,8 @@ public class SecurityConfig {
 	SecurityFilterChain securityFilterChain(HttpSecurity http,
             org.springframework.core.env.Environment environment,
             com.example.fixflow.web.TraceIdFilter traceIdFilter,
+            com.example.fixflow.repository.SiteAdminApplicationRepository applications,
+            com.example.fixflow.repository.UserRepository users,
             org.springframework.security.web.csrf.CsrfTokenRepository csrfTokens) throws Exception {
 		SessionExpiryFilter sessionExpiryFilter = new SessionExpiryFilter(
 				org.springframework.boot.convert.DurationStyle.detectAndParse(
@@ -46,6 +48,8 @@ public class SecurityConfig {
                     org.springframework.security.web.access.intercept.AuthorizationFilter.class);
         }
 		http
+                .addFilterBefore(new ApplicationAccessFilter(applications, users),
+                        org.springframework.security.web.access.intercept.AuthorizationFilter.class)
 				.addFilterBefore(traceIdFilter,
 						org.springframework.security.web.context.SecurityContextHolderFilter.class)
 				.addFilterAfter(sessionExpiryFilter, com.example.fixflow.web.TraceIdFilter.class)
@@ -65,11 +69,14 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/site-applications", "/api/site-applications/status", "/api/site-applications/information", "/api/site-applications/setup").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/policy", "/api/auth/csrf").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/sites").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/shop/catalog").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
 						.requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
+						.requestMatchers("/api/shop/**").hasAnyRole("TECHNICIAN", "STAFF", "ADMIN", "SUPER_ADMIN", "SHOP_MANAGER")
 						.requestMatchers("/api/admin/shop/**").hasAnyRole("SUPER_ADMIN", "SHOP_MANAGER")
 						.requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 						.requestMatchers("/api/**").authenticated()

@@ -241,6 +241,7 @@ CREATE TABLE IF NOT EXISTS reports (
                             )               NOT NULL DEFAULT 'open',
     assigned_technician_id  BIGINT UNSIGNED NULL COMMENT 'Must be users.role = technician (app-enforced)',
     editable                TINYINT(1)      NOT NULL DEFAULT 1,
+    archived_at             TIMESTAMP(6)    NULL,
     visibility              VARCHAR(16)     NOT NULL DEFAULT 'public' COMMENT 'public = listed/joinable for site reporters; private = creator, participants, staff/admin, assigned tech only',
     reopen_count            INT UNSIGNED    NOT NULL DEFAULT 0,
     created_at              TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -293,6 +294,24 @@ SET @visibility_migration = IF(
 PREPARE visibility_statement FROM @visibility_migration;
 EXECUTE visibility_statement;
 DEALLOCATE PREPARE visibility_statement;
+
+SET @report_archive_sql = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'archived_at') = 0,
+    'ALTER TABLE reports ADD COLUMN archived_at TIMESTAMP(6) NULL', 'SELECT 1');
+PREPARE report_archive_statement FROM @report_archive_sql;
+EXECUTE report_archive_statement;
+DEALLOCATE PREPARE report_archive_statement;
+
+CREATE TABLE IF NOT EXISTS report_notifications (
+    id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    recipient_id BIGINT UNSIGNED NOT NULL,
+    report_id    BIGINT UNSIGNED NOT NULL,
+    type         VARCHAR(32) NOT NULL,
+    created_at   TIMESTAMP(6) NOT NULL,
+    INDEX idx_report_notification_inbox (recipient_id, id),
+    CONSTRAINT fk_report_notification_recipient FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
 SET @confirm_user_migration = IF(
     (SELECT COUNT(*) FROM information_schema.columns
@@ -599,7 +618,100 @@ CREATE TABLE IF NOT EXISTS report_links (
  CONSTRAINT fk_link_target FOREIGN KEY (linked_report_id) REFERENCES reports(id),
  CONSTRAINT fk_link_author FOREIGN KEY (created_by_id) REFERENCES users(id)
 );
+-- Manual platform technician verification. No government identity documents stored.
+CREATE TABLE IF NOT EXISTS technician_verifications (
+ technician_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+ status VARCHAR(16) NOT NULL,
+ phone VARCHAR(128) NULL,
+ email VARCHAR(255) NULL,
+ trades VARCHAR(2000) NULL,
+ experience VARCHAR(4000) NULL,
+ qualifications VARCHAR(4000) NULL,
+ identity_checked BOOLEAN NOT NULL DEFAULT FALSE,
+ email_checked BOOLEAN NOT NULL DEFAULT FALSE,
+ phone_checked BOOLEAN NOT NULL DEFAULT FALSE,
+ trade_checked BOOLEAN NOT NULL DEFAULT FALSE,
+ reason VARCHAR(2000) NULL,
+ reviewed_by BIGINT UNSIGNED NULL,
+ updated_at TIMESTAMP(6) NULL,
+ version BIGINT NULL,
+ CONSTRAINT fk_verification_technician FOREIGN KEY (technician_id) REFERENCES users(id),
+ CONSTRAINT fk_verification_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id)
+);
+CREATE TABLE IF NOT EXISTS technician_verification_audit (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ technician_id BIGINT UNSIGNED NOT NULL,
+ actor_id BIGINT UNSIGNED NOT NULL,
+ status VARCHAR(16) NOT NULL,
+ snapshot LONGTEXT NOT NULL,
+ created_at TIMESTAMP(6) NOT NULL,
+ CONSTRAINT fk_verification_audit_technician FOREIGN KEY (technician_id) REFERENCES users(id),
+ CONSTRAINT fk_verification_audit_actor FOREIGN KEY (actor_id) REFERENCES users(id)
+);
 
+-- Site onboarding: no raw tracking or setup tokens are persisted.
+CREATE TABLE IF NOT EXISTS site_applications (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ tracking_hash VARCHAR(64) NOT NULL UNIQUE,
+ organization VARCHAR(255) NOT NULL, site_name VARCHAR(255) NOT NULL,
+ site_type VARCHAR(32) NOT NULL, address VARCHAR(512) NOT NULL,
+ contact_email VARCHAR(255) NOT NULL, contact_phone VARCHAR(64) NOT NULL,
+ relationship VARCHAR(1000) NOT NULL, admin_first_name VARCHAR(128) NOT NULL,
+ admin_last_name VARCHAR(128) NOT NULL, admin_email VARCHAR(255) NOT NULL,
+ admin_phone VARCHAR(64) NOT NULL, status VARCHAR(32) NOT NULL,
+ review_message VARCHAR(2000) NULL, reviewed_by BIGINT UNSIGNED NULL,
+ site_id BIGINT UNSIGNED NULL, admin_id BIGINT UNSIGNED NULL,
+ setup_hash VARCHAR(64) NULL UNIQUE, setup_expires_at TIMESTAMP(6) NULL,
+ setup_used_at TIMESTAMP(6) NULL, created_at TIMESTAMP(6) NOT NULL,
+ reviewed_at TIMESTAMP(6) NULL
+);
+CREATE TABLE IF NOT EXISTS site_application_audit (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ application_id BIGINT UNSIGNED NOT NULL, action VARCHAR(32) NOT NULL,
+ actor_id BIGINT UNSIGNED NULL, snapshot TEXT NOT NULL,
+ created_at TIMESTAMP(6) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS marketplace_listings (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    report_id BIGINT UNSIGNED NOT NULL,
+    summary VARCHAR(300) NOT NULL,
+    broad_location VARCHAR(160) NOT NULL,
+    timing VARCHAR(160) NOT NULL,
+    category VARCHAR(128) NOT NULL,
+    specialty VARCHAR(128) NULL,
+    status VARCHAR(16) NOT NULL,
+    expires_at TIMESTAMP(6) NOT NULL,
+    PRIMARY KEY (id),
+    KEY ix_marketplace_report_status (report_id, status),
+    KEY ix_marketplace_status_expiry (status, expires_at),
+    CONSTRAINT fk_marketplace_listing_report FOREIGN KEY (report_id) REFERENCES reports (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS marketplace_applications (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    listing_id BIGINT UNSIGNED NOT NULL,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    note VARCHAR(1000) NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    offer_expires_at TIMESTAMP(6) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_marketplace_applicant (listing_id, technician_id),
+    CONSTRAINT fk_marketplace_application_listing FOREIGN KEY (listing_id) REFERENCES marketplace_listings (id) ON DELETE CASCADE,
+    CONSTRAINT fk_marketplace_application_technician FOREIGN KEY (technician_id) REFERENCES users (id)
+);
+
+CREATE TABLE IF NOT EXISTS marketplace_audit (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    listing_id BIGINT UNSIGNED NOT NULL,
+    application_id BIGINT UNSIGNED NULL,
+    actor_id BIGINT UNSIGNED NULL,
+    action VARCHAR(32) NOT NULL,
+    occurred_at TIMESTAMP(6) NOT NULL,
+    PRIMARY KEY (id),
+    KEY ix_marketplace_audit_listing (listing_id),
+    CONSTRAINT fk_marketplace_audit_listing FOREIGN KEY (listing_id) REFERENCES marketplace_listings (id) ON DELETE CASCADE
+);
 
 -- Authoritative startup taxonomy. Existing rules are never overwritten.
 INSERT INTO site_rules(site_type,category,urgency_weight,sort_order)

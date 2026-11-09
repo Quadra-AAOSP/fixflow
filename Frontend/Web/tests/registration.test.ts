@@ -29,16 +29,8 @@ describe('role-based public registration', () => {
       expect(() => buildRegistrationPayload({ ...form, role: 'reporter', siteId: id }, 15)).toThrow('site ID');
     }
   });
-  it.each(['staff', 'super_admin'] as UserRole[])('rejects public %s signup', role => {
+  it.each(['staff', 'admin', 'super_admin'] as UserRole[])('rejects public %s signup', role => {
     expect(() => buildRegistrationPayload({ ...form, role }, 15)).toThrow('cannot self-register');
-  });
-  it('submits a site-admin application for the selected site', async () => {
-    const fetch = vi.fn().mockResolvedValue(new Response('{}')); stubApiFetch(fetch);
-    const payload = buildRegistrationPayload({ ...form, role: 'admin' }, 15);
-    expect(payload).toMatchObject({ role: 'admin', siteId: 71 });
-    await register(payload);
-    expect(fetch.mock.calls[0]?.[0]).toBe('/api/auth/register');
-    expect(JSON.parse(fetch.mock.calls[0]?.[1].body)).toMatchObject({ role: 'admin', siteId: 71 });
   });
   it('uses the application status and super-admin decision endpoints', async () => {
     const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);

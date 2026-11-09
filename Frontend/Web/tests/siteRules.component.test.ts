@@ -12,12 +12,14 @@ const rule = { id: 7, siteType: 'school' as const, category: 'plumbing', urgency
 beforeEach(() => {
   setActivePinia(createPinia()); vi.resetAllMocks(); setLocale('en');
   useAuthStore().user = { id: 1, role: 'admin', siteId: 7, firstName: 'Test', lastName: 'Admin', email: 'test@example.invalid', phone: null, address: null };
+  useMaintenanceStore().sites = [{ id: 7, name: 'School', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, createdAt: '', updatedAt: '' }];
+  useMaintenanceStore().selectedSiteId = 7;
   vi.spyOn(useMaintenanceStore(), 'refresh').mockResolvedValue();
   vi.mocked(api.listSiteRules).mockResolvedValue([rule]);
 });
 it('shows global scope and uses the saved response when editing', async () => {
   const wrapper = mount(SiteRulesView); await flushPromises();
-  expect(wrapper.text()).toContain('every site of the selected type');
+  expect(wrapper.text()).toContain('edits affect those sites too');
   await wrapper.get('li button').trigger('click');
   await wrapper.get('form input').setValue('water');
   vi.mocked(api.saveSiteRule).mockResolvedValue({ ...rule, category: 'water' });

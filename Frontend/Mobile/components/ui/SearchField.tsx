@@ -49,7 +49,8 @@ export function SearchField({
         autoCorrect={false}
         autoCapitalize="none"
         returnKeyType="search"
-        className="flex-1 py-2.5 text-[13px] text-ink"
+        className="flex-1 py-2.5 text-[16px] text-ink"
+        style={{ color: colors.ink, fontSize: 16, minHeight: 48 }}
         accessibilityLabel={resolvedPlaceholder}
       />
       {value.length > 0 ? (

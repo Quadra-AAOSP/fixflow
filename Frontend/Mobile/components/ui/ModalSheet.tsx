@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
+  AccessibilityInfo,
   Modal,
   Platform,
   Pressable,
@@ -46,10 +47,23 @@ export function ModalSheet({
 }: ModalSheetProps) {
   const { t } = useTranslation('common');
   const insets = useSafeAreaInsets();
+  const [reduceMotion, setReduceMotion] = useState(true);
+  useEffect(() => {
+    let active = true;
+    let changed = false;
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', value => {
+      changed = true;
+      setReduceMotion(value);
+    });
+    void AccessibilityInfo.isReduceMotionEnabled()
+      .then(value => { if (active && !changed) setReduceMotion(value); })
+      .catch(() => {});
+    return () => { active = false; subscription.remove(); };
+  }, []);
 
   return (
     <Modal
-      animationType="slide"
+      animationType={reduceMotion ? 'none' : 'slide'}
       presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
       visible={visible}
       onRequestClose={busy ? () => {} : onClose}

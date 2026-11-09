@@ -40,6 +40,9 @@ public class ShopPaymentService {
 		if (principal == null) {
 			throw new ApiException(401, "Authentication required");
 		}
+		if (principal.getRole() == com.example.fixflow.domain.UserRole.shop_manager) {
+			throw new ApiException(403, "Shop managers cannot purchase");
+		}
 		ShopOrder order = shopOrderService.requireByPublicId(publicId);
 		if (!order.getUser().getId().equals(principal.getId())) {
 			throw new ApiException(403, "Not your order");

@@ -46,10 +46,49 @@ async function render() {
   await router.push('/reports/2');
   wrapper = mount(ReportDetailView, { global: { plugins: [router], stubs: {
     ReportPhotosPanel: true, ReportVisionPanel: true, ReportClassificationPanel: true,
-    ReportWorkflowPanel: true, ReportReviewPanel: true, TechnicianAssignmentPanel: true, TechnicianInvitationSender: true,
+    ReportWorkflowPanel: true,
+    ReportReviewPanel: true, TechnicianAssignmentPanel: true, TechnicianInvitationSender: true,
+    MarketplacePublishPanel: { template: '<div><input aria-label="Draft summary" /></div>' },
   } } });
   await flushPromises(); return router;
 }
+it('shows the selected technician route and preserves the mounted panels when switching', async () => {
+  useAuthStore().user = { ...actor, role: 'admin', siteId: 71 };
+  vi.mocked(api.getReport).mockResolvedValue(report({ id: 2, siteId: 71, status: 'open', assignedTechnicianId: null,
+    policy: { canSeeSensitive: true, participant: false, canAssign: true, canJoin: false, statusGroup: 'open', effectiveUrgency: 'medium', urgent: false, inAssignmentQueue: false } }));
+  await render();
+  const select = wrapper.get('select');
+  expect(select.element.value).toBe('contracted');
+  const assignment = wrapper.get('technician-assignment-panel-stub');
+  expect(assignment.attributes('style') ?? '').not.toContain('display: none');
+  expect(wrapper.get('technician-invitation-sender-stub').attributes('style')).toContain('display: none');
+  await select.setValue('invite');
+  expect(wrapper.get('technician-assignment-panel-stub').attributes('style')).toContain('display: none');
+  expect(wrapper.get('technician-invitation-sender-stub').attributes('style') ?? '').not.toContain('display: none');
+  await select.setValue('marketplace');
+  expect(wrapper.get('[aria-label="Draft summary"]').isVisible()).toBe(true);
+});
+it('preserves the marketplace draft during a realtime refresh and removes it on access revocation', async () => {
+  useAuthStore().user = { ...actor, role: 'admin', siteId: 71 };
+  const marketplaceReport = report({ id: 2, siteId: 71, status: 'open', assignedTechnicianId: null,
+    policy: { canSeeSensitive: true, participant: false, canAssign: true, canJoin: false, statusGroup: 'open', effectiveUrgency: 'medium', urgent: false, inAssignmentQueue: false } });
+  vi.mocked(api.getReport).mockResolvedValue(marketplaceReport);
+  await render();
+  await wrapper.get('select').setValue('marketplace');
+  await wrapper.get('[aria-label="Draft summary"]').setValue('Draft repair');
+  let finish!: (value: typeof marketplaceReport) => void;
+  vi.mocked(api.getReport).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  useRealtimeStore().refreshRevision++;
+  await nextTick();
+  expect(wrapper.get('select').element.value).toBe('marketplace');
+  expect((wrapper.get('[aria-label="Draft summary"]').element as HTMLInputElement).value).toBe('Draft repair');
+  finish(marketplaceReport); await flushPromises();
+  expect(wrapper.get('select').element.value).toBe('marketplace');
+  expect((wrapper.get('[aria-label="Draft summary"]').element as HTMLInputElement).value).toBe('Draft repair');
+  useRealtimeStore().accessRevision++;
+  await nextTick();
+  expect(wrapper.find('[aria-label="Draft summary"]').exists()).toBe(false);
+});
 function expectNoPrivateContent() {
   for (const marker of ['PRIVATE DESCRIPTION', 'PRIVATE ADDRESS', 'PRIVATE REASON', 'PRIVATE CREATOR']) expect(wrapper.text()).not.toContain(marker);
   expect(wrapper.find('report-photos-panel-stub').exists()).toBe(false);
@@ -77,6 +116,20 @@ describe('private report detail revocation', () => {
     expectNoPrivateContent();
     vi.mocked(api.getReport).mockRejectedValueOnce(new ApiError(403, 'Only the currently assigned technician may view this report'));
     finishAccess({ ...actor }); await flushPromises(); expectNoPrivateContent();
+  });
+  it('restores a resolution draft after a successful disconnect recheck and clears it on revocation', async () => {
+    vi.mocked(api.getReport).mockResolvedValue({ ...privateReport, status: 'in_progress' });
+    await render();
+    await wrapper.get('textarea').setValue('Replaced the valve');
+    let finish!: (value: typeof actor) => void;
+    vi.mocked(authApi.getMe).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    transport.callbacks.disconnected(); await nextTick();
+    expect(wrapper.find('textarea').exists()).toBe(false);
+    finish({ ...actor }); await flushPromises();
+    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('Replaced the valve');
+    transport.callbacks.revoked('/reports/2/events');
+    transport.callbacks.disconnected(); await flushPromises();
+    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('');
   });
   it('drops report content while a disconnected socket’s session is being rechecked', async () => {
     await render(); expect(wrapper.text()).toContain('PRIVATE DESCRIPTION');

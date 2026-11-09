@@ -86,3 +86,6 @@ export function toCartPayload(lines: BasketLine[]): ShopCartItemPayload[] {
     quantity: line.quantity,
   }));
 }
+
+export const canConfirmReceipt = (name: string, received: boolean) => received && name.trim().length > 0 && name.trim().length <= 160;
+export const canShopPurchase = (role: string | undefined) => role !== 'shop_manager' && role !== 'reporter';

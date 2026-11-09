@@ -127,10 +127,6 @@ export default function RegisterReporterScreen() {
         description={t('auth.registerReporter.description')}
       />
 
-      <Text className="mb-6 text-[11px] leading-[20px] text-auth-body">
-        {t('auth.registerReporter.siteIdHelp')}
-      </Text>
-
       <View className="flex-row gap-3">
         <AuthField
           label={t('auth.registerReporter.firstName')}
@@ -176,15 +172,6 @@ export default function RegisterReporterScreen() {
         textContentType="newPassword"
         autoComplete="new-password"
         placeholder={t('auth.registerReporter.passwordPlaceholder')}
-      />
-
-      <AuthField
-        label={t('auth.registerReporter.siteId')}
-        value={details.siteId}
-        onChangeText={(v) => update('siteId', v)}
-        error={errors.siteId}
-        keyboardType="number-pad"
-        placeholder={t('auth.registerReporter.siteIdPlaceholder')}
       />
 
       <AuthField

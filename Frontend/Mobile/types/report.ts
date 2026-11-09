@@ -1,5 +1,15 @@
 import type { Urgency } from './common';
 
+/** Mirrors backend `ReportWorkflowService.HistoryItem` (ascending by time). */
+export type ReportHistoryItem = {
+  id: number;
+  fromStatus: string | null;
+  toStatus: string;
+  changedByUserId: number | null;
+  note: string | null;
+  createdAt: string;
+};
+
 /** Mirrors backend `ReportVisibility` (JSON values are lowercase). */
 export type ReportVisibility = 'public' | 'private';
 
@@ -48,16 +58,15 @@ export type AiReport = {
   description: string | null;
   category: string | null;
   specialty: string | null;
-  confidence: number | null;
+  urgencyReason: string | null;
 };
 
 /** Background vision-processing job state. */
 export type VisionJob = {
-  id: string;
+  jobId: string;
   reportId: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  createdAt: string;
-  updatedAt: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'review_required' | 'stale';
+  model: string | null;
 };
 
 export type Report = {
@@ -90,7 +99,7 @@ export type Report = {
   policy: {
     statusGroup: 'open' | 'progress' | 'resolved'; effectiveUrgency: Urgency; urgent: boolean;
     inAssignmentQueue: boolean; participant: boolean; canSeeSensitive: boolean;
-    canAssign: boolean; canJoin: boolean;
+    canAssign: boolean; canJoin: boolean; canEdit?: boolean; canDelete?: boolean;
   };
 };
 
@@ -114,6 +123,14 @@ export type CreateReportPayload = {
   visibility?: ReportVisibility;
 };
 
+/** Mirrors backend `UpdateReportRequest` — every field optional; body may not be empty. */
+export type UpdateReportPayload = Partial<
+  Pick<
+    CreateReportPayload,
+    'description' | 'address' | 'category' | 'specialty' | 'reporterUrgency' | 'visibility'
+  >
+>;
+
 /** Mirrors backend `ReportPageResponse`. */
 export type ReportPage = {
   content: Report[];
@@ -128,6 +145,7 @@ export type ReportReporter = {
   reportId: number;
   userId: number;
   joinedAt: string;
+  name?: string | null;
 };
 
 /** Mirrors backend `AssignTechnicianRequest`. */

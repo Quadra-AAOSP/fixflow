@@ -22,6 +22,7 @@ import lombok.Setter;
 
 @Entity
 @org.hibernate.annotations.DynamicUpdate
+@org.hibernate.annotations.SQLRestriction("archived_at IS NULL")
 @Table(name = "reports")
 @Getter
 @Setter
@@ -91,6 +92,9 @@ public class Report {
 	@Column(nullable = false)
 	private boolean editable = true;
 
+	@Column(name = "archived_at")
+	private Instant archivedAt;
+
 	@Convert(converter = ReportVisibilityConverter.class)
 	@Column(nullable = false, length = 16)
 	private ReportVisibility visibility = ReportVisibility.PUBLIC;
@@ -98,6 +102,9 @@ public class Report {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "confirmed_by_user_id")
 	private User confirmedBy;
+
+	@Column(name = "confirmation_signed_name", length = 255)
+	private String confirmationSignedName;
 
 	@Column(name = "confirmed_at")
 	private Instant confirmedAt;

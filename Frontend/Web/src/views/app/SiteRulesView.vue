@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
@@ -75,11 +76,11 @@ onMounted(load);
     </fieldset></form>
     <section v-if="removing" ref="confirmation" tabindex="-1" class="draft-notice rule-confirmation" :aria-label="t('Delete rule confirmation')"><p>{{ t('Permanently delete category {category} for all {type} sites? This cannot be undone.', { category: removing.category, type: t(humanize(removing.siteType)) }) }}</p><div class="rule-actions"><button type="button" class="text-action" :disabled="busy" @click="remove">{{ t('Delete rule permanently') }}</button><button type="button" class="text-action" :disabled="busy" @click="removing = null">{{ t('Cancel') }}</button></div></section>
     <p class="rule-filter">{{ data.selectedSite?.name || t('Choose a site to view its rules.') }}<span v-if="currentType"> · {{ t(humanize(currentType)) }}</span></p>
-    <p v-if="loading" role="status" class="live-empty">{{ t('Loading rules…') }}</p>
+    <LoadingStatus v-if="loading" :label="t('Loading rules…')" />
     <ul v-else-if="rules" class="rule-list"><li v-for="rule in visible" :key="rule.id"><div><strong>{{ rule.category }}</strong><p>{{ t(humanize(rule.siteType)) }} · {{ t('Urgency weight') }}: {{ rule.urgencyWeight ?? t('Not specified') }} · {{ t('Sort order') }}: {{ rule.sortOrder ?? t('Not specified') }}</p></div><div class="rule-actions"><button type="button" class="text-action" :disabled="busy" @click="edit(rule)">{{ t('Edit') }}</button><button type="button" class="text-action" :disabled="busy" @click="askRemove(rule)">{{ t('Delete') }}</button></div></li><li v-if="!visible.length">{{ t('No rules for this site type.') }}</li></ul>
   </section>
 </template>
 <style scoped>
 .rule-confirmation{display:block;line-height:1.8}.rule-confirmation .rule-actions{margin-top:12px}
-.rule-actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.rule-filter{display:flex;gap:12px;align-items:center;margin-top:24px;font-size:13px}.rule-filter select{padding:10px;border:1px solid #dbe5df;border-radius:8px}.rule-list{display:grid;gap:12px;margin-top:18px}.rule-list li{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;border:1px solid #dbe5df;padding:18px;border-radius:10px;overflow-wrap:anywhere}.rule-list p{font-size:12px;color:#52677b;margin-top:8px}
+.rule-actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.rule-filter{display:flex;gap:12px;align-items:center;margin-top:24px;font-size:13px}.rule-filter select{color:var(--navy);background:#fff;padding:10px;border:1px solid #dbe5df;border-radius:8px}.rule-list{display:grid;gap:12px;margin-top:18px}.rule-list li{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;border:1px solid #dbe5df;padding:18px;border-radius:10px;overflow-wrap:anywhere}.rule-list p{font-size:12px;color:#52677b;margin-top:8px}
 </style>

@@ -14,12 +14,13 @@ const mine = computed(() => data.reports.filter(report =>
 ).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)));
 </script>
 <template>
+  <p v-if="data.reportsLoaded && data.reportPage + 1 < data.totalReportPages" class="dialog-intro">{{ t("Report counts and results cover loaded reports. Open Reports to load more.") }} <RouterLink to="/reports">{{ t("Reports") }}</RouterLink></p>
   <section class="dashboard-card live-page">
     <div class="card-heading"><div><h1>{{ t('My reports') }}</h1><p>{{ t('Follow issues you reported or joined.') }}</p></div>
       <RouterLink v-if="data.canCreate && data.selectedSite" to="/reports/new" class="report-issue-button"><Plus :size="19" />{{ t('New report') }}</RouterLink>
     </div>
     <p class="dialog-intro">{{ t('Browse your community’s reports to find an existing issue before creating another.') }} <RouterLink class="text-action" to="/reports"><FileText :size="16" />{{ t('Browse Reports') }}</RouterLink></p>
-    <p v-if="data.loading" role="status" class="live-empty">{{ t('Loading reports…') }}</p>
+    <ReportTable v-if="data.loading" :reports="[]" :loading-label="t('Loading reports…')" />
     <p v-else-if="data.reportsError" role="alert" class="live-error">{{ t(data.reportsError) }} <button type="button" @click="data.refresh()">{{ t('Retry') }}</button></p>
     <template v-else-if="data.reportsLoaded"><ReportTable v-if="mine.length" :reports="mine" /><p v-else class="live-empty">{{ t('You have not reported or joined any issues at this site yet.') }}</p></template>
     <p v-else class="live-empty">{{ t('Select an accessible site to view its reports.') }}</p>

@@ -23,7 +23,7 @@ export function positiveId(value: string) {
   return id;
 }
 export function buildRegistrationPayload(input: RegistrationInput, passwordMinLength: number): RegisterPayload {
-  if (input.role !== 'reporter' && input.role !== 'technician' && input.role !== 'admin') throw new Error('This role requires administrator provisioning and cannot self-register.');
+  if (input.role !== 'reporter' && input.role !== 'technician') throw new Error('This role requires administrator provisioning and cannot self-register.');
   const account = validateAccount(input, passwordMinLength);
   if (input.role === 'technician') {
     if (!input.phone.trim() || input.phone.replace(/\D/g, '').length < 7) throw new Error('Enter a contact phone number for technician registration.');
@@ -33,7 +33,6 @@ export function buildRegistrationPayload(input: RegistrationInput, passwordMinLe
   }
   // Never carry a reporter's previous site selection into technician registration.
   if (input.role === 'technician') return { ...account, role: 'technician', siteId: null };
-  if (input.role === 'admin') return { ...account, role: 'admin', siteId: positiveId(input.siteId) };
   return { ...account, role: 'reporter', siteId: positiveId(input.siteId) };
 }
 export function buildProvisionPayload(input: RegistrationInput, actorRole: UserRole | undefined, permittedSiteIds: number[], passwordMinLength: number): ProvisionUserPayload {

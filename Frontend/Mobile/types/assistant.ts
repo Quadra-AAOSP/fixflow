@@ -38,6 +38,7 @@ export interface NlSearchFilters {
 }
 
 export interface NlSearchResult {
+  fallback: boolean;
   rawQuery: string;
   filters: NlSearchFilters;
   interpretation: string | null;

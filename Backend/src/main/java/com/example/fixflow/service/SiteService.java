@@ -51,7 +51,8 @@ public class SiteService {
 	public List<SiteRuleResponse> taxonomy(Long siteId, AppUserDetails actor) {
 		Site site = siteRepository.findById(siteId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Site not found"));
-		assertCanView(actor, site);
+		// Categories are public metadata: anyone filing a report needs them,
+		// including at a site other than their account site.
 		return siteRuleService.listByType(site.getType());
 	}
 

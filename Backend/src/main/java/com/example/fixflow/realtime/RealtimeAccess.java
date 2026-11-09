@@ -24,14 +24,16 @@ public class RealtimeAccess {
     public static final Pattern DESTINATION = Pattern.compile("^/(sites|reports)/([1-9][0-9]*)/events$");
     private final SessionRepository<? extends Session> sessions;
     private final UserRepository users;
+    private final com.example.fixflow.repository.SiteAdminApplicationRepository applications;
     private final SiteService sites;
     private final ReportService reports;
     private final Duration absoluteTimeout;
 
     public RealtimeAccess(SessionRepository<? extends Session> sessions, UserRepository users,
+            com.example.fixflow.repository.SiteAdminApplicationRepository applications,
             SiteService sites, ReportService reports,
             @Value("${fixflow.session.absolute-timeout:12h}") String absoluteTimeout) {
-        this.sessions = sessions; this.users = users; this.sites = sites; this.reports = reports;
+        this.sessions = sessions; this.users = users; this.applications = applications; this.sites = sites; this.reports = reports;
         this.absoluteTimeout = DurationStyle.detectAndParse(absoluteTimeout);
     }
 
@@ -50,8 +52,13 @@ public class RealtimeAccess {
             throw new ApiException(401, "Authentication required");
         }
         // Reload role/site from DB; an open socket cannot retain old privileges.
-        return users.findWithSiteById(principal.getId()).map(AppUserDetails::new)
+        var user = users.findWithSiteById(principal.getId())
                 .orElseThrow(() -> new ApiException(401, "Account unavailable"));
+        if (principal.getRole() == com.example.fixflow.domain.UserRole.reporter
+                && applications.findByUser_Id(user.getId()).isPresent()) {
+            throw new ApiException(403, "Application approval required");
+        }
+        return new AppUserDetails(user);
     }
 
     /** Returns the authorized site's ID. Reused on subscribe and immediately before delivery. */

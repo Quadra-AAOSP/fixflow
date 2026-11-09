@@ -1,0 +1,31 @@
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue';
+import { useLocale } from '@/i18n';
+import { errorMessage } from '@/services/api';
+import { getVerification,submitVerification,type TechnicianVerification } from '@/services/technicianVerification';
+const {t}=useLocale();
+const value=ref<TechnicianVerification>(); const loading=ref(true);const busy=ref(false);const error=ref('');
+const form=reactive({email:'',phone:'',trades:'',experience:'',qualifications:''});
+async function load(){loading.value=true;error.value='';try{value.value=await getVerification();for(const key of Object.keys(form) as (keyof typeof form)[])form[key]=value.value[key]||'';}catch(e){error.value=errorMessage(e);}finally{loading.value=false;}}
+async function submit(){busy.value=true;error.value='';try{value.value=await submitVerification(form);}catch(e){error.value=errorMessage(e);}finally{busy.value=false;}}
+onMounted(load);
+</script>
+<template>
+ <section class="dashboard-card">
+  <h2>{{t('Technician verification')}}</h2>
+  <p>{{t('Manual platform review is separate from site contracts and job approval. Do not submit identity document numbers or images here.')}}</p>
+  <p v-if="loading" role="status">{{t('Loading verification…')}}</p>
+  <p v-if="error" role="alert">{{error}} <button @click="load">{{t('Retry')}}</button></p>
+  <template v-if="value"><p role="status">{{t('Review status')}}: {{t(value.status)}}</p><p v-if="value.reason">{{value.reason}}</p>
+   <p v-if="value.status==='verified'">{{t('Manually reviewed: identity, contact email, contact phone and trade qualifications. This is not an automated OTP or safety guarantee.')}}</p>
+   <form v-if="['unverified','rejected'].includes(value.status)" class="draft-form" @submit.prevent="submit">
+    <fieldset :disabled="busy"><label>{{t('Contact email')}}<input v-model="form.email" type="email" maxlength="255" required /></label>
+    <label>{{t('Contact phone')}}<input v-model="form.phone" maxlength="128" required /></label>
+    <label>{{t('Trades')}}<textarea v-model="form.trades" maxlength="2000" required /></label>
+    <label>{{t('Experience')}}<textarea v-model="form.experience" maxlength="4000" required /></label>
+    <label>{{t('Qualifications and references')}}<textarea v-model="form.qualifications" maxlength="4000" required /></label>
+    <button type="submit">{{t(busy?'Submitting…':'Submit for manual review')}}</button></fieldset>
+   </form>
+  </template>
+ </section>
+</template>

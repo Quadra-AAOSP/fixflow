@@ -9,7 +9,7 @@ import * as auth from '../src/services/auth';
 import { setLocale } from '../src/i18n';
 vi.mock('../src/services/accountPolicy', () => ({ getAccountPolicy: vi.fn() }));
 vi.mock('../src/services/auth', () => ({ register: vi.fn(), login: vi.fn() }));
-const policy = { passwordMinLength: 20, selfRegistrationRoles: ['reporter', 'technician', 'admin'], siteAdminApprovalRequired: true };
+const policy = { passwordMinLength: 20, selfRegistrationRoles: ['reporter', 'technician'], siteAdminApprovalRequired: true };
 const user = { id: 54, role: 'reporter' as const, siteId: 7, firstName: 'Test', lastName: 'Reporter', email: 'test@example.invalid', phone: null, address: null };
 let wrapper: VueWrapper;
 beforeEach(() => {
@@ -20,6 +20,7 @@ beforeEach(() => {
 afterEach(() => { wrapper?.unmount(); setLocale('en'); document.body.innerHTML = ''; });
 async function render() {
   const router = createRouter({ history: createMemoryHistory(), routes: [
+    { path: '/request-site', name: 'request-site', component: { template: '<div />' } },
     { path: '/register', component: { template: '<div />' } }, { path: '/', component: { template: '<div />' } },
     { path: '/admin-application', name: 'admin-application', component: { template: '<div />' } },
     { path: '/login', component: { template: '<div />' } }, { path: '/access-policy', component: { template: '<div />' } },
@@ -62,19 +63,13 @@ describe('registration from backend policy', () => {
     expect(wrapper.text()).toContain('Privileged access requires verification');
     expect(wrapper.find('form').exists()).toBe(false); expect(auth.register).not.toHaveBeenCalled();
   });
-  it('keeps site-admin self-registration unavailable if required approval is not advertised', async () => {
-    vi.mocked(getAccountPolicy).mockResolvedValue({ ...policy, siteAdminApprovalRequired: false });
-    await render(); await wrapper.findAll('button').find(button => button.text() === 'Site administrator')!.trigger('click');
-    expect(wrapper.find('form').exists()).toBe(false);
-    expect(wrapper.text()).toContain('Self-registration for this role is unavailable');
-  });
-  it('routes the new account using the authenticated server response and its application status', async () => {
-    vi.mocked(auth.login).mockResolvedValue({ ...user, adminApplication: { id: 9, status: 'pending' } });
+  it('links site administrators to the site-request flow instead of public signup', async () => {
     const router = await render();
-    await wrapper.findAll('button').find(button => button.text() === 'Site administrator')!.trigger('click');
-    await fill('a'.repeat(20)); await wrapper.get('form').trigger('submit'); await flushPromises();
-    expect(auth.register).toHaveBeenCalledWith(expect.objectContaining({ role: 'admin', siteId: 7 }));
-    expect(router.currentRoute.value.name).toBe('admin-application');
+    const link=wrapper.findAll('a').find(link=>link.text()==='Site administrator')!;
+    expect(link.attributes('href')).toBe('/request-site');
+    await link.trigger('click');await flushPromises();
+    expect(router.currentRoute.value.name).toBe('request-site');
+    expect(auth.register).not.toHaveBeenCalled();
   });
 });
 

@@ -1,12 +1,14 @@
-import { api } from '@/lib/apiClient';
+import { AI_REQUEST_OPTIONS, api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
   AssignTechnicianPayload,
   CreateReportPayload,
   Report,
+  ReportHistoryItem,
   ReportPage,
   ReportPhoto,
   ReportReporter,
+  Urgency,
   VisionJob,
 } from '@/types';
 
@@ -20,16 +22,19 @@ export function createReport(payload: CreateReportPayload): Promise<Report> {
  * Default page size is 20 (backend max 100).
  */
 export function listReportsPage(opts: {
-  siteId: number;
+  siteId?: number;
   page?: number;
   size?: number;
   category?: string;
+  /** Reports the caller filed, across every site (Track reports). */
+  mine?: boolean;
 }): Promise<ReportPage> {
   const params = new URLSearchParams();
-  params.set('siteId', String(opts.siteId));
+  if (opts.siteId !== undefined) params.set('siteId', String(opts.siteId));
   if (opts.page !== undefined) params.set('page', String(opts.page));
   if (opts.size !== undefined) params.set('size', String(opts.size));
   if (opts.category) params.set('category', opts.category);
+  if (opts.mine) params.set('mine', 'true');
   return api.get<ReportPage>(`${endpoints.reports.list}?${params.toString()}`);
 }
 
@@ -37,14 +42,40 @@ export function listReportsPage(opts: {
  * Convenience wrapper that returns just the content array from the first page.
  * Used by dashboards that need a quick snapshot without pagination metadata.
  */
-export async function listReports(opts: { siteId: number }): Promise<Report[]> {
-  const page = await listReportsPage({ siteId: opts.siteId });
+export async function listReports(opts: { siteId?: number; mine?: boolean }): Promise<Report[]> {
+  const page = await listReportsPage({ siteId: opts.siteId, mine: opts.mine });
   return page.content ?? [];
 }
 
 export function getReport(id: number): Promise<Report> {
   return api.get<Report>(endpoints.reports.byId(id));
 }
+
+/** Every status transition the report has been through, oldest first. */
+export function listReportHistory(id: number): Promise<ReportHistoryItem[]> {
+  return api.get<ReportHistoryItem[]>(endpoints.reports.history(id));
+}
+
+export type ReportEdit = Pick<Report, 'description' | 'address' | 'reporterUrgency' | 'reporterReason'>;
+export const updateReport = (id: number, payload: ReportEdit) =>
+  api.put<Report>(endpoints.reports.byId(id), payload);
+export const deleteReport = (id: number) => api.del<void>(endpoints.reports.byId(id));
+
+export type ReportResolution = { id: number; technicianId: number; description: string; createdAt: string };
+export type ReportRating = { id: number; resolutionId: number; ratedByCurrentUser: boolean; score: number; feedback: string | null };
+
+export const listResolutions = (id: number) =>
+  api.get<ReportResolution[]>(`${endpoints.reports.byId(id)}/resolutions`);
+export const listReportRatings = (id: number) =>
+  api.get<ReportRating[]>(`${endpoints.reports.byId(id)}/ratings`);
+export const startReportWork = (id: number) =>
+  api.post<Report>(`${endpoints.reports.byId(id)}/start`);
+export const resolveReportWork = (id: number, description: string) =>
+  api.post<Report>(`${endpoints.reports.byId(id)}/resolve`, { description });
+export const escalateReportWork = (id: number, reason: string) =>
+  api.post<Report>(`${endpoints.reports.byId(id)}/escalate`, { reason });
+export const rateReportWork = (id: number, resolutionId: number, score: number, feedback: string) =>
+  api.post<ReportRating>(`${endpoints.reports.byId(id)}/ratings`, { resolutionId, score, feedback });
 
 /**
  * Idempotent join. The backend short-circuits on existing membership
@@ -66,9 +97,22 @@ export function assignTechnician(
   return api.post<Report>(endpoints.reports.assign(id), payload);
 }
 
-export function confirmReport(id: number): Promise<Report> {
+/**
+ * Technician self-assignment for an unassigned queue item. The backend
+ * requires an active contract at the report's site and accepted terms.
+ */
+export function claimReport(id: number): Promise<Report> {
+  return api.post<Report>(endpoints.reports.claim(id));
+}
+
+/** Staff/admin final-urgency override with a required rationale. */
+export function overrideUrgency(id: number, urgency: Urgency, reason: string): Promise<Report> {
+  return api.patch<Report>(endpoints.reports.urgency(id), { urgency, reason });
+}
+
+export function confirmReport(id: number, signedName: string): Promise<Report> {
   return api.post<Report>(
-    endpoints.reports.confirm.replace('{id}', String(id)),
+    endpoints.reports.confirm.replace('{id}', String(id)), { signedName },
   );
 }
 
@@ -83,14 +127,25 @@ export function reopenReport(id: number, reason: string): Promise<Report> {
  * Triggers AI classification for a report.
  */
 export function classifyReport(id: number): Promise<Report> {
-  return api.post<Report>(endpoints.reports.classify(id));
+  return api.post<Report>(endpoints.reports.classify(id), undefined, AI_REQUEST_OPTIONS);
 }
 
 /**
  * Triggers AI vision processing for a report.
  */
-export function triggerVisionProcessing(reportId: number): Promise<VisionJob> {
-  return api.post<VisionJob>(endpoints.reports.vision(reportId));
+export function triggerVisionProcessing(
+  reportId: number,
+  asset: { file?: File; uri: string; fileName?: string | null; mimeType?: string },
+): Promise<VisionJob> {
+  const form = new FormData();
+  const name = asset.fileName ?? 'report-image.jpg';
+  if (asset.file) {
+    form.append('image', asset.file, name);
+  } else {
+    form.append('image', { uri: asset.uri, name, type: asset.mimeType ?? 'image/jpeg' } as unknown as Blob);
+  }
+  form.append('consent', 'true');
+  return api.post<VisionJob>(endpoints.reports.vision(reportId), undefined, { body: form });
 }
 
 /**
@@ -110,19 +165,23 @@ export function getReportPhotos(reportId: number): Promise<ReportPhoto[]> {
 }
 
 /*
- * Endpoints NOT exposed here yet — backend audit dependencies #1, #2, #4, #6:
+ * Backend contract notes (verified against the controllers):
  *
- *   PATCH  /api/reports/{id}/status
- *   PATCH  /api/reports/{id}/urgency
- *   POST   /api/reports/{id}/reassign
- *   GET    /api/technicians/me/availability
- *   PUT    /api/technicians/me/availability
- *   GET    /api/reports/assigned-to-me
- *   GET    /api/reports/claimable
- *   GET    /api/technicians
- *   GET    /api/technician-skills
- *   GET    /api/technician-contracts
+ *   POST   /api/reports/{id}/start          → in_progress (assigned tech)
+ *   POST   /api/reports/{id}/resolve        → resolved_pending_confirmation
+ *   POST   /api/reports/{id}/confirm        → confirmed (reporter/participant)
+ *   POST   /api/reports/{id}/reopen         → reopened (reporter/participant)
+ *   PATCH  /api/reports/{id}/urgency        → final urgency override (staff/admin)
+ *   PATCH  /api/reports/{id}                → field edit while `editable`
+ *   POST   /api/reports/{id}/assign         → assign or reassign (staff/admin)
+ *   POST   /api/reports/{id}/claim          → contracted technician self-claim
+ *   GET/PUT /api/technicians/me/availability
  *
- * Each is added to this file only after the backend lands and the
- * backend team confirms the request/response shape.
+ * Not exposed by the backend yet, so no screen may depend on them:
+ *   PATCH /api/reports/{id}/status, POST /api/reports/{id}/reassign
+ *   GET /api/reports/assigned-to-me, GET /api/reports/claimable
+ *
+ * Server-side concurrency: workflow transitions load the report with a
+ * pessimistic write lock, so simultaneous confirm/reopen/assign/claim calls
+ * cannot both commit.
  */

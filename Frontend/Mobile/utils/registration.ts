@@ -3,10 +3,14 @@ import type { RegisterPayload, UserRole } from '@/types';
 export type RegistrationInput = {
   firstName: string; lastName: string; email: string; password: string;
   phone: string; role: UserRole; siteId: string; address?: string;
+  // Admin self-apply site bundle — replaces siteId for admin role.
+  siteName?: string; siteType?: 'school' | 'hostel' | 'hotel';
+  siteAddress?: string; siteDescription?: string;
 };
 
 export type RegistrationFieldErrors = Partial<Record<
-  'firstName' | 'lastName' | 'email' | 'password' | 'siteId' | 'phone' | 'address',
+  'firstName' | 'lastName' | 'email' | 'password' | 'siteId' | 'phone' | 'address'
+  | 'siteName' | 'siteType' | 'siteAddress' | 'siteDescription',
   string
 >>;
 
@@ -39,12 +43,20 @@ export function validateRegistration(
   else if (input.password.length < 15)
     errors.password = 'Use at least 15 characters.';
 
-  // Site ID — reporter/admin must provide a positive integer; technician skips.
-  if (input.role === 'reporter' || input.role === 'admin') {
-    if (!input.siteId.trim()) errors.siteId = 'Enter the site ID from your administrator.';
-    else if (!/^\d+$/.test(input.siteId.trim()))
-      errors.siteId = 'Site ID must be a positive whole number.';
+  // ── Site bundle / siteId logic ───────────────────────────────────────
+  if (input.role === 'admin') {
+    // Admin self-apply: requires siteName + siteType.
+    if (!input.siteName?.trim()) errors.siteName = 'Site name is required.';
+    else if (input.siteName.trim().length > 128)
+      errors.siteName = 'Keep site name under 128 characters.';
+    if (!input.siteType) errors.siteType = 'Pick a site type.';
+    if (input.siteAddress && input.siteAddress.trim().length > 512)
+      errors.siteAddress = 'Keep site address under 512 characters.';
+    if (input.siteDescription && input.siteDescription.trim().length > 2000)
+      errors.siteDescription = 'Keep site description under 2000 characters.';
+    // siteId ignored for admin — we auto-create from bundle.
   }
+  // reporter / technician — no site requirement (reporters pick per report).
 
   // Phone — optional, but if entered must be 6-20 chars of digits, spaces, or +-.
   if (input.phone.trim()) {
@@ -65,18 +77,35 @@ export function validateRegistration(
  * the typed form input into a `RegisterPayload`.
  */
 export function buildRegistrationPayload(input: RegistrationInput): RegisterPayload {
-  const siteId = input.role === 'technician' || !input.siteId.trim() ? null : Number(input.siteId);
-  if (siteId !== null && (!Number.isSafeInteger(siteId) || siteId <= 0)) {
-    throw new Error('Enter a valid numeric site ID.');
-  }
-  if ((input.role === 'reporter' || input.role === 'admin') && siteId === null) {
-    throw new Error('Enter the site ID provided by your administrator.');
-  }
-  return {
+  const base: RegisterPayload = {
     firstName: input.firstName.trim(), lastName: input.lastName.trim(),
     email: input.email.trim(), password: input.password,
     phone: input.phone.trim() || undefined, address: input.address?.trim() || undefined,
     role: input.role as RegisterPayload['role'],
-    siteId,
   };
+
+  if (input.role === 'technician') {
+    base.siteId = null;
+    return base;
+  }
+
+  if (input.role === 'reporter') {
+    // Optional default site — reporters file wherever the issue is.
+    const siteId = input.siteId.trim() ? Number(input.siteId) : null;
+    if (siteId !== null && (!Number.isSafeInteger(siteId) || siteId <= 0)) {
+      throw new Error('Enter a valid numeric site ID.');
+    }
+    base.siteId = siteId;
+    return base;
+  }
+
+  // admin — site bundle required.
+  if (!input.siteName?.trim()) throw new Error('Site name is required.');
+  if (!input.siteType) throw new Error('Pick a site type.');
+  base.siteId = null; // server will set the id after creation
+  base.siteName = input.siteName.trim();
+  base.siteType = input.siteType;
+  base.siteAddress = input.siteAddress?.trim() || undefined;
+  base.siteDescription = input.siteDescription?.trim() || undefined;
+  return base;
 }

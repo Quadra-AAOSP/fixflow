@@ -1,4 +1,4 @@
-import { api } from '@/lib/apiClient';
+import { AI_REQUEST_OPTIONS, api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
 import type {
   AssistantTurn,
@@ -24,5 +24,5 @@ export function askTriage(
   siteId: number,
   messages: AssistantTurn[],
 ): Promise<TriageReply> {
-  return api.post<TriageReply>(endpoints.assistant.triage, { siteId, messages });
+  return api.post<TriageReply>(endpoints.assistant.triage, { siteId, messages }, AI_REQUEST_OPTIONS);
 }

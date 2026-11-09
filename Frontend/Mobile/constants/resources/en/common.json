@@ -1,7 +1,123 @@
 {
+  "reportChanges": {
+    "edit": "Edit report",
+    "delete": "Delete report",
+    "save": "Save changes",
+    "confirmDelete": "Confirm deletion",
+    "description": "Description",
+    "address": "Address",
+    "urgency": "Reporter urgency",
+    "reason": "Urgency reason",
+    "archiveExplanation": "This will archive the report and notify the people involved.",
+    "saveError": "Could not save the report change."
+  },
+  "marketplace": {
+    "title": "Job marketplace",
+    "adminIntro": "Publish an eligible report from its details. Review applicants and manage your site’s listings here.",
+    "technicianIntro": "Browse eligible jobs, apply, and respond to offers here. Accepting an offer gives you access to that report.",
+    "error": "The marketplace request failed.",
+    "verificationRequired": "Platform verification and current technician terms are required to apply.",
+    "termsRequired": "Review and accept the current technician terms before applying.",
+    "publishReport": "Publish report #{id} as a marketplace job",
+    "privacy": "Use a general description and broad location. Leave out names, exact addresses, room numbers, access instructions, and other private details.",
+    "summary": "Job summary",
+    "confirmPrivacy": "I checked that this listing contains no private details.",
+    "broadLocation": "Broad location",
+    "timing": "Expected timing",
+    "publish": "Publish job",
+    "published": "Job published.",
+    "empty": "There are no marketplace jobs to show.",
+    "listingDeadline": "Listing closes {date}",
+    "openReport": "Open report",
+    "applicants": "Review applicants",
+    "confirmClose": "Confirm closing this listing",
+    "close": "Close listing",
+    "closed": "Listing closed.",
+    "noApplicants": "No applications yet.",
+    "workload": "Active cases: {active} · Confirmed jobs: {completed} · Cancellations: {cancellations} · Average rating: {rating}",
+    "cancellationReason": "Reason for cancelling this assignment",
+    "cancelAssignment": "Cancel assignment",
+    "confirmCancelAssignment": "Confirm cancellation",
+    "keepAssignment": "Keep assignment",
+    "assignmentCancelled": "Assignment cancelled.",
+    "noRating": "No ratings",
+    "reviewedTrades": "Reviewed trades: {value}",
+    "reviewedQualifications": "Reviewed qualifications: {value}",
+    "safety": "Confirm that you reviewed the technician’s qualifications for this job and approved the site access arrangements.",
+    "confirmSelect": "Confirm safety checks and send offer",
+    "select": "Select applicant",
+    "selected": "Offer sent.",
+    "note": "Why are you a good fit for this job?",
+    "apply": "Apply for job",
+    "applied": "Application submitted.",
+    "applicationStatus": "Your application: {status}",
+    "withdraw": "Withdraw application",
+    "withdrawn": "Application withdrawn.",
+    "offerDeadline": "Respond by {date}",
+    "accept": "Accept offer",
+    "accepted": "Offer accepted. You can now open the assigned report.",
+    "decline": "Decline offer",
+    "declined": "Offer declined.",
+    "publishFromReport": "Publish to job marketplace",
+    "states": {
+      "open": "Open",
+      "offered": "Offer pending",
+      "assigned": "Assigned",
+      "closed": "Closed",
+      "expired": "Expired",
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "withdrawn": "Withdrawn",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "work": {
+      "title": "Report work",
+      "start": "Start work",
+      "resolution": "Describe the work completed",
+      "resolve": "Submit resolution",
+      "escalationReason": "Describe the issue or safety concern",
+      "escalate": "Escalate report",
+      "resolutionDate": "Resolution submitted {date}",
+      "selected": "Selected resolution",
+      "choose": "Rate this resolution",
+      "rated": "Rating submitted.",
+      "score": "Rating from 1 to 5",
+      "feedback": "Feedback (optional)",
+      "rate": "Submit rating"
+    }
+  },
   "offlineBanner": {
     "offlineText": "Offline — check your connection. Reports can't be filed or updated until the app reconnects.",
-    "retry": "Retry"
+    "offlineWithPending": "Offline — {count} report(s) saved on this device will be sent when the connection returns.",
+    "pending": "{count} report(s) waiting to be sent.",
+    "retry": "Retry",
+    "retryHint": "Retry the connection and send queued reports."
+  },
+  "notifications": {
+    "event": {
+      "assignment": {
+        "title": "New assignment",
+        "body": "Report #{id} has been assigned to you."
+      },
+      "reassignment": {
+        "title": "Report reassigned",
+        "body": "Report #{id} has a new technician."
+      },
+      "status": {
+        "title": "Report updated",
+        "body": "The status of report #{id} has changed."
+      },
+      "pendingResolution": {
+        "title": "Confirm the fix",
+        "body": "Report #{id} is marked complete and needs your confirmation."
+      },
+      "confirmation": {
+        "title": "Report confirmed",
+        "body": "Report #{id} has been confirmed as resolved."
+      }
+    }
   },
   "auth": {
     "login": {
@@ -20,28 +136,46 @@
       },
       "newHere": "New around here?",
       "createAccount": "Create an account",
+      "superAdminCta": "Platform admin console",
       "tagline": "Your report. The right people. A little peace of mind."
+    },
+    "superAdminLogin": {
+      "kicker": "PLATFORM OWNER ONLY",
+      "title": "Super admin",
+      "description": "Dedicated console for the FixFlow platform owner. Site admins, staff, technicians and reporters use the standard sign-in form above.",
+      "emailLabel": "Admin email (locked)",
+      "passwordLabel": "Admin password",
+      "passwordPlaceholder": "••••••••",
+      "submit": "Enter platform console →",
+      "backToSignIn": "← Back to regular sign-in",
+      "disclaimer": "This account has platform-wide authority. Every action is logged.",
+      "errors": {
+        "passwordRequired": "Password is required.",
+        "invalidPassword": "Invalid admin password.",
+        "notSuperAdmin": "That account is not a platform super admin."
+      }
     },
     "register": {
       "kicker": "FIND YOUR PLACE IN FIXFLOW",
       "title": "Join your community",
       "description": "Choose how you'll help keep things working.",
+      "instantApproval": "account creation",
+      "pendingApproval": "pending approval",
       "reporterTitle": "I'm a reporter",
       "reporterSubtitle": "Report and track issues at your site.",
       "technicianTitle": "I'm a technician",
-      "technicianSubtitle": "Register independently. A site contract is optional.",
-      "adminTitle": "I'm a site administrator",
-      "adminSubtitle": "Apply to manage a site — a super admin approves your request.",
-      "joiningTeam": "Joining a management team?",
-      "managedRoleHint": "{role} — created by an administrator.",
+      "technicianSubtitle": "Create an account independently. Verification is separate; a site contract is optional.",
+      "adminTitle": "Request a new site",
+      "adminSubtitle": "Apply for your organization and nominate an administrator. No account is needed to apply.",
+      "joiningTeam": "These roles are set by existing admins — you can't self-register:",
+      "managedRoleHint": "{role} — created by an admin. Talk to your team lead.",
       "alreadyHaveAccount": "Already have an account?",
       "signIn": "Sign in"
     },
     "registerReporter": {
       "kicker": "REPORTER SIGN-UP",
       "title": "Create your reporter account",
-      "description": "You'll be the person who files issues at your site.",
-      "siteIdHelp": "Your site administrator will provide the site ID to use here. Contact them if you don't have it yet.",
+      "description": "You'll file issues at any site — no site code needed.",
       "firstName": "First name",
       "firstNamePlaceholder": "Alex",
       "lastName": "Last name",
@@ -50,8 +184,6 @@
       "emailPlaceholder": "you@example.com",
       "password": "Password",
       "passwordPlaceholder": "At least 15 characters",
-      "siteId": "Site ID",
-      "siteIdPlaceholder": "e.g. 1",
       "phoneOptional": "Phone (optional)",
       "phonePlaceholder": "+65 …",
       "submit": "Create reporter account →",
@@ -97,8 +229,8 @@
     "registerAdminApply": {
       "kicker": "SITE ADMIN APPLICATION",
       "title": "Apply to administer a site",
-      "description": "A super administrator reviews your request before the admin role activates.",
-      "applyNotice": "You will be able to sign in as a reporter immediately. Once approved, sign in again to activate admin access. Super admins perform identity and site-authority checks before approving — this form does not verify you.",
+      "description": "Describe the site you'll run. Super admins review and activate your admin access.",
+      "applyNotice": "You create your site during this application — no super admin pre-creates it. The site is linked to your reporter account immediately, and a super admin's approval flips both your role and activates the site.",
       "firstName": "First name",
       "firstNamePlaceholder": "Alex",
       "lastName": "Last name",
@@ -107,13 +239,22 @@
       "emailPlaceholder": "you@example.com",
       "password": "Password",
       "passwordPlaceholder": "At least 15 characters",
-      "siteId": "Site ID",
-      "siteIdPlaceholder": "e.g. 1",
       "phoneOptional": "Phone (optional)",
       "phonePlaceholder": "+65 …",
+      "siteSection": "Your site",
+      "siteName": "Site name",
+      "siteNamePlaceholder": "e.g. Greenview Secondary School",
+      "siteType": "Site type",
+      "siteTypeSchool": "School",
+      "siteTypeHotel": "Hotel",
+      "siteTypeHostel": "Hostel",
+      "siteAddress": "Site address",
+      "siteAddressPlaceholder": "Street, building, room …",
+      "siteDescriptionOptional": "Site description (optional)",
+      "siteDescriptionPlaceholder": "Quick note about the site — layout, special areas, etc.",
       "submit": "Submit admin application →",
       "submittedTitle": "Application submitted",
-      "submittedBody": "Your account works as a reporter while a super administrator reviews your application. Track it under More → My admin application.",
+      "submittedBody": "Your site is created and linked to your reporter account. A super admin will review your application — once approved, you'll become site admin and manage the site you described.",
       "continueSignIn": "Continue to sign in →",
       "changeRole": "Change role",
       "errors": {
@@ -124,6 +265,20 @@
     }
   },
   "home": {
+    "insights": {
+      "title": "Your reports at a glance",
+      "viewAll": "View all",
+      "resolved": "resolved",
+      "legendOpen": "Open",
+      "legendProgress": "In progress",
+      "legendResolved": "Resolved",
+      "pending": "{count} fix needs your confirmation"
+    },
+    "quick": {
+      "file": "File a report",
+      "track": "Track reports",
+      "alerts": "Alerts"
+    },
     "greetings": {
       "morning": "Good morning",
       "afternoon": "Good afternoon",
@@ -154,6 +309,7 @@
       "accessibilityLabel": "Refresh dashboard"
     },
     "notifications": {
+      "unreadAccessibilityLabel": "Notifications, new notifications",
       "accessibilityLabel": "Open notifications"
     },
     "applicationBanner": {
@@ -216,7 +372,11 @@
     },
     "emptyHome": {
       "title": "No reports yet at {site}",
+      "titleNoSite": "Nothing filed yet — your first report will show up here.",
       "subtitle": "File the first report and this dashboard starts tracking open work, urgency, and weekly progress.",
+      "stepFile": "File a report",
+      "stepFix": "We fix it",
+      "stepConfirm": "You confirm",
       "firstReport": "File your first report"
     },
     "setupGate": {
@@ -228,7 +388,8 @@
     },
     "reportDisabledReasons": {
       "noSite": "A site must be linked before reports can be filed.",
-      "technician": "Technician accounts resolve reports rather than file them."
+      "technician": "Technician accounts resolve reports rather than file them.",
+      "shopManager": "Shop managers order supplies; reports come from reporters and site teams."
     },
     "loadingDashboard": "Loading dashboard",
     "loading": "Loading reports…",
@@ -240,7 +401,12 @@
   },
   "reports": {
     "list": {
+      "partialSearch": "Search covers loaded reports. Load more to continue searching.",
+      "loadMore": "Load more reports",
       "title": "Reports",
+      "myReports": "My reports",
+      "myEmptyTitle": "You haven't filed any reports yet.",
+      "myEmptyDesc": "Reports you file — at any site — show up here with their progress.",
       "contracted": "Contracted",
       "uncontracted": "Uncontracted",
       "newReport": "New report",
@@ -287,6 +453,7 @@
       "allReports": "All reports",
       "title": "Report an issue",
       "submitted": "Report submitted.",
+      "queuedOffline": "No connection — this report was saved and will be sent automatically.",
       "intro": "Describe what needs attention at {site}.",
       "savedNotice": "Your report will be saved to the maintenance system and routed to a technician.",
       "descLabel": "What happened?",
@@ -325,8 +492,15 @@
       "permissionsTitle": "Your account cannot create reports.",
       "permissionsDesc": "Technician accounts resolve reports rather than file them.",
       "loadingSite": "Loading site…",
+      "siteLabel": "Site",
+      "sitePlaceholderChoose": "Choose where the issue is",
+      "siteEmpty": "No sites are available yet.",
+      "siteLoadFail": "Could not load the site list.",
+      "siteRequired": "Pick the site where the issue is.",
+      "pickSiteHint": "Pick the site where the issue is, then describe what needs attention.",
       "noSiteTitle": "No site linked",
       "noSiteDesc": "A site must be linked before you can file a report.",
+      "noBuildingsInline": "No buildings are set up for this site yet — describe the location in the address field.",
       "noBuildingsTitle": "No buildings set up yet",
       "noBuildingsDescAdmin": "Add at least one building or area before reports can be filed at this site.",
       "noBuildingsDescReporter": "Your site administrator has not added any buildings yet. Reports cannot be filed until at least one exists.",
@@ -386,6 +560,10 @@
       "suggestionFailed": "Could not send the suggestion."
     },
     "detail": {
+      "timeline": {
+        "title": "Progress timeline",
+        "current": "Current"
+      },
       "allReports": "All reports",
       "screenTitle": "Report",
       "title": "Report #{id}",
@@ -439,6 +617,15 @@
       "attachedIndicator": "You are attached to this report",
       "assignTitleAssign": "Assign a technician",
       "assignTitleReassign": "Reassign technician",
+      "technicianRouting": {
+        "title": "Find a technician",
+        "label": "Technician route",
+        "contracted": "Assign a contracted technician",
+        "invite": "Invite technicians to request a site contract",
+        "marketplace": "Publish to the job marketplace",
+        "marketplaceBody": "Publish a public job summary so verified independent technicians can apply. Review applications and send a job offer in the marketplace.",
+        "openMarketplace": "Continue to the marketplace"
+      },
       "assignBody": "Pick from technicians who match this report's site and category, then save the assignment.",
       "assignCandidatesTitle": "Ranked candidates",
       "assignModeStandard": "Standard",
@@ -460,7 +647,7 @@
       "assignReassign": "Reassign",
       "assignSaved": "Technician assignment saved.",
       "inviteTitle": "Invite technicians",
-      "inviteBody": "Send a site and category invitation to technicians in batches. They receive it in their invitations inbox.",
+      "inviteBody": "Invite matching technicians who do not yet have a contract with this site. They can request a site contract from their inbox. After you approve it, you can assign them to the report.",
       "inviteReasonLabel": "Reason for the invitation",
       "inviteReasonPlaceholder": "Explain why these technicians are needed.",
       "inviteSend": "Send invitations",
@@ -504,7 +691,9 @@
       },
       "photos": {
         "title": "Photos",
-        "noPhotos": "No photos attached."
+        "noPhotos": "No photos attached.",
+        "open": "Open photo {number}",
+        "loadError": "Could not load this photo."
       },
       "aiAssessment": {
         "title": "AI assessment",
@@ -515,10 +704,11 @@
       },
       "aiAssessmentError": "Could not refresh the AI assessment.",
       "vision": {
-        "analyze": "Analyze photos with AI",
+        "analyze": "Choose a photo for AI analysis",
+        "checkStatus": "Check AI analysis status",
         "running": "Analyzing photos…",
         "consentTitle": "AI photo analysis",
-        "consentMessage": "This sends this report's photos to the AI vision service. Continue?",
+        "consentMessage": "The selected photo will be sent to the AI vision service. Do not choose a photo with faces or personal or confidential information. Continue?",
         "cancel": "Cancel",
         "continue": "Continue",
         "failed": "Photo analysis failed. Try again."
@@ -572,6 +762,11 @@
     "assignedTechnicianCount": "{count} assigned technician{plural}",
     "assignedCount": "{count} assigned",
     "claimableCount": "{count} claimable",
+    "claim": "Claim this job",
+    "claiming": "Claiming…",
+    "claimed": "Job claimed. It's in your assignments now.",
+    "claimFailed": "Could not claim this job.",
+    "contractSites": "{count} contracted site{plural}",
     "openA11y": "Open {description}"
   },
   "more": {
@@ -587,13 +782,14 @@
       "reportsTitle": "Reports",
       "reportsSubtitle": "Every report at this site.",
       "notificationsTitle": "Notifications",
-      "notificationsSubtitle": "No notifications yet — coming soon.",
+      "notificationsSubtitle": "Updates about your reports.",
       "myAdminApplicationTitle": "My admin application",
       "myAdminApplicationPending": "Awaiting super-admin review.",
       "myAdminApplicationStatus": "Application {status}.",
       "siteSetupTitle": "Site setup",
       "siteSetupSubtitleRequired": "Required — add your first building.",
       "siteSetupSubtitle": "Manage buildings and reporting readiness.",
+      "siteRulesTitle": "Site rules",
       "sitesTitle": "Sites",
       "sitesSubtitleCreate": "Create and edit sites.",
       "sitesSubtitleEdit": "Edit sites assigned to you.",
@@ -813,19 +1009,35 @@
       }
     },
     "notifications": {
+      "workCompleted": "Report #{id} is ready for your confirmation.",
       "title": "Notifications",
-      "subtitle": "Updates about your reports and assignments.",
-      "emptyTitle": "Notifications aren't available yet",
-      "emptyDesc": "Updates about your reports, assignments, and contracts will land here once the notifications service ships.",
-      "interimTitle": "In the meantime",
-      "interimBody": "Check the Reports tab for the latest activity. The Recent updates section on Home surfaces the most recent changes across your reports.",
-      "viewReports": "View reports"
+      "emptyTitle": "No notifications yet.",
+      "edited": "Report #{id} was edited.",
+      "archived": "Report #{id} was archived.",
+      "loadError": "Could not load notifications.",
+      "retry": "Retry",
+      "loadMore": "Load more"
     },
     "shop": {
       "kicker": "THE FIXFLOW SHOP",
       "headlineBefore": "A",
       "headlineAccent": "little care",
       "headlineAfter": "starts here.",
+      "heroPill": "FOR THE SPACES YOU CARE FOR",
+      "heroTitleA": "Small fixes.",
+      "heroTitleB": "Big possibilities.",
+      "heroBody": "Make room for your next project. Find tools, parts, and everyday essentials to keep good spaces working beautifully.",
+      "heroCta": "Explore the shop",
+      "heroFoot": "A fresh start for your toolkit.",
+      "heroNoteKicker": "THE EVERYDAY ESSENTIALS",
+      "heroNoteA": "Good tools.",
+      "heroNoteB": "Great beginnings.",
+      "editorialKicker": "A LITTLE PREPARATION GOES A LONG WAY",
+      "editorialTitle": "Ready for the next little fix.",
+      "editorialBody": "Start with the task. Check the fit, materials, and specifications before choosing what goes into your toolkit.",
+      "editorialCta": "Find your essentials",
+      "addToBasket": "Add to basket",
+      "refreshPrices": "Refresh prices & availability",
       "orders": "Orders",
       "basket": "Basket",
       "basketA11y": "Open basket, {count} item{plural}",
@@ -1015,6 +1227,11 @@
     }
   },
   "profile": {
+    "shortcuts": {
+      "kicker": "Shortcuts",
+      "settings": "App settings",
+      "notifications": "Notifications"
+    },
     "heroKicker": "Your account",
     "openSettings": "Open settings",
     "profileTitle": "Profile",
@@ -1035,7 +1252,7 @@
     "contracts": {
       "kicker": "Contracts",
       "title": "Site contracts are optional",
-      "body": "Your account ID is {id}. Share it with a site administrator when arranging a contract. A site ID does not represent your contract list.",
+      "body": "View your site contract options.",
       "link": "View contract options"
     },
     "session": {
@@ -1069,7 +1286,9 @@
     "availability": {
       "kicker": "Availability",
       "label": "Available for work",
-      "hint": "Saved on this device only. Dispatch sync isn't available yet."
+      "hint": "Your availability is saved to your account.",
+      "saving": "Saving…",
+      "syncError": "Could not update availability. Check your connection and try again."
     },
     "tagline": "Your report. The right people. A little peace of mind.",
     "manualRefreshFailed": "Session could not be refreshed. Try signing in again."
@@ -1092,6 +1311,12 @@
     "languageHint": "Choose which language the app uses."
   },
   "tabs": {
+    "myReports": "My reports",
+    "dashboard": "Dashboard",
+    "siteReports": "Site reports",
+    "staffTools": "Staff tools",
+    "siteTools": "Site tools",
+    "openTools": "Open tools",
     "home": "Home",
     "reports": "Reports",
     "workspace": "Workspace",
@@ -1099,6 +1324,9 @@
     "more": "More",
     "shop": "Shop",
     "staffDashboard": "Dashboard",
+    "platformConsole": "Platform",
+    "shopConsole": "Shop dashboard",
+    "technician": "Technician",
     "profile": "Profile"
   },
   "notFound": {
@@ -1215,28 +1443,25 @@
       }
     },
     "contractRequests": {
-      "title": "Contract requests",
-      "loading": "Loading requests…",
-      "existing": "Your requests",
-      "createdAt": "Created {date}",
-      "noRequests": "No contract requests yet.",
-      "new": "Request a contract",
+      "back": "Back",
+      "kicker": "TECHNICIAN",
+      "heroTitle": "Site contracts",
+      "heroBody": "A contract links you to a site so you can be assigned its reports. Request one below — the site admin approves it.",
+      "yourContracts": "Your contracts",
+      "noContracts": "No active contracts yet. Request one below to join a site.",
+      "createdAt": "Since {date}",
+      "active": "Active",
+      "requestTitle": "Request a contract",
+      "requestBody": "Pick the site you want to work with. Your request goes to that site's admin for approval.",
       "newSite": "Site",
       "chooseSite": "Choose a site",
-      "siteFallback": "Site #{id}",
-      "cancel": "Cancel",
-      "submit": "Submit request",
-      "approve": "Approve",
-      "reject": "Reject",
-      "status": {
-        "pending": "Pending",
-        "approved": "Approved",
-        "rejected": "Rejected"
-      },
+      "noSites": "You are already contracted to every site.",
+      "submit": "Send request",
+      "submitted": "Request sent to {site} for approval.",
+      "loading": "Loading contracts…",
       "errors": {
-        "couldNotLoad": "Could not load contract requests.",
-        "couldNotSubmit": "Could not submit the request.",
-        "couldNotDecide": "Could not record the decision."
+        "couldNotLoad": "Could not load your contracts.",
+        "couldNotSubmit": "Could not send the request."
       }
     }
   },
@@ -1249,13 +1474,15 @@
     "approvedTitle": "Application approved",
     "approvedBody": "Your administrator role activates on your next sign-in. Sign out and back in to start managing the site.",
     "rejectedTitle": "Application rejected",
-    "rejectedBody": "A super administrator declined the request. Your account remains a reporter account — contact them if you believe this is a mistake.",
+    "rejectedBody": "A super administrator declined your request. Contact them if you would like to discuss access.",
     "pendingTitle": "Awaiting review",
-    "pendingBody": "A super administrator reviews every site-admin application. Until then your account works as a reporter.",
+    "pendingBody": "You can check your application status while you wait for approval.",
     "retry": "Retry",
     "checking": "Checking status…",
     "applicationSubmitted": "Application #{id} · submitted {time}",
     "decided": "Decided {time}.",
+    "signOut": "Sign out",
+    "signOutError": "Could not sign out. Try again.",
     "signOutToActivate": "Sign out to activate",
     "refreshing": "Refreshing…",
     "checkForUpdates": "Check for updates",
@@ -1323,8 +1550,9 @@
     },
     "tradeProfile": {
       "heading": "Your trade profile",
-      "intro": "Add your trade after creating your account. These details are self-reported, not verified qualifications.",
+      "intro": "Manage the trades saved to your account. A reviewer verifies qualifications separately.",
       "saved": "Saved: {category} · {specialty} · proficiency {proficiency}/5.",
+      "addTrade": "Add trade →",
       "addAnother": "Add another trade →",
       "primaryTrade": "Primary trade",
       "specialtyLabel": "Specialty and work you are qualified to undertake",
@@ -1335,7 +1563,6 @@
       "chooseLevel": "Choose a level",
       "saving": "Saving…",
       "save": "Save trade details",
-      "previousSkillsNote": "Previously saved skills cannot be displayed yet. Only add a trade you have not already submitted.",
       "beforeYouStart": "Before you start work at a site",
       "reviewBody": "Arrange a review with the site administrator covering your identity, relevant work history and references, qualifications, applicable trade licences and expiry dates, and insurance appropriate to the work. Requirements depend on the trade and location.",
       "evidenceNote": "Secure evidence uploads and approval tracking are not available yet. Do not enter identity numbers or document links here. A saved trade or site contract is not proof of vetting.",
@@ -1354,8 +1581,11 @@
         "specialtyTooLong": "Specialty must be {max} characters or fewer.",
         "proficiencyRange": "Proficiency must be between 1 and 5.",
         "saveFailed": "Could not save the trade right now.",
-        "duplicateSuffix": " If the connection was interrupted, confirm with an administrator before submitting again to avoid a duplicate skill."
-      }
+        "duplicateSuffix": " If the connection was interrupted, reload your saved trades before trying again.",
+        "loadFailed": "Could not load your saved trades."
+      },
+      "loading": "Loading saved trades…",
+      "cancel": "Cancel"
     }
   },
   "labels": {
@@ -1409,5 +1639,98 @@
     "tooLarge": "Recording is too long — keep it under 10 MB.",
     "unavailable": "Voice input is not available right now. Try typing instead.",
     "failed": "Could not transcribe your recording. Please try again."
+  },
+  "review": {
+    "myVerification": "My verification",
+    "siteReviews": "Site applications",
+    "verificationReviews": "Technician verification reviews",
+    "denied": "This page is unavailable for your role.",
+    "status": "Status",
+    "loading": "Loading…",
+    "error": "Something went wrong. Try again.",
+    "email": "Email",
+    "phone": "Phone",
+    "trades": "Trades",
+    "experience": "Experience",
+    "qualifications": "Qualifications",
+    "submit": "Submit for review",
+    "refresh": "Refresh",
+    "reason": "Reason",
+    "approve": "Approve",
+    "reject": "Reject",
+    "request_information": "Request information",
+    "issueSetup": "Issue setup token",
+    "privateHandoff": "Share this token securely with the proposed administrator. No email was sent.",
+    "expires": "Expires",
+    "dismiss": "Dismiss token",
+    "history": "Show history",
+    "identityChecked": "Identity checked",
+    "emailChecked": "Email checked",
+    "phoneChecked": "Phone checked",
+    "tradeChecked": "Trade checked",
+    "verified": "Approve verification",
+    "rejected": "Reject verification",
+    "suspended": "Suspend verification",
+    "pending": "Reopen review"
+  },
+  "shopDashboard": {
+    "title": "Shop dashboard",
+    "manage": "Product management",
+    "storefront": "Storefront",
+    "loading": "Loading shop analytics…",
+    "error": "Could not load shop analytics.",
+    "retry": "Retry",
+    "revenue": "All-time revenue",
+    "revenueDescription": "Paid and fulfilled orders, including shipping and tax.",
+    "empty": "No paid revenue yet.",
+    "orders": "Orders",
+    "products": "Products",
+    "trend": "Daily orders and paid revenue",
+    "dateBasis": "By order creation date (UTC)",
+    "dailyRevenue": "Paid revenue",
+    "pending_payment": "Pending payment",
+    "paid": "Paid",
+    "cancelled": "Cancelled",
+    "refunded": "Refunded",
+    "fulfilled": "Fulfilled",
+    "total": "Total",
+    "active": "Active",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "orderTrend": "Order trend",
+    "showAll": "Show all days",
+    "showFewer": "Show fewer days"
+  },
+  "shopNotices": { "title": "Shop updates", "placed": "New order {id} is ready to manage.", "shipped": "Order {id} has shipped. Confirm receipt when it arrives.", "loading": "Loading shop updates...", "empty": "No shop updates yet.", "error": "Could not load shop updates.", "reports": "Report updates" },
+  "orderReceipt": { "name": "Your name", "received": "I received this order", "submit": "Confirm delivery", "error": "Could not confirm delivery. Please try again." },
+  "orderManagement": {
+    "refresh": "Refresh",
+    "title": "Shop orders",
+    "unavailable": "Shop orders are unavailable for your role.",
+    "back": "Back to orders",
+    "error": "Could not load the order. Please try again.",
+    "loading": "Loading orders…",
+    "fulfillment": "Fulfillment",
+    "payment": "Payment",
+    "recipient": "Recipient",
+    "phone": "Phone",
+    "address": "Address",
+    "items": "Items",
+    "total": "Total",
+    "signedBy": "Received by",
+    "confirmedAt": "Confirmed at",
+    "empty": "No orders yet.",
+    "more": "Load more",
+    "retry": "Try again",
+    "status": {
+      "ordered": "Ordered",
+      "processing": "Processing",
+      "shipped": "Shipped",
+      "delivered": "Delivered"
+    },
+    "action": {
+      "processing": "Start processing",
+      "shipped": "Mark as shipped"
+    }
   }
 }

@@ -108,3 +108,8 @@ it('shows a simulation step and waits for an explicit payment action', async () 
   expect(simulation.get('[role="alert"]').text()).toBe('Simulation unavailable');
   expect(simulation.attributes('open')).toBeDefined();
 });
+it('shows the fulfillment stage in buyer order history', async () => {
+  vi.mocked(api.listOrders).mockResolvedValue(['ordered','processing','shipped'].map((fulfillmentStatus, i) => ({orderId:`order-${i}`,status:'paid',fulfillmentStatus,currency:'USD',minorUnitDigits:2,totalMinor:1000,items:[]})) as unknown as import('../src/types/shop').ShopOrder[]);
+  await render(); await wrapper.findAll('button').find(b => b.text() === 'Orders')!.trigger('click'); await flushPromises();
+  const history=wrapper.get('#orders-title').element.closest('dialog')!; expect(history.textContent).toContain('Ordered'); expect(history.textContent).toContain('Processing'); expect(history.textContent).toContain('Shipped');
+});

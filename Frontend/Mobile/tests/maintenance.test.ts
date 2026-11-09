@@ -8,6 +8,7 @@ import {
   statusGroup,
   statusLabels,
   urgencyLabels,
+  weeklyChart,
   type StatusGroup,
 } from '../utils/maintenance';
 
@@ -195,5 +196,36 @@ describe('searchReports', () => {
   // the implementation's actual behavior.
   it('does not search the address field', () => {
     expect(searchReports([pipe, light], 'main street', siteName)).toEqual([]);
+  });
+});
+
+describe('weeklyChart — the dashboard graph follows the selected week', () => {
+  // Monday 2026-11-09; the previous week starts on 2026-11-02.
+  const now = new Date(2026, 10, 9, 12, 0, 0);
+  const thisWeek = makeReport({
+    id: 1,
+    createdAt: new Date(2026, 10, 9, 9, 0, 0).toISOString(),
+  });
+  const lastWeek = makeReport({
+    id: 2,
+    createdAt: new Date(2026, 10, 2, 9, 0, 0).toISOString(),
+    policy: { statusGroup: 'progress' },
+  });
+
+  const totals = (buckets: ReturnType<typeof weeklyChart>) =>
+    buckets.reduce(
+      (sum, bucket) => sum + bucket.values.reduce((inner, value) => inner + value, 0),
+      0,
+    );
+
+  it('buckets this week and last week separately', () => {
+    const current = weeklyChart([thisWeek, lastWeek], 0, now);
+    const previous = weeklyChart([thisWeek, lastWeek], -1, now);
+
+    expect(current).toHaveLength(7);
+    expect(totals(current)).toBe(1);
+    expect(totals(previous)).toBe(1);
+    expect(current[0].values).toEqual([1, 0, 0]);
+    expect(previous[0].values).toEqual([0, 1, 0]);
   });
 });

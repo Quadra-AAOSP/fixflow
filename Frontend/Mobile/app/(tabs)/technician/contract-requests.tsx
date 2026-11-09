@@ -1,256 +1,289 @@
-import { Stack, useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Text, View, Pressable } from 'react-native';
+import { StateView } from '@/components/ui/StateView';
+import { useRouter } from 'expo-router';
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  FileText,
+  Send,
+} from 'lucide-react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Plus, Check, X } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
-import { ActivityIndicator } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
-import { dashboardColors, themeColors } from '@/constants/theme';
-import { canDecideContracts } from '@/constants/access';
+import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import {
   createTechnicianContractRequest,
-  decideTechnicianContractRequest,
-  getTechnicianContractRequests,
+  listTechnicianContracts,
 } from '@/services/technicians';
 import { listSites } from '@/services/sites';
-import type { Site } from '@/types';
-import type { TechnicianContractRequest, TechnicianContractRequestStatus } from '@/types/technician';
+import type { Site, TechnicianContract } from '@/types';
+import { formatDate } from '@/utils/format';
 
 /**
- * Technician contract requests screen.
+ * Technician contract screen. Two jobs only:
+ *
+ *   1. Show the sites this technician is contracted to
+ *      (`GET /api/technician-contracts` — technicians see their own).
+ *   2. Let them request a contract with a site
+ *      (`POST /api/technician-contract-requests`).
+ *
+ * The request *review queue* is admin-only (`TechnicianContractService.list`
+ * rejects non-admins with 403), so this screen must never call it — the old
+ * version did, which surfaced "Only admin or super_admin can list contracts"
+ * to technicians as a raw error banner.
  */
 export default function TechnicianContractRequestsScreen() {
   const { t } = useTranslation('common');
-  const palette = themeColors();
   const router = useRouter();
   const { user } = useAuth();
-  const canDecide = canDecideContracts(user);
 
-  const [requests, setRequests] = useState<TechnicianContractRequest[]>([]);
+  const [contracts, setContracts] = useState<TechnicianContract[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newRequestSiteId, setNewRequestSiteId] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [siteId, setSiteId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const loadRequests = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setError(null);
     try {
-      const [requests, sites] = await Promise.all([
-        getTechnicianContractRequests(),
+      const [contractsResult, sitesResult] = await Promise.all([
+        listTechnicianContracts(),
         listSites(),
       ]);
-      setRequests(requests);
-      setSites(sites);
+      setContracts(contractsResult);
+      setSites(sitesResult);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : t('technician.contractRequests.errors.couldNotLoad'),
+        err instanceof ApiError
+          ? err.message
+          : t('technician.contractRequests.errors.couldNotLoad'),
       );
     } finally {
       setLoading(false);
     }
   }, [user, t]);
 
-  const submitContractRequest = useCallback(async () => {
-    if (!newRequestSiteId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await createTechnicianContractRequest({
-        siteId: newRequestSiteId,
-      });
-      await loadRequests();
-      setNewRequestSiteId(null);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('technician.contractRequests.errors.couldNotSubmit'),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [newRequestSiteId, loadRequests, t]);
-
-  const handleDecision = useCallback(async (requestId: number, decision: 'approve' | 'reject') => {
-    if (!user) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await decideTechnicianContractRequest(requestId, { decision });
-      await loadRequests();
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('technician.contractRequests.errors.couldNotDecide'),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [user, loadRequests, t]);
-
   useEffect(() => {
-    void loadRequests();
-  }, [loadRequests]);
+    void load();
+  }, [load]);
 
-  const statusToLabel = useCallback((status: TechnicianContractRequestStatus) => {
-    switch (status) {
-      case 'pending': return t('technician.contractRequests.status.pending');
-      case 'approved': return t('technician.contractRequests.status.approved');
-      case 'rejected': return t('technician.contractRequests.status.rejected');
-      default: return status;
+  /** Sites this technician isn't already contracted to. */
+  const availableSites = useMemo(
+    () => sites.filter((site) => !contracts.some((c) => c.siteId === site.id)),
+    [sites, contracts],
+  );
+
+  const siteNameFor = useCallback(
+    (id: number) => sites.find((site) => site.id === id)?.name ?? `#${id}`,
+    [sites],
+  );
+
+  async function submit() {
+    if (siteId === null || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await createTechnicianContractRequest({ siteId });
+      setNotice(t('technician.contractRequests.submitted', { site: siteNameFor(siteId) }));
+      setSiteId(null);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : t('technician.contractRequests.errors.couldNotSubmit'),
+      );
+    } finally {
+      setSubmitting(false);
     }
-  }, [t]);
+  }
 
   return (
     <Screen>
-      <Stack.Screen
-        options={{ title: t('technician.contractRequests.title'), headerLeft: () => (
+      <ScrollView
+        contentContainerClassName="px-5 pb-12 pt-2"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Back + kicker */}
+        <View className="mb-3 mt-1 flex-row items-center gap-2">
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('technician.contractRequests.back')}
             onPress={() => router.back()}
-            className="flex-row items-center"
+            className="h-9 w-9 items-center justify-center rounded-full border border-dashboard-card-line bg-dashboard-card-bg active:opacity-80"
           >
-            <ArrowLeft color={dashboardColors.teal} size={18} />
+            <ArrowLeft color={dashboardColors.teal} size={16} />
           </Pressable>
-        )}}
-      />
-      <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
+          <Text className="text-[10px] font-semibold uppercase tracking-[1.5px] text-dashboard-caption">
+            {t('technician.contractRequests.kicker')}
+          </Text>
+        </View>
+
         <Text
-          className="mb-4 text-2xl font-bold text-ink"
-          style={{ letterSpacing: -0.5 }}
+          className="text-[24px] font-bold text-ink"
+          style={{ letterSpacing: -0.7 }}
         >
-          {t('technician.contractRequests.title')}
+          {t('technician.contractRequests.heroTitle')}
+          <Text className="text-coral-decay">.</Text>
+        </Text>
+        <Text className="mb-4 mt-1 text-[12px] leading-[1.8] text-dashboard-subtitle">
+          {t('technician.contractRequests.heroBody')}
         </Text>
 
+        {/* Feedback banners */}
         {error ? (
-          <Card className="mb-4">
-            <Text className="p-4 text-center text-tone-danger">
+          <View
+            className="mb-3 flex-row items-start gap-2 rounded-[12px] border px-3 py-2.5"
+            style={{
+              backgroundColor: dashboardColors.statCoralSoft,
+              borderColor: dashboardColors.statCoralDeep,
+            }}
+          >
+            <AlertCircle color={dashboardColors.statCoralDeep} size={14} />
+            <Text
+              className="flex-1 text-[11px] leading-[1.6]"
+              style={{ color: dashboardColors.statCoralDeep }}
+            >
               {error}
             </Text>
-          </Card>
+          </View>
+        ) : null}
+        {notice ? (
+          <View
+            className="mb-3 flex-row items-start gap-2 rounded-[12px] border px-3 py-2.5"
+            style={{
+              backgroundColor: dashboardColors.statMintSoft,
+              borderColor: dashboardColors.statMintDeep,
+            }}
+          >
+            <CheckCircle2 color={dashboardColors.statMintDeep} size={14} />
+            <Text
+              className="flex-1 text-[11px] leading-[1.6]"
+              style={{ color: dashboardColors.statMintDeep }}
+            >
+              {notice}
+            </Text>
+          </View>
         ) : null}
 
-        {loading ? (
-          <Card className="mb-4">
-            <Text className="p-4 text-center text-dashboard-subtitle">
-              {t('technician.contractRequests.loading')}
+        {/* Your contracts */}
+        <Card padded={false} className="mb-4">
+          <View className="flex-row items-center justify-between border-b border-dashboard-card-line px-4 py-3">
+            <Text className="text-[14px] font-semibold text-ink">
+              {t('technician.contractRequests.yourContracts')}
             </Text>
-          </Card>
-        ) : (
-          <>
-            <Text className="mb-2 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
-              {t('technician.contractRequests.existing')}
-            </Text>
+            <View
+              className="rounded-full px-2 py-[2px]"
+              style={{ backgroundColor: dashboardColors.statMintSoft }}
+            >
+              <Text
+                className="text-[10px] font-semibold"
+                style={{ color: dashboardColors.statMintDeep }}
+              >
+                {contracts.length}
+              </Text>
+            </View>
+          </View>
 
-            {requests.length > 0 ? (
-              <Card padded={false} className="mb-4">
-                {requests.map((request) => (
-                  <View
-                    key={request.id}
-                    className="border-b border-dashboard-card-line px-4 py-3"
+          {loading ? (
+            <StateView variant="loading" title={t('more.contracts.loading')} />
+          ) : contracts.length === 0 ? (
+            <View className="items-center px-6 py-7">
+              <View
+                className="mb-3 h-11 w-11 items-center justify-center rounded-full"
+                style={{ backgroundColor: dashboardColors.statMintSoft }}
+              >
+                <FileText color={dashboardColors.statMintDeep} size={18} />
+              </View>
+              <Text className="text-center text-[12px] leading-[1.7] text-dashboard-subtitle">
+                {t('technician.contractRequests.noContracts')}
+              </Text>
+            </View>
+          ) : (
+            contracts.map((contract) => (
+              <View
+                key={contract.id}
+                className="flex-row items-center justify-between border-b border-dashboard-card-line px-4 py-3 last:border-b-0"
+              >
+                <View className="flex-1 pr-3">
+                  <Text className="text-[13px] font-semibold text-ink">
+                    {siteNameFor(contract.siteId)}
+                  </Text>
+                  <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                    {t('technician.contractRequests.createdAt', {
+                      date: formatDate(contract.createdAt),
+                    })}
+                  </Text>
+                </View>
+                <View
+                  className="rounded-full px-2.5 py-1"
+                  style={{ backgroundColor: dashboardColors.statMintSoft }}
+                >
+                  <Text
+                    className="text-[10px] font-semibold"
+                    style={{ color: dashboardColors.statMintDeep }}
                   >
-                    <View className="flex-row items-center justify-between">
-                      <Text className="text-[12px] text-ink">
-                        {sites.find((site) => site.id === request.siteId)?.name ??
-                          t('technician.contractRequests.siteFallback', { id: request.siteId })}
-                      </Text>
-                      <Text
-                        className={`text-[10px] font-medium`}
-                        style={{ color: request.status === 'approved' ? dashboardColors.statMintDeep : dashboardColors.statCitronDeep }}
-                      >
-                        {statusToLabel(request.status)}
-                      </Text>
-                    </View>
-                    <Text className="mt-1 text-[10px] text-dashboard-subtitle">
-                      {t('technician.contractRequests.createdAt', { date: request.createdAt })}
-                    </Text>
-                    {canDecide && request.status === 'pending' && (
-                      <View className="mt-2 flex-row justify-end gap-2">
-                        <Button
-                          variant="secondary"
-                          onPress={() => handleDecision(request.id, 'reject')}
-                          loading={loading}
-                          style={{ minWidth: 100 }}
-                          disabled={loading}
-                        >
-                          {loading ? (
-                            <ActivityIndicator color={palette.ink} />
-                          ) : (
-                            <Text className="text-[11px] font-medium">
-                              {t('technician.contractRequests.reject')}
-                            </Text>
-                          )}
-                        </Button>
-                        <Button
-                          variant="primary"
-                          onPress={() => handleDecision(request.id, 'approve')}
-                          loading={loading}
-                          style={{ minWidth: 100 }}
-                          disabled={loading}
-                        >
-                          {loading ? (
-                            <ActivityIndicator color={palette.card} />
-                          ) : (
-                            <Text className="text-[11px] font-medium">
-                              {t('technician.contractRequests.approve')}
-                            </Text>
-                          )}
-                        </Button>
-                      </View>
-                    )}
-                  </View>
-                ))}
-              </Card>
-            ) : (
-              <Card className="mb-4">
-                <Text className="p-4 text-center text-dashboard-subtitle">
-                  {t('technician.contractRequests.noRequests')}
-                </Text>
-              </Card>
-            )}
+                    {t('technician.contractRequests.active')}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
+        </Card>
 
-            <Text className="mb-2 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
-              {t('technician.contractRequests.new')}
+        {/* Request a contract */}
+        <Card padded={false}>
+          <View className="flex-row items-center gap-2 border-b border-dashboard-card-line px-4 py-3">
+            <Send color={dashboardColors.teal} size={14} />
+            <Text className="text-[14px] font-semibold text-ink">
+              {t('technician.contractRequests.requestTitle')}
+            </Text>
+          </View>
+          <View className="px-4 py-3">
+            <Text className="mb-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
+              {t('technician.contractRequests.requestBody')}
             </Text>
 
-            <Card padded={false} className="mb-4">
-              <View className="px-4 py-3">
+            {availableSites.length === 0 && !loading ? (
+              <Text className="text-[11px] leading-[1.7] text-dashboard-caption">
+                {t('technician.contractRequests.noSites')}
+              </Text>
+            ) : (
+              <>
                 <Picker
                   label={t('technician.contractRequests.newSite')}
-                  value={newRequestSiteId !== null ? String(newRequestSiteId) : null}
-                  onChange={(value) => setNewRequestSiteId(value ? Number(value) : null)}
-                  options={sites.map((site) => ({
+                  value={siteId !== null ? String(siteId) : null}
+                  onChange={(value) => setSiteId(value ? Number(value) : null)}
+                  options={availableSites.map((site) => ({
                     value: String(site.id),
                     label: site.name,
                   }))}
                   placeholder={t('technician.contractRequests.chooseSite')}
                 />
-                <View className="mt-3 flex-row justify-end gap-2">
-                  <Button
-                    variant="secondary"
-                    onPress={() => setNewRequestSiteId(null)}
-                    disabled={!newRequestSiteId}
-                  >
-                    {t('technician.contractRequests.cancel')}
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onPress={submitContractRequest}
-                    loading={loading}
-                    disabled={!newRequestSiteId}
-                  >
-                    {t('technician.contractRequests.submit')}
-                  </Button>
-                </View>
-              </View>
-            </Card>
-          </>
-        )}
+                <Button
+                  className="mt-3"
+                  variant="cta"
+                  onPress={submit}
+                  loading={submitting}
+                  disabled={siteId === null}
+                >
+                  {t('technician.contractRequests.submit')}
+                </Button>
+              </>
+            )}
+          </View>
+        </Card>
       </ScrollView>
     </Screen>
   );

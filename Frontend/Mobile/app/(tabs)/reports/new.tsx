@@ -13,14 +13,11 @@ import {
 } from 'react-native';
 import {
   ArrowLeft,
-  Building2,
   Camera,
   House,
   ImagePlus,
-  Mic,
   Plus,
   Sparkles,
-  Square,
   X,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -37,17 +34,21 @@ import {
 } from '@/components/ui/SegmentedControl';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
-import { canManageSubsites } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
-import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useToast } from '@/components/ui/useToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { MAX_PHOTO_COUNT, MAX_PHOTO_SIZE_BYTES, uploadPhoto } from '@/services/photos';
 import { createReport } from '@/services/reports';
+import { enqueueReport } from '@/lib/offlineQueue';
+import { isNetworkFailure } from '@/services/offlineReports';
+import { useConnectivity } from '@/hooks/useConnectivity';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { listJoinableSites } from '@/services/auth';
 import { listSiteRules } from '@/services/siteRules';
 import { listSubsites, createSubsiteAlert } from '@/services/sites';
 import type {
+  JoinableSite,
   ReportPhoto,
   ReportVisibility,
   SiteRule,
@@ -99,6 +100,7 @@ export default function NewReportScreen() {
   const { user } = useAuth();
   const { site, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
   const { showToast } = useToast();
+  const { refreshPending } = useConnectivity();
   const recorder = useAudioRecorder();
 
   const canCreate = user?.capabilities.createReport ?? false;
@@ -136,6 +138,52 @@ export default function NewReportScreen() {
   const [suggestionText, setSuggestionText] = useState('');
   const [suggestionBusy, setSuggestionBusy] = useState(false);
 
+  // Anyone who can file may pick the site the issue is at; the account site is
+  // only the default. The public site directory lists every existing site.
+  const canPickSite =
+    user?.role === 'reporter' ||
+    user?.role === 'staff' ||
+    user?.role === 'admin' ||
+    user?.role === 'super_admin';
+  const [siteOptions, setSiteOptions] = useState<JoinableSite[]>([]);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [siteListError, setSiteListError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!canPickSite) return;
+    let active = true;
+    listJoinableSites()
+      .then((list) => {
+        if (active) setSiteOptions(list);
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setSiteListError(
+            err instanceof ApiError ? err.message : t('reports.new.siteLoadFail'),
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [canPickSite, t]);
+
+  const activeSite = useMemo(() => {
+    if (canPickSite && selectedSiteId) {
+      const picked = siteOptions.find((o) => String(o.id) === selectedSiteId);
+      if (picked) return { id: picked.id, name: picked.name, type: picked.type };
+    }
+    return site ? { id: site.id, name: site.name, type: site.type } : null;
+  }, [canPickSite, selectedSiteId, siteOptions, site]);
+
+  // Accounts registered without a site (reporters) still need a working
+  // default: pick the first listed site until they choose one.
+  useEffect(() => {
+    if (selectedSiteId || site) return;
+    const first = siteOptions[0];
+    if (first) setSelectedSiteId(String(first.id));
+  }, [selectedSiteId, site, siteOptions]);
+
   const activeSubsites = useMemo(
     () => subsites.filter((s) => s.archivedAt == null),
     [subsites],
@@ -172,10 +220,10 @@ export default function NewReportScreen() {
   }, [t]);
 
   useEffect(() => {
-    if (!site) return;
-    void loadSubsites(site.id);
-    void loadRules(site.type);
-  }, [site?.id, site?.type, loadSubsites, loadRules]);
+    if (!activeSite) return;
+    void loadSubsites(activeSite.id);
+    void loadRules(activeSite.type);
+  }, [activeSite?.id, activeSite?.type, loadSubsites, loadRules]);
 
   const categoryOptions = useMemo(
     () => rules.map((r) => ({ value: r.category, label: humanize(r.category) })),
@@ -257,6 +305,7 @@ export default function NewReportScreen() {
   }
 
   function validate(): string | null {
+    if (!activeSite) return t('reports.new.siteRequired');
     if (!description.trim()) return t('reports.new.descErrors.required');
     if (description.trim().length < 10) return t('reports.new.descErrors.tooShort');
     if (description.length > 10000) return t('reports.new.descErrors.tooLong');
@@ -268,7 +317,7 @@ export default function NewReportScreen() {
   }
 
   async function handleSubmit() {
-    if (!site) {
+    if (!activeSite) {
       setSubmitError(t('reports.new.noSiteTitle'));
       return;
     }
@@ -289,18 +338,18 @@ export default function NewReportScreen() {
       return;
     }
 
-    try {
-      const payload = {
-        description: description.trim(),
-        address: address.trim() || undefined,
-        category,
-        reporterUrgency: urgency,
-        reporterReason: urgencyReason.trim() || undefined,
-        subsiteId: subsiteId ? Number(subsiteId) : undefined,
-        visibility,
-        siteId: site.id,
-      };
+    const payload = {
+      description: description.trim(),
+      address: address.trim() || undefined,
+      category,
+      reporterUrgency: urgency,
+      reporterReason: urgencyReason.trim() || undefined,
+      subsiteId: subsiteId ? Number(subsiteId) : undefined,
+      visibility,
+      siteId: activeSite.id,
+    };
 
+    try {
       const report = await createReport(payload);
 
       // Upload photos after the report exists.
@@ -332,6 +381,26 @@ export default function NewReportScreen() {
         router.replace('/reports');
       }
     } catch (err) {
+      // Only transport-level failures queue offline; validation/permission
+      // answers from the server must stay inline so the user can fix them.
+      if (isNetworkFailure(err)) {
+        await enqueueReport(
+          payload,
+          photos.map((photo) => ({
+            uri: photo.uri,
+            fileName: photo.fileName,
+            mimeType: photo.mimeType,
+          })),
+        );
+        await refreshPending();
+        showToast(t('reports.new.queuedOffline'), 'info');
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/reports');
+        }
+        return;
+      }
       const message =
         err instanceof ApiError ? err.message : t('reports.new.noConnection');
       setSubmitError(message);
@@ -344,10 +413,10 @@ export default function NewReportScreen() {
   }
 
   async function handleSuggestMissing() {
-    if (!site || !suggestionText.trim() || suggestionBusy) return;
+    if (!activeSite || !suggestionText.trim() || suggestionBusy) return;
     setSuggestionBusy(true);
     try {
-      await createSubsiteAlert(site.id, suggestionText.trim());
+      await createSubsiteAlert(activeSite.id, suggestionText.trim());
       showToast(t('reports.new.suggestionSuccess'), 'success');
       setSuggestionText('');
       setSuggestionOpen(false);
@@ -357,15 +426,6 @@ export default function NewReportScreen() {
       showToast(message, 'error');
     } finally {
       setSuggestionBusy(false);
-    }
-  }
-
-  async function onMicDescription() {
-    if (recorder.isRecording) {
-      const text = await recorder.stop();
-      if (text) setDescription((prev) => (prev ? `${prev} ${text}` : text));
-    } else {
-      await recorder.start();
     }
   }
 
@@ -397,7 +457,7 @@ export default function NewReportScreen() {
     );
   }
 
-  if (!site || siteError) {
+  if (siteError || (!canPickSite && !site)) {
     return (
       <Screen>
         <View className="flex-1 items-center justify-center px-6">
@@ -413,39 +473,8 @@ export default function NewReportScreen() {
     );
   }
 
-  // No active buildings — reporters get guidance; admins can open setup.
-  if (activeSubsites.length === 0 && !subsiteError) {
-    const isAdmin = canManageSubsites(user);
-    return (
-      <Screen>
-        <View className="flex-1 items-center justify-center px-6">
-          <StateView
-            variant="empty"
-            icon={Building2}
-            title={t('reports.new.noBuildingsTitle')}
-            description={
-              isAdmin
-                ? t('reports.new.noBuildingsDescAdmin')
-                : t('reports.new.noBuildingsDescReporter')
-            }
-            actionLabel={isAdmin ? t('reports.new.openSiteSetup') : undefined}
-            onAction={
-              isAdmin ? () => router.push('/more/site-setup') : undefined
-            }
-          />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setSuggestionOpen(true)}
-            className="mt-4 active:opacity-80"
-          >
-            <Text className="text-[12px] font-semibold text-dashboard-teal underline">
-              {t('reports.new.suggestionTitle')}
-            </Text>
-          </Pressable>
-        </View>
-      </Screen>
-    );
-  }
+  // Buildings are optional: sites that haven't set any up yet can still take
+  // reports, with the location described in the address field instead.
 
   return (
     <Screen>
@@ -466,8 +495,35 @@ export default function NewReportScreen() {
               {t('reports.new.title')}
             </Text>
             <Text className="mt-1 text-[12px] text-dashboard-subtitle">
-              {t('reports.new.intro', { site: site.name })}
+              {activeSite
+                ? t('reports.new.intro', { site: activeSite.name })
+                : t('reports.new.pickSiteHint')}
             </Text>
+            {canPickSite ? (
+              <View className="mt-3">
+                <Picker
+                  label={t('reports.new.siteLabel')}
+                  value={activeSite ? String(activeSite.id) : null}
+                  options={siteOptions.map((option) => ({
+                    value: String(option.id),
+                    label: option.name,
+                    disabled: false,
+                  }))}
+                  onChange={(value) => {
+                    setSelectedSiteId(value);
+                    // Subsite + category are per-site — drop stale picks.
+                    setSubsiteId(null);
+                    setCategory(null);
+                  }}
+                  placeholder={t('reports.new.sitePlaceholderChoose')}
+                  emptyMessage={t('reports.new.siteEmpty')}
+                  disabled={siteOptions.length === 0}
+                />
+                {siteListError ? (
+                  <Text className="-mt-2 mb-4 text-[11px] text-coral-link">{siteListError}</Text>
+                ) : null}
+              </View>
+            ) : null}
             <Text className="mt-2 text-[11px] leading-[1.6] text-dashboard-caption">
               {t('reports.new.savedNotice')}
             </Text>
@@ -495,30 +551,6 @@ export default function NewReportScreen() {
               <Text className="mb-1.5 text-[12px] font-medium text-ink">
                 {t('reports.new.descLabel')}
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  recorder.isRecording
-                    ? t('reports.new.voice.stop')
-                    : t('reports.new.voice.start')
-                }
-                onPress={onMicDescription}
-                className="h-8 w-8 items-center justify-center rounded-full"
-                style={{
-                  backgroundColor: recorder.isRecording
-                    ? dashboardColors.statCoralSoft
-                    : dashboardColors.cardLine,
-                }}
-              >
-                {recorder.isRecording ? (
-                  <Square color={dashboardColors.statCoralDeep} size={12} fill={dashboardColors.statCoralDeep} />
-                ) : (
-                  <Mic
-                    color={recorder.transcribing ? dashboardColors.subtitle : dashboardColors.teal}
-                    size={15}
-                  />
-                )}
-              </Pressable>
             </View>
             <TextField
               label=""
@@ -530,14 +562,6 @@ export default function NewReportScreen() {
               maxLength={10000}
               className="mb-0"
             />
-            {recorder.transcribing ? (
-              <Text className="mt-1 text-[10px] italic text-dashboard-subtitle">
-                {t('reports.new.voice.transcribing')}
-              </Text>
-            ) : null}
-            {recorder.error ? (
-              <Text className="mt-1 text-[11px] text-tone-danger">{recorder.error}</Text>
-            ) : null}
 
             <TextField
               label={t('reports.new.addressLabel')}
@@ -555,7 +579,7 @@ export default function NewReportScreen() {
                 variant="error"
                 description={subsiteError}
                 actionLabel={t('reports.new.retryLoadingBuildings')}
-                onAction={() => site && void loadSubsites(site.id)}
+                onAction={() => activeSite && void loadSubsites(activeSite.id)}
               />
             ) : (
               <Picker
@@ -573,12 +597,28 @@ export default function NewReportScreen() {
               />
             )}
 
+            {!loadingSubsites && activeSubsites.length === 0 && !subsiteError ? (
+              <Text className="mb-1 mt-1.5 text-[11.5px] leading-[1.5] text-dashboard-subtitle">
+                {t('reports.new.noBuildingsInline')}
+              </Text>
+            ) : null}
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setSuggestionOpen(true)}
+              className="mt-2 mb-4 self-start active:opacity-80"
+            >
+              <Text className="text-[12px] font-semibold text-dashboard-teal underline">
+                {t('reports.new.suggestionTitle')}
+              </Text>
+            </Pressable>
+
             {ruleError ? (
               <StateView
                 variant="error"
                 description={ruleError}
                 actionLabel={t('reports.new.retryLoadingCategories')}
-                onAction={() => void loadRules(site.type)}
+                onAction={() => activeSite && void loadRules(activeSite.type)}
               />
             ) : (
               <Picker
@@ -661,6 +701,7 @@ export default function NewReportScreen() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={t('reports.new.photos.remove')}
+                      hitSlop={12}
                       onPress={() => removePhoto(index)}
                       className="absolute -right-2 -top-2 h-5 w-5 items-center justify-center rounded-full bg-tone-danger"
                     >
@@ -674,9 +715,11 @@ export default function NewReportScreen() {
             <View className="mt-3 flex-row gap-2">
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={t('reports.new.photos.gallery')}
+                accessibilityState={{ disabled: photos.length >= MAX_PHOTO_COUNT }}
                 onPress={() => pickPhotos('gallery')}
                 disabled={photos.length >= MAX_PHOTO_COUNT}
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-2.5 active:opacity-80"
+                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-3 active:opacity-80"
               >
                 <ImagePlus color={dashboardColors.subtitle} size={15} />
                 <Text className="text-[12px] font-medium text-ink">
@@ -685,9 +728,11 @@ export default function NewReportScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={t('reports.new.photos.camera')}
+                accessibilityState={{ disabled: photos.length >= MAX_PHOTO_COUNT }}
                 onPress={() => pickPhotos('camera')}
                 disabled={photos.length >= MAX_PHOTO_COUNT}
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-2.5 active:opacity-80"
+                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-3 active:opacity-80"
               >
                 <Camera color={dashboardColors.subtitle} size={15} />
                 <Text className="text-[12px] font-medium text-ink">
@@ -696,16 +741,6 @@ export default function NewReportScreen() {
               </Pressable>
             </View>
           </Card>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setSuggestionOpen(true)}
-            className="mb-4 self-start active:opacity-80"
-          >
-            <Text className="text-[12px] font-semibold text-dashboard-teal underline">
-              {t('reports.new.suggestionTitle')}
-            </Text>
-          </Pressable>
 
           {submitError ? (
             <StateView variant="error" description={submitError} className="mb-4" />
@@ -720,12 +755,14 @@ export default function NewReportScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <TriageChat
-        visible={triageOpen}
-        siteId={site.id}
-        onClose={() => setTriageOpen(false)}
-        onApply={applyTriage}
-      />
+      {activeSite ? (
+        <TriageChat
+          visible={triageOpen}
+          siteId={activeSite.id}
+          onClose={() => setTriageOpen(false)}
+          onApply={applyTriage}
+        />
+      ) : null}
 
       {suggestionOpen ? (
         <View className="absolute inset-0 items-center justify-center bg-black/40 px-6">

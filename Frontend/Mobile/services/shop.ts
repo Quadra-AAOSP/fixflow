@@ -77,3 +77,22 @@ export function adminUpdateProduct(
 export function adminDeleteProduct(id: string): Promise<void> {
   return api.del<void>(endpoints.shopAdmin.product(id));
 }
+export interface ShopAnalyticsRevenue { currency: string; minorUnitDigits: number; totalMinor: number }
+export interface ShopAnalytics { generatedAt: string; trendStartDate: string; trendEndDate: string; totalOrders: number; ordersByStatus: Record<string, number>; revenue: ShopAnalyticsRevenue[]; products: Record<string, number>; daily: { date: string; orders: number; revenue: ShopAnalyticsRevenue[] }[] }
+export const loadShopAnalytics = () => api.get<ShopAnalytics>(endpoints.shopAdmin.analytics);
+
+export function listManagerOrders(page = 0): Promise<import('@/types/shop').ShopPage<import('@/types/shop').ShopManagerOrder>> {
+  return api.get(endpoints.shopAdmin.orders(page));
+}
+export function getManagerOrder(id: string): Promise<import('@/types/shop').ShopManagerOrder> {
+  return api.get(endpoints.shopAdmin.order(id));
+}
+export function advanceManagerOrder(id: string, status: 'processing' | 'shipped'): Promise<import('@/types/shop').ShopManagerOrder> {
+  return api.post(endpoints.shopAdmin.fulfillment(id), { status });
+}
+export function confirmDelivery(id: string, signedName: string): Promise<ShopOrder> {
+  return api.post(endpoints.shop.confirmDelivery(id), { signedName, received: true });
+}
+export function listShopNotifications(page = 0): Promise<import('@/types/shop').ShopPage<import('@/types/shop').ShopNotification>> {
+  return api.get(endpoints.shop.notifications(page));
+}

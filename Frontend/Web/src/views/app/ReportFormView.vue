@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -141,11 +142,11 @@ async function submit() {
     <h1>{{ t("Report an issue") }}</h1>
     <p class="dialog-intro">{{ t('Describe what needs attention at {site}. Your report will be saved to the maintenance system.', { site: data.selectedSite?.name || t('your site') }) }}</p>
     <p v-if="!data.canCreate" class="live-empty">{{ t("Your account cannot create reports.") }}</p>
-    <p v-else-if="data.loading" class="live-empty" role="status">{{ t("Loading site categories…") }}</p>
+    <LoadingStatus v-else-if="data.loading" :label="t('Loading site categories…')" />
     <p v-else-if="data.rulesError" class="live-error" role="alert">{{ t(data.rulesError) }} <button @click="data.refresh()">{{ t("Retry") }}</button></p>
     <p v-else-if="!data.selectedSite || !categories.length" class="live-empty">{{ t("No reporting categories are available for this site. Ask your administrator to configure them.") }}</p>
     <template v-else>
-      <p v-if="locationsLoading" class="live-empty" role="status">{{ t("Loading buildings…") }}</p>
+      <LoadingStatus v-if="locationsLoading" :label="t('Loading buildings…')" />
       <p v-else-if="locationsError" class="live-error" role="alert">{{ t(locationsError) }} <button type="button" @click="loadLocations(data.selectedSiteId)">{{ t("Retry") }}</button></p>
       <p v-else-if="!subsites.length" class="live-empty">{{ t("Reporting is not ready: a site admin must add a labelled building first.") }}
         <RouterLink v-if="canManageBuildings" :to="{ name: 'subsites', params: { siteId: data.selectedSiteId } }">{{ t("Set up buildings →") }}</RouterLink>

@@ -1,8 +1,7 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
@@ -15,16 +14,20 @@ import { ArrowLeft, CreditCard, ExternalLink, X } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
+import { TextField } from '@/components/ui/TextField';
+import { useAuth } from '@/hooks/useAuth';
 import { StateView } from '@/components/ui/StateView';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { ApiError } from '@/lib/apiClient';
 import {
   cancelOrder,
+  confirmDelivery,
   completeDevPayment,
   getOrder,
 } from '@/services/shop';
 import type { ShopOrder } from '@/types';
 import { formatDate, formatMoney } from '@/utils/format';
+import { canConfirmReceipt, canShopPurchase } from '@/utils/shop';
 
 /**
  * Order detail. Reads the order ID from the route, fetches it, and shows the
@@ -33,7 +36,12 @@ import { formatDate, formatMoney } from '@/utils/format';
  * payment gateway.
  */
 export default function OrderDetailScreen() {
-  const palette = themeColors();
+  const { user } = useAuth();
+  const { orderId } = useLocalSearchParams<{ orderId?: string | string[] }>();
+  if (!canShopPurchase(user?.role)) return <Redirect href={user?.role === 'reporter' ? "/more" : "/more/shop-orders"} />;
+  return <OrderDetailContent key={`${user?.id ?? ''}:${user?.role ?? ''}:${orderId}`} />;
+}
+function OrderDetailContent() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams<{ orderId?: string | string[] }>();
   const publicId = Array.isArray(orderId) ? orderId[0] : orderId;
@@ -43,6 +51,14 @@ export default function OrderDetailScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState(false);
+  const [signedName, setSignedName] = useState('');
+  const [received, setReceived] = useState(false);
+  function handleError(err: unknown, fallback: string) {
+    if (err instanceof ApiError && [401, 403, 404].includes(err.status)) {
+      setOrder(null); setSignedName(''); setReceived(false);
+    }
+    setError(err instanceof ApiError ? err.message : fallback);
+  }
 
   const load = useCallback(async () => {
     if (!publicId) return;
@@ -52,9 +68,7 @@ export default function OrderDetailScreen() {
       const result = await getOrder(publicId);
       setOrder(result);
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : t('more.shop.couldNotLoadOrder'),
-      );
+      handleError(err, t('more.shop.couldNotLoadOrder'));
     } finally {
       setLoading(false);
     }
@@ -78,11 +92,7 @@ export default function OrderDetailScreen() {
             const next = await cancelOrder(order.orderId);
             setOrder(next);
           } catch (err) {
-            setError(
-              err instanceof ApiError
-                ? err.message
-                : t('more.shop.errors.cancelOrder'),
-            );
+            handleError(err, t('more.shop.errors.cancelOrder'));
           } finally {
             setActing(false);
           }
@@ -98,14 +108,19 @@ export default function OrderDetailScreen() {
       const next = await completeDevPayment(order.orderId);
       setOrder(next);
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : t('more.shop.errors.devPayment'),
-      );
+      handleError(err, t('more.shop.errors.devPayment'));
     } finally {
       setActing(false);
     }
+  }
+
+  async function onConfirmDelivery() {
+    const name = signedName.trim();
+    if (!order?.canConfirmDelivery || !canConfirmReceipt(name, received) || acting) return;
+    setActing(true); setError(null);
+    try { setOrder(await confirmDelivery(order.orderId, name)); setSignedName(''); setReceived(false); }
+    catch (err) { handleError(err, t('orderReceipt.error')); }
+    finally { setActing(false); }
   }
 
   if (!publicId) {
@@ -119,9 +134,7 @@ export default function OrderDetailScreen() {
   if (loading && order === null) {
     return (
       <Screen>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={palette.primary} />
-        </View>
+        <StateView variant="loading" title={t('review.loading')} />
       </Screen>
     );
   }
@@ -225,6 +238,21 @@ export default function OrderDetailScreen() {
               bold
             />
           </View>
+        </Card>
+
+        {error && <StateView variant="error" description={error} />}
+        <Card className="mb-4">
+          <Row label={t('orderManagement.fulfillment')} value={order.fulfillmentStatus ? t(`orderManagement.status.${order.fulfillmentStatus}`) : '-'} />
+          {order.deliverySignedName ? <Row label={t('orderManagement.signedBy')} value={order.deliverySignedName} /> : null}
+          {order.deliveryConfirmedAt ? <Row label={t('orderManagement.confirmedAt')} value={formatDate(order.deliveryConfirmedAt, true)} /> : null}
+          {order.canConfirmDelivery ? <View className="mt-4">
+            <TextField label={t('orderReceipt.name')} value={signedName} onChangeText={setSignedName} maxLength={160} editable={!acting} />
+            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: received, disabled: acting }} onPress={() => setReceived(!received)} disabled={acting} className="min-h-[44px] flex-row items-center gap-3">
+              <View className="h-5 w-5 items-center justify-center rounded border border-border"><Text className="text-ink">{received ? 'X' : ''}</Text></View>
+              <Text className="flex-1 text-ink">{t('orderReceipt.received')}</Text>
+            </Pressable>
+            <Button label={t('orderReceipt.submit')} onPress={onConfirmDelivery} loading={acting} disabled={!canConfirmReceipt(signedName, received)} />
+          </View> : null}
         </Card>
 
         <Text

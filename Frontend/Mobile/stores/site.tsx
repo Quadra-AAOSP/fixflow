@@ -13,6 +13,7 @@ import { ApiError } from '@/lib/apiClient';
 import { listSites } from '@/services/sites';
 import type { Site } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
+import { createRequestGate } from '@/utils/requestGate';
 
 export type SiteContextValue = {
   /**
@@ -62,6 +63,14 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const [activeSiteId, setActiveSiteId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const identity = user ? `${user.id}:${user.role}:${user.siteId ?? ''}` : null;
+  const identityRef = useRef(identity);
+  const generation = useRef(createRequestGate());
+  const [loadedIdentity, setLoadedIdentity] = useState<string | null>(null);
+  if (identityRef.current !== identity) {
+    identityRef.current = identity;
+    generation.current.invalidate();
+  }
 
   // Keep the latest logout reference without re-creating `refresh` on every
   // render (and therefore re-firing the effect on every parent update).
@@ -71,19 +80,25 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   const refresh = useCallback(async () => {
-    if (!user) {
+    if (identity === null) {
       setSites([]);
       setError(null);
       return;
     }
 
+    const request = generation.current.begin();
+    const requestIdentity = identity;
     setLoading(true);
     setError(null);
     try {
       const result = await listSites();
+      if (!generation.current.current(request) || identityRef.current !== requestIdentity) return;
       setSites(result);
+      setLoadedIdentity(requestIdentity);
     } catch (err) {
+      if (!generation.current.current(request) || identityRef.current !== requestIdentity) return;
       const wrapped = err instanceof Error ? err : new Error(String(err));
+      setLoadedIdentity(requestIdentity);
       setError(wrapped);
       // Treat 401 on site lookup the same as a stale session everywhere
       // else: sign the user out so we stop showing stale data.
@@ -91,24 +106,26 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         await logoutRef.current().catch(() => {});
       }
     } finally {
-      setLoading(false);
+      if (generation.current.current(request) && identityRef.current === requestIdentity) setLoading(false);
     }
-  }, [user]);
+  }, [identity]);
 
   useEffect(() => {
     // Drop any previous actor's selection so a super_admin selection never
     // carries across a sign-out / sign-in.
     setActiveSiteId(null);
-    if (user) {
+    setSites([]);
+    setLoadedIdentity(null);
+    setError(null);
+    if (identity !== null) {
       void refresh();
     } else {
       setSites([]);
       setError(null);
+      setLoading(false);
     }
-    // Intentionally keyed on `user?.id` (not the whole user object) so we do
-    // not re-fetch on every user-object reference change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+    return () => { generation.current.invalidate(); };
+  }, [identity, refresh]);
 
   const setActiveSite = useCallback((siteId: number) => {
     setActiveSiteId(siteId);
@@ -119,22 +136,23 @@ export function SiteProvider({ children }: { children: ReactNode }) {
     // deleted, or the list has not loaded yet) falls through to the first
     // entry rather than resolving to null.
     let site: Site | null = null;
-    if (sites.length > 0) {
+    const visibleSites = loadedIdentity === identity ? sites : [];
+    if (visibleSites.length > 0) {
       site =
         (activeSiteId !== null
-          ? sites.find((candidate) => candidate.id === activeSiteId)
-          : undefined) ?? sites[0];
+          ? visibleSites.find((candidate) => candidate.id === activeSiteId)
+          : undefined) ?? visibleSites[0];
     }
 
     return {
       site,
-      sites,
-      loading,
-      error,
+      sites: visibleSites,
+      loading: identity !== null && loadedIdentity !== identity ? true : loading,
+      error: loadedIdentity === identity ? error : null,
       refresh,
       setActiveSite,
     };
-  }, [sites, activeSiteId, loading, error, refresh, setActiveSite]);
+  }, [sites, activeSiteId, loading, error, refresh, setActiveSite, identity, loadedIdentity]);
 
   return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>;
 }

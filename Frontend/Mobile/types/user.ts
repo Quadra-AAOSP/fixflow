@@ -28,6 +28,13 @@ export type SiteAdminApplication = {
   decidedBy: number | null;
 };
 
+/** Public registration site descriptor (`GET /api/auth/sites`). */
+export type JoinableSite = {
+  id: number;
+  name: string;
+  type: import('./site').SiteType;
+};
+
 export type User = {
   id: number;
   email: string;
@@ -44,6 +51,7 @@ export type User = {
   };
   siteOnboarding: SiteOnboarding | null;
   adminApplication: AdminApplicationRef | null;
+  applicationOnly?: boolean;
 };
 
 export type LoginPayload = {
@@ -52,10 +60,8 @@ export type LoginPayload = {
 };
 
 /**
- * Self-registration payload. The backend permits `reporter`, `technician` and
- * `admin` here (`AuthService.register`). An `admin` registration is demoted to
- * `reporter` server-side and files a pending site-admin application instead.
- * `siteId` is required for reporter/admin and must be null for technicians.
+ * Reporter and technician self-registration. New site administrators apply
+ * through site onboarding. Reporters need a site and technicians start without one.
  *
  * Backed by backend `RegisterRequest` (DTO). Mirrors the locked contract.
  */
@@ -68,6 +74,13 @@ export type RegisterPayload = {
   address?: string;
   role: Extract<UserRole, 'reporter' | 'technician' | 'admin'>;
   siteId?: number | null;
+  // Admin self-apply bundle — submits site details together with the
+  // application so the site is created immediately and linked to the
+  // applicant. Super_admin approval then flips both user role and activates.
+  siteName?: string;
+  siteType?: 'school' | 'hostel' | 'hotel';
+  siteAddress?: string;
+  siteDescription?: string;
 };
 
 /**

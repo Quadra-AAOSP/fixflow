@@ -21,6 +21,8 @@ export const endpoints = {
     me: '/api/auth/me',
     /** GET — the caller's own site-admin application, or null. */
     siteAdminApplication: '/api/auth/site-admin-application',
+    /** GET — public list for the registration site picker. */
+    sites: '/api/auth/sites',
   },
 
   admin: {
@@ -64,6 +66,18 @@ export const endpoints = {
     join: (id: number | string) => `/api/reports/${id}/join`,
     reporters: (id: number | string) => `/api/reports/${id}/reporters`,
     assign: (id: number | string) => `/api/reports/${id}/assign`,
+    /** POST — a contracted technician takes an unassigned queue item. */
+    claim: (id: number | string) => `/api/reports/${id}/claim`,
+    /** POST — assigned technician starts work (assigned/reopened → in_progress). */
+    start: (id: number | string) => `/api/reports/${id}/start`,
+    /** POST — assigned technician marks work complete; body `{ description }`. */
+    resolve: (id: number | string) => `/api/reports/${id}/resolve`,
+    /** PATCH — staff/admin final-urgency override; body `{ urgency, reason }`. */
+    urgency: (id: number | string) => `/api/reports/${id}/urgency`,
+    /** PATCH — reporter/ops edits a still-editable report. */
+    update: (id: number | string) => `/api/reports/${id}`,
+    /** GET — every status transition recorded for the report. */
+    history: (id: number | string) => `/api/reports/${id}/history`,
     /** POST — stateless AI chat about one report; body carries the message history. */
     assistant: (id: number | string) => `/api/reports/${id}/assistant`,
     /** POST — natural-language query → structured filters (NL smart search). */
@@ -93,6 +107,7 @@ export const endpoints = {
 
   technicianSkills: {
     create: '/api/technician-skills',
+    me: '/api/technician-skills/me',
   },
 
   technicianContracts: {
@@ -131,6 +146,8 @@ export const endpoints = {
     catalog: '/api/shop/catalog',
     quote: '/api/shop/checkout/quote',
     orders: '/api/shop/orders',
+    notifications: (page: number) => `/api/shop/notifications?page=${page}`,
+    confirmDelivery: (id: string) => `/api/shop/orders/${encodeURIComponent(id)}/confirm-delivery`,
     order: (publicId: string) =>
       `/api/shop/orders/${encodeURIComponent(publicId)}`,
     cancel: (publicId: string) =>
@@ -141,6 +158,10 @@ export const endpoints = {
 
   /** Shop-manager product CRUD (`manageShop` capability). */
   shopAdmin: {
+    analytics: '/api/admin/shop/analytics',
+    orders: (page: number) => `/api/admin/shop/orders?page=${page}`,
+    order: (id: string) => `/api/admin/shop/orders/${encodeURIComponent(id)}`,
+    fulfillment: (id: string) => `/api/admin/shop/orders/${encodeURIComponent(id)}/fulfillment`,
     products: '/api/admin/shop/products',
     product: (id: string) => `/api/admin/shop/products/${encodeURIComponent(id)}`,
   },
@@ -157,12 +178,13 @@ export const endpoints = {
  * Not implemented by the backend, therefore not exposed anywhere in the app:
  *
  *   PATCH  /api/reports/{id}/status
- *   PATCH  /api/reports/{id}/urgency
- *   POST   /api/reports/{id}/reassign
- *   GET    /api/reports/assigned-to-me
- *   GET    /api/reports/claimable
- *   GET    /api/technician-skills
- *   GET    /api/technician-contracts
+ *   POST   /api/reports/{id}/reassign   (reassignment reuses `/assign`)
+ *   GET    /api/reports/assigned-to-me  (queue is derived from `/api/reports`)
+ *   GET    /api/reports/claimable       (queue is derived from `/api/reports`)
  *
- * Screens must not offer an affordance that depends on these.
+ * Implemented elsewhere and therefore wired above: technician availability
+ * (`/api/technicians/me/availability`), claim (`/claim`), confirm/reopen,
+ * start/resolve, urgency override, report edit, and the photo endpoints.
+ *
+ * Screens must not offer an affordance that depends on the absent paths.
  */

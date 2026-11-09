@@ -60,4 +60,16 @@ public class TechnicianSkillService {
 		skill.setProficiency(request.proficiency() == null ? 3 : request.proficiency());
 		return TechnicianSkillResponse.from(technicianSkillRepository.save(skill));
 	}
+
+	@Transactional(readOnly = true)
+	public java.util.List<TechnicianSkillResponse> mine(AppUserDetails actor) {
+		if (actor == null || actor.getRole() != UserRole.technician) {
+			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Technician access required");
+		}
+		User user = userRepository.findById(actor.getId())
+				.orElseThrow(() -> new ApiException(401, "User not found"));
+		roleIntegrityService.requireTechnician(user);
+		return technicianSkillRepository.findByTechnician_IdInOrderByIdAsc(java.util.List.of(actor.getId()))
+				.stream().map(TechnicianSkillResponse::from).toList();
+	}
 }

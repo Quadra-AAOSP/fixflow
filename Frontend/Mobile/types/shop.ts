@@ -132,6 +132,12 @@ export type ShopOrder = {
   paymentStatus: ShopPaymentStatus;
   createdAt: string;
   updatedAt: string;
+  fulfillmentStatus: ShopFulfillmentStatus | null;
+  processingAt: string | null;
+  shippedAt: string | null;
+  deliveryConfirmedAt: string | null;
+  deliverySignedName: string | null;
+  canConfirmDelivery: boolean;
 };
 
 /** Mirrors backend `ShopCreateOrderRequest`. */
@@ -150,3 +156,10 @@ export type ShopCreateOrderResult = {
   checkoutUrl: string | null;
   paymentProvider: string;
 };
+
+export type ShopFulfillmentStatus = 'ordered' | 'processing' | 'shipped' | 'delivered';
+export type ShopManagerOrder = Omit<ShopOrder, 'checkoutUrl' | 'canConfirmDelivery'> & {
+  allowedTransitions: ('processing' | 'shipped')[];
+};
+export type ShopPage<T> = { content: T[]; hasMore: boolean };
+export type ShopNotification = { id: number; orderId: string; type: 'order_shipped' | 'order_placed'; createdAt: string };

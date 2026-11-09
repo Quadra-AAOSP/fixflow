@@ -31,7 +31,8 @@ public class SubsiteService {
     }
     private final SiteRepository sites; private final SubsiteRepository subsites; private final SubsiteRequestRepository alerts; private final UserRepository users;
     public SubsiteService(SiteRepository sites, SubsiteRepository subsites, SubsiteRequestRepository alerts, UserRepository users) { this.sites = sites; this.subsites = subsites; this.alerts = alerts; this.users = users; }
-    @Transactional(readOnly = true) public List<SubsiteResponse> list(Long siteId, AppUserDetails actor) { assertCanView(siteId, actor); return subsites.findBySite_IdAndArchivedAtIsNullOrderByLabelAsc(siteId).stream().map(SubsiteResponse::from).toList(); }
+    @Transactional(readOnly = true) public List<SubsiteResponse> list(Long siteId, AppUserDetails actor) { // Building names are metadata needed to file anywhere.
+        return subsites.findBySite_IdAndArchivedAtIsNullOrderByLabelAsc(siteId).stream().map(SubsiteResponse::from).toList(); }
     @Transactional public SubsiteResponse create(Long siteId, SubsiteRequest request, AppUserDetails actor) {
         assertCanManage(siteId, actor); String label = request.label().trim().toUpperCase(java.util.Locale.ROOT);
         if (subsites.existsBySite_IdAndLabelIgnoreCase(siteId, label)) throw new ApiException(HttpStatus.CONFLICT.value(), "Subsite label already exists");
@@ -65,6 +66,8 @@ public class SubsiteService {
     @Transactional public SubsiteAlertResponse resolve(Long siteId, Long requestId, AppUserDetails actor) { assertCanManage(siteId, actor); com.example.fixflow.domain.SubsiteRequest alert = alerts.findById(requestId).filter(item -> item.getSite().getId().equals(siteId)).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Subsite request not found")); alert.setStatus(Status.resolved); alert.setResolvedAt(Instant.now()); return SubsiteAlertResponse.from(alert); }
     private Site site(Long id) { return sites.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Site not found")); }
     private User user(Long id) { return users.findById(id).orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED.value(), "User not found")); }
-    private void assertCanView(Long siteId, AppUserDetails actor) { if (actor.getRole() == UserRole.super_admin || (actor.getSiteId() != null && actor.getSiteId().equals(siteId))) return; throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to access this site"); }
+    // Reporters can file at any site, so they need read access to every
+    // site's subsites; management remains site-admin / super_admin only.
+    private void assertCanView(Long siteId, AppUserDetails actor) { if (actor.getRole() == UserRole.super_admin || actor.getRole() == UserRole.reporter || (actor.getSiteId() != null && actor.getSiteId().equals(siteId))) return; throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to access this site"); }
     private void assertCanManage(Long siteId, AppUserDetails actor) { if (actor.getRole() == UserRole.super_admin || (actor.getRole() == UserRole.admin && actor.getSiteId() != null && actor.getSiteId().equals(siteId))) return; throw new ApiException(HttpStatus.FORBIDDEN.value(), "Only this site's admin can manage subsites"); }
 }

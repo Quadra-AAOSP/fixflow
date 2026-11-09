@@ -30,7 +30,7 @@ export interface Report {
   policy?: {
     statusGroup: string; effectiveUrgency: Urgency; urgent: boolean;
     inAssignmentQueue: boolean; participant: boolean; canSeeSensitive: boolean;
-    canAssign: boolean; canJoin: boolean;
+    canAssign: boolean; canJoin: boolean; canEdit?: boolean; canDelete?: boolean;
   };
   photos?: ReportPhoto[];
   reopenReason?: string | null;
@@ -51,7 +51,7 @@ export interface CreateReportPayload {
   description: string; address?: string; category: string; specialty?: string;
   reporterUrgency: Urgency; reporterReason?: string; siteId: number; subsiteId?: number;
 }
-export interface ReportReporter { reportId: number; userId: number; joinedAt: string }
+export interface ReportReporter { reportId: number; userId: number; joinedAt: string; name?: string | null }
 export interface ReportVisionJob {
   jobId: string; reportId: number;
   status: 'queued' | 'processing' | 'completed' | 'review_required' | 'stale' | 'failed';

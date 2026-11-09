@@ -5,8 +5,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.fixflow.domain.Report;
+import com.example.fixflow.domain.ReportNotification;
 import com.example.fixflow.domain.ReportPhoto;
 import com.example.fixflow.domain.ReportReporter;
 import com.example.fixflow.domain.ReportStatus;
@@ -32,6 +35,8 @@ import com.example.fixflow.dto.ReportPageResponse;
 import com.example.fixflow.dto.ReportPhotoResponse;
 import com.example.fixflow.dto.ReportReporterResponse;
 import com.example.fixflow.dto.ReportResponse;
+import com.example.fixflow.dto.UpdateReportRequest;
+import com.example.fixflow.repository.ReportNotificationRepository;
 import com.example.fixflow.repository.ReportPhotoRepository;
 import com.example.fixflow.repository.ReportReporterRepository;
 import com.example.fixflow.repository.ReportRepository;
@@ -47,6 +52,7 @@ public class ReportService {
 
 	private final ReportRepository reportRepository;
 	private final ReportReporterRepository reportReporterRepository;
+	private final ReportNotificationRepository notifications;
 	private final ReportPhotoRepository reportPhotoRepository;
 	private final StatusHistoryRepository statusHistoryRepository;
 	private final UserRepository userRepository;
@@ -66,6 +72,7 @@ public class ReportService {
 	public ReportService(
 			ReportRepository reportRepository,
 			ReportReporterRepository reportReporterRepository,
+			ReportNotificationRepository notifications,
 			ReportPhotoRepository reportPhotoRepository,
 			StatusHistoryRepository statusHistoryRepository,
 			UserRepository userRepository,
@@ -84,6 +91,7 @@ public class ReportService {
 	) {
 		this.reportRepository = reportRepository;
 		this.reportReporterRepository = reportReporterRepository;
+		this.notifications = notifications;
 		this.reportPhotoRepository = reportPhotoRepository;
 		this.statusHistoryRepository = statusHistoryRepository;
 		this.userRepository = userRepository;
@@ -182,7 +190,17 @@ public class ReportService {
 	}
 
 	@Transactional(readOnly = true)
-	public ReportPageResponse list(Long siteId, String category, int page, int size, AppUserDetails actor) {
+	public ReportPageResponse list(Long siteId, String category, boolean mine, int page, int size, AppUserDetails actor) {
+		// "Mine" spans every site the actor has filed at, including sites other
+		// than their account site. Used by the mobile Track reports view.
+		if (mine) {
+			List<ReportResponse> mineContent = reportRepository.findDetailedByCreatorId(actor.getId()).stream()
+					.filter(report -> report.getVisibility() != ReportVisibility.PRIVATE
+							|| canSeeSensitive(actor, report))
+					.map(report -> response(report, actor))
+					.toList();
+			return new ReportPageResponse(mineContent, 0, mineContent.size(), mineContent.size(), 1);
+		}
 		Long scopedSiteId = resolveSiteForList(actor, siteId);
 		int safePage = Math.max(page, 0);
 		int safeSize = Math.min(Math.max(size, 1), 100);
@@ -209,6 +227,65 @@ public class ReportService {
 		return new ReportPageResponse(content, safePage, safeSize, result.getTotalElements(), result.getTotalPages());
 	}
 
+	public record SearchFilters(String status, String category, String urgency, String from, String to, String text, Boolean canJoin, String visibility) {}
+	public record SearchPage(List<ReportResponse> content, int page, boolean hasMore) {}
+
+	@Transactional(readOnly = true)
+	public SearchPage search(Long siteId, SearchFilters filters, int page, int size, AppUserDetails actor) {
+		Long scopedSiteId = resolveSiteForList(actor, siteId);
+		if (filters == null) throw new ApiException(400, "Filters are required");
+		int safePage = Math.max(0, page), safeSize = Math.min(Math.max(size, 1), 100);
+		com.example.fixflow.domain.Urgency urgency;
+		ReportStatus status;
+		ReportVisibility visibility;
+		java.time.LocalDate from, to;
+        if ((filters.from() != null && !filters.from().matches("[0-9]{4}-[0-9]{2}-[0-9]{2}"))
+                || (filters.to() != null && !filters.to().matches("[0-9]{4}-[0-9]{2}-[0-9]{2}")))
+            throw new ApiException(400, "Dates must use YYYY-MM-DD");
+		try {
+			status = filters.status() == null ? null : ReportStatus.valueOf(filters.status());
+			visibility = filters.visibility() == null ? null : ReportVisibility.fromJson(filters.visibility());
+			urgency = filters.urgency() == null ? null : com.example.fixflow.domain.Urgency.valueOf(filters.urgency());
+			from = filters.from() == null ? null : java.time.LocalDate.parse(filters.from());
+			to = filters.to() == null ? null : java.time.LocalDate.parse(filters.to());
+		} catch (RuntimeException ex) { throw new ApiException(400, "Invalid search filters"); }
+		if ((from != null && to != null && from.isAfter(to)) || (filters.category() != null && filters.category().length() > 128)
+				|| (filters.text() != null && filters.text().length() > 500)) throw new ApiException(400, "Invalid search filters");
+		Page<Report> result = reportRepository.findAll((root, query, cb) -> {
+			var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
+			predicates.add(cb.equal(root.get("site").get("id"), scopedSiteId));
+			predicates.add(cb.isNull(root.get("archivedAt")));
+			var membership = query.subquery(Long.class);
+			var rr = membership.from(ReportReporter.class);
+			membership.select(rr.get("reportId")).where(cb.equal(rr.get("reportId"), root.get("id")), cb.equal(rr.get("userId"), actor.getId()));
+			var participant = cb.exists(membership);
+			var sensitive = switch (actor.getRole()) {
+				case staff, admin, super_admin -> cb.conjunction();
+				case reporter -> participant;
+				case technician -> cb.equal(root.join("assignedTechnician", jakarta.persistence.criteria.JoinType.LEFT).get("id"), actor.getId());
+				default -> cb.disjunction();
+			};
+			predicates.add(cb.or(cb.equal(root.get("visibility"), ReportVisibility.PUBLIC), sensitive));
+			if (status != null) predicates.add(cb.equal(root.get("status"), status));
+			if (visibility != null) predicates.add(cb.equal(root.get("visibility"), visibility));
+			if (filters.category() != null) predicates.add(cb.equal(root.get("category"), filters.category()));
+			if (urgency != null) predicates.add(cb.equal(cb.coalesce(root.get("finalUrgency"), root.get("reporterUrgency")), urgency));
+			if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from.atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+			if (to != null) predicates.add(cb.lessThan(root.get("createdAt"), to.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+			if (Boolean.TRUE.equals(filters.canJoin())) {
+				predicates.add(actor.getRole() == UserRole.reporter ? cb.not(participant) : cb.disjunction());
+				predicates.add(cb.notEqual(root.get("status"), ReportStatus.confirmed));
+			}
+			if (filters.text() != null && !filters.text().isBlank()) {
+				String pattern = "%" + filters.text().toLowerCase(java.util.Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+				predicates.add(cb.or(cb.like(cb.lower(root.get("description")), pattern, '!'), cb.like(cb.lower(root.get("category")), pattern, '!'),
+						cb.like(cb.lower(root.get("specialty")), pattern, '!'), cb.and(sensitive, cb.like(cb.lower(root.get("address")), pattern, '!'))));
+			}
+			return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+		}, PageRequest.of(safePage, safeSize, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Order.desc("createdAt"), org.springframework.data.domain.Sort.Order.desc("id"))));
+		return new SearchPage(result.getContent().stream().map(report -> response(report, actor)).toList(), safePage, result.hasNext());
+	}
+
 	@Transactional(readOnly = true)
 	public boolean canRead(Long id, AppUserDetails actor) {
 		try {
@@ -226,17 +303,96 @@ public class ReportService {
 	public ReportResponse get(Long id, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		if (actor.getRole() == UserRole.technician) {
-            if (report.getAssignedTechnician() == null
-                    || !report.getAssignedTechnician().getId().equals(actor.getId())) {
-                throw new ApiException(403, "Only the currently assigned technician may view this report");
-            }
-        } else {
-            assertCanViewSite(actor, report.getSite().getId());
-			assertCanSeeVisibility(actor, report);
-
-        }
+		assertCanReadReport(actor, report);
 		return response(report, actor);
+	}
+
+	@Transactional
+	public ReportResponse update(Long id, UpdateReportRequest request, AppUserDetails actor) {
+		Report report = lockForChange(id, actor, false);
+		String description = request.description().trim();
+		String address = blankToNull(request.address());
+		String reason = blankToNull(request.reporterReason());
+		String category = request.category() == null ? null
+				: categoryTaxonomyService.requireAllowedCategory(report.getSite().getType(), request.category());
+		String specialty = request.specialty() == null ? null : blankToNull(request.specialty());
+		boolean changed = !Objects.equals(report.getDescription(), description)
+				|| !Objects.equals(report.getAddress(), address)
+				|| report.getReporterUrgency() != request.reporterUrgency()
+				|| !Objects.equals(report.getReporterReason(), reason)
+				|| category != null && !Objects.equals(report.getCategory(), category)
+				|| specialty != null && !Objects.equals(report.getSpecialty(), specialty)
+				|| request.visibility() != null && report.getVisibility() != request.visibility();
+		if (changed) {
+			report.setDescription(description);
+			report.setAddress(address);
+			report.setReporterUrgency(request.reporterUrgency());
+			report.setReporterReason(reason);
+			if (category != null) {
+				report.setCategory(category);
+			}
+			if (specialty != null) {
+				report.setSpecialty(specialty);
+			}
+			if (request.visibility() != null) {
+				report.setVisibility(request.visibility());
+			}
+			reportRepository.flush();
+			recordChange(report, actor, ReportNotification.Type.report_edited);
+		}
+		return response(report, actor);
+	}
+
+	@Transactional
+	public void archive(Long id, AppUserDetails actor) {
+		Report report = lockForChange(id, actor, true);
+		recordChange(report, actor, ReportNotification.Type.report_deleted);
+		report.setArchivedAt(Instant.now());
+	}
+
+	private Report lockForChange(Long id, AppUserDetails actor, boolean archive) {
+		Report report = reportRepository.findForVisionUpdate(id)
+				.orElseThrow(() -> new ApiException(404, "Report not found"));
+		assertCanReadReport(actor, report);
+		if (!canManageReport(actor, report)) {
+			throw new ApiException(403, "Only the report creator or an authorized admin may change this report");
+		}
+		if (!isEditable(report) || archive && report.getStatus() == ReportStatus.in_progress) {
+			throw new ApiException(409, "The report cannot be changed this way in its current state");
+		}
+		return report;
+	}
+
+	private boolean canManageReport(AppUserDetails actor, Report report) {
+		if (actor.getRole() == UserRole.super_admin) {
+			return true;
+		}
+		return report.getSite().getId().equals(actor.getSiteId())
+				&& (actor.getRole() == UserRole.admin
+				|| (actor.getRole() == UserRole.reporter || actor.getRole() == UserRole.staff)
+				&& report.getCreatedBy().getId().equals(actor.getId()));
+	}
+
+	private boolean isEditable(Report report) {
+		return report.isEditable() && report.getStatus() != ReportStatus.confirmed
+				&& report.getStatus() != ReportStatus.resolved_pending_confirmation;
+	}
+
+	private void recordChange(Report report, AppUserDetails actor, ReportNotification.Type type) {
+		Long siteId = report.getSite().getId();
+		var recipients = new HashSet<>(userRepository.findIdsBySiteAndRole(siteId, UserRole.admin));
+		recipients.add(report.getCreatedBy().getId());
+		reportReporterRepository.findByReportIdOrderByJoinedAtAsc(report.getId())
+				.forEach(participant -> recipients.add(participant.getUserId()));
+		if (report.getAssignedTechnician() != null) {
+			recipients.add(report.getAssignedTechnician().getId());
+		}
+		recipients.remove(actor.getId());
+		Instant now = Instant.now();
+		notifications.saveAll(recipients.stream()
+				.map(id -> new ReportNotification(id, report.getId(), type, now)).toList());
+		appendStatusHistory(report, report.getStatus(), report.getStatus(), loadUser(actor.getId()),
+				type == ReportNotification.Type.report_edited ? "Report edited" : "Report archived");
 	}
 
 	@Transactional
@@ -244,7 +400,7 @@ public class ReportService {
 		if (actor.getRole() != UserRole.reporter) {
 			throw new ApiException(403, "Only reporters can join reports");
 		}
-		Report report = reportRepository.findDetailedById(id)
+		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanViewSite(actor, report.getSite().getId());
 		assertCanSeeVisibility(actor, report);
@@ -264,13 +420,16 @@ public class ReportService {
 	public List<ReportReporterResponse> listReporters(Long id, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		if (!canSeeSensitive(actor, report)) {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to list reporters on this report");
 		}
 		return reportReporterRepository.findByReportIdOrderByJoinedAtAsc(id).stream()
-				.map(row -> new ReportReporterResponse(row.getReportId(), row.getUserId(), row.getJoinedAt()))
+				.map(row -> {
+					User person = userRepository.findById(row.getUserId()).orElse(null);
+					String name = person == null ? null : (person.getFirstName() + " " + person.getLastName()).trim();
+					return new ReportReporterResponse(row.getReportId(), row.getUserId(), row.getJoinedAt(), name);
+				})
 				.toList();
 	}
 
@@ -291,6 +450,7 @@ public class ReportService {
             throw new ApiException(409, "Technician must have a contract with the report's site before assignment");
         }
         terms.requireAcceptance(technician.getId());
+        events.publishEvent(new MarketplaceAssignmentReplaced(report.getId(), actor.getId()));
         ReportStatus previousStatus = report.getStatus();
         Long previousAssignee = report.getAssignedTechnician() == null ? null : report.getAssignedTechnician().getId();
 		report.setAssignedTechnician(technician);
@@ -321,7 +481,7 @@ public class ReportService {
 		List<ReportPhoto> stored = storePhotos(report, photos, (int) existing);
 		return stored.stream()
 				.map(photo -> ReportPhotoResponse.from(photo, reportId,
-						objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofHours(1))))
+						ReportPhotoService.contentPath(reportId, photo.getId())))
 				.toList();
 	}
 
@@ -329,19 +489,17 @@ public class ReportService {
 	public String photoDownloadUrl(Long reportId, Long photoId, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
-		return objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofMinutes(15));
+		return ReportPhotoService.contentPath(reportId, photoId);
 	}
 
 	@Transactional(readOnly = true)
 	public InputStream openPhotoStream(Long reportId, Long photoId, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
 		return objectStorageService.getObject(photo.getObjectKey());
@@ -351,8 +509,7 @@ public class ReportService {
 	public ReportPhoto requirePhoto(Long reportId, Long photoId, AppUserDetails actor) {
 		Report report = reportRepository.findDetailedById(reportId)
 				.orElseThrow(() -> new ApiException(404, "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		return reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
 	}
@@ -370,12 +527,15 @@ public class ReportService {
 	}
 
 	@Transactional
-	public ReportResponse confirm(Long id, AppUserDetails actor) {
+	public ReportResponse confirm(Long id, String signedName, AppUserDetails actor) {
 		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		assertCanConfirmOrReopen(report, actor);
+        if (!report.getCreatedBy().getId().equals(actor.getId()) || actor.getRole() == UserRole.technician) throw new ApiException(403, "Only the report creator may confirm completion");
+		if (report.getAssignedTechnician() != null && report.getAssignedTechnician().getId().equals(actor.getId())) throw new ApiException(403, "Technician cannot confirm own work");
+        if (signedName == null || signedName.isBlank() || signedName.trim().length() > 255) throw new ApiException(400, "A signed name is required");
+        if (report.getStatus() == ReportStatus.confirmed && report.getConfirmedBy() != null && report.getConfirmedBy().getId().equals(actor.getId())) return response(report, actor);
 		if (report.getStatus() != ReportStatus.resolved_pending_confirmation) {
 			throw new ApiException(409, "Cannot confirm a report that is not awaiting confirmation");
 		}
@@ -383,6 +543,7 @@ public class ReportService {
 		ReportStatus from = report.getStatus();
 		report.setStatus(ReportStatus.confirmed);
 		report.setConfirmedBy(user);
+        report.setConfirmationSignedName(signedName.trim());
 		report.setConfirmedAt(Instant.now());
 		report = reportRepository.save(report);
 		appendStatusHistory(report, from, ReportStatus.confirmed, user, "Report confirmed");
@@ -394,8 +555,7 @@ public class ReportService {
 	public ReportResponse reopen(Long id, ReopenReportRequest request, AppUserDetails actor) {
 		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		assertCanConfirmOrReopen(report, actor);
 		if (report.getStatus() != ReportStatus.confirmed
 				&& report.getStatus() != ReportStatus.resolved_pending_confirmation) {
@@ -404,6 +564,9 @@ public class ReportService {
 		User user = loadUser(actor.getId());
 		ReportStatus from = report.getStatus();
 		report.setStatus(ReportStatus.reopened);
+        report.setConfirmedBy(null);
+        report.setConfirmedAt(null);
+        report.setConfirmationSignedName(null);
 		report.setReopenCount(report.getReopenCount() + 1);
 		report.setReopenReason(request.reason().trim());
 		report = reportRepository.save(report);
@@ -481,10 +644,10 @@ public class ReportService {
 	}
 
 	private void assertCanManagePhotos(AppUserDetails actor, Report report) {
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		boolean allowed = switch (actor.getRole()) {
-			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId())
+					|| (report.getCreatedBy() != null && report.getCreatedBy().getId().equals(actor.getId()));
 			case staff, admin, super_admin -> true;
 			default -> false;
 		};
@@ -520,11 +683,27 @@ public class ReportService {
 			return siteRepository.findById(requestedSiteId)
 					.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found"));
 		}
-		if (filer.getSite() == null) {
+		if (filer.getRole() == UserRole.reporter) {
+			// Reporters file wherever the issue actually is. The account site
+			// chosen at sign-up is only the default, not a filing restriction.
+			if (requestedSiteId != null) {
+				return siteRepository.findById(requestedSiteId)
+						.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found"));
+			}
+			if (filer.getSite() == null) {
+				throw new ApiException(HttpStatus.BAD_REQUEST.value(), "Account is not scoped to a site");
+			}
+			return filer.getSite();
+		}
+		if (filer.getSite() == null && requestedSiteId == null) {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(), "Account is not scoped to a site");
 		}
-		if (requestedSiteId != null && !requestedSiteId.equals(filer.getSite().getId())) {
-			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Cannot create a report for another site");
+		// Staff and admins may file at any existing site too — they often
+		// notice issues outside their own site and the account site is only
+		// the default.
+		if (requestedSiteId != null) {
+			return siteRepository.findById(requestedSiteId)
+					.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found"));
 		}
 		return filer.getSite();
 	}
@@ -533,6 +712,18 @@ public class ReportService {
 		if (actor.getRole() == UserRole.super_admin) {
 			if (siteId == null) {
 				throw new ApiException(HttpStatus.BAD_REQUEST.value(), "siteId is required");
+			}
+			return siteId;
+		}
+		// Technicians are not scoped to a single site — their access comes
+		// from contracts. Let them read the queue for any site they are
+		// contracted to (the mobile Assignments tab fans out over these).
+		if (actor.getRole() == UserRole.technician) {
+			if (siteId == null) {
+				throw new ApiException(HttpStatus.BAD_REQUEST.value(), "siteId is required");
+			}
+			if (!contracts.existsByTechnician_IdAndSite_Id(actor.getId(), siteId)) {
+				throw new ApiException(HttpStatus.FORBIDDEN.value(), "Technician is not contracted to this site");
 			}
 			return siteId;
 		}
@@ -549,10 +740,32 @@ public class ReportService {
 		if (actor.getRole() == UserRole.super_admin) {
 			return;
 		}
+		if (actor.getRole() == UserRole.technician) {
+			if (contracts.existsByTechnician_IdAndSite_Id(actor.getId(), siteId)) {
+				return;
+			}
+		}
 		if (actor.getSiteId() != null && actor.getSiteId().equals(siteId)) {
 			return;
 		}
 		throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to view this site's reports");
+	}
+
+	private void assertCanReadReport(AppUserDetails actor, Report report) {
+		if (actor.getRole() == UserRole.technician) {
+			if (!canSeeSensitive(actor, report)) {
+				throw new ApiException(403, "Only the currently assigned technician may view this report");
+			}
+			return;
+		}
+		if (report.getCreatedBy() != null && report.getCreatedBy().getId().equals(actor.getId())) {
+			// Whoever filed the report keeps access to it even when they filed
+			// it at a site other than their account site.
+			assertCanSeeVisibility(actor, report);
+			return;
+		}
+		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
 	}
 
 	private boolean canSeeSensitive(AppUserDetails actor, Report report) {
@@ -582,12 +795,15 @@ public class ReportService {
 				|| report.getAssignedTechnician() != null
 				&& report.getAssignedTechnician().getId().equals(actor.getId());
 		boolean canSee = canSeeSensitive(actor, report);
+		boolean canEdit = canManageReport(actor, report) && isEditable(report);
 		List<ReportPhotoResponse> photos = canSee
-				? reportPhotoService.listWithPresignedUrls(report.getId())
+				? actor.getRole() == UserRole.technician ? reportPhotoService.listWithSessionUrls(report.getId())
+                        : reportPhotoService.listWithPresignedUrls(report.getId())
 				: List.of();
 		return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
 				report, canSee, participant, canAssign,
-				actor.getRole() == UserRole.reporter && !participant, ownQueue), photos,
+				actor.getRole() == UserRole.reporter && !participant, ownQueue,
+				canEdit, canEdit && report.getStatus() != ReportStatus.in_progress), photos,
                 actor.getRole() == UserRole.admin || actor.getRole() == UserRole.super_admin || actor.getRole() == UserRole.staff);
 	}
 

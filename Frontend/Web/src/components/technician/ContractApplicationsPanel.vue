@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
@@ -104,7 +105,7 @@ async function decide(item: ContractApplication, decision: 'approve' | 'reject')
       <p v-if="siteAdmin" class="dialog-intro">{{ t("Only your site’s requests appear here. Approval creates the site contract after the backend checks current terms acceptance.") }}</p>
       <p v-if="success" role="status" class="draft-notice">{{ submittedRequest ? t('Request #{id} submitted to site #{siteId}.', { id: success.id, siteId: success.siteId }) : t('Request #{id} {status}.', { id: success.id, status: t(success.status) }) }}</p>
       <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
-      <p v-if="loading" role="status">{{ t("Loading requests…") }}</p>
+      <LoadingStatus v-if="loading" :label="t('Loading requests…')" />
       <p v-else-if="!error && !items.length">{{ t("No requests yet.") }}</p>
       <ul v-else class="contract-request-list">
         <li v-for="item in items" :key="item.id" class="dashboard-card">
