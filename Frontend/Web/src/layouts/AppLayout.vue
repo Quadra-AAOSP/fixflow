@@ -105,12 +105,13 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
     </div>
     <dialog ref="notificationDialog" @close="notificationsOpen = false" class="dashboard-dialog" :aria-label="t('Notifications')">
       <div class="dialog-heading"><h2>{{ t('Notifications') }}</h2><button class="icon-button" :aria-label="t('Close dialog')" @click="notificationDialog?.close()"><X :size="22" /></button></div>
-      <ShopNotifications v-if="notificationsOpen" :key="shopNoticeEpoch" /><p v-if="noticeError" class="live-error" role="alert">{{ t(noticeError) }} <button @click="loadNotices()">{{ t('Retry') }}</button></p>
+      <ShopNotifications v-if="notificationsOpen && user?.role !== 'reporter'" :key="shopNoticeEpoch" /><p v-if="noticeError" class="live-error" role="alert">{{ t(noticeError) }} <button @click="loadNotices()">{{ t('Retry') }}</button></p>
       <p v-if="loadingNotices" role="status" class="dialog-intro">{{ t('Loading notifications…') }}</p>
       <p v-else-if="!notices.length && !noticeError" class="dialog-intro">{{ t('No notifications yet.') }}</p>
       <ul v-if="notices.length" class="reporter-list">
         <li v-for="notice in notices" :key="notice.id">
-          {{ t(notice.type === 'report_edited' ? 'Report #{id} was edited.' : 'Report #{id} was archived.', { id: notice.reportId }) }}
+          <RouterLink v-if="notice.type === 'work_completed'" :to="`/reports/${notice.reportId}`" @click="notificationDialog?.close()">{{ t('Report #{id} is ready for your confirmation.', { id: notice.reportId }) }}</RouterLink>
+          <template v-else>{{ t(notice.type === 'report_edited' ? 'Report #{id} was edited.' : 'Report #{id} was archived.', { id: notice.reportId }) }}</template>
           <span>{{ formatDate(notice.createdAt, true) }}</span>
         </li>
       </ul>

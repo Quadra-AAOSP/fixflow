@@ -40,7 +40,7 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
   if (role === 'super_admin') links.push({ to: '/shop/manage', label: 'Product management', icon: 'shop' });
   if (role === 'super_admin') links.push({ to: '/site-applications', label: 'Site applications', icon: 'team' },
     { to: '/technician-verifications', label: 'Technician verification', icon: 'team' });
-  links.push({ to: '/shop', label: 'Shop', icon: 'shop' });
+  if (role !== 'reporter') links.push({ to: '/shop', label: 'Shop', icon: 'shop' });
   return links;
 }
 

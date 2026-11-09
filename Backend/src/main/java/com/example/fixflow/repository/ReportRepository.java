@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportStatus;
 
-public interface ReportRepository extends JpaRepository<Report, Long> {
+public interface ReportRepository extends JpaRepository<Report, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Report> {
     long countByAssignedTechnician_IdAndStatusIn(Long technicianId, java.util.Collection<ReportStatus> statuses);
     long countByAssignedTechnician_IdAndStatus(Long technicianId, ReportStatus status);
 

@@ -14,7 +14,7 @@ export function useNotificationIndicator() {
     const current = ++version.current;
     const id = user?.id;
     if (id == null || user?.applicationOnly) { setState({ id, unread: false }); return; }
-    const feeds: NoticeFeed[] = user?.role === 'shop_manager' ? ['shop'] : ['reports', 'shop'];
+    const feeds: NoticeFeed[] = user?.role === 'shop_manager' ? ['shop'] : user?.role === 'reporter' ? ['reports'] : ['reports', 'shop'];
     const seen = await readSeen(id);
     const results = await Promise.allSettled(feeds.map(async feed => {
       const result = await (feed === 'reports' ? listNotifications(0) : listShopNotifications(0));

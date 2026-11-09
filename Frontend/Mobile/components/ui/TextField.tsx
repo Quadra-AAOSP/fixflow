@@ -66,20 +66,21 @@ export function TextField({
           setFocused(false);
           onBlur?.(event);
         }}
-        className={`rounded-lg border bg-card px-3 py-3 text-[12px] text-ink ${
+        className={`rounded-lg border bg-card px-3 py-3 text-[16px] text-ink ${
           error
             ? 'border-tone-danger border-[1.5px]'
             : showRing
               ? 'border-[1.5px] border-dashboard-cta-bg bg-dashboard-cta-icon-bg'
               : 'border-[1.5px] border-border'
         }`}
-        placeholderClassName="text-[11px] text-subtitle"
+        placeholderClassName="text-[16px] text-subtitle"
         textAlignVertical="center"
         editable={props.editable !== false}
         importantForAccessibility="yes"
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityHint={error ?? accessibilityHint}
         {...props}
+        style={[{ color: colors.ink, backgroundColor: colors.card, fontSize: 16, minHeight: 48 }, props.style]}
       />
       {error ? (
         <Text accessibilityLiveRegion="polite" className="mt-1 text-xs text-tone-danger">{error}</Text>

@@ -95,7 +95,7 @@ class ReportConfirmReopenIntegrationTest {
 
 	@Test
 	void anonymousConfirmReturns401() throws Exception {
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId))
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}"))
 				.andExpect(status().isUnauthorized());
 	}
 
@@ -111,7 +111,7 @@ class ReportConfirmReopenIntegrationTest {
 
 	@Test
 	void technicianConfirmReturns403() throws Exception {
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}")
 						.with(user(new AppUserDetails(technician))))
 				.andExpect(status().isForbidden());
 	}
@@ -127,44 +127,51 @@ class ReportConfirmReopenIntegrationTest {
 				.andExpect(status().isForbidden());
 	}
 
+    @Test
+    void blankSignatureIsRejected() throws Exception {
+        mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
+                .with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"signedName\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+    }
+
 	@Test
 	void reporterWhoFiledConfirmReturns200() throws Exception {
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}")
 						.with(user(new AppUserDetails(reporter))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("confirmed"))
 				.andExpect(jsonPath("$.confirmedByUserId").value(reporter.getId()))
-				.andExpect(jsonPath("$.confirmedAt").exists());
+				.andExpect(jsonPath("$.confirmedAt").exists())
+                .andExpect(jsonPath("$.confirmationSignedName").value("Reporter User"));
 	}
 
 	@Test
-	void reporterWhoJoinedConfirmReturns200() throws Exception {
+	void reporterWhoJoinedConfirmReturns403() throws Exception {
 		mockMvc.perform(post("/api/reports/{id}/join", confirmableReportId)
 						.with(user(new AppUserDetails(participant))))
 				.andExpect(status().isOk());
 
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}")
 						.with(user(new AppUserDetails(participant))))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.status").value("confirmed"));
+				.andExpect(status().isForbidden());
 	}
 
 	@Test
-	void confirmOnConfirmedStatusReturns409() throws Exception {
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
+	void confirmOnConfirmedStatusIsIdempotent() throws Exception {
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}")
 						.with(user(new AppUserDetails(reporter))))
 				.andExpect(status().isOk());
 
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}")
 						.with(user(new AppUserDetails(reporter))))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("not awaiting confirmation")));
+				.andExpect(status().isOk());
 	}
 
 	@Test
-	void adminConfirmAndReopenReturns200() throws Exception {
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
-						.with(user(new AppUserDetails(admin))))
+	void adminCanReopenReporterConfirmation() throws Exception {
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}")
+						.with(user(new AppUserDetails(reporter))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("confirmed"));
 
@@ -192,7 +199,7 @@ class ReportConfirmReopenIntegrationTest {
 
 	@Test
 	void reopenTransitionsAndBumpsCount() throws Exception {
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}")
 						.with(user(new AppUserDetails(reporter))))
 				.andExpect(status().isOk());
 
@@ -210,7 +217,7 @@ class ReportConfirmReopenIntegrationTest {
 
 	@Test
 	void confirmAfterReopenReturns409() throws Exception {
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}")
 						.with(user(new AppUserDetails(reporter))))
 				.andExpect(status().isOk());
 
@@ -222,7 +229,7 @@ class ReportConfirmReopenIntegrationTest {
 								"""))
 				.andExpect(status().isOk());
 
-		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId)
+		mockMvc.perform(post("/api/reports/{id}/confirm", confirmableReportId).contentType(MediaType.APPLICATION_JSON).content("{\"signedName\":\"Reporter User\"}")
 						.with(user(new AppUserDetails(reporter))))
 				.andExpect(status().isConflict());
 	}

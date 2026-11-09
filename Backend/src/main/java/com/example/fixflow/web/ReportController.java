@@ -92,6 +92,12 @@ public class ReportController {
 		return reportService.list(siteId, category, page, size, principal);
 	}
 
+	public record SearchRequest(Long siteId, ReportService.SearchFilters filters, Integer page, Integer size) {}
+	@PostMapping("/search")
+	public ReportService.SearchPage search(@RequestBody SearchRequest request, @AuthenticationPrincipal AppUserDetails principal) {
+		return reportService.search(request.siteId(), request.filters(), request.page() == null ? 0 : request.page(), request.size() == null ? 20 : request.size(), principal);
+	}
+
 	@GetMapping("/{id}")
 	public ReportResponse get(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
 		return reportService.get(id, principal);
@@ -136,9 +142,11 @@ public class ReportController {
 		return reportService.assign(id, request, principal);
 	}
 
+	public record ConfirmationRequest(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 255) String signedName) {}
+
 	@PostMapping("/{id}/confirm")
-	public ReportResponse confirm(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
-		return reportService.confirm(id, principal);
+	public ReportResponse confirm(@PathVariable Long id, @Valid @RequestBody ConfirmationRequest request, @AuthenticationPrincipal AppUserDetails principal) {
+		return reportService.confirm(id, request.signedName(), principal);
 	}
 
 	@PostMapping("/{id}/reopen")

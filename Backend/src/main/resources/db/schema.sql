@@ -725,3 +725,6 @@ CREATE TABLE IF NOT EXISTS marketplace_audit (
     KEY ix_marketplace_audit_listing (listing_id),
     CONSTRAINT fk_marketplace_audit_listing FOREIGN KEY (listing_id) REFERENCES marketplace_listings (id) ON DELETE CASCADE
 );
+
+SET @stmt = (SELECT IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'confirmation_signed_name') = 0, 'ALTER TABLE reports ADD COLUMN confirmation_signed_name VARCHAR(255) NULL', 'SELECT 1'));
+PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;

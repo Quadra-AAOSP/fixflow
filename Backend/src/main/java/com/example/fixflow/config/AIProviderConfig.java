@@ -40,7 +40,7 @@ public class AIProviderConfig {
             @org.springframework.beans.factory.annotation.Value("${openrouter.api-key:}") String apiKey,
             @org.springframework.beans.factory.annotation.Value("${openrouter.chat.model}") String chatModel,
             @org.springframework.beans.factory.annotation.Value("${openrouter.base-url}") String baseUrl,
-            @org.springframework.beans.factory.annotation.Value("${openrouter.timeout-seconds}") long timeoutSeconds,
+            @org.springframework.beans.factory.annotation.Value("${openrouter.chat.timeout-seconds}") long timeoutSeconds,
             @org.springframework.beans.factory.annotation.Value("${openrouter.max-retries}") long maxRetries,
             @org.springframework.beans.factory.annotation.Value("${openrouter.retry-backoff-seconds}") long retryBackoffSeconds,
             @org.springframework.beans.factory.annotation.Value("${openrouter.chat.temperature}") double chatTemperature,

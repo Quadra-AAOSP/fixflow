@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import {
   FlatList,
   Pressable,
@@ -12,6 +12,7 @@ import { ClipboardList, Search, Wrench } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
+import { Picker } from '@/components/ui/Picker';
 import { FilterTabs } from '@/components/ui/FilterTabs';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
@@ -25,8 +26,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { claimReport, listReports } from '@/services/reports';
 import { listTechnicianContracts } from '@/services/technician';
+import { searchReportsNl, searchReportPage } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
-import type { Report, Urgency } from '@/types';
+import type { NlSearchFilters, Report, Urgency } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import {
   REPORT_FILTERS,
@@ -66,6 +68,21 @@ export default function AssignmentsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
+  const [nlFilters, setNlFilters] = useState<NlSearchFilters | null>(null);
+  const [searchSiteId, setSearchSiteId] = useState<number | null>(null);
+  const [contractSiteIds, setContractSiteIds] = useState<number[]>([]);
+  const [searchResults, setSearchResults] = useState<Report[]>([]);
+  const [searchPage, setSearchPage] = useState(0);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const searchGeneration = useRef(0);
+  useEffect(() => { searchGeneration.current++; setNlFilters(null); setSearchResults([]); }, [searchSiteId, user?.id]);
+  async function fetchSearch(filters: NlSearchFilters, page: number, siteId: number, generation: number) {
+    const result = await searchReportPage(siteId, filters, page, 20);
+    if (generation !== searchGeneration.current) return;
+    setSearchResults(previous => page ? [...previous, ...result.content] : result.content);
+    setSearchPage(page); setSearchHasMore(result.hasMore);
+  }
+  const [searchBusy, setSearchBusy] = useState(false);
   const [filter, setFilter] = useState<ReportFilter>('all');
   // Number of sites this technician is contracted to. Technicians have no
   // account-level site, so their queue is scoped by contracts instead.
@@ -86,6 +103,8 @@ export default function AssignmentsScreen() {
         const contracts = await listTechnicianContracts();
         const siteIds = Array.from(new Set(contracts.map((contract) => contract.siteId)));
         setContractSiteCount(siteIds.length);
+        setContractSiteIds(siteIds);
+        setSearchSiteId(previous => previous && siteIds.includes(previous) ? previous : siteIds[0] ?? null);
         const pages = await Promise.all(
           siteIds.map((siteId) => listReports({ siteId })),
         );
@@ -154,14 +173,14 @@ export default function AssignmentsScreen() {
   // technician UI, so they have a clean two-section view.
   const assignedToMe = useMemo(() => {
     if (!reports || !isTechnician) return [];
-    return reports.filter(
+    return (nlFilters ? searchResults : reports).filter(
       (r) => r.policy.inAssignmentQueue && r.assignedTechnicianId === user?.id,
     );
-  }, [reports, isTechnician, user?.id]);
+  }, [reports, isTechnician, user?.id, nlFilters, searchResults]);
 
   const availableToClaim = useMemo(() => {
     if (!reports || !isTechnician) return [];
-    return reports.filter(
+    return (nlFilters ? searchResults : reports).filter(
       (r) => r.policy.inAssignmentQueue && r.assignedTechnicianId === null,
     );
   }, [reports, isTechnician]);
@@ -179,7 +198,7 @@ export default function AssignmentsScreen() {
     return base.sort(
       (a, b) => (a.assignedTechnicianId ?? 0) - (b.assignedTechnicianId ?? 0),
     );
-  }, [reports, isTechnician, user?.id]);
+  }, [reports, isTechnician, user?.id, nlFilters, searchResults]);
 
   // Report lists from technicians span several contract sites, so resolve
   // names from the full site directory rather than only the active site.
@@ -315,6 +334,23 @@ export default function AssignmentsScreen() {
             </View>
           </View>
 
+          {contractSiteIds.length > 1 && <Picker label="Search site" value={String(searchSiteId ?? '')} onChange={value => setSearchSiteId(Number(value))} options={contractSiteIds.map(id => ({ value: String(id), label: siteName(id) || `Site #${id}` }))} />}
+          <SearchField value={query} onChangeText={(value) => { searchGeneration.current++; setQuery(value); setNlFilters(null); }} placeholder={t('assignments.searchPlaceholder')} />
+          <Button disabled={!query.trim() || !searchSiteId || searchBusy} onPress={async () => {
+            if (!searchSiteId) return;
+            const generation = ++searchGeneration.current;
+            setSearchBusy(true);
+            try {
+              const result = await searchReportsNl(searchSiteId, query.trim());
+              if (generation !== searchGeneration.current) return;
+              await fetchSearch(result.filters, 0, searchSiteId, generation);
+              if (generation !== searchGeneration.current) return;
+              setNlFilters(result.filters);
+              if (result.fallback) showToast('AI search unavailable; using text search.', 'error');
+            } catch (err) { showToast(err instanceof Error ? err.message : 'Search failed', 'error'); }
+            finally { setSearchBusy(false); }
+          }}>{searchBusy ? 'Searchingâ€¦' : 'Search with AI'}</Button>
+          {nlFilters && <View className="my-2"><Text className="text-dashboard-subtitle">{Object.entries(nlFilters).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(' · ') || 'All reports'}</Text><Pressable accessibilityRole="button" onPress={() => { searchGeneration.current++; setNlFilters(null); setSearchResults([]); setQuery(''); }}><Text className="text-dashboard-teal">Clear search</Text></Pressable></View>}
           {loading ? (
             <StateView variant="loading" title={t('assignments.loading')} />
           ) : error && reports === null ? (
@@ -328,14 +364,15 @@ export default function AssignmentsScreen() {
           ) : (
             <TechnicianSections
               t={t}
-              assigned={assignedToMe}
-              available={availableToClaim}
+              assigned={nlFilters ? assignedToMe : searchReports(assignedToMe, query, siteName, 'all')}
+              available={nlFilters ? availableToClaim : searchReports(availableToClaim, query, siteName, 'all')}
               onOpen={(id) => router.push(`/reports/${id}`)}
               onClaim={onClaim}
               claimingId={claimingId}
               siteName={(id) => siteName(id)}
             />
           )}
+          {nlFilters && searchHasMore && <Button disabled={searchBusy} onPress={async () => { if (!searchSiteId) return; setSearchBusy(true); try { await fetchSearch(nlFilters, searchPage + 1, searchSiteId, searchGeneration.current); } catch (err) { showToast(err instanceof Error ? err.message : 'Search failed', 'error'); } finally { setSearchBusy(false); } }}>Load more</Button>}
         </ScrollView>
       </Screen>
     );

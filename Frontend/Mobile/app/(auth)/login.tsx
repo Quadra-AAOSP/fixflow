@@ -8,7 +8,7 @@ import { AuthButton } from '@/components/auth/AuthButton';
 import { AuthField } from '@/components/auth/AuthField';
 import { AuthHeading } from '@/components/auth/AuthHeading';
 import { AuthShell } from '@/components/auth/AuthShell';
-import { fontFamilies } from '@/constants/theme';
+import { fontFamilies, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/services/auth';
 
@@ -131,7 +131,7 @@ export default function LoginScreen() {
         onPress={() => router.push('/(auth)/super-admin-login')}
         className="mt-2 flex-row items-center justify-center gap-1.5 rounded-md border border-auth-line px-3 py-2 active:opacity-70"
       >
-        <ShieldAlert color="#888" size={11} />
+        <ShieldAlert color={themeColors().muted} size={11} />
         <Text className="text-[10px] text-auth-note">
           {t('auth.login.superAdminCta')}
         </Text>

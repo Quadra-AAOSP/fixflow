@@ -103,6 +103,9 @@ public class Report {
 	@JoinColumn(name = "confirmed_by_user_id")
 	private User confirmedBy;
 
+	@Column(name = "confirmation_signed_name", length = 255)
+	private String confirmationSignedName;
+
 	@Column(name = "confirmed_at")
 	private Instant confirmedAt;
 

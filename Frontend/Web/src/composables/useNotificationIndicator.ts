@@ -13,7 +13,7 @@ export function useNotificationIndicator(feeds: NoticeFeed[] = ['reports', 'shop
     const current = ++version;
     const id = user.value?.id;
     if (id == null || user.value?.applicationOnly) { unread.value = false; return; }
-    const active = feeds.filter(feed => feed !== 'reports' || user.value?.role !== 'shop_manager');
+    const active = feeds.filter(feed => (feed !== 'reports' || user.value?.role !== 'shop_manager') && (feed !== 'shop' || user.value?.role !== 'reporter'));
     const seen = await readSeen(id);
     const results = await Promise.allSettled(active.map(async feed => {
       const result = await (feed === 'reports' ? listNotifications(0) : listShopNotifications(0));

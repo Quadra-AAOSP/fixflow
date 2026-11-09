@@ -19,11 +19,12 @@ public class TechnicianVerificationController {
   @NotBlank @Size(max=2000) String trades,@NotBlank @Size(max=4000) String experience,@NotBlank @Size(max=4000) String qualifications) { }
  public record Decision(@NotBlank String status,@NotBlank @Size(max=2000) String reason,
   boolean identityChecked,boolean emailChecked,boolean phoneChecked,boolean tradeChecked,@NotNull Long version) { }
+ private final com.example.fixflow.service.TechnicianTermsService terms;
  private final TechnicianVerificationRepository records;
  private final TechnicianVerificationAuditRepository audits;
  private final UserRepository users;
  private final com.example.fixflow.repository.TechnicianSkillRepository skills;
- public TechnicianVerificationController(TechnicianVerificationRepository records,TechnicianVerificationAuditRepository audits,UserRepository users,com.example.fixflow.repository.TechnicianSkillRepository skills){this.records=records;this.audits=audits;this.users=users;this.skills=skills;}
+ public TechnicianVerificationController(TechnicianVerificationRepository records,TechnicianVerificationAuditRepository audits,UserRepository users,com.example.fixflow.repository.TechnicianSkillRepository skills, com.example.fixflow.service.TechnicianTermsService terms){this.terms=terms;this.records=records;this.audits=audits;this.users=users;this.skills=skills;}
  private void role(AppUserDetails actor,UserRole expected){
   if(actor==null || actor.getRole()!=expected || users.findById(actor.getId()).map(User::getRole).orElse(null)!=expected) throw new ApiException(403,"Role not authorized");
  }
@@ -56,6 +57,7 @@ public class TechnicianVerificationController {
   boolean reopening=List.of("suspended","rejected").contains(value.getStatus()) && body.status().equals("pending");
   if(!reviewing&&!suspending&&!reopening) throw new ApiException(409,"Invalid verification transition");
   if(body.status().equals("verified")&&!(body.identityChecked()&&body.emailChecked()&&body.phoneChecked()&&body.tradeChecked())) throw new ApiException(400,"Record every manual review check before approval");
+  if(body.status().equals("verified")) terms.requireAcceptance(id);
   value.setStatus(body.status());value.setReason(body.reason().trim());value.setReviewedBy(actor.getId());
   value.setIdentityChecked(body.identityChecked());value.setEmailChecked(body.emailChecked());value.setPhoneChecked(body.phoneChecked());value.setTradeChecked(body.tradeChecked());
   records.saveAndFlush(value);audit(value,actor);return value;

@@ -83,8 +83,10 @@ fixflow:
   bootstrap:
     super-admin-email: ${FIXFLOW_SUPER_ADMIN_EMAIL:admin@fixflow.local}
     super-admin-password: ${FIXFLOW_SUPER_ADMIN_PASSWORD:changeme}
+  storage:
+    local-directory: ${FIXFLOW_STORAGE_LOCAL_DIRECTORY:./data/report-photos}
   minio:
-    enabled: ${MINIO_ENABLED:true}
+    enabled: ${MINIO_ENABLED:false}
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     public-endpoint: ${MINIO_PUBLIC_ENDPOINT:}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
@@ -106,6 +108,7 @@ openrouter:
     timeout-seconds: ${OPENROUTER_RANKING_TIMEOUT_SECONDS:15}
   chat:
     model: ${OPENROUTER_CHAT_MODEL:openrouter/free}
+    timeout-seconds: ${OPENROUTER_CHAT_TIMEOUT_SECONDS:120}
     temperature: ${OPENROUTER_CHAT_TEMPERATURE:0.4}
     max-tokens: ${OPENROUTER_CHAT_MAX_TOKENS:700}
   vision:

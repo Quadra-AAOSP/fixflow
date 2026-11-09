@@ -3,7 +3,7 @@ import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useLocale } from '@/i18n';
-import { errorMessage } from '@/services/api';
+import { errorMessage, request, AI_REQUEST_TIMEOUT_MS } from '@/services/api';
 import {
   actOnMarketplaceApplication, applyForMarketplaceJob, cancelMarketplaceAssignment, closeMarketplaceJob, listMarketplaceApplicants,
   listMarketplaceJobs, type MarketplaceApplication, type MarketplaceListing,
@@ -14,6 +14,20 @@ const { t } = useLocale();
 const { user } = useAuth();
 const admin = computed(() => user.value?.role === 'admin');
 const listings = ref<MarketplaceListing[]>([]);
+const search = ref('');
+const aiQuery = ref('');
+const aiMessage = ref('');
+const aiIds = ref<number[] | null>(null);
+async function searchWithAi() {
+  if (!aiQuery.value.trim() || busy.value) return;
+  busy.value = true; error.value = '';
+  try {
+    const result = await request<{ fallback: boolean; listings: MarketplaceListing[]; filters: Record<string, string | null> }>('/api/marketplace/search/nl', { method: 'POST', body: JSON.stringify({ query: aiQuery.value.trim() }), timeoutMs: AI_REQUEST_TIMEOUT_MS });
+    aiIds.value = result.listings.map(job => job.id); search.value = '';
+    aiMessage.value = (result.fallback ? 'AI unavailable; using manual keyword search. ' : 'AI filters: ') + Object.values(result.filters).filter(Boolean).join(', ');
+  } catch (err) { error.value = errorMessage(err); } finally { busy.value = false; }
+}
+const matchingListings = computed(() => listings.value.filter(job => (aiIds.value === null || aiIds.value.includes(job.id)) && [job.summary, job.broadLocation, job.timing, job.category, job.specialty, job.urgency].filter(Boolean).join(' ').toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())));
 const applicants = ref<MarketplaceApplication[]>([]);
 const selectedListing = ref<number | null>(null);
 const notes = ref<Record<number, string>>({});
@@ -92,6 +106,7 @@ function act(listingId: number, applicationId: number, action: 'select' | 'accep
 
 watch([() => user.value?.id, () => user.value?.role, () => user.value?.siteId], () => {
   revision++;
+  aiIds.value = null; aiMessage.value = ''; aiQuery.value = '';
   applicantRequest?.abort();
   selectedListing.value = null;
   applicants.value = [];
@@ -120,7 +135,15 @@ onBeforeUnmount(() => { revision++; listingRequest?.abort(); applicantRequest?.a
     <LoadingStatus v-if="loading" :label="t('Loading marketplace…')" />
     <p v-else-if="!listings.length && !error" class="live-empty">{{ t(admin ? 'No marketplace listings for your site.' : 'No eligible jobs or applications. Check your verification and technician terms in your workspace.') }}</p>
 
-    <article v-for="listing in listings" :key="listing.id" class="detail-section">
+    <form v-if="!admin" @submit.prevent="searchWithAi">
+      <label>{{ t('Describe jobs you are looking for') }} <input v-model="aiQuery" maxlength="500" /></label>
+      <button type="submit" :disabled="busy || !aiQuery.trim()">{{ t('Search with AI') }}</button>
+      <button type="button" @click="aiIds = null; aiMessage = ''">{{ t('Clear AI search') }}</button>
+      <p v-if="aiMessage" role="status">{{ aiMessage }}</p>
+    </form>
+    <label>{{ t("Manual keyword search") }} <input v-model="search" /></label>
+    <p v-if="listings.length && !matchingListings.length">{{ t("No matching jobs.") }}</p>
+    <article v-for="listing in matchingListings" :key="listing.id" class="detail-section">
       <div class="card-heading"><h2>{{ listing.summary }}</h2><span class="status-badge">{{ t(humanize(listing.status)) }}</span></div>
       <dl class="report-detail-grid">
         <div><dt>{{ t('Broad location') }}</dt><dd>{{ listing.broadLocation }}</dd></div>

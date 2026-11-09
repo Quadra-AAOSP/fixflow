@@ -159,11 +159,11 @@ class ReportWebSocketIntegrationTest {
         reports.save(report);
         Connection client = connect(admin); subscribe(client, reportDestination(report));
         new TransactionTemplate(transactions).executeWithoutResult(tx -> {
-            service.confirm(report.getId(), new AppUserDetails(admin));
+            service.confirm(report.getId(), "Owner", new AppUserDetails(owner));
             tx.setRollbackOnly();
         });
         assertThat(client.inbox.messages.poll(400, TimeUnit.MILLISECONDS)).isNull();
-        service.confirm(report.getId(), new AppUserDetails(admin));
+        service.confirm(report.getId(), "Owner", new AppUserDetails(owner));
         assertThat(next(client).path("event").path("eventType").asText()).isEqualTo(ReportDomainEvent.CONFIRMATION);
         service.reopen(report.getId(), new com.example.fixflow.dto.ReopenReportRequest("Needs further work"),
                 new AppUserDetails(admin));

@@ -95,9 +95,9 @@ export function claimReport(id: number): Promise<Report> {
   return api.post<Report>(endpoints.reports.claim(id));
 }
 
-export function confirmReport(id: number): Promise<Report> {
+export function confirmReport(id: number, signedName: string): Promise<Report> {
   return api.post<Report>(
-    endpoints.reports.confirm.replace('{id}', String(id)),
+    endpoints.reports.confirm.replace('{id}', String(id)), { signedName },
   );
 }
 

@@ -21,6 +21,7 @@ public class ReportWorkflowService {
     private final ReportReporterRepository participants;
     private final StatusHistoryRepository history;
     private final ReportResolutionRepository resolutions;
+    private final ReportNotificationRepository notifications;
     private final ReportRatingRepository ratings;
     private final ReportLinkRepository links;
     private final TechnicianTermsService terms;
@@ -31,10 +32,10 @@ public class ReportWorkflowService {
             TechnicianContractRepository contracts, ReportReporterRepository participants,
             StatusHistoryRepository history, ReportResolutionRepository resolutions,
             ReportRatingRepository ratings, ReportLinkRepository links, TechnicianTermsService terms,
-            ReportService reportService, ApplicationEventPublisher events) {
+            ReportService reportService, ApplicationEventPublisher events, ReportNotificationRepository notifications) {
         this.reports=reports; this.users=users; this.contracts=contracts; this.participants=participants;
         this.history=history; this.resolutions=resolutions; this.ratings=ratings; this.links=links;
-        this.terms=terms; this.reportService=reportService; this.events=events;
+        this.terms=terms; this.reportService=reportService; this.events=events; this.notifications=notifications;
     }
 
     public ReportResponse claim(Long id, AppUserDetails actor) {
@@ -84,6 +85,7 @@ public class ReportWorkflowService {
         ReportResolution resolution=new ReportResolution(); resolution.setReport(report);
         resolution.setTechnician(actor(actor)); resolution.setDescription(description.trim()); resolutions.save(resolution);
         transition(report,ReportStatus.resolved_pending_confirmation,actor,"Resolution submitted",ReportDomainEvent.PENDING_RESOLUTION);
+        notifications.save(new ReportNotification(report.getCreatedBy().getId(), report.getId(), ReportNotification.Type.work_completed, Instant.now()));
         return reportService.get(id,actor);
     }
 
@@ -185,7 +187,7 @@ public class ReportWorkflowService {
     }
     private void view(Report report,AppUserDetails actor) {reportService.get(report.getId(),actor);}
     private void transition(Report report,ReportStatus to,AppUserDetails actor,String note,String eventType) {
-        ReportStatus from=report.getStatus(); report.setStatus(to); report.setConfirmedAt(null); report.setConfirmedBy(null);
+        ReportStatus from=report.getStatus(); report.setStatus(to); report.setConfirmedAt(null); report.setConfirmedBy(null); report.setConfirmationSignedName(null);
         audit(report,from,to,actor,note);
         Long technician=report.getAssignedTechnician()==null?null:report.getAssignedTechnician().getId();
         events.publishEvent(ReportDomainEvent.of(eventType,report.getSite().getId(),report.getId(),from,to,

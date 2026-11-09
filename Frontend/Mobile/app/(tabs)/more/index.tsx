@@ -111,7 +111,7 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   shopOrders: ['super_admin', 'shop_manager'],
 
   // Everyone can browse and buy from the shop.
-  shopCustomer: ['reporter', 'technician', 'staff', 'admin', 'super_admin'],
+  shopCustomer: ['technician', 'staff', 'admin', 'super_admin'],
 };
 
 function itemVisible(key: ItemKey, role: UserRole, guards: ItemGuards): boolean {

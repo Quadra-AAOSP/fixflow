@@ -35,6 +35,7 @@ export type ListingDraft = Pick<MarketplaceListing, 'summary' | 'broadLocation' 
 const listings = '/api/marketplace/listings';
 const applications = (listingId: number) => `${listings}/${listingId}/applications`;
 
+export const searchJobsWithAi = (query: string) => api.post<{ fallback: boolean; filters: Record<string, string | null>; listings: MarketplaceListing[] }>('/api/marketplace/search/nl', { query }, { timeoutMs: 180_000 });
 export const listJobs = () => api.get<MarketplaceListing[]>(listings);
 export const publishJob = (reportId: number, draft: ListingDraft) =>
   api.post<MarketplaceListing>(listings, { reportId, ...draft });

@@ -8,7 +8,7 @@ import { AuthButton } from '@/components/auth/AuthButton';
 import { AuthField } from '@/components/auth/AuthField';
 import { AuthHeading } from '@/components/auth/AuthHeading';
 import { AuthShell } from '@/components/auth/AuthShell';
-import { fontFamilies } from '@/constants/theme';
+import { fontFamilies, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import * as authApi from '@/services/auth';
 import { ApiError } from '@/services/auth';
@@ -140,7 +140,7 @@ export default function SuperAdminLoginScreen() {
       </Pressable>
 
       <View className="mt-4 flex-row items-center gap-2.5 border-t border-auth-line pt-5">
-        <ShieldCheck color="#7caa70" size={14} />
+        <ShieldCheck color={themeColors().mintInk} size={14} />
         <Text className="flex-1 text-[10px] text-auth-note">
           {t('auth.superAdminLogin.disclaimer')}
         </Text>

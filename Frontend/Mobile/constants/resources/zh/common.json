@@ -954,6 +954,7 @@
       }
     },
     "notifications": {
+      "workCompleted": "报告 #{{id}} 已完成，等待您确认。",
       "title": "通知",
       "emptyTitle": "暂无通知。",
       "edited": "报修 #{id} 已编辑。",
