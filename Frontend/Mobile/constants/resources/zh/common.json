@@ -373,6 +373,9 @@
     "emptyHome": {
       "title": "{site} 尚无报修",
       "subtitle": "提交第一条报修，此面板就会开始跟踪待处理工作、紧急程度和每周进度。",
+      "stepFile": "提交报修",
+      "stepFix": "维修处理",
+      "stepConfirm": "确认完成",
       "firstReport": "提交第一条报修"
     },
     "setupGate": {

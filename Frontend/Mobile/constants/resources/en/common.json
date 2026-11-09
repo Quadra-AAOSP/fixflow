@@ -373,6 +373,9 @@
     "emptyHome": {
       "title": "No reports yet at {site}",
       "subtitle": "File the first report and this dashboard starts tracking open work, urgency, and weekly progress.",
+      "stepFile": "File a report",
+      "stepFix": "We fix it",
+      "stepConfirm": "You confirm",
       "firstReport": "File your first report"
     },
     "setupGate": {

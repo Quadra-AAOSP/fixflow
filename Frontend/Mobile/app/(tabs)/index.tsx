@@ -19,9 +19,10 @@ import {
   TriangleAlert,
   UserPlus,
   Users,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useCallback, useRef, useState } from 'react';
+import { Fragment, useCallback, useRef, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -472,7 +473,7 @@ function Dashboard() {
   return (
     <Screen>
       <ScrollView
-        contentContainerClassName="px-5 pb-32 pt-4"
+        contentContainerClassName="w-full max-w-[760px] self-center px-5 pb-32 pt-4"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -524,7 +525,16 @@ function Dashboard() {
               <EmptyHomeCard
                 t={t}
                 siteName={site.name}
+                onPressReport={gotoNewReport}
               />
+              {isOps ? null : (
+                <QuickActionRow
+                  t={t}
+                  onPressFile={gotoNewReport}
+                  onPressTrack={() => gotoReports('all')}
+                  onPressAlerts={() => router.push('/more/notifications')}
+                />
+              )}
               <QuickActionsCard
                 t={t}
                 flags={quickActionFlags}
@@ -1710,19 +1720,45 @@ function ActionTile({
 
 /**
  * First-run state for a site that has never had a report filed. It explains
- * the empty analysis; the create-report action lives in the banner CTA and the
- * floating button, so it is not repeated here.
+ * the empty analysis, previews the three-step resolution flow and offers the
+ * create-report action.
  */
 function EmptyHomeCard({
   t,
   siteName,
+  onPressReport,
 }: {
   t: TranslateFn;
   siteName: string;
+  onPressReport: () => void;
 }) {
+  const steps = [
+    {
+      key: 'file',
+      label: t('home.emptyHome.stepFile'),
+      Icon: Plus,
+      soft: dashboardColors.statCoralSoft,
+      ink: dashboardColors.statCoralDeep,
+    },
+    {
+      key: 'fix',
+      label: t('home.emptyHome.stepFix'),
+      Icon: Wrench,
+      soft: dashboardColors.statMintSoft,
+      ink: dashboardColors.statMintDeep,
+    },
+    {
+      key: 'confirm',
+      label: t('home.emptyHome.stepConfirm'),
+      Icon: CheckCircle2,
+      soft: dashboardColors.statCitronSoft,
+      ink: dashboardColors.statCitronDeep,
+    },
+  ];
+
   return (
-    <Card className="mb-4">
-      <View className="items-center px-2 py-3">
+    <Card className="mb-3">
+      <View className="items-center px-2 pt-3">
         <View
           className="h-14 w-14 items-center justify-center rounded-full"
           style={{ backgroundColor: dashboardColors.tealSoft }}
@@ -1743,6 +1779,40 @@ function EmptyHomeCard({
           {t('home.emptyHome.subtitle')}
         </Text>
       </View>
+
+      <View
+        className="mt-4 flex-row items-start rounded-2xl px-2 py-3"
+        style={{ backgroundColor: dashboardColors.tealSoft }}
+      >
+        {steps.map((step, index) => (
+          <Fragment key={step.key}>
+            <View className="flex-1 items-center">
+              <View
+                className="h-9 w-9 items-center justify-center rounded-full"
+                style={{ backgroundColor: step.soft }}
+              >
+                <step.Icon color={step.ink} size={16} strokeWidth={2} />
+              </View>
+              <Text className="mt-1.5 text-center text-[10px] font-medium leading-[1.4] text-ink">
+                {step.label}
+              </Text>
+            </View>
+            {index < steps.length - 1 ? (
+              <ChevronRight
+                color={dashboardColors.teal}
+                size={14}
+                style={{ marginTop: 11 }}
+              />
+            ) : null}
+          </Fragment>
+        ))}
+      </View>
+
+      <Button
+        label={t('home.reportIssue')}
+        onPress={onPressReport}
+        className="mt-4"
+      />
     </Card>
   );
 }
