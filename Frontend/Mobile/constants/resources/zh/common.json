@@ -498,6 +498,7 @@
       "pickSiteHint": "请选择问题所在站点，然后描述需要处理的事项。",
       "noSiteTitle": "未关联站点",
       "noSiteDesc": "提交报修前必须先关联站点。",
+      "noBuildingsInline": "该站点尚未设置建筑——请在地址栏中描述具体位置。",
       "noBuildingsTitle": "尚未设置任何建筑",
       "noBuildingsDescAdmin": "在站点可以提交报修之前，请至少添加一栋建筑或区域。",
       "noBuildingsDescReporter": "您的站点管理员尚未添加任何建筑，在至少添加一个之前无法提交报修。",

@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import {
   ArrowLeft,
-  Building2,
   Camera,
   House,
   ImagePlus,
@@ -35,7 +34,6 @@ import {
 } from '@/components/ui/SegmentedControl';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
-import { canManageSubsites } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 import { useToast } from '@/components/ui/useToastContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -467,40 +465,8 @@ export default function NewReportScreen() {
     );
   }
 
-  // No active buildings on the chosen site — reporters get guidance; admins
-  // can open setup. Skip entirely while a reporter hasn't picked a site yet.
-  if (activeSite && !loadingSubsites && activeSubsites.length === 0 && !subsiteError) {
-    const isAdmin = canManageSubsites(user);
-    return (
-      <Screen>
-        <View className="flex-1 items-center justify-center px-6">
-          <StateView
-            variant="empty"
-            icon={Building2}
-            title={t('reports.new.noBuildingsTitle')}
-            description={
-              isAdmin
-                ? t('reports.new.noBuildingsDescAdmin')
-                : t('reports.new.noBuildingsDescReporter')
-            }
-            actionLabel={isAdmin ? t('reports.new.openSiteSetup') : undefined}
-            onAction={
-              isAdmin ? () => router.push('/more/site-setup') : undefined
-            }
-          />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setSuggestionOpen(true)}
-            className="mt-4 active:opacity-80"
-          >
-            <Text className="text-[12px] font-semibold text-dashboard-teal underline">
-              {t('reports.new.suggestionTitle')}
-            </Text>
-          </Pressable>
-        </View>
-      </Screen>
-    );
-  }
+  // Buildings are optional: sites that haven't set any up yet can still take
+  // reports, with the location described in the address field instead.
 
   return (
     <Screen>
@@ -622,6 +588,12 @@ export default function NewReportScreen() {
                 disabled={loadingSubsites || activeSubsites.length === 0}
               />
             )}
+
+            {!loadingSubsites && activeSubsites.length === 0 && !subsiteError ? (
+              <Text className="mb-1 mt-1.5 text-[11.5px] leading-[1.5] text-dashboard-subtitle">
+                {t('reports.new.noBuildingsInline')}
+              </Text>
+            ) : null}
 
             <Pressable
               accessibilityRole="button"

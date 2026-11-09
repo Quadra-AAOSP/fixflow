@@ -498,6 +498,7 @@
       "pickSiteHint": "Pick the site where the issue is, then describe what needs attention.",
       "noSiteTitle": "No site linked",
       "noSiteDesc": "A site must be linked before you can file a report.",
+      "noBuildingsInline": "No buildings are set up for this site yet — describe the location in the address field.",
       "noBuildingsTitle": "No buildings set up yet",
       "noBuildingsDescAdmin": "Add at least one building or area before reports can be filed at this site.",
       "noBuildingsDescReporter": "Your site administrator has not added any buildings yet. Reports cannot be filed until at least one exists.",
