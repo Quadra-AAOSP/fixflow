@@ -80,7 +80,7 @@ type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
  */
 export default function ShopIndexScreen() {
   const { user } = useAuth();
-  if (!canShopPurchase(user?.role)) return <Redirect href="/more/shop-orders" />;
+  if (!canShopPurchase(user?.role)) return <Redirect href={user?.role === 'reporter' ? "/more" : "/more/shop-orders"} />;
   return <ShopPurchaseScreen key={`${user?.id ?? ''}:${user?.role ?? ''}`} />;
 }
 

@@ -4,9 +4,10 @@ import { ScrollView, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Action, Field } from '@/components/ReviewControls';
 import { Screen } from '@/components/ui/Screen';
+import { SearchField } from '@/components/ui/SearchField';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  actOnJobApplication, applyForJob, cancelJobAssignment, closeJob, listJobApplications, listJobs, publishJob,
+  actOnJobApplication, applyForJob, cancelJobAssignment, closeJob, listJobApplications, listJobs, publishJob, searchJobsWithAi,
   type ListingDraft, type MarketplaceApplication, type MarketplaceListing,
 } from '@/services/marketplace';
 import { ownVerification } from '@/services/onboarding';
@@ -24,6 +25,10 @@ export default function MarketplaceScreen() {
   const source = Number(reportId);
   const isAdmin = user?.role === 'admin';
   const isTechnician = user?.role === 'technician';
+  const [search, setSearch] = useState('');
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiIds, setAiIds] = useState<number[] | null>(null);
+  const [aiMessage, setAiMessage] = useState('');
   const [jobs, setJobs] = useState<MarketplaceListing[]>([]);
   const [verification, setVerification] = useState<string>();
   const [termsRequired, setTermsRequired] = useState(false);
@@ -154,8 +159,19 @@ export default function MarketplaceScreen() {
                 }, 'marketplace.published')} />
             </View>
           ) : null}
+          {isTechnician ? <View>
+            <Field label="Describe jobs you are looking for" value={aiQuery} maxLength={500} onChangeText={setAiQuery} />
+            <Action label="Search with AI" disabled={busy || !aiQuery.trim()} onPress={() => void run(async () => {
+              const result = await searchJobsWithAi(aiQuery.trim());
+              setAiIds(result.listings.map(job => job.id)); setSearch('');
+              setAiMessage((result.fallback ? 'AI unavailable; using manual keyword search. ' : 'AI filters: ') + Object.values(result.filters).filter(Boolean).join(', '));
+            })} />
+            <Action label="Clear AI search" onPress={() => { setAiIds(null); setAiMessage(''); }} />
+            {aiMessage ? <Text accessibilityLiveRegion="polite">{aiMessage}</Text> : null}
+          </View> : null}
+          <SearchField value={search} onChangeText={setSearch} placeholder="Manual keyword search" />
           {!busy && jobs.length === 0 ? <Text className="my-3 text-ink">{t('marketplace.empty')}</Text> : null}
-          {jobs.map(job => {
+          {jobs.filter(job => (aiIds === null || aiIds.includes(job.id)) && [job.summary, job.broadLocation, job.timing, job.category, job.specialty, job.urgency].filter(Boolean).join(' ').toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).map(job => {
             const own = job.myApplication;
             const note = notes[job.id] ?? '';
             const accessibleReportId = isAdmin || own?.status === 'accepted' ? job.reportId : null;

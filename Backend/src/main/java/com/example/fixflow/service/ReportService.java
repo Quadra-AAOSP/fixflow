@@ -227,6 +227,65 @@ public class ReportService {
 		return new ReportPageResponse(content, safePage, safeSize, result.getTotalElements(), result.getTotalPages());
 	}
 
+	public record SearchFilters(String status, String category, String urgency, String from, String to, String text, Boolean canJoin, String visibility) {}
+	public record SearchPage(List<ReportResponse> content, int page, boolean hasMore) {}
+
+	@Transactional(readOnly = true)
+	public SearchPage search(Long siteId, SearchFilters filters, int page, int size, AppUserDetails actor) {
+		Long scopedSiteId = resolveSiteForList(actor, siteId);
+		if (filters == null) throw new ApiException(400, "Filters are required");
+		int safePage = Math.max(0, page), safeSize = Math.min(Math.max(size, 1), 100);
+		com.example.fixflow.domain.Urgency urgency;
+		ReportStatus status;
+		ReportVisibility visibility;
+		java.time.LocalDate from, to;
+        if ((filters.from() != null && !filters.from().matches("[0-9]{4}-[0-9]{2}-[0-9]{2}"))
+                || (filters.to() != null && !filters.to().matches("[0-9]{4}-[0-9]{2}-[0-9]{2}")))
+            throw new ApiException(400, "Dates must use YYYY-MM-DD");
+		try {
+			status = filters.status() == null ? null : ReportStatus.valueOf(filters.status());
+			visibility = filters.visibility() == null ? null : ReportVisibility.fromJson(filters.visibility());
+			urgency = filters.urgency() == null ? null : com.example.fixflow.domain.Urgency.valueOf(filters.urgency());
+			from = filters.from() == null ? null : java.time.LocalDate.parse(filters.from());
+			to = filters.to() == null ? null : java.time.LocalDate.parse(filters.to());
+		} catch (RuntimeException ex) { throw new ApiException(400, "Invalid search filters"); }
+		if ((from != null && to != null && from.isAfter(to)) || (filters.category() != null && filters.category().length() > 128)
+				|| (filters.text() != null && filters.text().length() > 500)) throw new ApiException(400, "Invalid search filters");
+		Page<Report> result = reportRepository.findAll((root, query, cb) -> {
+			var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
+			predicates.add(cb.equal(root.get("site").get("id"), scopedSiteId));
+			predicates.add(cb.isNull(root.get("archivedAt")));
+			var membership = query.subquery(Long.class);
+			var rr = membership.from(ReportReporter.class);
+			membership.select(rr.get("reportId")).where(cb.equal(rr.get("reportId"), root.get("id")), cb.equal(rr.get("userId"), actor.getId()));
+			var participant = cb.exists(membership);
+			var sensitive = switch (actor.getRole()) {
+				case staff, admin, super_admin -> cb.conjunction();
+				case reporter -> participant;
+				case technician -> cb.equal(root.join("assignedTechnician", jakarta.persistence.criteria.JoinType.LEFT).get("id"), actor.getId());
+				default -> cb.disjunction();
+			};
+			predicates.add(cb.or(cb.equal(root.get("visibility"), ReportVisibility.PUBLIC), sensitive));
+			if (status != null) predicates.add(cb.equal(root.get("status"), status));
+			if (visibility != null) predicates.add(cb.equal(root.get("visibility"), visibility));
+			if (filters.category() != null) predicates.add(cb.equal(root.get("category"), filters.category()));
+			if (urgency != null) predicates.add(cb.equal(cb.coalesce(root.get("finalUrgency"), root.get("reporterUrgency")), urgency));
+			if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from.atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+			if (to != null) predicates.add(cb.lessThan(root.get("createdAt"), to.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+			if (Boolean.TRUE.equals(filters.canJoin())) {
+				predicates.add(actor.getRole() == UserRole.reporter ? cb.not(participant) : cb.disjunction());
+				predicates.add(cb.notEqual(root.get("status"), ReportStatus.confirmed));
+			}
+			if (filters.text() != null && !filters.text().isBlank()) {
+				String pattern = "%" + filters.text().toLowerCase(java.util.Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+				predicates.add(cb.or(cb.like(cb.lower(root.get("description")), pattern, '!'), cb.like(cb.lower(root.get("category")), pattern, '!'),
+						cb.like(cb.lower(root.get("specialty")), pattern, '!'), cb.and(sensitive, cb.like(cb.lower(root.get("address")), pattern, '!'))));
+			}
+			return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+		}, PageRequest.of(safePage, safeSize, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Order.desc("createdAt"), org.springframework.data.domain.Sort.Order.desc("id"))));
+		return new SearchPage(result.getContent().stream().map(report -> response(report, actor)).toList(), safePage, result.hasNext());
+	}
+
 	@Transactional(readOnly = true)
 	public boolean canRead(Long id, AppUserDetails actor) {
 		try {
@@ -366,7 +425,11 @@ public class ReportService {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to list reporters on this report");
 		}
 		return reportReporterRepository.findByReportIdOrderByJoinedAtAsc(id).stream()
-				.map(row -> new ReportReporterResponse(row.getReportId(), row.getUserId(), row.getJoinedAt()))
+				.map(row -> {
+					User person = userRepository.findById(row.getUserId()).orElse(null);
+					String name = person == null ? null : (person.getFirstName() + " " + person.getLastName()).trim();
+					return new ReportReporterResponse(row.getReportId(), row.getUserId(), row.getJoinedAt(), name);
+				})
 				.toList();
 	}
 
@@ -418,7 +481,7 @@ public class ReportService {
 		List<ReportPhoto> stored = storePhotos(report, photos, (int) existing);
 		return stored.stream()
 				.map(photo -> ReportPhotoResponse.from(photo, reportId,
-						objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofHours(1))))
+						ReportPhotoService.contentPath(reportId, photo.getId())))
 				.toList();
 	}
 
@@ -429,7 +492,7 @@ public class ReportService {
 		assertCanReadReport(actor, report);
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReport_Id(photoId, reportId)
 				.orElseThrow(() -> new ApiException(404, "Photo not found"));
-		return objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofMinutes(15));
+		return ReportPhotoService.contentPath(reportId, photoId);
 	}
 
 	@Transactional(readOnly = true)
@@ -464,11 +527,15 @@ public class ReportService {
 	}
 
 	@Transactional
-	public ReportResponse confirm(Long id, AppUserDetails actor) {
+	public ReportResponse confirm(Long id, String signedName, AppUserDetails actor) {
 		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
 		assertCanReadReport(actor, report);
 		assertCanConfirmOrReopen(report, actor);
+        if (!report.getCreatedBy().getId().equals(actor.getId()) || actor.getRole() == UserRole.technician) throw new ApiException(403, "Only the report creator may confirm completion");
+		if (report.getAssignedTechnician() != null && report.getAssignedTechnician().getId().equals(actor.getId())) throw new ApiException(403, "Technician cannot confirm own work");
+        if (signedName == null || signedName.isBlank() || signedName.trim().length() > 255) throw new ApiException(400, "A signed name is required");
+        if (report.getStatus() == ReportStatus.confirmed && report.getConfirmedBy() != null && report.getConfirmedBy().getId().equals(actor.getId())) return response(report, actor);
 		if (report.getStatus() != ReportStatus.resolved_pending_confirmation) {
 			throw new ApiException(409, "Cannot confirm a report that is not awaiting confirmation");
 		}
@@ -476,6 +543,7 @@ public class ReportService {
 		ReportStatus from = report.getStatus();
 		report.setStatus(ReportStatus.confirmed);
 		report.setConfirmedBy(user);
+        report.setConfirmationSignedName(signedName.trim());
 		report.setConfirmedAt(Instant.now());
 		report = reportRepository.save(report);
 		appendStatusHistory(report, from, ReportStatus.confirmed, user, "Report confirmed");
@@ -496,6 +564,9 @@ public class ReportService {
 		User user = loadUser(actor.getId());
 		ReportStatus from = report.getStatus();
 		report.setStatus(ReportStatus.reopened);
+        report.setConfirmedBy(null);
+        report.setConfirmedAt(null);
+        report.setConfirmationSignedName(null);
 		report.setReopenCount(report.getReopenCount() + 1);
 		report.setReopenReason(request.reason().trim());
 		report = reportRepository.save(report);

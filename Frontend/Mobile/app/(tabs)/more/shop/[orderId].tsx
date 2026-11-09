@@ -38,7 +38,7 @@ import { canConfirmReceipt, canShopPurchase } from '@/utils/shop';
 export default function OrderDetailScreen() {
   const { user } = useAuth();
   const { orderId } = useLocalSearchParams<{ orderId?: string | string[] }>();
-  if (!canShopPurchase(user?.role)) return <Redirect href="/more/shop-orders" />;
+  if (!canShopPurchase(user?.role)) return <Redirect href={user?.role === 'reporter' ? "/more" : "/more/shop-orders"} />;
   return <OrderDetailContent key={`${user?.id ?? ''}:${user?.role ?? ''}:${orderId}`} />;
 }
 function OrderDetailContent() {

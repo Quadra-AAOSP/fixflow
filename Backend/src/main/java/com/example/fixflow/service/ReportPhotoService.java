@@ -113,8 +113,7 @@ public class ReportPhotoService {
 		loadAndAuthorize(reportId, actor, false);
 		ReportPhoto photo = reportPhotoRepository.findByIdAndReportId(photoId, reportId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Photo not found"));
-		return Map.of("url", actor.getRole() == UserRole.technician ? contentPath(reportId, photoId)
-                : objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofHours(1)));
+		return Map.of("url", contentPath(reportId, photoId));
 	}
 
 	@Transactional(readOnly = true)
@@ -200,12 +199,6 @@ public class ReportPhotoService {
 	}
 
 	private ReportPhotoResponse toResponse(ReportPhoto photo, Long reportId) {
-		String presigned = null;
-		try {
-			presigned = objectStorageService.presignedGetUrl(photo.getObjectKey(), Duration.ofHours(1));
-		} catch (Exception ignored) {
-			// Leave url null if storage cannot mint a temporary URL.
-		}
-		return ReportPhotoResponse.from(photo, reportId, presigned);
+		return ReportPhotoResponse.from(photo, reportId, contentPath(reportId, photo.getId()));
 	}
 }

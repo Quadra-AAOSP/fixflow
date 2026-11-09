@@ -21,6 +21,7 @@ export default function NotificationsScreen() {
 }
 
 function NotificationFeeds() {
+  const router = useRouter();
   const { user } = useAuth();
   const { t } = useTranslation('common');
   const [notices, setNotices] = useState<ReportNotice[]>([]);
@@ -61,17 +62,17 @@ function NotificationFeeds() {
       <FlatList data={notices} keyExtractor={notice => String(notice.id)}
         contentContainerClassName="gap-3 px-5 py-4"
         onRefresh={() => load(0)} refreshing={loading && page === 0}
-        ListHeaderComponent={<View className="gap-3"><Text className="text-2xl font-bold text-ink">{t('more.notifications.title')}</Text><ShopNotices /></View>}
+        ListHeaderComponent={<View className="gap-3"><Text className="text-2xl font-bold text-ink">{t('more.notifications.title')}</Text>{user?.role !== 'reporter' && <ShopNotices />}</View>}
         ListEmptyComponent={!loading && !error ? (
           <StateView variant="empty" title={t('more.notifications.emptyTitle')} />
         ) : null}
         renderItem={({ item }) => (
-          <Card>
+          <Pressable disabled={item.type !== 'work_completed'} onPress={() => router.push(`/reports/${item.reportId}`)} accessibilityRole="button"><Card>
             <Text className="text-sm font-semibold text-ink">
-              {t(item.type === 'report_edited' ? 'more.notifications.edited' : 'more.notifications.archived', { id: item.reportId })}
+              {item.type === 'work_completed' ? t('more.notifications.workCompleted', { id: item.reportId }) : t(item.type === 'report_edited' ? 'more.notifications.edited' : 'more.notifications.archived', { id: item.reportId })}
             </Text>
             <Text className="mt-1 text-xs text-subtitle">{formatDate(item.createdAt, true)}</Text>
-          </Card>
+          </Card></Pressable>
         )}
         ListFooterComponent={error ? (
           <StateView variant="error" description={error} actionLabel={t('more.notifications.retry')} onAction={() => load(0)} />

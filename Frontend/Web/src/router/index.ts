@@ -59,6 +59,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     if (auth.user?.applicationOnly) return to.name === 'application-access' || { name: 'application-access' };
     if (to.name === 'application-access') return accountHome(auth.user);
     if (to.meta.guest && auth.isAuthenticated) return accountHome(auth.user);
+    if (auth.user?.role === 'reporter' && to.path.startsWith('/shop')) return accountHome(auth.user);
     if (auth.user?.role === 'shop_manager' && to.name === 'shop') return '/shop/orders-management';
     if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && !shopManagerRouteAllowed(to.name)) return '/shop/dashboard';
     if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.user?.role)) return accountHome(auth.user);

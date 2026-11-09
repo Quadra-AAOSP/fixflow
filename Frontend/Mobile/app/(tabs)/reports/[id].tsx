@@ -128,6 +128,7 @@ export default function ReportDetailScreen() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [routingChoice, setRoutingChoice] = useState<{ reportId: number; route: TechnicianRoute } | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [signedName, setSignedName] = useState('');
   const [reopening, setReopening] = useState(false);
   const [reopenModalVisible, setReopenModalVisible] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
@@ -544,7 +545,7 @@ export default function ReportDetailScreen() {
     setActionMessage(null);
     setConfirming(true);
     try {
-      const updated = await confirmReport(reportId);
+      const updated = await confirmReport(reportId, signedName.trim());
       setReport(updated);
       setActionMessage(t('reports.detail.confirm.success'));
     } catch (err) {
@@ -1039,7 +1040,7 @@ export default function ReportDetailScreen() {
                 }`}
               >
                 <Text className="text-sm font-medium text-ink">
-                  {row.userId === user?.id ? t('reports.detail.you') : t('reports.detail.userId', { id: row.userId })}
+                  {row.userId === user?.id ? t('reports.detail.you') : (row.name || t('reports.detail.userId', { id: row.userId }))}
                 </Text>
                 <Text className="text-[10px] text-dashboard-caption">
                   {t('reports.detail.joinedOn', { time: formatDate(row.joinedAt, true) })}
@@ -1423,7 +1424,7 @@ export default function ReportDetailScreen() {
           </Card>
         ) : null}
 
-        {canConfirmReopen && awaitingConfirmation ? (
+        {canConfirmReopen && awaitingConfirmation && report.createdByUserId === user?.id && user?.role !== 'technician' ? (
           <Card className="mb-4">
             <Text
               className="mb-1 text-[15px] font-semibold text-ink"
@@ -1434,7 +1435,9 @@ export default function ReportDetailScreen() {
             <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
               {t('reports.detail.confirm.body')}
             </Text>
+            <TextInput value={signedName} onChangeText={setSignedName} maxLength={255} placeholder="Your full name" accessibilityLabel="Your full name" className="mb-3 border border-gray-300 rounded p-3" />
             <Button
+              disabled={!signedName.trim()}
               label={t('reports.detail.confirm.button')}
               variant="cta"
               onPress={onConfirm}

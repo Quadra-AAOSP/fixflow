@@ -43,7 +43,7 @@ export function createReportWithPhotos(payload: CreateReportPayload, photos: Fil
   return request<Report>('/api/reports', { method: 'POST', body });
 }
 export const joinReport = (id: number) => request<Report>(`/api/reports/${id}/join`, { method: 'POST' });
-export const confirmReport = (id: number) => request<Report>(`/api/reports/${id}/confirm`, { method: 'POST' });
+export const confirmReport = (id: number, signedName: string) => request<Report>(`/api/reports/${id}/confirm`, { method: 'POST', body: JSON.stringify({ signedName }) });
 export function reopenReport(id: number, reason: string) {
   const message = reason.trim();
   if (!message || message.length > 500) throw new Error('Enter a reopen reason of 1–500 characters.');

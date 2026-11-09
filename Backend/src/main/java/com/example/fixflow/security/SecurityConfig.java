@@ -76,6 +76,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
 						.requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
+						.requestMatchers("/api/shop/**").hasAnyRole("TECHNICIAN", "STAFF", "ADMIN", "SUPER_ADMIN", "SHOP_MANAGER")
 						.requestMatchers("/api/admin/shop/**").hasAnyRole("SUPER_ADMIN", "SHOP_MANAGER")
 						.requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
 						.requestMatchers("/api/**").authenticated()

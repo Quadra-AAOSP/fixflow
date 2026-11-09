@@ -145,6 +145,7 @@ export type ReportReporter = {
   reportId: number;
   userId: number;
   joinedAt: string;
+  name?: string | null;
 };
 
 /** Mirrors backend `AssignTechnicianRequest`. */

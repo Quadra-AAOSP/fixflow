@@ -27,7 +27,7 @@
 // }
 
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { FlatList, Modal, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import {
   ArrowRight,
@@ -51,7 +51,7 @@ import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReportsPage } from '@/services/reports';
-import { searchReportsNl } from '@/services/searchNl';
+import { searchReportsNl, searchReportPage } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
 import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import { useConnectivity } from '@/hooks/useConnectivity';
@@ -102,6 +102,7 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState(params.q ?? '');
   const [filter, setFilter] = useState<FilterValue>(initialFilter);
+  const [visibility, setVisibility] = useState('all');
 
   // Pagination state — the backend returns page/size/totalPages/totalElements.
   const [page, setPage] = useState(0);
@@ -110,7 +111,9 @@ export default function ReportsScreen() {
   const loadGeneration = useRef(createReportPageRequests());
 
   // A3 smart search: structured filters parsed from a natural-language query.
+  const searchGeneration = useRef(0);
   const [nlFilters, setNlFilters] = useState<NlSearchFilters | null>(null);
+  useEffect(() => { searchGeneration.current++; setNlFilters(null); setInterpretation(null); }, [site?.id, user?.id]);
   const [interpretation, setInterpretation] = useState<string | null>(null);
   const [askOpen, setAskOpen] = useState(false);
   const [askQuery, setAskQuery] = useState('');
@@ -125,19 +128,21 @@ export default function ReportsScreen() {
     if (targetPage === 0) setLoading(true);
     else setLoadingMore(true);
     try {
-      const result = await listReportsPage({
-        siteId: mineMode ? undefined : site!.id,
-        mine: mineMode || undefined,
-        page: targetPage,
-        size: PAGE_SIZE,
-        category: nlFilters?.category ?? undefined,
-      });
+      const result = nlFilters && !mineMode && site
+        ? await searchReportPage(site.id, { ...nlFilters, ...(visibility !== 'all' ? { visibility } : {}) }, targetPage, PAGE_SIZE)
+        : await listReportsPage({
+            siteId: mineMode ? undefined : site!.id,
+            mine: mineMode || undefined,
+            page: targetPage,
+            size: PAGE_SIZE,
+            category: nlFilters?.category ?? undefined,
+          });
       if (!loadGeneration.current.current(gen)) return;
       setReports((prev) =>
         targetPage === 0 ? result.content : appendReportPage(prev ?? [], result.content),
       );
       setPage(targetPage);
-      setTotalPages(result.totalPages);
+      setTotalPages('hasMore' in result ? targetPage + (result.hasMore ? 2 : 1) : result.totalPages);
     } catch (err) {
       if (!loadGeneration.current.current(gen)) return;
       if (err instanceof ApiError && err.status === 401) {
@@ -154,7 +159,7 @@ export default function ReportsScreen() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site?.id, logout, nlFilters?.category, mineMode]);
+  }, [site?.id, user?.id, logout, nlFilters, visibility, mineMode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -207,33 +212,25 @@ export default function ReportsScreen() {
   const filtered = useMemo(
     // Newest first — matches the web's sort in `ReportsView.vue`.
     () =>
-      searchReports(reports ?? [], query, siteName, filter, nlFilters).sort(
+      (nlFilters ? (reports ?? []) : searchReports(reports ?? [], query, siteName, filter)).filter(report => user?.role !== 'reporter' || visibility === 'all' || report.visibility === visibility).sort(
         (a, b) =>
           Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''),
       ),
-    [reports, query, siteName, filter, nlFilters],
+    [reports, query, siteName, filter, nlFilters, user?.role, visibility],
   );
 
   async function onAskSubmit() {
     if (!site || !askQuery.trim() || askLoading) return;
+    const generation = ++searchGeneration.current;
     setAskLoading(true);
     setAskError(null);
     try {
       const result = await searchReportsNl(site.id, askQuery.trim());
-      const hasAny =
-        result.filters.status ||
-        result.filters.category ||
-        result.filters.urgency ||
-        result.filters.from ||
-        result.filters.to ||
-        result.filters.text;
-      setNlFilters(hasAny ? result.filters : null);
+      if (generation !== searchGeneration.current) return;
+      setNlFilters(result.filters);
       setInterpretation(result.interpretation);
-      if (result.filters.text) {
-        // Let the NL `text` act as the free-text query too, so haystack
-        // matching still applies alongside the structured filters.
-        setQuery(result.filters.text);
-      }
+      if (result.fallback) { setInterpretation(t('reports.list.nl.error')); }
+
       setAskOpen(false);
       setAskQuery('');
     } catch (err) {
@@ -255,13 +252,12 @@ export default function ReportsScreen() {
     setNlFilters((prev) => {
       if (!prev) return null;
       const next = { ...prev, [key]: null };
-      const remaining =
-        next.status || next.category || next.urgency || next.from || next.to || next.text;
-      return remaining ? next : null;
+      return next;
     });
   }
 
   function clearAllNl() {
+    searchGeneration.current++;
     setNlFilters(null);
     setInterpretation(null);
   }
@@ -332,7 +328,7 @@ export default function ReportsScreen() {
                 canCreate={canCreate}
                 onCreate={() => router.push('/reports/new')}
                 query={query}
-                onChangeQuery={setQuery}
+                onChangeQuery={(value) => { setQuery(value); if (nlFilters) clearAllNl(); }}
                 filter={filter}
                 onChangeFilter={setFilter}
                 filterOptions={filterSelectOptions}
@@ -344,6 +340,7 @@ export default function ReportsScreen() {
                 onClearNlChip={clearNlChip}
                 onClearAllNl={clearAllNl}
                 />
+                {user?.role === 'reporter' && <View className="px-4 pb-3"><Picker label={t('Visibility')} value={visibility} onChange={setVisibility} options={[{value:'all',label:t('All')},{value:'public',label:t('Public')},{value:'private',label:t('Private')}]} /></View>}
               </View>
             }
             ItemSeparatorComponent={() => (
@@ -410,7 +407,7 @@ export default function ReportsScreen() {
                 onPress={() => router.push(`/reports/${item.id}`)}
               />
             )}
-            onEndReached={!query.trim() && filter === 'all' && !nlFilters && !error ? onLoadMore : undefined}
+            onEndReached={(nlFilters || (!query.trim() && filter === 'all')) && !error ? onLoadMore : undefined}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
               loadingMore ? (
@@ -421,7 +418,7 @@ export default function ReportsScreen() {
                 </View>
               ) : page + 1 < totalPages && reports !== null ? (
                 <View className="py-3">
-                  {query.trim() || filter !== 'all' || nlFilters ? (
+                  {!nlFilters && (query.trim() || filter !== 'all') ? (
                     <Text className="text-center text-dashboard-caption">{t('reports.list.partialSearch')}</Text>
                   ) : null}
                   {error ? <Text accessibilityRole="alert" className="text-center text-dashboard-caption">{error}</Text> : null}
@@ -762,7 +759,7 @@ function ReportsHeader({
       ) : null}
 
       <View className="flex-row flex-wrap items-center gap-x-4 gap-y-2">
-        <Picker
+        {!nlFilters && <Picker
           label={t('reports.list.status')}
           value={filter}
           options={filterOptions}
@@ -785,7 +782,7 @@ function ReportsHeader({
               </Pressable>
             </View>
           )}
-        />
+        />}
         {loaded ? (
           <Text className="text-[12px] text-dashboard-subtitle">
             {t('reports.list.matchingCount', {

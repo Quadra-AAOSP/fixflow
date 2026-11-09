@@ -49,6 +49,8 @@ class Member1IntakeIntegrationTest {
 	@Autowired
 	private ReportRepository reportRepository;
 	@Autowired
+	private com.example.fixflow.repository.TechnicianContractRepository contracts;
+	@Autowired
 	private StatusHistoryRepository statusHistoryRepository;
 	@Autowired
 	private PasswordEncoder passwordEncoder;
@@ -123,6 +125,43 @@ class Member1IntakeIntegrationTest {
 		mockMvc.perform(get("/api/reports/{id}/photos/{photoId}", reportId, photoId)
 						.with(user(new AppUserDetails(reporter))))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	void searchFiltersPrivacyBeforePagingAndDoesNotSearchMaskedAddress() throws Exception {
+		User other = createUser("search-other", UserRole.reporter, site);
+		var publicResult = createOpenReport(reporter, "Visible search fixture");
+		Number publicId = JsonPath.read(publicResult.getResponse().getContentAsString(), "$.id");
+		var visible = reportRepository.findById(publicId.longValue()).orElseThrow();
+		visible.setAddress("hiddenaddressneedle");
+		reportRepository.saveAndFlush(visible);
+		var privateResult = createOpenReport(reporter, "Private search fixture");
+		Number privateId = JsonPath.read(privateResult.getResponse().getContentAsString(), "$.id");
+		var hidden = reportRepository.findById(privateId.longValue()).orElseThrow();
+		hidden.setVisibility(com.example.fixflow.domain.ReportVisibility.PRIVATE);
+		reportRepository.saveAndFlush(hidden);
+		String base = "{\"siteId\":" + site.getId() + ",\"size\":1,\"filters\":";
+		mockMvc.perform(post("/api/reports/search").contentType(MediaType.APPLICATION_JSON)
+				.content(base + "{}}") .with(user(new AppUserDetails(other))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].id").value(publicId.longValue()))
+				.andExpect(jsonPath("$.hasMore").value(false));
+		mockMvc.perform(post("/api/reports/search").contentType(MediaType.APPLICATION_JSON)
+				.content(base + "{\"text\":\"hiddenaddressneedle\"}}") .with(user(new AppUserDetails(other))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(0));
+		mockMvc.perform(post("/api/reports/search").contentType(MediaType.APPLICATION_JSON)
+				.content(base + "{\"canJoin\":true}}") .with(user(new AppUserDetails(other))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.content[0].id").value(publicId.longValue()));
+		var contract = new com.example.fixflow.domain.TechnicianContract();
+		contract.setSite(site); contract.setTechnician(technician); contracts.saveAndFlush(contract);
+		mockMvc.perform(post("/api/reports/search").contentType(MediaType.APPLICATION_JSON)
+				.content(base + "{}}") .with(user(new AppUserDetails(technician))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.content[0].id").value(publicId.longValue()));
+		visible.setStatus(ReportStatus.confirmed);
+		reportRepository.saveAndFlush(visible);
+		mockMvc.perform(post("/api/reports/search").contentType(MediaType.APPLICATION_JSON)
+				.content(base + "{\"canJoin\":true}}") .with(user(new AppUserDetails(other))))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(0));
 	}
 
 	@Test

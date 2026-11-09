@@ -3,7 +3,7 @@ import { request } from './api';
 export type ReportNotice = {
   id: number;
   reportId: number;
-  type: 'report_edited' | 'report_deleted';
+  type: 'report_edited' | 'report_deleted' | 'work_completed';
   createdAt: string;
 };
 

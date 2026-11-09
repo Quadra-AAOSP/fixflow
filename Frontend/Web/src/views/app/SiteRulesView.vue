@@ -80,5 +80,5 @@ onMounted(load);
 </template>
 <style scoped>
 .rule-confirmation{display:block;line-height:1.8}.rule-confirmation .rule-actions{margin-top:12px}
-.rule-actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.rule-filter{display:flex;gap:12px;align-items:center;margin-top:24px;font-size:13px}.rule-filter select{padding:10px;border:1px solid #dbe5df;border-radius:8px}.rule-list{display:grid;gap:12px;margin-top:18px}.rule-list li{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;border:1px solid #dbe5df;padding:18px;border-radius:10px;overflow-wrap:anywhere}.rule-list p{font-size:12px;color:#52677b;margin-top:8px}
+.rule-actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.rule-filter{display:flex;gap:12px;align-items:center;margin-top:24px;font-size:13px}.rule-filter select{color:var(--navy);background:#fff;padding:10px;border:1px solid #dbe5df;border-radius:8px}.rule-list{display:grid;gap:12px;margin-top:18px}.rule-list li{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;border:1px solid #dbe5df;padding:18px;border-radius:10px;overflow-wrap:anywhere}.rule-list p{font-size:12px;color:#52677b;margin-top:8px}
 </style>

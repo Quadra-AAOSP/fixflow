@@ -106,17 +106,13 @@ export function claimReport(id: number): Promise<Report> {
 }
 
 /** Staff/admin final-urgency override with a required rationale. */
-export function overrideUrgency(
-  id: number,
-  urgency: Urgency,
-  reason: string,
-): Promise<Report> {
+export function overrideUrgency(id: number, urgency: Urgency, reason: string): Promise<Report> {
   return api.patch<Report>(endpoints.reports.urgency(id), { urgency, reason });
 }
 
-export function confirmReport(id: number): Promise<Report> {
+export function confirmReport(id: number, signedName: string): Promise<Report> {
   return api.post<Report>(
-    endpoints.reports.confirm.replace('{id}', String(id)),
+    endpoints.reports.confirm.replace('{id}', String(id)), { signedName },
   );
 }
 

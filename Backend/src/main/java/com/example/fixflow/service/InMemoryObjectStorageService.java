@@ -11,8 +11,6 @@ import org.springframework.stereotype.Service;
 
 import com.example.fixflow.web.ApiException;
 
-@Service
-@ConditionalOnProperty(prefix = "fixflow.minio", name = "enabled", havingValue = "false")
 public class InMemoryObjectStorageService implements ObjectStorageService {
 
 	private final Map<String, byte[]> objects = new ConcurrentHashMap<>();
