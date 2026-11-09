@@ -87,7 +87,9 @@ export default function ReportsScreen() {
     refresh: refreshSite,
   } = useCurrentSite();
 
-  const params = useLocalSearchParams<{ filter?: string; q?: string }>();
+  const params = useLocalSearchParams<{ filter?: string; q?: string; mine?: string }>();
+  /** Track reports: the caller's own filings, across every site. */
+  const mineMode = params.mine === '1';
   const initialFilter: FilterValue = FILTER_VALUES.includes(
     params.filter as FilterValue,
   )
@@ -116,7 +118,7 @@ export default function ReportsScreen() {
   const [askError, setAskError] = useState<string | null>(null);
 
   const load = useCallback(async (targetPage = 0) => {
-    if (!site) return;
+    if (!mineMode && !site) return;
     const gen = loadGeneration.current.begin(targetPage);
     if (gen === null) return;
     setError(null);
@@ -124,7 +126,8 @@ export default function ReportsScreen() {
     else setLoadingMore(true);
     try {
       const result = await listReportsPage({
-        siteId: site.id,
+        siteId: mineMode ? undefined : site!.id,
+        mine: mineMode || undefined,
         page: targetPage,
         size: PAGE_SIZE,
         category: nlFilters?.category ?? undefined,
@@ -151,7 +154,7 @@ export default function ReportsScreen() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site?.id, logout, nlFilters?.category]);
+  }, [site?.id, logout, nlFilters?.category, mineMode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -291,8 +294,8 @@ export default function ReportsScreen() {
    * every state below renders inside the card's `ListEmptyComponent` instead
    * of short-circuiting the whole screen.
    */
-  const canCreate = site != null && (user?.capabilities.createReport ?? false);
-  const list = site != null && error === null ? filtered : [];
+  const canCreate = (mineMode || site != null) && (user?.capabilities.createReport ?? false);
+  const list = (mineMode || site != null) && error === null ? filtered : [];
 
   return (
     <Screen className="px-0 pt-0">
@@ -323,6 +326,7 @@ export default function ReportsScreen() {
                 <PendingQueueBanner />
                 <ReportsHeader
                 t={t}
+                title={mineMode ? t('reports.list.myReports') : undefined}
                 siteName={site?.name ?? ''}
                 contractStatus={isOps ? site?.contractStatus ?? null : null}
                 canCreate={canCreate}
@@ -346,7 +350,7 @@ export default function ReportsScreen() {
               <View className="h-px bg-dashboard-card-line" />
             )}
             ListEmptyComponent={
-              site == null ? (
+              !mineMode && site == null ? (
                 siteLoading ? (
                   <StateView variant="loading" title={t('reports.list.loadingSite')} />
                 ) : siteError != null ? (
@@ -383,12 +387,16 @@ export default function ReportsScreen() {
                   icon={reports && reports.length === 0 ? ClipboardList : Search}
                   title={
                     reports && reports.length === 0
-                      ? t('reports.list.noReportsTitle')
+                      ? mineMode
+                        ? t('reports.list.myEmptyTitle')
+                        : t('reports.list.noReportsTitle')
                       : t('reports.list.noMatchesTitle')
                   }
                   description={
                     reports && reports.length === 0
-                      ? t('reports.list.noReportsDesc')
+                      ? mineMode
+                        ? t('reports.list.myEmptyDesc')
+                        : t('reports.list.noReportsDesc')
                       : page + 1 < totalPages ? t('reports.list.partialSearch') : t('reports.list.noMatchesDesc')
                   }
                 />
@@ -571,6 +579,8 @@ function PendingQueueBanner() {
 
 type ReportsHeaderProps = {
   t: TranslateFn;
+  /** Overrides the default “Reports” heading (used by Track reports). */
+  title?: string;
   siteName: string;
   contractStatus?: 'contracted' | 'uncontracted' | null;
   canCreate: boolean;
@@ -596,6 +606,7 @@ type ReportsHeaderProps = {
  */
 function ReportsHeader({
   t,
+  title,
   siteName,
   contractStatus,
   canCreate,
@@ -631,7 +642,7 @@ function ReportsHeader({
             className="text-[22px] font-semibold text-ink"
             style={{ letterSpacing: -0.7 }}
           >
-            {t('reports.list.title')}
+            {title ?? t('reports.list.title')}
           </Text>
           <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
             {siteName}

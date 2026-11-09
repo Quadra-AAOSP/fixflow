@@ -86,11 +86,12 @@ public class ReportController {
 	public ReportPageResponse list(
 			@RequestParam(required = false) Long siteId,
 			@RequestParam(required = false) String category,
+			@RequestParam(defaultValue = "false") boolean mine,
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size,
 			@AuthenticationPrincipal AppUserDetails principal
 	) {
-		return reportService.list(siteId, category, page, size, principal);
+		return reportService.list(siteId, category, mine, page, size, principal);
 	}
 
 	@GetMapping("/{id}")

@@ -78,6 +78,18 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 			left join fetch r.assignedTechnician
 			left join fetch r.subsite
 			left join fetch r.confirmedBy
+			where r.createdBy.id = :userId
+			order by r.createdAt desc
+			""")
+	List<Report> findDetailedByCreatorId(@Param("userId") Long userId);
+
+	@Query("""
+			select r from Report r
+			join fetch r.site
+			join fetch r.createdBy
+			left join fetch r.assignedTechnician
+			left join fetch r.subsite
+			left join fetch r.confirmedBy
 			where r.id in :ids
 			""")
 	List<Report> findDetailedByIdIn(@Param("ids") List<Long> ids);

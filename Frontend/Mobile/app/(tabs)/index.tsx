@@ -403,6 +403,11 @@ function Dashboard() {
     });
   }
 
+  /** Track reports: the caller's filings across every site they filed at. */
+  function gotoTrackReports() {
+    router.push({ pathname: '/reports', params: { mine: '1' } });
+  }
+
   function gotoReport(id: number) {
     router.push(`/reports/${id}`);
   }
@@ -531,7 +536,7 @@ function Dashboard() {
                 <QuickActionRow
                   t={t}
                   onPressFile={gotoNewReport}
-                  onPressTrack={() => gotoReports('all')}
+                  onPressTrack={gotoTrackReports}
                   onPressAlerts={() => router.push('/more/notifications')}
                 />
               )}
@@ -566,7 +571,7 @@ function Dashboard() {
                   <QuickActionRow
                     t={t}
                     onPressFile={gotoNewReport}
-                    onPressTrack={() => gotoReports('all')}
+                    onPressTrack={gotoTrackReports}
                     onPressAlerts={() => router.push('/more/notifications')}
                   />
                 </>

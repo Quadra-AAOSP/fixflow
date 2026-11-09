@@ -140,15 +140,19 @@ export default function NewReportScreen() {
   const [suggestionText, setSuggestionText] = useState('');
   const [suggestionBusy, setSuggestionBusy] = useState(false);
 
-  // Reporters file wherever the issue is — the account site is just the
-  // default. Other roles stay scoped to their account site.
-  const isReporter = user?.role === 'reporter';
+  // Anyone who can file may pick the site the issue is at; the account site is
+  // only the default. The public site directory lists every existing site.
+  const canPickSite =
+    user?.role === 'reporter' ||
+    user?.role === 'staff' ||
+    user?.role === 'admin' ||
+    user?.role === 'super_admin';
   const [siteOptions, setSiteOptions] = useState<JoinableSite[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [siteListError, setSiteListError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isReporter) return;
+    if (!canPickSite) return;
     let active = true;
     listJoinableSites()
       .then((list) => {
@@ -164,15 +168,15 @@ export default function NewReportScreen() {
     return () => {
       active = false;
     };
-  }, [isReporter, t]);
+  }, [canPickSite, t]);
 
   const activeSite = useMemo(() => {
-    if (isReporter && selectedSiteId) {
+    if (canPickSite && selectedSiteId) {
       const picked = siteOptions.find((o) => String(o.id) === selectedSiteId);
       if (picked) return { id: picked.id, name: picked.name, type: picked.type };
     }
     return site ? { id: site.id, name: site.name, type: site.type } : null;
-  }, [isReporter, selectedSiteId, siteOptions, site]);
+  }, [canPickSite, selectedSiteId, siteOptions, site]);
 
   const activeSubsites = useMemo(
     () => subsites.filter((s) => s.archivedAt == null),
@@ -447,7 +451,7 @@ export default function NewReportScreen() {
     );
   }
 
-  if (siteError || (!isReporter && !site)) {
+  if (siteError || (!canPickSite && !site)) {
     return (
       <Screen>
         <View className="flex-1 items-center justify-center px-6">
@@ -521,7 +525,7 @@ export default function NewReportScreen() {
                 ? t('reports.new.intro', { site: activeSite.name })
                 : t('reports.new.pickSiteHint')}
             </Text>
-            {isReporter ? (
+            {canPickSite ? (
               <View className="mt-3">
                 <Picker
                   label={t('reports.new.siteLabel')}

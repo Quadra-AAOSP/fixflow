@@ -22,16 +22,19 @@ export function createReport(payload: CreateReportPayload): Promise<Report> {
  * Default page size is 20 (backend max 100).
  */
 export function listReportsPage(opts: {
-  siteId: number;
+  siteId?: number;
   page?: number;
   size?: number;
   category?: string;
+  /** Reports the caller filed, across every site (Track reports). */
+  mine?: boolean;
 }): Promise<ReportPage> {
   const params = new URLSearchParams();
-  params.set('siteId', String(opts.siteId));
+  if (opts.siteId !== undefined) params.set('siteId', String(opts.siteId));
   if (opts.page !== undefined) params.set('page', String(opts.page));
   if (opts.size !== undefined) params.set('size', String(opts.size));
   if (opts.category) params.set('category', opts.category);
+  if (opts.mine) params.set('mine', 'true');
   return api.get<ReportPage>(`${endpoints.reports.list}?${params.toString()}`);
 }
 

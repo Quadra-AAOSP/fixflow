@@ -190,7 +190,17 @@ public class ReportService {
 	}
 
 	@Transactional(readOnly = true)
-	public ReportPageResponse list(Long siteId, String category, int page, int size, AppUserDetails actor) {
+	public ReportPageResponse list(Long siteId, String category, boolean mine, int page, int size, AppUserDetails actor) {
+		// "Mine" spans every site the actor has filed at, including sites other
+		// than their account site. Used by the mobile Track reports view.
+		if (mine) {
+			List<ReportResponse> mineContent = reportRepository.findDetailedByCreatorId(actor.getId()).stream()
+					.filter(report -> report.getVisibility() != ReportVisibility.PRIVATE
+							|| canSeeSensitive(actor, report))
+					.map(report -> response(report, actor))
+					.toList();
+			return new ReportPageResponse(mineContent, 0, mineContent.size(), mineContent.size(), 1);
+		}
 		Long scopedSiteId = resolveSiteForList(actor, siteId);
 		int safePage = Math.max(page, 0);
 		int safeSize = Math.min(Math.max(size, 1), 100);
@@ -457,8 +467,7 @@ public class ReportService {
 	public ReportResponse confirm(Long id, AppUserDetails actor) {
 		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		assertCanConfirmOrReopen(report, actor);
 		if (report.getStatus() != ReportStatus.resolved_pending_confirmation) {
 			throw new ApiException(409, "Cannot confirm a report that is not awaiting confirmation");
@@ -478,8 +487,7 @@ public class ReportService {
 	public ReportResponse reopen(Long id, ReopenReportRequest request, AppUserDetails actor) {
 		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		assertCanConfirmOrReopen(report, actor);
 		if (report.getStatus() != ReportStatus.confirmed
 				&& report.getStatus() != ReportStatus.resolved_pending_confirmation) {
@@ -565,10 +573,10 @@ public class ReportService {
 	}
 
 	private void assertCanManagePhotos(AppUserDetails actor, Report report) {
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		boolean allowed = switch (actor.getRole()) {
-			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId())
+					|| (report.getCreatedBy() != null && report.getCreatedBy().getId().equals(actor.getId()));
 			case staff, admin, super_admin -> true;
 			default -> false;
 		};
@@ -616,11 +624,15 @@ public class ReportService {
 			}
 			return filer.getSite();
 		}
-		if (filer.getSite() == null) {
+		if (filer.getSite() == null && requestedSiteId == null) {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(), "Account is not scoped to a site");
 		}
-		if (requestedSiteId != null && !requestedSiteId.equals(filer.getSite().getId())) {
-			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Cannot create a report for another site");
+		// Staff and admins may file at any existing site too — they often
+		// notice issues outside their own site and the account site is only
+		// the default.
+		if (requestedSiteId != null) {
+			return siteRepository.findById(requestedSiteId)
+					.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found"));
 		}
 		return filer.getSite();
 	}
@@ -673,6 +685,12 @@ public class ReportService {
 			if (!canSeeSensitive(actor, report)) {
 				throw new ApiException(403, "Only the currently assigned technician may view this report");
 			}
+			return;
+		}
+		if (report.getCreatedBy() != null && report.getCreatedBy().getId().equals(actor.getId())) {
+			// Whoever filed the report keeps access to it even when they filed
+			// it at a site other than their account site.
+			assertCanSeeVisibility(actor, report);
 			return;
 		}
 		assertCanViewSite(actor, report.getSite().getId());
