@@ -1006,7 +1006,7 @@
       }
     },
     "notifications": {
-      "workCompleted": "Report #{{id}} is ready for your confirmation.",
+      "workCompleted": "Report #{id} is ready for your confirmation.",
       "title": "Notifications",
       "emptyTitle": "No notifications yet.",
       "edited": "Report #{id} was edited.",
