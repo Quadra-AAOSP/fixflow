@@ -372,6 +372,7 @@
     },
     "emptyHome": {
       "title": "No reports yet at {site}",
+      "titleNoSite": "Nothing filed yet — your first report will show up here.",
       "subtitle": "File the first report and this dashboard starts tracking open work, urgency, and weekly progress.",
       "stepFile": "File a report",
       "stepFix": "We fix it",
@@ -387,7 +388,8 @@
     },
     "reportDisabledReasons": {
       "noSite": "A site must be linked before reports can be filed.",
-      "technician": "Technician accounts resolve reports rather than file them."
+      "technician": "Technician accounts resolve reports rather than file them.",
+      "shopManager": "Shop managers order supplies; reports come from reporters and site teams."
     },
     "loadingDashboard": "Loading dashboard",
     "loading": "Loading reports…",

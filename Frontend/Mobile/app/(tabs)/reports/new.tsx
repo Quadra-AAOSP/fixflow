@@ -176,6 +176,14 @@ export default function NewReportScreen() {
     return site ? { id: site.id, name: site.name, type: site.type } : null;
   }, [canPickSite, selectedSiteId, siteOptions, site]);
 
+  // Accounts registered without a site (reporters) still need a working
+  // default: pick the first listed site until they choose one.
+  useEffect(() => {
+    if (selectedSiteId || site) return;
+    const first = siteOptions[0];
+    if (first) setSelectedSiteId(String(first.id));
+  }, [selectedSiteId, site, siteOptions]);
+
   const activeSubsites = useMemo(
     () => subsites.filter((s) => s.archivedAt == null),
     [subsites],

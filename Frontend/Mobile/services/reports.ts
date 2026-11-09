@@ -42,8 +42,8 @@ export function listReportsPage(opts: {
  * Convenience wrapper that returns just the content array from the first page.
  * Used by dashboards that need a quick snapshot without pagination metadata.
  */
-export async function listReports(opts: { siteId: number }): Promise<Report[]> {
-  const page = await listReportsPage({ siteId: opts.siteId });
+export async function listReports(opts: { siteId?: number; mine?: boolean }): Promise<Report[]> {
+  const page = await listReportsPage({ siteId: opts.siteId, mine: opts.mine });
   return page.content ?? [];
 }
 

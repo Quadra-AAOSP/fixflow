@@ -88,8 +88,12 @@ export default function ReportsScreen() {
   } = useCurrentSite();
 
   const params = useLocalSearchParams<{ filter?: string; q?: string; mine?: string }>();
-  /** Track reports: the caller's own filings, across every site. */
-  const mineMode = params.mine === '1';
+  /**
+   * Track reports: the caller's own filings, across every site.
+   * Accounts registered without a site (common for reporters) default to
+   * their own reports so the tab still works.
+   */
+  const mineMode = params.mine === '1' || site === null;
   const initialFilter: FilterValue = FILTER_VALUES.includes(
     params.filter as FilterValue,
   )
