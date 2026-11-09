@@ -20,7 +20,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -47,6 +47,7 @@ import {
   canProvision,
 } from '@/constants/access';
 import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
 
@@ -213,6 +214,22 @@ function Dashboard() {
     useCallback(() => {
       void load();
     }, [load]),
+  );
+
+  // Report events keep the dashboard (and its weekly graph) current without
+  // waiting for a manual refresh.
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load();
+    }, 600);
+  }, [load]);
+  useRealtimeEvents(
+    site ? `/sites/${site.id}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
   );
 
   async function onRefresh() {
