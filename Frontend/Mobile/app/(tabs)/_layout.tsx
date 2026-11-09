@@ -2,6 +2,7 @@ import {
   ClipboardList,
   House,
   LayoutGrid,
+  ShoppingBag,
   User,
   Wrench,
 } from 'lucide-react-native';
@@ -27,7 +28,7 @@ type TabConfig = {
 /**
  * Role-aware bottom tabs. Six backend roles — one tab bar per role:
  *
- *   reporter      → Home, Reports,            More,       Profile
+ *   reporter      → Home, Reports,            Shop,       Profile
  *   technician    → Workspace,    Assignments,  More(Shop), Profile
  *   staff         → Home, Reports,            More,       Profile
  *   admin         → Home, Reports,            More,       Profile
@@ -99,8 +100,13 @@ export default function TabLayout() {
     {
       name: 'more',
       visible: isTabVisible(role, 'more'),
-      title: role === 'staff' ? t('tabs.staffTools') : role === 'admin' ? t('tabs.siteTools') : t('tabs.more'),
-      icon: LayoutGrid,
+      title: role === 'staff' ? t('tabs.staffTools')
+        : role === 'admin' ? t('tabs.siteTools')
+        : role === 'reporter' ? t('tabs.shop')
+        : t('tabs.more'),
+      icon: role === 'reporter' ? ShoppingBag : LayoutGrid,
+      // Reporters buy from the shop directly instead of browsing a menu.
+      href: role === 'reporter' ? '/(tabs)/more/shop' : undefined,
       hideHeader: true,
     },
     {
