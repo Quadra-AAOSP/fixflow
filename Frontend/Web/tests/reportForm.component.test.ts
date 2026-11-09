@@ -45,6 +45,10 @@ async function completeFields() {
   await selects[2]!.setValue('high');
 }
 describe('report intake interactions', () => {
+  it('preselects the only active building for the selected site', async () => {
+    await mountForm();
+    expect(wrapper.findAll('select')[0]!.element.value).toBe('42');
+  });
   it('requires the actual building selection and navigates to the saved report', async () => {
     const router = await mountForm();
     await wrapper.findAll('form')[0]!.trigger('submit');
@@ -92,6 +96,7 @@ it('opens a focused building suggestion beside the selector without losing the r
   await wrapper.get('#building-suggestion-fields form').trigger('submit'); await flushPromises();
   expect(api.requestSubsiteAddition).toHaveBeenCalledWith(7, 'Please add the new science building.');
   expect(wrapper.get('#building-suggestion-fields').text()).toContain('sent to the site administrator');
+  expect(wrapper.get<HTMLInputElement>('input[maxlength="512"]').element.value).toBe('Please add the new science building.');
   expect(wrapper.get('textarea').element.value).toBe('A pipe is leaking.');
   expect(api.createReport).not.toHaveBeenCalled();
 });

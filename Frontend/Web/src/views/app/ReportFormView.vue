@@ -78,6 +78,7 @@ async function loadLocations(id: number | null, preserveSelection = false) {
     if (current === siteLoad) {
       subsites.value = result.filter(item => !item.archivedAt);
       if (subsites.value.some(item => item.id === previousId)) subsiteId.value = previousId;
+      else if (subsites.value.length === 1) subsiteId.value = subsites.value[0]!.id;
     }
   } catch (err) {
     if (current === siteLoad) locationsError.value = errorMessage(err);
@@ -100,7 +101,10 @@ async function requestLocation() {
   requestBusy.value = true;
   try {
     await requestSubsiteAddition(siteId, requestNote.value);
-    if (!disposed && version === suggestionVersion && data.selectedSiteId === siteId) { requestSent.value = true; }
+    if (!disposed && version === suggestionVersion && data.selectedSiteId === siteId) {
+      requestSent.value = true;
+      address.value = requestNote.value.trim().slice(0, 512);
+    }
   } catch (err) { if (!disposed && version === suggestionVersion && data.selectedSiteId === siteId) requestError.value = errorMessage(err); }
   finally { if (version === suggestionVersion) requestBusy.value = false; }
 }
@@ -177,7 +181,7 @@ async function submit() {
       </form>
       <section id="building-suggestion" class="missing-location">
         <h2><button type="button" :aria-expanded="showSuggestion" aria-controls="building-suggestion-fields" @click="showSuggestion ? showSuggestion = false : openSuggestion()">{{ t("Suggest a missing building") }}</button></h2>
-        <p>{{ t("Suggestions are reviewed by your site administrator. Choose an approved building before submitting your report.") }}</p>
+        <p>{{ t("Suggestions are reviewed by your site administrator. The suggested name is copied into the exact-location field; choose an approved building before submitting your report.") }}</p>
         <div v-if="showSuggestion" id="building-suggestion-fields">
         <div v-if="requestSent" role="status"><p>{{ t("Your request was sent to the site administrator.") }}</p><p>{{ t("Requested building: {name}", { name: requestNote }) }}</p><p>{{ t("Once approved, refresh the building list and select it above.") }} <button type="button" class="text-action" :disabled="locationsLoading" @click="loadLocations(data.selectedSiteId, true)">{{ t("Refresh buildings") }}</button></p></div>
         <form v-else class="draft-form" @submit.prevent="requestLocation">

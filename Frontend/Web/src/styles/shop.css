@@ -55,3 +55,12 @@
 .order-items li{border-color:var(--line);border-radius:11px}
 .order-error,.product-error{color:#a0434d}
 @media(max-width:600px){.shop-shell-header{padding:20px}.shop-shell-main{padding:22px 18px}.shop-shell-footer{margin:0 18px}}
+
+/* Workspace-aligned catalogue and management surfaces. */
+.shop-intro{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:30px;padding:28px;border:1px solid #fbefe0;border-radius:15px;background:#fff9f1}
+.shop-intro h2{font-size:clamp(22px,2vw,30px);font-weight:650;letter-spacing:-.7px;margin:6px 0;color:var(--navy)}
+.shop-intro p{color:var(--muted);font-size:14px;line-height:1.6}.shop-intro .shop-primary{margin:0;white-space:nowrap;background:#79e2cd;color:#104b45;border:1px solid #65d8c1}
+.shop-feedback{display:flex;align-items:center;gap:16px;bottom:24px}.shop-feedback button{text-decoration:underline;font-weight:700;white-space:nowrap}.shop-feedback button:last-child{display:grid;place-items:center;text-decoration:none}
+.shop-detail-feedback{display:none;margin-top:14px;padding:12px;background:#e5f8f3;border-radius:8px;color:#104b45;font-size:13px}.shop-detail-feedback.is-visible{display:flex;align-items:center;gap:8px}.shop-detail-feedback button{font-weight:700;text-decoration:underline;margin-left:8px}
+.shop-shell-header nav details{position:relative}.shop-shell-header nav summary{cursor:pointer;min-height:44px;display:flex;align-items:center}.shop-shell-header nav details[open]{z-index:5}.shop-shell-header nav details a{padding:9px 12px;background:#fff;border:1px solid var(--line)}
+@media(max-width:600px){.shop-intro{align-items:flex-start;flex-direction:column;padding:22px}.shop-feedback{width:calc(100% - 32px);gap:10px;font-size:12px}}

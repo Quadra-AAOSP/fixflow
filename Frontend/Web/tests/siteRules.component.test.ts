@@ -45,3 +45,15 @@ it('distinguishes load errors from a valid empty list', async () => {
   const wrapper = mount(SiteRulesView); await flushPromises();
   expect(wrapper.text()).toContain('Rules unavailable'); expect(wrapper.text()).not.toContain('No rules for this site type.'); wrapper.unmount();
 });
+it('only displays rules for the selected site type and closes an old editor on site change', async () => {
+  vi.mocked(api.listSiteRules).mockResolvedValue([rule, { ...rule, id: 8, siteType: 'hotel', category: 'hotel-only' }]);
+  const data = useMaintenanceStore();
+  data.sites.push({ ...data.sites[0]!, id: 8, name: 'Hotel', type: 'hotel' });
+  const wrapper = mount(SiteRulesView); await flushPromises();
+  expect(wrapper.text()).not.toContain('hotel-only');
+  await wrapper.get('li button').trigger('click');
+  data.selectedSiteId = 8; await flushPromises();
+  expect(wrapper.find('form').exists()).toBe(false);
+  expect(wrapper.findAll('li strong').map(node => node.text())).toEqual(['hotel-only']);
+  wrapper.unmount();
+});

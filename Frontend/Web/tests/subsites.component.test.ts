@@ -122,3 +122,18 @@ describe('labelled building management', () => {
     expect(wrapper.find('button[aria-label="Archive Original Main Building"]').exists()).toBe(false);
   });
 });
+it('accepts a suggested building and closes its request only after the building is saved', async () => {
+  vi.mocked(api.listPendingSubsiteRequests).mockResolvedValue([{ id: 9, siteId: 7, requestedByUserId: 4, note: 'New library', status: 'pending', createdAt: '2026-11-09T08:00:00Z' }]);
+  let submitted: unknown;
+  vi.mocked(api.createSubsite).mockImplementation(async (siteId, form) => { submitted = { siteId, ...form }; return { ...building, id: 50, label: 'LIB', name: 'New library' }; });
+  vi.mocked(api.resolveSubsiteRequest).mockResolvedValue(undefined);
+  wrapper = render(); await flushPromises();
+  await wrapper.findAll('button').find(button => button.text() === 'Accept suggestion')!.trigger('click');
+  expect(api.resolveSubsiteRequest).not.toHaveBeenCalled();
+  expect(wrapper.get<HTMLInputElement>('input[maxlength="255"]').element.value).toBe('New library');
+  await wrapper.get('input[maxlength="64"]').setValue('LIB');
+  await wrapper.get('form').trigger('submit'); await flushPromises();
+  expect(submitted).toEqual(expect.objectContaining({ siteId: 7, label: 'LIB', name: 'New library' }));
+  expect(api.resolveSubsiteRequest).toHaveBeenCalledWith(7, 9);
+  expect(wrapper.text()).not.toContain('Accept suggestion');
+});

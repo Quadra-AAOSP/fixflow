@@ -7,17 +7,17 @@ import { useLocale } from '@/i18n';
 import { listSiteRules, saveSiteRule, deleteSiteRule, type RuleDraft } from '@/services/siteRules';
 import { errorMessage } from '@/services/api';
 import { humanize } from '@/utils/maintenance';
-import type { SiteRule, SiteType } from '@/types/maintenance';
+import type { SiteRule } from '@/types/maintenance';
 const { user } = useAuth(); const { t } = useLocale(); const data = useMaintenanceStore();
 const allowed = computed(() => user.value?.role === 'admin' || user.value?.role === 'super_admin');
 const rules = ref<SiteRule[] | null>(null); const busy = ref(false); const loading = ref(false);
 const error = ref(''); const message = ref(''); const editing = ref(false); const id = ref<number | null>(null);
-const removing = ref<SiteRule | null>(null); const filter = ref<SiteType | ''>('');
+const removing = ref<SiteRule | null>(null);
 const editor = ref<HTMLFormElement>(); const confirmation = ref<HTMLElement>();
 const draft = ref<RuleDraft>({ siteType: 'school', category: '', urgencyWeight: 0, sortOrder: 0 });
 const currentType = computed(() => data.selectedSite?.type);
-const visible = computed(() => (rules.value ?? []).filter(rule => currentType.value && rule.siteType === currentType.value));
-watch(currentType, () => { editing.value = false; removing.value = null; message.value = ''; });
+const visible = computed(() => (rules.value ?? []).filter(rule => currentType.value && rule.siteType === currentType.value).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.category.localeCompare(b.category)));
+watch(() => data.selectedSite?.id, () => { editing.value = false; removing.value = null; message.value = ''; });
 let generation = 0; onBeforeUnmount(() => generation++);
 async function load() {
   if (!allowed.value || busy.value) return;
@@ -30,7 +30,7 @@ async function edit(rule?: SiteRule) {
   if (busy.value || loading.value || !currentType.value) return;
   id.value = rule?.id ?? null; removing.value = null; message.value = ''; error.value = '';
   draft.value = rule ? { siteType: rule.siteType, category: rule.category, urgencyWeight: rule.urgencyWeight ?? 0, sortOrder: rule.sortOrder ?? 0 } :
-    { siteType: filter.value || data.selectedSite?.type || 'school', category: '', urgencyWeight: 0, sortOrder: 0 };
+    { siteType: currentType.value, category: '', urgencyWeight: 0, sortOrder: 0 };
   editing.value = true; await nextTick(); editor.value?.querySelector('input')?.focus();
 }
 async function save() {

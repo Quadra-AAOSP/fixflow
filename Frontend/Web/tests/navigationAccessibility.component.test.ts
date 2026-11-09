@@ -8,6 +8,7 @@ import AppLayout from '../src/layouts/AppLayout.vue';
 import { usePageNavigation } from '../src/composables/usePageNavigation';
 import { useAuthStore } from '../src/stores/auth';
 import { useMaintenanceStore } from '../src/stores/maintenance';
+import { useRealtimeStore } from '../src/stores/realtime';
 import { setLocale } from '../src/i18n';
 import * as notifications from '../src/services/notifications';
 const media = { matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() };
@@ -136,4 +137,15 @@ it('keeps independent technicians away from unavailable report searches until a 
   data.sites = [{ id: 7, name: 'Accessible fixture', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, createdAt: '', updatedAt: '' }];
   data.selectedSiteId = 7; await nextTick();
   expect(wrapper.find('form[role="search"]').exists()).toBe(true);
+});
+
+it('offers manual updates only while live updates are disconnected', async () => {
+  await render();
+  const realtime = useRealtimeStore();
+  realtime.state = 'offline'; await nextTick();
+  expect(wrapper.find('.manual-sync').exists()).toBe(true);
+  await wrapper.get('.manual-sync').trigger('click');
+  expect(useMaintenanceStore().refresh).toHaveBeenCalled();
+  realtime.state = 'connected'; await nextTick();
+  expect(wrapper.find('.manual-sync').exists()).toBe(false);
 });

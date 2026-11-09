@@ -4,7 +4,7 @@ import { localeTag, useLocale } from '@/i18n';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  ArrowUpRight, ArrowRight, ShoppingBag, Search, Plus, Minus, X, Package,
+  ArrowRight, ShoppingBag, Search, Plus, Minus, X, Package,
   SlidersHorizontal, RefreshCw,
 } from '@lucide/vue';
 import { useShopStore } from '@/stores/shop';
@@ -30,13 +30,13 @@ const router = useRouter();
 const query = ref('');
 const category = ref('');
 const sort = ref('name');
-const availableOnly = ref(false);
 const detailId = ref<string | null>(null);
 const detail = ref<HTMLDialogElement>();
 const basket = ref<HTMLDialogElement>();
 const ordersDialog = ref<HTMLDialogElement>();
 const announcement = ref<{ key: string; values: Record<string, string | number> } | null>(null);
 const announcementText = computed(() => announcement.value ? t(announcement.value.key, announcement.value.values) : '');
+const basketAnnouncement = computed(() => announcement.value?.key === '{name} added to your basket. {count} items in basket.');
 const checkoutBusy = ref(false);
 const simulation = ref<HTMLDialogElement>();
 const simulationOrder = ref<string | null>(null);
@@ -57,12 +57,8 @@ onBeforeUnmount(() => { disposed = true; quoteVersion++; ordersVersion++; });
 
 const categories = computed(() => [...new Set(shop.catalog?.products.map(p => p.category) ?? [])].sort());
 const selected = computed(() => shop.catalog?.products.find(p => p.id === detailId.value));
-const hasMixedAvailability = computed(() => {
-  const stock = shop.catalog?.products.map(product => product.stock) ?? [];
-  return stock.some(count => count > 0) && stock.some(count => count === 0);
-});
 const products = computed(() => (shop.catalog?.products ?? []).filter(p => {
-  return (!category.value || p.category === category.value) && (!availableOnly.value || p.stock > 0)
+  return (!category.value || p.category === category.value)
     && `${p.name} ${p.brand ?? ''} ${p.description} ${p.category}`.toLowerCase().includes(query.value.trim().toLowerCase());
 }).sort((a, b) => sort.value === 'price-low' ? a.priceMinor - b.priceMinor : sort.value === 'price-high' ? b.priceMinor - a.priceMinor : a.name.localeCompare(b.name)));
 const ready = computed(() => !!shop.catalog && !shop.error && !shop.loading);
@@ -102,7 +98,7 @@ async function simulatePayment() {
   finally { checkoutBusy.value = false; }
 }
 async function inspect(id: string) { detailId.value = id; await nextTick(); detail.value?.showModal(); }
-function clearFilters() { query.value = ''; category.value = ''; availableOnly.value = false; sort.value = 'name'; }
+function clearFilters() { query.value = ''; category.value = ''; sort.value = 'name'; }
 
 async function refreshQuote() {
   const current = ++quoteVersion;
@@ -231,24 +227,10 @@ onMounted(async () => {
         </button>
       </div>
     </div>
-    <section class="shop-hero">
-      <div class="shop-hero-copy">
-        <span class="shop-pill"><span /> {{ t("FOR THE SPACES YOU CARE FOR") }}</span>
-        <h2>{{ t('Small fixes.') }}<br /><em>{{ t('Big possibilities.') }}</em></h2>
-        <p>{{ t("Make room for your next project. Find tools, parts, and everyday essentials to keep good spaces working beautifully.") }}</p>
-        <a class="shop-primary" href="#shop-catalogue">{{ t("Explore the shop") }} <ArrowRight :size="18" /></a>
-        <div class="shop-hero-foot"><span class="shop-star">✳</span><span>{{ t("A fresh start for your toolkit.") }}</span></div>
-      </div>
-      <div class="shop-hero-image">
-        <img src="https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=1200" :alt="t('Drill and hand tools arranged on a wooden workbench')" fetchpriority="high" />
-        <div class="shop-image-note"><span>{{ t("THE EVERYDAY ESSENTIALS") }}</span><strong>{{ t("Good tools.") }}<br />{{ t("Great beginnings.") }}</strong><ArrowUpRight :size="28" /></div>
-      </div>
+    <section class="shop-intro">
+      <div><span class="shop-eyebrow">{{ t("BUILD YOUR TOOLKIT") }}</span><h2>{{ t("Tools and parts for your next fix") }}</h2><p>{{ t("Find the supplies you need to keep your spaces working.") }}</p></div>
+      <a class="shop-primary" href="#shop-catalogue">{{ t("Browse products") }} <ArrowRight :size="18" /></a>
     </section>
-    <div class="shop-values">
-      <span><i class="mint" />{{ t("Tools for the task") }}</span>
-      <span><i class="coral" />{{ t("Parts for the little fixes") }}</span>
-      <span><i class="citron" />{{ t("Care for shared spaces") }}</span>
-    </div>
     <section id="shop-catalogue" class="shop-catalogue" :aria-busy="shop.loading">
       <div class="shop-section-heading">
         <div><span class="shop-eyebrow">{{ t("BUILD YOUR TOOLKIT") }}</span><h2>{{ t("Find your next essential") }}</h2></div>
@@ -263,7 +245,6 @@ onMounted(async () => {
           <button type="button" :aria-pressed="!category" @click="category = ''">{{ t("All products") }}</button>
           <button v-for="item in categories" :key="item" type="button" :aria-pressed="category === item" @click="category = item">{{ item }}</button>
         </div>
-        <label v-if="hasMixedAvailability"><input v-model="availableOnly" type="checkbox" />{{ t("In stock only") }}</label>
       </div>
       <LoadingStatus v-if="shop.loading" :label="t('Loading the latest catalogue.')" />
       <div v-else-if="shop.error" class="shop-state">
@@ -297,18 +278,7 @@ onMounted(async () => {
         </article>
       </div>
     </section>
-    <section class="shop-editorial">
-      <img src="https://images.pexels.com/photos/30413428/pexels-photo-30413428.jpeg?auto=compress&cs=tinysrgb&w=1000" :alt="t('A selection of cordless drills on a workshop bench')" loading="lazy" />
-      <div>
-        <span class="shop-eyebrow">{{ t("A LITTLE PREPARATION GOES A LONG WAY") }}</span>
-        <h2>{{ t('Ready for the next little fix.') }}</h2>
-        <p>{{ t("Start with the task. Check the fit, materials, and specifications before choosing what goes into your toolkit.") }}</p>
-        <a href="#shop-catalogue">{{ t("Find your essentials") }} <ArrowUpRight :size="19" /></a>
-      </div>
-      <span class="shop-editorial-flower" aria-hidden="true">✳</span>
-    </section>
-    <p class="shop-photo-credit">{{ t("Workshop photography:") }} <a href="https://www.pexels.com/photo/close-up-shot-of-a-hand-drill-11398216/" target="_blank" rel="noopener noreferrer">Benjamin Lehman</a> &amp; <a href="https://www.pexels.com/photo/close-up-of-power-drills-on-a-workbench-30413428/" target="_blank" rel="noopener noreferrer">Christina &amp; Peter</a> / Pexels. {{ t('Editorial images.') }}</p>
-    <p v-if="announcementText" class="shop-feedback" role="status" aria-live="polite">{{ announcementText }}</p>
+    <div v-if="announcementText" class="shop-feedback"><span role="status" aria-live="polite">{{ announcementText }}</span><button v-if="basketAnnouncement" type="button" @click="detail?.close(); basket?.showModal()">{{ t('View basket') }}</button><button type="button" :aria-label="t('Dismiss')" @click="announcement = null"><X :size="18" /></button></div>
 
     <dialog ref="detail" class="shop-dialog" aria-labelledby="product-title">
       <div class="shop-dialog-top"><span class="shop-eyebrow">{{ t("A CLOSER LOOK") }}</span><button type="button" :aria-label="t('Close product details')" @click="detail?.close()"><X :size="22" /></button></div>
@@ -321,7 +291,7 @@ onMounted(async () => {
         <strong class="shop-detail-price">{{ shop.money(selected.priceMinor) }}</strong>
         <p>{{ selected.stock ? t('{count} available', { count: selected.stock }) : t('Currently out of stock') }}</p>
         <button class="shop-primary" type="button" :disabled="!ready || !selected.stock || (shop.quantities[selected.id] || 0) >= selected.stock" @click="add(selected.id)">{{ t("Add to basket") }} <Plus :size="18" /></button>
-        <p role="status">{{ announcementText }}</p>
+        <div class="shop-detail-feedback" :class="{ 'is-visible': basketAnnouncement }"><p role="status">{{ basketAnnouncement ? announcementText : '' }}</p><button v-if="basketAnnouncement" type="button" @click="detail?.close(); basket?.showModal()">{{ t('View basket') }}</button></div>
       </template>
     </dialog>
 

@@ -87,10 +87,10 @@ it('hides the in-stock filter for all-stock catalogues and shows stock counts', 
   expect(wrapper.text()).not.toContain('In stock only');
   expect(wrapper.get('.shop-product-bottom small').text()).toBe('3 available');
 });
-it('shows the in-stock filter when catalogue availability is mixed', async () => {
+it('shows availability without an in-stock filter when catalogue availability is mixed', async () => {
   useShopStore().catalog!.products.push({ ...product, id: 'empty', name: 'Empty tool', stock: 0 });
   await render();
-  expect(wrapper.text()).toContain('In stock only');
+  expect(wrapper.text()).not.toContain('In stock only');
   expect(wrapper.findAll('.shop-product-bottom small').map(stock => stock.text())).toContain('Out of stock');
 });
 it('shows a simulation step and waits for an explicit payment action', async () => {
