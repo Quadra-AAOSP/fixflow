@@ -18,13 +18,13 @@ const TABS: TabName[] = ['index', 'reports', 'workspace', 'assignments', 'staff-
 
 describe('isTabVisible — complete 6-role matrix (backend UserRole source of truth)', () => {
   // ── Reporter (basic user) ───────────────────────────────────────────
-  it('reporter: Home, Reports, Shop (more), Profile', () => {
+  it('reporter: Home, Reports, Profile', () => {
     expect(isTabVisible('reporter', 'index')).toBe(true);
     expect(isTabVisible('reporter', 'reports')).toBe(true);
     expect(isTabVisible('reporter', 'workspace')).toBe(false);
     expect(isTabVisible('reporter', 'assignments')).toBe(false);
     expect(isTabVisible('reporter', 'staff-dashboard')).toBe(false);
-    expect(isTabVisible('reporter', 'more')).toBe(true);
+    expect(isTabVisible('reporter', 'more')).toBe(false);
     expect(isTabVisible('reporter', 'profile')).toBe(true);
   });
 
@@ -173,8 +173,8 @@ describe('landingRedirectForRoute', () => {
     expect(landingRedirectForRoute('staff', '/more')).toBeNull();
     expect(landingRedirectForRoute('reporter', '/reports')).toBeNull();
     expect(landingRedirectForRoute('reporter', '/more/notifications')).toBeNull();
-    expect(landingRedirectForRoute('reporter', '/more/shop')).toBeNull();
-    expect(landingRedirectForRoute('reporter', '/more/admin-application')).toBeNull();
+    expect(landingRedirectForRoute('reporter', '/more/shop')).toBe('/(tabs)');
+    expect(landingRedirectForRoute('reporter', '/more/admin-application')).toBe('/(tabs)');
     expect(landingRedirectForRoute('admin', '/reports')).toBeNull();
     expect(landingRedirectForRoute('super_admin', '/reports')).toBeNull();
     expect(landingRedirectForRoute('shop_manager', '/more')).toBeNull();
@@ -192,7 +192,7 @@ describe('filesystem tab declarations', () => {
       const hidden = hiddenTabRoutes(role);
       expect(hidden).toContain('technician');
       for (const tab of TAB_ROUTES) expect(hidden.includes(tab)).toBe(!isTabVisible(role, tab));
-      expect(TAB_ROUTES.filter(tab => !hidden.includes(tab))).toHaveLength(role === 'shop_manager' ? 3 : 4);
+      expect(TAB_ROUTES.filter(tab => !hidden.includes(tab))).toHaveLength(role === 'shop_manager' || role === 'reporter' ? 3 : 4);
     }
   });
 });

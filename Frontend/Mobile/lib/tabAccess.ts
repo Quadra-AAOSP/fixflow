@@ -13,7 +13,7 @@ export type TabName = 'index' | 'reports' | 'workspace' | 'assignments' | 'staff
  *
  * Tab bar (at most 4 slots — first visible tab = home):
  *
- *   reporter      → Home (index), Reports,            Shop,       Profile
+ *   reporter      → Home (index), Reports,                        Profile
  *   technician    → Workspace,    Assignments,       More(Shop), Profile
  *   staff         → Home (index), Reports,            More,       Profile
  *   admin (site)  → Home (index), Reports,            More,       Profile
@@ -47,9 +47,9 @@ export function isTabVisible(role: UserRole, tab: TabName): boolean {
     case 'reports':
       return role === 'reporter' || role === 'staff' || role === 'admin' || role === 'super_admin';
 
-    // ── More tab — everyone gets it (contents differ by role) ─────────────
+    // ── More tab — operations and shop tools only ───────────────────────
     case 'more':
-      return true;
+      return role !== 'reporter';
 
     // ── Profile — everyone ───────────────────────────────────────────────
     case 'profile':
@@ -96,10 +96,18 @@ export function landingRedirectForRoute(role: UserRole | null, pathname: string)
 
   const match = PATH_TO_TAB.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
   const tab = match ? match[1] : 'index';
-  if (!isTabVisible(role, tab)) {
+  if (!isTabVisible(role, tab) && !isDeepLinkAllowed(role, path)) {
     return home;
   }
   return null;
+}
+
+/**
+ * Screens reachable without their parent tab. Reporters have no More tab, but
+ * the home bell still opens the notification feed.
+ */
+function isDeepLinkAllowed(role: UserRole, path: string): boolean {
+  return role === 'reporter' && path === '/more/notifications';
 }
 
 const PATH_TO_TAB: ReadonlyArray<readonly [string, TabName]> = [

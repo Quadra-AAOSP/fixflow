@@ -23,7 +23,7 @@ const DESTINATIONS = [
 ] as const;
 
 describe('role coverage — every delivery role reaches its own tasks', () => {
-  it('reporter: home, reports, more, profile', () => {
+  it('reporter: home, reports, profile (three tabs)', () => {
     expect(homeRouteForRole('reporter')).toBe('/(tabs)');
     expect(DESTINATIONS.map((path) => landingRedirectForRoute('reporter', path))).toEqual([
       null,
@@ -31,7 +31,7 @@ describe('role coverage — every delivery role reaches its own tasks', () => {
       null,
       '/(tabs)',
       '/(tabs)',
-      null,
+      '/(tabs)',
       null,
     ]);
   });
@@ -73,9 +73,9 @@ describe('role coverage — every delivery role reaches its own tasks', () => {
     expect(isTabVisible('shop_manager', 'reports')).toBe(false);
   });
 
-  it('every role can always reach More and Profile', () => {
+  it('every role can always reach Profile; More is operations-only', () => {
     for (const role of ALL_ROLES) {
-      expect(isTabVisible(role, 'more')).toBe(true);
+      expect(isTabVisible(role, 'more')).toBe(role !== 'reporter');
       expect(isTabVisible(role, 'profile')).toBe(true);
     }
   });
