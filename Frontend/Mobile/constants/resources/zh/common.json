@@ -1220,6 +1220,11 @@
     }
   },
   "profile": {
+    "shortcuts": {
+      "kicker": "快捷入口",
+      "settings": "应用设置",
+      "notifications": "通知"
+    },
     "heroKicker": "您的账户",
     "openSettings": "打开设置",
     "profileTitle": "个人资料",

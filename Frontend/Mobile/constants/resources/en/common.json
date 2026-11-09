@@ -1220,6 +1220,11 @@
     }
   },
   "profile": {
+    "shortcuts": {
+      "kicker": "Shortcuts",
+      "settings": "App settings",
+      "notifications": "Notifications"
+    },
     "heroKicker": "Your account",
     "openSettings": "Open settings",
     "profileTitle": "Profile",

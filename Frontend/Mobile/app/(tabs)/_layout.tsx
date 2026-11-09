@@ -80,7 +80,7 @@ export default function TabLayout() {
   const homeLabel =
     role === 'super_admin' ? t('tabs.platformConsole')
     : role === 'shop_manager' ? t('tabs.shopConsole')
-    : role === 'reporter' ? t('tabs.myReports')
+    : role === 'reporter' ? t('tabs.home')
     : t('tabs.dashboard');
 
   // Fixed slot order: home/dashboard → reports/technician → more → profile.
