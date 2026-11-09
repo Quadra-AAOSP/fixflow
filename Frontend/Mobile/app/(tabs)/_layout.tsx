@@ -5,14 +5,16 @@ import {
   User,
   Wrench,
 } from 'lucide-react-native';
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect, Tabs, usePathname, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SiteProvider } from '@/stores/site';
+import { NotificationsProvider } from '@/stores/notifications';
 import { themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useClientOnlyValue } from '@/hooks/useClientOnlyValue';
-import { isTabVisible } from '@/lib/tabAccess';
+import { isTabVisible, landingRedirectForRoute } from '@/lib/tabAccess';
 
 type TabConfig = {
   name: string;
@@ -26,7 +28,7 @@ type TabConfig = {
 /**
  * Role-aware bottom tabs. Six backend roles — one tab bar per role:
  *
- *   reporter      → Home, Reports,            More,       Profile
+ *   reporter      → Home, Reports,                        Profile
  *   technician    → Workspace,    Assignments,  More(Shop), Profile
  *   staff         → Home, Reports,            More,       Profile
  *   admin         → Home, Reports,            More,       Profile
@@ -47,6 +49,16 @@ export default function TabLayout() {
   const { user, isLoading } = useAuth();
   const { t } = useTranslation('common');
   const headerShown = useClientOnlyValue(false, true);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // A hidden tab (`href: null`) is not a permission: browser/device back can
+  // still land on it. Bounce any role sitting on a route its tab bar hides.
+  const guardRole = user?.role ?? null;
+  const redirect = landingRedirectForRoute(guardRole, pathname);
+  useEffect(() => {
+    if (redirect) router.replace(redirect as never);
+  }, [redirect, router]);
 
   if (isLoading || !user) {
     return (
@@ -58,11 +70,17 @@ export default function TabLayout() {
 
   const role = user.role;
 
+  // Render nothing while the bounce is in flight, so the forbidden screen
+  // never paints (or fetches) for the wrong role.
+  if (redirect) {
+    return null;
+  }
+
   // Label per role for the Home tab — tells the user what kind of home it is.
   const homeLabel =
     role === 'super_admin' ? t('tabs.platformConsole')
     : role === 'shop_manager' ? t('tabs.shopConsole')
-    : role === 'reporter' ? t('tabs.myReports')
+    : role === 'reporter' ? t('tabs.home')
     : t('tabs.dashboard');
 
   // Fixed slot order: home/dashboard → reports/technician → more → profile.
@@ -132,7 +150,8 @@ export default function TabLayout() {
 
   return (
     <SiteProvider>
-      <Tabs
+      <NotificationsProvider>
+        <Tabs
         initialRouteName={visibleTabs[0].name}
         screenOptions={{
           tabBarActiveTintColor: palette.tabIconSelected,
@@ -164,7 +183,8 @@ export default function TabLayout() {
             }}
           />
         ))}
-      </Tabs>
+        </Tabs>
+      </NotificationsProvider>
     </SiteProvider>
   );
 }

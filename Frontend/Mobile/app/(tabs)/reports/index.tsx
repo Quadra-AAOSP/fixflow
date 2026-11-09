@@ -53,6 +53,8 @@ import { ApiError } from '@/lib/apiClient';
 import { listReportsPage } from '@/services/reports';
 import { searchReportsNl, searchReportPage } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
+import { useConnectivity } from '@/hooks/useConnectivity';
 import type { NlSearchFilters, Report, ReportStatus } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import { appendReportPage, createReportPageRequests, nextReportPage } from '@/utils/requestGate';
@@ -85,7 +87,9 @@ export default function ReportsScreen() {
     refresh: refreshSite,
   } = useCurrentSite();
 
-  const params = useLocalSearchParams<{ filter?: string; q?: string }>();
+  const params = useLocalSearchParams<{ filter?: string; q?: string; mine?: string }>();
+  /** Track reports: the caller's own filings, across every site. */
+  const mineMode = params.mine === '1';
   const initialFilter: FilterValue = FILTER_VALUES.includes(
     params.filter as FilterValue,
   )
@@ -117,14 +121,22 @@ export default function ReportsScreen() {
   const [askError, setAskError] = useState<string | null>(null);
 
   const load = useCallback(async (targetPage = 0) => {
-    if (!site) return;
+    if (!mineMode && !site) return;
     const gen = loadGeneration.current.begin(targetPage);
     if (gen === null) return;
     setError(null);
     if (targetPage === 0) setLoading(true);
     else setLoadingMore(true);
     try {
-      const result = nlFilters ? await searchReportPage(site.id, { ...nlFilters, ...(visibility !== 'all' ? { visibility } : {}) }, targetPage, PAGE_SIZE) : await listReportsPage({ siteId: site.id, page: targetPage, size: PAGE_SIZE });
+      const result = nlFilters && !mineMode && site
+        ? await searchReportPage(site.id, { ...nlFilters, ...(visibility !== 'all' ? { visibility } : {}) }, targetPage, PAGE_SIZE)
+        : await listReportsPage({
+            siteId: mineMode ? undefined : site!.id,
+            mine: mineMode || undefined,
+            page: targetPage,
+            size: PAGE_SIZE,
+            category: nlFilters?.category ?? undefined,
+          });
       if (!loadGeneration.current.current(gen)) return;
       setReports((prev) =>
         targetPage === 0 ? result.content : appendReportPage(prev ?? [], result.content),
@@ -147,7 +159,7 @@ export default function ReportsScreen() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site?.id, user?.id, logout, nlFilters, visibility]);
+  }, [site?.id, user?.id, logout, nlFilters, visibility, mineMode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -157,6 +169,22 @@ export default function ReportsScreen() {
       void load(0);
       return () => { loadGeneration.current.invalidate(); };
     }, [load]),
+  );
+
+  // Live site events keep the list in sync (new reports, status changes,
+  // assignments). Debounced so a burst of events becomes one refetch.
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load(0);
+    }, 600);
+  }, [load]);
+  useRealtimeEvents(
+    site ? `/sites/${site.id}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
   );
 
   const onRefresh = useCallback(async () => {
@@ -262,8 +290,8 @@ export default function ReportsScreen() {
    * every state below renders inside the card's `ListEmptyComponent` instead
    * of short-circuiting the whole screen.
    */
-  const canCreate = site != null && (user?.capabilities.createReport ?? false);
-  const list = site != null && error === null ? filtered : [];
+  const canCreate = (mineMode || site != null) && (user?.capabilities.createReport ?? false);
+  const list = (mineMode || site != null) && error === null ? filtered : [];
 
   return (
     <Screen className="px-0 pt-0">
@@ -290,8 +318,11 @@ export default function ReportsScreen() {
               />
             }
             ListHeaderComponent={
-              <><ReportsHeader
+              <View>
+                <PendingQueueBanner />
+                <ReportsHeader
                 t={t}
+                title={mineMode ? t('reports.list.myReports') : undefined}
                 siteName={site?.name ?? ''}
                 contractStatus={isOps ? site?.contractStatus ?? null : null}
                 canCreate={canCreate}
@@ -308,13 +339,15 @@ export default function ReportsScreen() {
                 onOpenAsk={() => { setAskError(null); setAskOpen(true); }}
                 onClearNlChip={clearNlChip}
                 onClearAllNl={clearAllNl}
-              />{user?.role === 'reporter' && <View className="px-4 pb-3"><Picker label={t('Visibility')} value={visibility} onChange={setVisibility} options={[{value:'all',label:t('All')},{value:'public',label:t('Public')},{value:'private',label:t('Private')}]} /></View>}</>
+                />
+                {user?.role === 'reporter' && <View className="px-4 pb-3"><Picker label={t('Visibility')} value={visibility} onChange={setVisibility} options={[{value:'all',label:t('All')},{value:'public',label:t('Public')},{value:'private',label:t('Private')}]} /></View>}
+              </View>
             }
             ItemSeparatorComponent={() => (
               <View className="h-px bg-dashboard-card-line" />
             )}
             ListEmptyComponent={
-              site == null ? (
+              !mineMode && site == null ? (
                 siteLoading ? (
                   <StateView variant="loading" title={t('reports.list.loadingSite')} />
                 ) : siteError != null ? (
@@ -351,12 +384,16 @@ export default function ReportsScreen() {
                   icon={reports && reports.length === 0 ? ClipboardList : Search}
                   title={
                     reports && reports.length === 0
-                      ? t('reports.list.noReportsTitle')
+                      ? mineMode
+                        ? t('reports.list.myEmptyTitle')
+                        : t('reports.list.noReportsTitle')
                       : t('reports.list.noMatchesTitle')
                   }
                   description={
                     reports && reports.length === 0
-                      ? t('reports.list.noReportsDesc')
+                      ? mineMode
+                        ? t('reports.list.myEmptyDesc')
+                        : t('reports.list.noReportsDesc')
                       : page + 1 < totalPages ? t('reports.list.partialSearch') : t('reports.list.noMatchesDesc')
                   }
                 />
@@ -506,8 +543,41 @@ function AskModal({
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
+/** Shows queued offline reports and lets the user force a send attempt. */
+function PendingQueueBanner() {
+  const { pendingCount, offline, flush } = useConnectivity();
+  const { t } = useTranslation('common');
+  if (pendingCount === 0) return null;
+  return (
+    <View
+      className="mb-3 flex-row items-center justify-between rounded-[10px] px-3 py-2.5"
+      style={{ backgroundColor: dashboardColors.statCitronSoft }}
+    >
+      <Text className="flex-1 text-[11px] leading-[1.6] text-dashboard-stat-citron-deep">
+        {offline
+          ? t('offlineBanner.offlineWithPending', { count: pendingCount })
+          : t('offlineBanner.pending', { count: pendingCount })}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('offlineBanner.retry')}
+        onPress={() => {
+          void flush();
+        }}
+        className="ml-3 rounded-md px-2 py-1 active:opacity-70"
+      >
+        <Text className="text-[10px] font-semibold text-dashboard-stat-citron-deep">
+          {t('offlineBanner.retry')}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 type ReportsHeaderProps = {
   t: TranslateFn;
+  /** Overrides the default “Reports” heading (used by Track reports). */
+  title?: string;
   siteName: string;
   contractStatus?: 'contracted' | 'uncontracted' | null;
   canCreate: boolean;
@@ -533,6 +603,7 @@ type ReportsHeaderProps = {
  */
 function ReportsHeader({
   t,
+  title,
   siteName,
   contractStatus,
   canCreate,
@@ -568,7 +639,7 @@ function ReportsHeader({
             className="text-[22px] font-semibold text-ink"
             style={{ letterSpacing: -0.7 }}
           >
-            {t('reports.list.title')}
+            {title ?? t('reports.list.title')}
           </Text>
           <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
             {siteName}

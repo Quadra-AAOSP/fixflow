@@ -173,8 +173,8 @@ describe('landingRedirectForRoute', () => {
     expect(landingRedirectForRoute('staff', '/more')).toBeNull();
     expect(landingRedirectForRoute('reporter', '/reports')).toBeNull();
     expect(landingRedirectForRoute('reporter', '/more/notifications')).toBeNull();
-    expect(landingRedirectForRoute('reporter', '/more/shop')).toBeNull();
-    expect(landingRedirectForRoute('reporter', '/more/admin-application')).toBeNull();
+    expect(landingRedirectForRoute('reporter', '/more/shop')).toBe('/(tabs)');
+    expect(landingRedirectForRoute('reporter', '/more/admin-application')).toBe('/(tabs)');
     expect(landingRedirectForRoute('admin', '/reports')).toBeNull();
     expect(landingRedirectForRoute('super_admin', '/reports')).toBeNull();
     expect(landingRedirectForRoute('shop_manager', '/more')).toBeNull();

@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import {
   ArrowRight,
+  Bell,
   Building2,
+  ChevronRight,
   Mail,
   Phone,
   Settings,
@@ -71,26 +73,25 @@ export default function ProfileScreen() {
       >
         {/* HERO — identity block with top-right settings. */}
         <View
-          className="relative overflow-hidden border-b border-dashboard-card-line pb-6 pt-10"
-          style={{ backgroundColor: dashboardColors.bannerBg }}
+          className="relative overflow-hidden border-b border-dashboard-card-line pb-6 pt-8"
+          style={{ backgroundColor: dashboardColors.statMintSoft }}
         >
-          {/* Soft radial accents in the brand mint, consistent with the
-              rest of the app's editorial hero treatment. */}
+          {/* Soft radial accents so the tinted hero still has depth. */}
           <View
-            className="absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-30"
-            style={{ backgroundColor: dashboardColors.statMintSoft }}
+            className="absolute -right-10 -top-10 h-36 w-36 rounded-full opacity-40"
+            style={{ backgroundColor: dashboardColors.cardBg }}
           />
           <View
-            className="absolute -left-4 top-20 h-20 w-20 rounded-full opacity-25"
-            style={{ backgroundColor: dashboardColors.statMintSoft }}
+            className="absolute -left-6 top-24 h-24 w-24 rounded-full opacity-25"
+            style={{ backgroundColor: dashboardColors.cardBg }}
           />
 
           <View className="relative px-5">
-            {/* Top row: kicker on the left, settings on the right. */}
-            <View className="mb-5 flex-row items-center justify-between">
+            {/* Top row: quiet kicker on the left, settings affordance right. */}
+            <View className="mb-4 flex-row items-center justify-between">
               <Text
-                className="text-[10px] font-semibold uppercase tracking-[1.4px] text-dashboard-caption"
-                style={{ letterSpacing: 1.4 }}
+                className="text-[10.5px] font-semibold uppercase"
+                style={{ color: dashboardColors.statMintDeep, letterSpacing: 0.8 }}
               >
                 {t('profile.heroKicker')}
               </Text>
@@ -98,45 +99,47 @@ export default function ProfileScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('profile.openSettings')}
                 onPress={openSettings}
-                className="flex-row items-center gap-1 rounded-full border border-dashboard-card-line bg-dashboard-card-bg/80 px-3 py-1.5 active:opacity-80"
+                hitSlop={8}
+                className="h-9 w-9 items-center justify-center rounded-full border border-dashboard-card-line bg-dashboard-card-bg active:opacity-80"
               >
-                <Settings color={dashboardColors.teal} size={13} />
-                <Text
-                  className="text-[10px] font-semibold uppercase tracking-[1px]"
-                  style={{ color: dashboardColors.teal, letterSpacing: 1 }}
-                >
-                  {t('profile.openSettings')}
-                </Text>
+                <Settings color={dashboardColors.teal} size={16} />
               </Pressable>
             </View>
 
             {/* Avatar + identity column. */}
             <View className="items-center">
               <View
-                className="mb-4 h-24 w-24 items-center justify-center rounded-full border-[3px]"
+                className="mb-4 h-[88px] w-[88px] items-center justify-center rounded-full"
                 style={{
-                  borderColor: dashboardColors.statMintSoft,
-                  backgroundColor: dashboardColors.statMintDeep,
+                  borderWidth: 3,
+                  borderColor: dashboardColors.teal,
+                  backgroundColor: dashboardColors.cardBg,
                 }}
               >
                 <Text
-                  className="text-[30px] font-bold text-white"
-                  style={{ letterSpacing: -0.5 }}
+                  className="text-[30px] font-bold"
+                  style={{
+                    color: dashboardColors.statMintDeep,
+                    letterSpacing: -0.5,
+                  }}
                 >
                   {initials}
                 </Text>
               </View>
 
               <Text
-                className="text-[22px] font-bold text-ink"
-                style={{ letterSpacing: -0.5 }}
+                className="text-[23px] font-bold text-ink"
+                style={{ letterSpacing: -0.6 }}
               >
                 {displayName || user.email}
               </Text>
 
               <View className="mt-1 flex-row items-center gap-1.5">
-                <Mail color={dashboardColors.subtitle} size={11} />
-                <Text className="text-[12px] text-dashboard-subtitle">
+                <Mail color={dashboardColors.statMintDeep} size={12} />
+                <Text
+                  className="text-[12px]"
+                  style={{ color: dashboardColors.statMintDeep }}
+                >
                   {user.email}
                 </Text>
               </View>
@@ -144,12 +147,12 @@ export default function ProfileScreen() {
               {/* Role pill — visual anchor. */}
               <View
                 className="mt-3 flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
-                style={{ backgroundColor: dashboardColors.pillBg }}
+                style={{ backgroundColor: dashboardColors.cardBg }}
               >
                 <ShieldCheck color={dashboardColors.teal} size={11} />
                 <Text
-                  className="text-[10px] font-semibold uppercase tracking-[1.2px]"
-                  style={{ color: dashboardColors.teal, letterSpacing: 1.2 }}
+                  className="text-[10px] font-semibold uppercase"
+                  style={{ color: dashboardColors.teal, letterSpacing: 0.8 }}
                 >
                   {roleLabel}
                 </Text>
@@ -158,11 +161,14 @@ export default function ProfileScreen() {
               {/* Site pill — second identity anchor, hidden when the account
                   is site-agnostic. */}
               {user.siteId !== null ? (
-                <View className="mt-2 flex-row items-center gap-1.5 rounded-full border border-dashboard-card-line px-3 py-1.5">
+                <View
+                  className="mt-2 flex-row items-center gap-1.5 rounded-full border border-dashboard-card-line px-3 py-1.5"
+                  style={{ backgroundColor: dashboardColors.cardBg }}
+                >
                   <Building2 color={dashboardColors.subtitle} size={11} />
                   <Text
-                    className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-subtitle"
-                    style={{ letterSpacing: 1.2 }}
+                    className="text-[10px] font-semibold uppercase text-dashboard-subtitle"
+                    style={{ letterSpacing: 0.8 }}
                   >
                     {siteName}
                   </Text>
@@ -173,50 +179,64 @@ export default function ProfileScreen() {
         </View>
 
         {/* MAIN CONTENT */}
-        <View className="px-5 pt-6">
+        <View className="px-5 pt-5">
           {/* Account details — icon rows instead of plain key/value. */}
-          <Card padded={false} className="mb-5 overflow-hidden">
-            <View className="px-4 pb-2 pt-4">
-              <Text
-                className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption"
-                style={{ letterSpacing: 1.2 }}
-              >
+          <Card padded={false} className="mb-4 overflow-hidden rounded-[16px]">
+            <View className="px-4 pb-1 pt-4">
+              <Text className="text-[12.5px] font-semibold text-ink">
                 {t('profile.accountDetails')}
               </Text>
             </View>
             <IconRow
               icon={UserRound}
+              tone="mint"
               label={t('profile.labels.role')}
               value={roleLabel}
             />
             <IconRow
               icon={Phone}
+              tone="coral"
               label={t('profile.labels.phone')}
               value={user.phone ?? t('profile.dash')}
             />
             <IconRow
               icon={Building2}
+              tone="citron"
               label={t('profile.labels.address')}
               value={user.address ?? t('profile.dash')}
               last
             />
           </Card>
 
+          {/* Shortcuts — settings and alerts are one tap away from here. */}
+          <Card padded={false} className="mb-4 overflow-hidden rounded-[16px]">
+            <View className="px-4 pb-1 pt-4">
+              <Text className="text-[12.5px] font-semibold text-ink">
+                {t('profile.shortcuts.kicker')}
+              </Text>
+            </View>
+            <ShortcutRow
+              icon={Settings}
+              label={t('profile.shortcuts.settings')}
+              onPress={openSettings}
+            />
+            <ShortcutRow
+              icon={Bell}
+              label={t('profile.shortcuts.notifications')}
+              onPress={() => router.push('/more/notifications')}
+              last
+            />
+          </Card>
+
           {/* Technician contracts — web parity, proper action row. */}
           {user.role === 'technician' ? (
-            <Card padded={false} className="mb-5 overflow-hidden">
-              <View className="px-4 pb-2 pt-4">
-                <Text
-                  className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption"
-                  style={{ letterSpacing: 1.2 }}
-                >
-                  {t('profile.contracts.kicker')}
-                </Text>
-                <Text
-                  className="mt-0.5 text-[15px] font-semibold text-ink"
-                  style={{ letterSpacing: -0.2 }}
-                >
+            <Card padded={false} className="mb-4 overflow-hidden rounded-[16px]">
+              <View className="px-4 pb-1 pt-4">
+                <Text className="text-[12.5px] font-semibold text-ink">
                   {t('profile.contracts.title')}
+                </Text>
+                <Text className="mt-0.5 text-[11px] leading-[1.5] text-dashboard-caption">
+                  {t('profile.contracts.kicker')}
                 </Text>
               </View>
               <Pressable
@@ -236,12 +256,9 @@ export default function ProfileScreen() {
 
           {/* Preferences — availability for technicians, session echo for
               everyone else. */}
-          <Card padded={false} className="mb-5 overflow-hidden">
-            <View className="px-4 pb-2 pt-4">
-              <Text
-                className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption"
-                style={{ letterSpacing: 1.2 }}
-              >
+          <Card padded={false} className="mb-4 overflow-hidden rounded-[16px]">
+            <View className="px-4 pb-1 pt-4">
+              <Text className="text-[12.5px] font-semibold text-ink">
                 {t('profile.availability.kicker')}
               </Text>
             </View>
@@ -273,8 +290,12 @@ export default function ProfileScreen() {
                 />
               </View>
             ) : (
-              <View className="px-4 py-3">
-                <Text className="text-[12px] leading-[1.5] text-dashboard-subtitle">
+              <View className="flex-row items-center gap-2.5 px-4 py-3.5">
+                <View
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: dashboardColors.statMintDeep }}
+                />
+                <Text className="flex-1 text-[11.5px] leading-[1.6] text-dashboard-subtitle">
                   {t('profile.session.signedInAs', {
                     role: roleLabel,
                     site: user.siteId !== null && site ? ` · ${site.name}` : '',
@@ -315,30 +336,73 @@ type IconRowProps = {
   icon: typeof UserRound;
   label: string;
   value: string;
+  tone?: 'mint' | 'coral' | 'citron';
   last?: boolean;
 };
 
+const ROW_TONES = {
+  mint: {
+    soft: dashboardColors.statMintSoft,
+    ink: dashboardColors.statMintDeep,
+  },
+  coral: {
+    soft: dashboardColors.statCoralSoft,
+    ink: dashboardColors.statCoralDeep,
+  },
+  citron: {
+    soft: dashboardColors.statCitronSoft,
+    ink: dashboardColors.statCitronDeep,
+  },
+};
+
 /** Icon disc + label + right-aligned value, used for every detail row. */
-function IconRow({ icon: Icon, label, value, last }: IconRowProps) {
+function IconRow({ icon: Icon, label, value, tone = 'mint', last }: IconRowProps) {
+  const colors = ROW_TONES[tone];
   return (
     <View
-      className={`flex-row items-center gap-3 px-4 py-3 ${last ? '' : 'border-b border-dashboard-card-line'}`}
+      className={`flex-row items-center gap-3 px-4 py-3.5 ${last ? '' : 'border-b border-dashboard-card-line'}`}
     >
       <View
-        className="h-8 w-8 items-center justify-center rounded-full"
-        style={{ backgroundColor: dashboardColors.statMintSoft }}
+        className="h-9 w-9 items-center justify-center rounded-full"
+        style={{ backgroundColor: colors.soft }}
       >
-        <Icon color={dashboardColors.statMintDeep} size={13} />
+        <Icon color={colors.ink} size={14} />
       </View>
-      <Text
-        className="text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption"
-        style={{ letterSpacing: 1.2 }}
-      >
+      <Text className="flex-1 text-[11.5px] font-medium text-dashboard-subtitle">
         {label}
       </Text>
-      <Text className="flex-1 text-right text-[13px] font-medium text-ink">
-        {value}
-      </Text>
+      <Text className="text-[13px] font-semibold text-ink">{value}</Text>
     </View>
+  );
+}
+
+/** Tappable row with a trailing chevron, for navigating out of the profile. */
+function ShortcutRow({
+  icon: Icon,
+  label,
+  onPress,
+  last,
+}: {
+  icon: typeof UserRound;
+  label: string;
+  onPress: () => void;
+  last?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      className={`flex-row items-center gap-3 px-4 py-3.5 active:opacity-70 ${last ? '' : 'border-b border-dashboard-card-line'}`}
+    >
+      <View
+        className="h-9 w-9 items-center justify-center rounded-full"
+        style={{ backgroundColor: dashboardColors.statMintSoft }}
+      >
+        <Icon color={dashboardColors.statMintDeep} size={14} />
+      </View>
+      <Text className="flex-1 text-[12.5px] font-medium text-ink">{label}</Text>
+      <ChevronRight color={dashboardColors.subtitle} size={15} />
+    </Pressable>
   );
 }

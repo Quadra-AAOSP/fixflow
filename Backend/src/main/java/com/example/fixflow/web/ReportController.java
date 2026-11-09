@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -85,11 +86,12 @@ public class ReportController {
 	public ReportPageResponse list(
 			@RequestParam(required = false) Long siteId,
 			@RequestParam(required = false) String category,
+			@RequestParam(defaultValue = "false") boolean mine,
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size,
 			@AuthenticationPrincipal AppUserDetails principal
 	) {
-		return reportService.list(siteId, category, page, size, principal);
+		return reportService.list(siteId, category, mine, page, size, principal);
 	}
 
 	public record SearchRequest(Long siteId, ReportService.SearchFilters filters, Integer page, Integer size) {}
@@ -109,11 +111,19 @@ public class ReportController {
 		return reportService.update(id, request, principal);
 	}
 
+	/** PATCH alias for the same edit contract (partial-field clients). */
+	@PatchMapping("/{id}")
+	public ReportResponse patch(@PathVariable Long id, @Valid @RequestBody UpdateReportRequest request,
+			@AuthenticationPrincipal AppUserDetails principal) {
+		return reportService.update(id, request, principal);
+	}
+
 	@DeleteMapping("/{id}")
 	public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
 		reportService.archive(id, principal);
 		return ResponseEntity.noContent().build();
 	}
+
 
 	@PostMapping("/{id}/classify")
 	public ReportResponse classify(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {

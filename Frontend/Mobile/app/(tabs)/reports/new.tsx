@@ -42,6 +42,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { MAX_PHOTO_COUNT, MAX_PHOTO_SIZE_BYTES, uploadPhoto } from '@/services/photos';
 import { createReport } from '@/services/reports';
+import { enqueueReport } from '@/lib/offlineQueue';
+import { isNetworkFailure } from '@/services/offlineReports';
+import { useConnectivity } from '@/hooks/useConnectivity';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { listJoinableSites } from '@/services/auth';
 import { listSiteRules } from '@/services/siteRules';
 import { listSubsites, createSubsiteAlert } from '@/services/sites';
@@ -98,6 +102,8 @@ export default function NewReportScreen() {
   const { user } = useAuth();
   const { site, loading: siteLoading, error: siteError, refresh: refreshSite } = useCurrentSite();
   const { showToast } = useToast();
+  const { refreshPending } = useConnectivity();
+  const recorder = useAudioRecorder();
 
   const canCreate = user?.capabilities.createReport ?? false;
 
@@ -134,15 +140,19 @@ export default function NewReportScreen() {
   const [suggestionText, setSuggestionText] = useState('');
   const [suggestionBusy, setSuggestionBusy] = useState(false);
 
-  // Reporters file wherever the issue is — the account site is just the
-  // default. Other roles stay scoped to their account site.
-  const isReporter = user?.role === 'reporter';
+  // Anyone who can file may pick the site the issue is at; the account site is
+  // only the default. The public site directory lists every existing site.
+  const canPickSite =
+    user?.role === 'reporter' ||
+    user?.role === 'staff' ||
+    user?.role === 'admin' ||
+    user?.role === 'super_admin';
   const [siteOptions, setSiteOptions] = useState<JoinableSite[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [siteListError, setSiteListError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isReporter) return;
+    if (!canPickSite) return;
     let active = true;
     listJoinableSites()
       .then((list) => {
@@ -158,15 +168,15 @@ export default function NewReportScreen() {
     return () => {
       active = false;
     };
-  }, [isReporter, t]);
+  }, [canPickSite, t]);
 
   const activeSite = useMemo(() => {
-    if (isReporter && selectedSiteId) {
+    if (canPickSite && selectedSiteId) {
       const picked = siteOptions.find((o) => String(o.id) === selectedSiteId);
       if (picked) return { id: picked.id, name: picked.name, type: picked.type };
     }
     return site ? { id: site.id, name: site.name, type: site.type } : null;
-  }, [isReporter, selectedSiteId, siteOptions, site]);
+  }, [canPickSite, selectedSiteId, siteOptions, site]);
 
   const activeSubsites = useMemo(
     () => subsites.filter((s) => s.archivedAt == null),
@@ -322,18 +332,18 @@ export default function NewReportScreen() {
       return;
     }
 
-    try {
-      const payload = {
-        description: description.trim(),
-        address: address.trim() || undefined,
-        category,
-        reporterUrgency: urgency,
-        reporterReason: urgencyReason.trim() || undefined,
-        subsiteId: subsiteId ? Number(subsiteId) : undefined,
-        visibility,
-        siteId: activeSite.id,
-      };
+    const payload = {
+      description: description.trim(),
+      address: address.trim() || undefined,
+      category,
+      reporterUrgency: urgency,
+      reporterReason: urgencyReason.trim() || undefined,
+      subsiteId: subsiteId ? Number(subsiteId) : undefined,
+      visibility,
+      siteId: activeSite.id,
+    };
 
+    try {
       const report = await createReport(payload);
 
       // Upload photos after the report exists.
@@ -365,6 +375,26 @@ export default function NewReportScreen() {
         router.replace('/reports');
       }
     } catch (err) {
+      // Only transport-level failures queue offline; validation/permission
+      // answers from the server must stay inline so the user can fix them.
+      if (isNetworkFailure(err)) {
+        await enqueueReport(
+          payload,
+          photos.map((photo) => ({
+            uri: photo.uri,
+            fileName: photo.fileName,
+            mimeType: photo.mimeType,
+          })),
+        );
+        await refreshPending();
+        showToast(t('reports.new.queuedOffline'), 'info');
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/reports');
+        }
+        return;
+      }
       const message =
         err instanceof ApiError ? err.message : t('reports.new.noConnection');
       setSubmitError(message);
@@ -421,7 +451,7 @@ export default function NewReportScreen() {
     );
   }
 
-  if (siteError || (!isReporter && !site)) {
+  if (siteError || (!canPickSite && !site)) {
     return (
       <Screen>
         <View className="flex-1 items-center justify-center px-6">
@@ -495,7 +525,7 @@ export default function NewReportScreen() {
                 ? t('reports.new.intro', { site: activeSite.name })
                 : t('reports.new.pickSiteHint')}
             </Text>
-            {isReporter ? (
+            {canPickSite ? (
               <View className="mt-3">
                 <Picker
                   label={t('reports.new.siteLabel')}
@@ -691,6 +721,7 @@ export default function NewReportScreen() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={t('reports.new.photos.remove')}
+                      hitSlop={12}
                       onPress={() => removePhoto(index)}
                       className="absolute -right-2 -top-2 h-5 w-5 items-center justify-center rounded-full bg-tone-danger"
                     >
@@ -704,9 +735,11 @@ export default function NewReportScreen() {
             <View className="mt-3 flex-row gap-2">
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={t('reports.new.photos.gallery')}
+                accessibilityState={{ disabled: photos.length >= MAX_PHOTO_COUNT }}
                 onPress={() => pickPhotos('gallery')}
                 disabled={photos.length >= MAX_PHOTO_COUNT}
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-2.5 active:opacity-80"
+                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-3 active:opacity-80"
               >
                 <ImagePlus color={dashboardColors.subtitle} size={15} />
                 <Text className="text-[12px] font-medium text-ink">
@@ -715,9 +748,11 @@ export default function NewReportScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={t('reports.new.photos.camera')}
+                accessibilityState={{ disabled: photos.length >= MAX_PHOTO_COUNT }}
                 onPress={() => pickPhotos('camera')}
                 disabled={photos.length >= MAX_PHOTO_COUNT}
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-2.5 active:opacity-80"
+                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[9px] border border-border bg-card py-3 active:opacity-80"
               >
                 <Camera color={dashboardColors.subtitle} size={15} />
                 <Text className="text-[12px] font-medium text-ink">

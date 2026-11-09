@@ -90,7 +90,34 @@
   },
   "offlineBanner": {
     "offlineText": "Offline — check your connection. Reports can't be filed or updated until the app reconnects.",
-    "retry": "Retry"
+    "offlineWithPending": "Offline — {count} report(s) saved on this device will be sent when the connection returns.",
+    "pending": "{count} report(s) waiting to be sent.",
+    "retry": "Retry",
+    "retryHint": "Retry the connection and send queued reports."
+  },
+  "notifications": {
+    "event": {
+      "assignment": {
+        "title": "New assignment",
+        "body": "Report #{id} has been assigned to you."
+      },
+      "reassignment": {
+        "title": "Report reassigned",
+        "body": "Report #{id} has a new technician."
+      },
+      "status": {
+        "title": "Report updated",
+        "body": "The status of report #{id} has changed."
+      },
+      "pendingResolution": {
+        "title": "Confirm the fix",
+        "body": "Report #{id} is marked complete and needs your confirmation."
+      },
+      "confirmation": {
+        "title": "Report confirmed",
+        "body": "Report #{id} has been confirmed as resolved."
+      }
+    }
   },
   "auth": {
     "login": {
@@ -238,6 +265,20 @@
     }
   },
   "home": {
+    "insights": {
+      "title": "Your reports at a glance",
+      "viewAll": "View all",
+      "resolved": "resolved",
+      "legendOpen": "Open",
+      "legendProgress": "In progress",
+      "legendResolved": "Resolved",
+      "pending": "{count} fix needs your confirmation"
+    },
+    "quick": {
+      "file": "File a report",
+      "track": "Track reports",
+      "alerts": "Alerts"
+    },
     "greetings": {
       "morning": "Good morning",
       "afternoon": "Good afternoon",
@@ -332,6 +373,9 @@
     "emptyHome": {
       "title": "No reports yet at {site}",
       "subtitle": "File the first report and this dashboard starts tracking open work, urgency, and weekly progress.",
+      "stepFile": "File a report",
+      "stepFix": "We fix it",
+      "stepConfirm": "You confirm",
       "firstReport": "File your first report"
     },
     "setupGate": {
@@ -358,6 +402,9 @@
       "partialSearch": "Search covers loaded reports. Load more to continue searching.",
       "loadMore": "Load more reports",
       "title": "Reports",
+      "myReports": "My reports",
+      "myEmptyTitle": "You haven't filed any reports yet.",
+      "myEmptyDesc": "Reports you file — at any site — show up here with their progress.",
       "contracted": "Contracted",
       "uncontracted": "Uncontracted",
       "newReport": "New report",
@@ -404,6 +451,7 @@
       "allReports": "All reports",
       "title": "Report an issue",
       "submitted": "Report submitted.",
+      "queuedOffline": "No connection — this report was saved and will be sent automatically.",
       "intro": "Describe what needs attention at {site}.",
       "savedNotice": "Your report will be saved to the maintenance system and routed to a technician.",
       "descLabel": "What happened?",
@@ -509,6 +557,10 @@
       "suggestionFailed": "Could not send the suggestion."
     },
     "detail": {
+      "timeline": {
+        "title": "Progress timeline",
+        "current": "Current"
+      },
       "allReports": "All reports",
       "screenTitle": "Report",
       "title": "Report #{id}",
@@ -1172,6 +1224,11 @@
     }
   },
   "profile": {
+    "shortcuts": {
+      "kicker": "Shortcuts",
+      "settings": "App settings",
+      "notifications": "Notifications"
+    },
     "heroKicker": "Your account",
     "openSettings": "Open settings",
     "profileTitle": "Profile",

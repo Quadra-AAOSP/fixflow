@@ -190,7 +190,17 @@ public class ReportService {
 	}
 
 	@Transactional(readOnly = true)
-	public ReportPageResponse list(Long siteId, String category, int page, int size, AppUserDetails actor) {
+	public ReportPageResponse list(Long siteId, String category, boolean mine, int page, int size, AppUserDetails actor) {
+		// "Mine" spans every site the actor has filed at, including sites other
+		// than their account site. Used by the mobile Track reports view.
+		if (mine) {
+			List<ReportResponse> mineContent = reportRepository.findDetailedByCreatorId(actor.getId()).stream()
+					.filter(report -> report.getVisibility() != ReportVisibility.PRIVATE
+							|| canSeeSensitive(actor, report))
+					.map(report -> response(report, actor))
+					.toList();
+			return new ReportPageResponse(mineContent, 0, mineContent.size(), mineContent.size(), 1);
+		}
 		Long scopedSiteId = resolveSiteForList(actor, siteId);
 		int safePage = Math.max(page, 0);
 		int safeSize = Math.min(Math.max(size, 1), 100);
@@ -303,13 +313,30 @@ public class ReportService {
 		String description = request.description().trim();
 		String address = blankToNull(request.address());
 		String reason = blankToNull(request.reporterReason());
-		if (!Objects.equals(report.getDescription(), description) || !Objects.equals(report.getAddress(), address)
+		String category = request.category() == null ? null
+				: categoryTaxonomyService.requireAllowedCategory(report.getSite().getType(), request.category());
+		String specialty = request.specialty() == null ? null : blankToNull(request.specialty());
+		boolean changed = !Objects.equals(report.getDescription(), description)
+				|| !Objects.equals(report.getAddress(), address)
 				|| report.getReporterUrgency() != request.reporterUrgency()
-				|| !Objects.equals(report.getReporterReason(), reason)) {
+				|| !Objects.equals(report.getReporterReason(), reason)
+				|| category != null && !Objects.equals(report.getCategory(), category)
+				|| specialty != null && !Objects.equals(report.getSpecialty(), specialty)
+				|| request.visibility() != null && report.getVisibility() != request.visibility();
+		if (changed) {
 			report.setDescription(description);
 			report.setAddress(address);
 			report.setReporterUrgency(request.reporterUrgency());
 			report.setReporterReason(reason);
+			if (category != null) {
+				report.setCategory(category);
+			}
+			if (specialty != null) {
+				report.setSpecialty(specialty);
+			}
+			if (request.visibility() != null) {
+				report.setVisibility(request.visibility());
+			}
 			reportRepository.flush();
 			recordChange(report, actor, ReportNotification.Type.report_edited);
 		}
@@ -503,8 +530,7 @@ public class ReportService {
 	public ReportResponse confirm(Long id, String signedName, AppUserDetails actor) {
 		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		assertCanConfirmOrReopen(report, actor);
         if (!report.getCreatedBy().getId().equals(actor.getId()) || actor.getRole() == UserRole.technician) throw new ApiException(403, "Only the report creator may confirm completion");
 		if (report.getAssignedTechnician() != null && report.getAssignedTechnician().getId().equals(actor.getId())) throw new ApiException(403, "Technician cannot confirm own work");
@@ -529,8 +555,7 @@ public class ReportService {
 	public ReportResponse reopen(Long id, ReopenReportRequest request, AppUserDetails actor) {
 		Report report = reportRepository.findForVisionUpdate(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		assertCanConfirmOrReopen(report, actor);
 		if (report.getStatus() != ReportStatus.confirmed
 				&& report.getStatus() != ReportStatus.resolved_pending_confirmation) {
@@ -619,10 +644,10 @@ public class ReportService {
 	}
 
 	private void assertCanManagePhotos(AppUserDetails actor, Report report) {
-		assertCanViewSite(actor, report.getSite().getId());
-		assertCanSeeVisibility(actor, report);
+		assertCanReadReport(actor, report);
 		boolean allowed = switch (actor.getRole()) {
-			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId())
+					|| (report.getCreatedBy() != null && report.getCreatedBy().getId().equals(actor.getId()));
 			case staff, admin, super_admin -> true;
 			default -> false;
 		};
@@ -670,11 +695,15 @@ public class ReportService {
 			}
 			return filer.getSite();
 		}
-		if (filer.getSite() == null) {
+		if (filer.getSite() == null && requestedSiteId == null) {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(), "Account is not scoped to a site");
 		}
-		if (requestedSiteId != null && !requestedSiteId.equals(filer.getSite().getId())) {
-			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Cannot create a report for another site");
+		// Staff and admins may file at any existing site too — they often
+		// notice issues outside their own site and the account site is only
+		// the default.
+		if (requestedSiteId != null) {
+			return siteRepository.findById(requestedSiteId)
+					.orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST.value(), "Site not found"));
 		}
 		return filer.getSite();
 	}
@@ -727,6 +756,12 @@ public class ReportService {
 			if (!canSeeSensitive(actor, report)) {
 				throw new ApiException(403, "Only the currently assigned technician may view this report");
 			}
+			return;
+		}
+		if (report.getCreatedBy() != null && report.getCreatedBy().getId().equals(actor.getId())) {
+			// Whoever filed the report keeps access to it even when they filed
+			// it at a site other than their account site.
+			assertCanSeeVisibility(actor, report);
 			return;
 		}
 		assertCanViewSite(actor, report.getSite().getId());

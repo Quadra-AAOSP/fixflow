@@ -28,6 +28,7 @@ import { claimReport, listReports } from '@/services/reports';
 import { listTechnicianContracts } from '@/services/technician';
 import { searchReportsNl, searchReportPage } from '@/services/searchNl';
 import { useCurrentSite } from '@/stores/site';
+import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import type { NlSearchFilters, Report, Urgency } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 import {
@@ -98,7 +99,7 @@ export default function AssignmentsScreen() {
     try {
       if (isTechnician) {
         // Technicians may be contracted without an account site. Their
-        // contracts — not the account site — define which reports are reachable,
+        // contracts â€” not the account site â€” define which reports are reachable,
         // so fan out over every contract site and merge by report id.
         const contracts = await listTechnicianContracts();
         const siteIds = Array.from(new Set(contracts.map((contract) => contract.siteId)));
@@ -131,6 +132,20 @@ export default function AssignmentsScreen() {
     useCallback(() => {
       void load();
     }, [load]),
+  );
+
+  const realtimeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onRealtimeSignal = useCallback(() => {
+    if (realtimeTimer.current !== null) clearTimeout(realtimeTimer.current);
+    realtimeTimer.current = setTimeout(() => {
+      realtimeTimer.current = null;
+      void load();
+    }, 600);
+  }, [load]);
+  useRealtimeEvents(
+    currentSite ? `/sites/${currentSite.id}/events` : null,
+    onRealtimeSignal,
+    { enabled: user !== null },
   );
 
   async function onRefresh() {
@@ -194,7 +209,7 @@ export default function AssignmentsScreen() {
         (r) => r.assignedTechnicianId === null || r.assignedTechnicianId === user?.id,
       );
     }
-    // Staff/admin see everything unresolved — sorted by assignee.
+    // Staff/admin see everything unresolved â€” sorted by assignee.
     return base.sort(
       (a, b) => (a.assignedTechnicianId ?? 0) - (b.assignedTechnicianId ?? 0),
     );
@@ -219,7 +234,7 @@ export default function AssignmentsScreen() {
     [scoped, query, siteName, filter],
   );
 
-  // Unique assignees among the scoped (unresolved, assigned) set — mirrors
+  // Unique assignees among the scoped (unresolved, assigned) set â€” mirrors
   // the web, which counts over `assignments`, not the raw report list.
   const technicianCount = useMemo(() => {
     const seen = new Set<number>();
@@ -288,7 +303,7 @@ export default function AssignmentsScreen() {
 
   if (isTechnician) {
     // Technician UI splits into two explicit sections so the queue is legible
-    // at a glance — "Assigned to me" and "Available to claim".
+    // at a glance â€” "Assigned to me" and "Available to claim".
     return (
       <Screen>
         <ScrollView
@@ -324,9 +339,9 @@ export default function AssignmentsScreen() {
                     })
                   : currentSite?.name ?? ''}
                 {reports !== null
-                  ? ` · ${t('assignments.assignedCount', { count: assignedToMe.length })}${
+                  ? ` Â· ${t('assignments.assignedCount', { count: assignedToMe.length })}${
                       availableToClaim.length > 0
-                        ? ` · ${t('assignments.claimableCount', { count: availableToClaim.length })}`
+                        ? ` Â· ${t('assignments.claimableCount', { count: availableToClaim.length })}`
                         : ''
                     }`
                   : ''}
@@ -349,8 +364,8 @@ export default function AssignmentsScreen() {
               if (result.fallback) showToast('AI search unavailable; using text search.', 'error');
             } catch (err) { showToast(err instanceof Error ? err.message : 'Search failed', 'error'); }
             finally { setSearchBusy(false); }
-          }}>{searchBusy ? 'Searching…' : 'Search with AI'}</Button>
-          {nlFilters && <View className="my-2"><Text className="text-dashboard-subtitle">{Object.entries(nlFilters).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(' � ') || 'All reports'}</Text><Pressable accessibilityRole="button" onPress={() => { searchGeneration.current++; setNlFilters(null); setSearchResults([]); setQuery(''); }}><Text className="text-dashboard-teal">Clear search</Text></Pressable></View>}
+          }}>{searchBusy ? 'Searchingâ€¦' : 'Search with AI'}</Button>
+          {nlFilters && <View className="my-2"><Text className="text-dashboard-subtitle">{Object.entries(nlFilters).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(' · ') || 'All reports'}</Text><Pressable accessibilityRole="button" onPress={() => { searchGeneration.current++; setNlFilters(null); setSearchResults([]); setQuery(''); }}><Text className="text-dashboard-teal">Clear search</Text></Pressable></View>}
           {loading ? (
             <StateView variant="loading" title={t('assignments.loading')} />
           ) : error && reports === null ? (
@@ -415,10 +430,10 @@ export default function AssignmentsScreen() {
                 <Text className="mt-0.5 text-xs text-dashboard-subtitle">
                   {currentSite?.name ?? ''}
                   {reports !== null
-                    ? ` · ${t('assignments.activeReportCount', {
+                    ? ` Â· ${t('assignments.activeReportCount', {
                         count: scoped.length,
                         plural: scoped.length === 1 ? '' : 's',
-                      })} · ${t('assignments.assignedTechnicianCount', {
+                      })} Â· ${t('assignments.assignedTechnicianCount', {
                         count: technicianCount,
                         plural: technicianCount === 1 ? '' : 's',
                       })}`
@@ -547,7 +562,7 @@ function ReportCard({
         <UrgencyChip level={urgency} />
         <Text className="text-xs text-dashboard-caption">#{report.id}</Text>
       </View>
-      {/* Site / created / assignee — the remaining ReportTable columns
+      {/* Site / created / assignee â€” the remaining ReportTable columns
           from the web's `ReportTable.vue`. */}
       <View className="mt-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
         <Text className="text-[11px] text-dashboard-subtitle" numberOfLines={1}>
@@ -566,7 +581,7 @@ function ReportCard({
 }
 
 /**
- * Two-section rendering for the technician queue — the split UI spec item
+ * Two-section rendering for the technician queue â€” the split UI spec item
  * 8.2 ("assigned section") + 8.3 ("claimable section"). Claimable items carry
  * a Claim action backed by `POST /api/reports/{id}/claim`; tapping the card
  * still opens the report detail.
@@ -628,7 +643,7 @@ function TechnicianSections({
   );
 }
 
-/** Mini section header for the technician queue split — colored dot + title. */
+/** Mini section header for the technician queue split â€” colored dot + title. */
 function SectionHeader({ title, tone }: { title: string; tone: 'mint' | 'citron' }) {
   const bg = tone === 'mint' ? dashboardColors.statMintDeep : dashboardColors.statCitronDeep;
   return (

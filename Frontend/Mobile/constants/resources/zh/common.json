@@ -90,7 +90,34 @@
   },
   "offlineBanner": {
     "offlineText": "离线状态 — 请检查您的网络连接。在应用恢复连接之前，无法提交或更新报修。",
-    "retry": "重试"
+    "offlineWithPending": "离线状态 — 本设备上保存的 {count} 份报修将在网络恢复后发送。",
+    "pending": "{count} 份报修等待发送。",
+    "retry": "重试",
+    "retryHint": "重试连接并发送已排队的报修。"
+  },
+  "notifications": {
+    "event": {
+      "assignment": {
+        "title": "新任务指派",
+        "body": "报修 #{id} 已指派给您。"
+      },
+      "reassignment": {
+        "title": "报修已改派",
+        "body": "报修 #{id} 已更换技术人员。"
+      },
+      "status": {
+        "title": "报修已更新",
+        "body": "报修 #{id} 的状态已变更。"
+      },
+      "pendingResolution": {
+        "title": "请确认修复",
+        "body": "报修 #{id} 已标记为完成，需要您确认。"
+      },
+      "confirmation": {
+        "title": "报修已确认",
+        "body": "报修 #{id} 已确认解决。"
+      }
+    }
   },
   "auth": {
     "login": {
@@ -238,6 +265,20 @@
     }
   },
   "home": {
+    "insights": {
+      "title": "你的报修概览",
+      "viewAll": "查看全部",
+      "resolved": "已解决",
+      "legendOpen": "待处理",
+      "legendProgress": "处理中",
+      "legendResolved": "已解决",
+      "pending": "{count} 项修复待你确认"
+    },
+    "quick": {
+      "file": "提交报修",
+      "track": "查看进度",
+      "alerts": "通知"
+    },
     "greetings": {
       "morning": "早上好",
       "afternoon": "下午好",
@@ -332,6 +373,9 @@
     "emptyHome": {
       "title": "{site} 尚无报修",
       "subtitle": "提交第一条报修，此面板就会开始跟踪待处理工作、紧急程度和每周进度。",
+      "stepFile": "提交报修",
+      "stepFix": "维修处理",
+      "stepConfirm": "确认完成",
       "firstReport": "提交第一条报修"
     },
     "setupGate": {
@@ -358,6 +402,9 @@
       "partialSearch": "搜索仅涵盖已加载的报修。加载更多以继续搜索。",
       "loadMore": "加载更多报修",
       "title": "报修",
+      "myReports": "我的报修",
+      "myEmptyTitle": "您还没有提交任何报修。",
+      "myEmptyDesc": "您在任意站点提交的报修都会显示在这里，并附上处理进度。",
       "contracted": "已签约",
       "uncontracted": "未签约",
       "newReport": "新建报修",
@@ -404,6 +451,7 @@
       "allReports": "全部报修",
       "title": "提交问题",
       "submitted": "报修已提交。",
+      "queuedOffline": "无网络连接 — 报修已保存，将自动发送。",
       "intro": "描述需要 {site} 关注的事项。",
       "savedNotice": "您的报修将被保存到维护系统并分派给技师。",
       "descLabel": "发生了什么？",
@@ -509,6 +557,10 @@
       "suggestionFailed": "无法发送建议。"
     },
     "detail": {
+      "timeline": {
+        "title": "处理进度",
+        "current": "当前"
+      },
       "allReports": "全部报修",
       "screenTitle": "报修详情",
       "title": "报修 #{id}",
@@ -1172,6 +1224,11 @@
     }
   },
   "profile": {
+    "shortcuts": {
+      "kicker": "快捷入口",
+      "settings": "应用设置",
+      "notifications": "通知"
+    },
     "heroKicker": "您的账户",
     "openSettings": "打开设置",
     "profileTitle": "个人资料",

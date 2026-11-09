@@ -31,7 +31,8 @@ public class SubsiteService {
     }
     private final SiteRepository sites; private final SubsiteRepository subsites; private final SubsiteRequestRepository alerts; private final UserRepository users;
     public SubsiteService(SiteRepository sites, SubsiteRepository subsites, SubsiteRequestRepository alerts, UserRepository users) { this.sites = sites; this.subsites = subsites; this.alerts = alerts; this.users = users; }
-    @Transactional(readOnly = true) public List<SubsiteResponse> list(Long siteId, AppUserDetails actor) { assertCanView(siteId, actor); return subsites.findBySite_IdAndArchivedAtIsNullOrderByLabelAsc(siteId).stream().map(SubsiteResponse::from).toList(); }
+    @Transactional(readOnly = true) public List<SubsiteResponse> list(Long siteId, AppUserDetails actor) { // Building names are metadata needed to file anywhere.
+        return subsites.findBySite_IdAndArchivedAtIsNullOrderByLabelAsc(siteId).stream().map(SubsiteResponse::from).toList(); }
     @Transactional public SubsiteResponse create(Long siteId, SubsiteRequest request, AppUserDetails actor) {
         assertCanManage(siteId, actor); String label = request.label().trim().toUpperCase(java.util.Locale.ROOT);
         if (subsites.existsBySite_IdAndLabelIgnoreCase(siteId, label)) throw new ApiException(HttpStatus.CONFLICT.value(), "Subsite label already exists");

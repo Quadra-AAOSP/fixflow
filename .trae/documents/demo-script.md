@@ -2,7 +2,10 @@
 
 Prereqs: backend running (`./mvnw spring-boot:run`), MinIO running (`fixflow.minio.*` env vars set), Expo dev server or a preview APK from `eas build --profile preview` (scaffolded in `eas.json`).
 
-Demo accounts to create up front: one per role — reporter, technician, staff, admin, super_admin, shop_manager. Register reporter/admin-apply/technician via the role-picker flow; create staff/super_admin/shop_manager via backend seed or admin tooling.
+Demo accounts (seeded — no manual creation):
+1. Start the backend with `SEED_DEMO_DATA=true` (or `fixflow.seed.demo-enabled: true`); `SqlDataSeeder` imports `Backend/src/main/resources/db/demo-data.sql` idempotently.
+2. Sign in with: `reporter@fixflow.test`, `technician@fixflow.test`, `staff@fixflow.test`, `admin@fixflow.test` (plus `superadmin@fixflow.test`, `shopmanager@fixflow.test` for the optional role walkthroughs). Passwords are the development seed passwords in that SQL file — never reuse them outside local demos.
+3. Seeded sites: **Demo School** (contracted — AI routing / technician contract) and **Demo Hotel** (uncontracted — staff triage). Sample reports `[DEMO:FF-01…FF-08]` cover open, assigned, in_progress, resolved-pending-confirmation, confirmed, reopened and escalated.
 
 ## 1. Reporter
 1. Log in as reporter → Home tab shows site stats, needs-attention card, recent reports.
@@ -47,3 +50,12 @@ Demo accounts to create up front: one per role — reporter, technician, staff, 
 | Shop manager | Shop products | Product grid visible; no site tabs in the bar |
 
 Capture in light mode, English locale, on a physical device or emulator at 1080p+. Dark mode + 中文 variants are optional extras — run them after the primary set.
+
+## Backup demo flow (if the device or network fails)
+
+1. **Screenshots first** — capture the table above before the live walkthrough so the evidence survives a crash, and keep them in `Testing/` (not committed if large).
+2. **Second device** — build the `preview` profile APK (`eas build --profile preview --platform android`) and install it on a spare phone; it talks to the same backend via `EXPO_PUBLIC_API_URL`.
+3. **Web fallback** — `Frontend/Web` runs the same backend; demo reporter → reports list → detail → confirm/reopen there if the phone dies mid-flow.
+4. **Offline demo instead of live backend** — stop the backend, submit a report, show the offline banner + queued report, then restart the backend and let auto-flush post it.
+5. **Data reset** — re-run the backend with `SEED_DEMO_DATA=true`; the SQL is idempotent (`WHERE NOT EXISTS`), so clearing `reports`/`status_history` rows and restarting restores the `[DEMO:FF-01…FF-08]` fixtures.
+6. **No-secret rule during demo** — never open `.env`, `application.yaml`, logs or the token bootstrap response on screen.

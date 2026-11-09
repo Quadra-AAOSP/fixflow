@@ -68,6 +68,16 @@ export const endpoints = {
     assign: (id: number | string) => `/api/reports/${id}/assign`,
     /** POST — a contracted technician takes an unassigned queue item. */
     claim: (id: number | string) => `/api/reports/${id}/claim`,
+    /** POST — assigned technician starts work (assigned/reopened → in_progress). */
+    start: (id: number | string) => `/api/reports/${id}/start`,
+    /** POST — assigned technician marks work complete; body `{ description }`. */
+    resolve: (id: number | string) => `/api/reports/${id}/resolve`,
+    /** PATCH — staff/admin final-urgency override; body `{ urgency, reason }`. */
+    urgency: (id: number | string) => `/api/reports/${id}/urgency`,
+    /** PATCH — reporter/ops edits a still-editable report. */
+    update: (id: number | string) => `/api/reports/${id}`,
+    /** GET — every status transition recorded for the report. */
+    history: (id: number | string) => `/api/reports/${id}/history`,
     /** POST — stateless AI chat about one report; body carries the message history. */
     assistant: (id: number | string) => `/api/reports/${id}/assistant`,
     /** POST — natural-language query → structured filters (NL smart search). */
@@ -168,12 +178,13 @@ export const endpoints = {
  * Not implemented by the backend, therefore not exposed anywhere in the app:
  *
  *   PATCH  /api/reports/{id}/status
- *   PATCH  /api/reports/{id}/urgency
- *   POST   /api/reports/{id}/reassign
- *   GET    /api/reports/assigned-to-me
- *   GET    /api/reports/claimable
- *   GET    /api/technician-skills
- *   GET    /api/technician-contracts
+ *   POST   /api/reports/{id}/reassign   (reassignment reuses `/assign`)
+ *   GET    /api/reports/assigned-to-me  (queue is derived from `/api/reports`)
+ *   GET    /api/reports/claimable       (queue is derived from `/api/reports`)
  *
- * Screens must not offer an affordance that depends on these.
+ * Implemented elsewhere and therefore wired above: technician availability
+ * (`/api/technicians/me/availability`), claim (`/claim`), confirm/reopen,
+ * start/resolve, urgency override, report edit, and the photo endpoints.
+ *
+ * Screens must not offer an affordance that depends on the absent paths.
  */

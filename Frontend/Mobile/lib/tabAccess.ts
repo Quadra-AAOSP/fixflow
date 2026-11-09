@@ -47,7 +47,7 @@ export function isTabVisible(role: UserRole, tab: TabName): boolean {
     case 'reports':
       return role === 'reporter' || role === 'staff' || role === 'admin' || role === 'super_admin';
 
-    // ── More tab — roles with additional tools ─────────────
+    // ── More tab — operations and shop tools only ───────────────────────
     case 'more':
       return role !== 'reporter';
 
@@ -96,10 +96,18 @@ export function landingRedirectForRoute(role: UserRole | null, pathname: string)
 
   const match = PATH_TO_TAB.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
   const tab = match ? match[1] : 'index';
-  if (!isTabVisible(role, tab) && !(role === 'reporter' && tab === 'more')) {
+  if (!isTabVisible(role, tab) && !isDeepLinkAllowed(role, path)) {
     return home;
   }
   return null;
+}
+
+/**
+ * Screens reachable without their parent tab. Reporters have no More tab, but
+ * the home bell still opens the notification feed.
+ */
+function isDeepLinkAllowed(role: UserRole, path: string): boolean {
+  return role === 'reporter' && path === '/more/notifications';
 }
 
 const PATH_TO_TAB: ReadonlyArray<readonly [string, TabName]> = [

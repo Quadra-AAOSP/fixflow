@@ -1,5 +1,15 @@
 import type { Urgency } from './common';
 
+/** Mirrors backend `ReportWorkflowService.HistoryItem` (ascending by time). */
+export type ReportHistoryItem = {
+  id: number;
+  fromStatus: string | null;
+  toStatus: string;
+  changedByUserId: number | null;
+  note: string | null;
+  createdAt: string;
+};
+
 /** Mirrors backend `ReportVisibility` (JSON values are lowercase). */
 export type ReportVisibility = 'public' | 'private';
 
@@ -112,6 +122,14 @@ export type CreateReportPayload = {
   /** Defaults to 'public' server-side when omitted. */
   visibility?: ReportVisibility;
 };
+
+/** Mirrors backend `UpdateReportRequest` — every field optional; body may not be empty. */
+export type UpdateReportPayload = Partial<
+  Pick<
+    CreateReportPayload,
+    'description' | 'address' | 'category' | 'specialty' | 'reporterUrgency' | 'visibility'
+  >
+>;
 
 /** Mirrors backend `ReportPageResponse`. */
 export type ReportPage = {
