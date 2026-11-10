@@ -737,15 +737,15 @@ SET @stmt = (SELECT IF((SELECT COUNT(*) FROM information_schema.columns WHERE ta
 PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS site_technician_vetting (
- id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
- site_id BIGINT NOT NULL, technician_id BIGINT NOT NULL, status VARCHAR(16) NOT NULL,
- reviewed_by BIGINT NOT NULL, reviewed_at TIMESTAMP(6) NOT NULL, expires_at TIMESTAMP(6) NULL,
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ site_id BIGINT UNSIGNED NOT NULL, technician_id BIGINT UNSIGNED NOT NULL, status VARCHAR(16) NOT NULL,
+ reviewed_by BIGINT UNSIGNED NOT NULL, reviewed_at TIMESTAMP(6) NOT NULL, expires_at TIMESTAMP(6) NULL,
  identity_checked BOOLEAN NOT NULL, references_checked BOOLEAN NOT NULL, qualifications_checked BOOLEAN NOT NULL,
  licence_applicable BOOLEAN NOT NULL, licence_checked BOOLEAN NOT NULL, licence_expires_at TIMESTAMP(6) NULL,
  insurance_applicable BOOLEAN NOT NULL, insurance_checked BOOLEAN NOT NULL, insurance_expires_at TIMESTAMP(6) NULL,
  INDEX idx_site_technician_vetting (site_id, technician_id, id),
  FOREIGN KEY (site_id) REFERENCES sites(id), FOREIGN KEY (technician_id) REFERENCES users(id), FOREIGN KEY (reviewed_by) REFERENCES users(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET @stmt = (SELECT IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'calculated_urgency') = 0, 'ALTER TABLE reports ADD COLUMN calculated_urgency VARCHAR(32) NULL', 'SELECT 1'));
 PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -754,7 +754,6 @@ SET @stmt = (SELECT IF(@urgency_backfill, 'ALTER TABLE reports ADD COLUMN partic
 PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @stmt = IF(@urgency_backfill, 'UPDATE reports r SET participation_count = (SELECT COUNT(*) FROM report_reporters rr WHERE rr.report_id = r.id)', 'SELECT 1');
 PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
 -- FixFlow reference data: site_rules taxonomy + shop catalog.
 -- Repeatable: INSERT IGNORE / unique keys; does not overwrite stock or weights.
 
@@ -787,7 +786,6 @@ INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_
 INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES ('silicone-sealant', 'Neutral Silicone Sealant', 'Bathroom and kitchen sealing for joints, splashbacks, and fittings.', 'Consumables', 'SealPro', NULL, 1290, 45, TRUE, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000');
 INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES ('safety-gloves', 'Cut-Resistant Work Gloves', 'Pair of protective gloves sized for maintenance crews and DIY reporters.', 'Safety', 'GuardHand', NULL, 1590, 50, TRUE, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000');
 INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES ('toolbox-small', 'Compact Toolbox', 'Organiser case for bits, fasteners, and small hand tools on site visits.', 'Storage', 'FixFlow Basics', NULL, 4590, 12, TRUE, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000');
-
 -- FixFlow demo seed data (development only; passwords equal emails).
 -- Repeatable: WHERE NOT EXISTS / INSERT IGNORE — never overwrites passwords or stock.
 -- Technician terms seeded as version=demo-v1 url=https://example.test/technician-terms/demo-v1
@@ -1043,4 +1041,3 @@ INSERT INTO shop_order_items (order_id, product_id, name, unit_price_minor, quan
 INSERT INTO shop_order_items (order_id, product_id, name, unit_price_minor, quantity) SELECT (SELECT id FROM shop_orders WHERE public_id = '11111111-2222-4333-8444-555555555501'), 'multi-bit-set', '40-Piece Bit Set', 2490, 1 WHERE NOT EXISTS (SELECT 1 FROM shop_order_items i WHERE i.order_id = (SELECT id FROM shop_orders WHERE public_id = '11111111-2222-4333-8444-555555555501') AND i.product_id = 'multi-bit-set');
 INSERT INTO shop_payments (order_id, provider, provider_ref, status, checkout_url, raw_event, created_at, updated_at) SELECT (SELECT id FROM shop_orders WHERE public_id = '11111111-2222-4333-8444-555555555501'), 'dev', 'demo-pay-1', 'succeeded', NULL, '{"demo":true}', '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM shop_payments p WHERE p.order_id = (SELECT id FROM shop_orders WHERE public_id = '11111111-2222-4333-8444-555555555501'));
 INSERT INTO shop_notifications (recipient_id, order_id, type, created_at) SELECT (SELECT id FROM users WHERE email = 'reporter@fixflow.test'), '11111111-2222-4333-8444-555555555501', 'order_placed', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM shop_notifications n WHERE n.recipient_id = (SELECT id FROM users WHERE email = 'reporter@fixflow.test') AND n.order_id = '11111111-2222-4333-8444-555555555501' AND n.type = 'order_placed');
-
