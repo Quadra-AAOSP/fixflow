@@ -49,6 +49,7 @@ export default function MarketplaceScreen() {
   const [cancellingJob, setCancellingJob] = useState<number>();
   const [cancellationReason, setCancellationReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [publishIssue, setPublishIssue] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const canPublish = isAdmin && source !== undefined;
@@ -191,24 +192,43 @@ export default function MarketplaceScreen() {
                 <Field key={key} label={t(`marketplace.${key}`)} value={draft[key]} maxLength={limits[key]}
                   multiline={key === 'summary'} onChangeText={value => {
                     setDraft(previous => ({ ...previous, [key]: value }));
-                    setPrivacyConfirmed(false);
+                    setPublishIssue('');
                   }} />
               ))}
               <View className="mb-2 flex-row items-center justify-between gap-3">
                 <Text className="flex-1 text-ink">{t('marketplace.confirmPrivacy')}</Text>
                 <Switch accessibilityLabel={t('marketplace.confirmPrivacy')} value={privacyConfirmed}
-                  disabled={busy} onValueChange={setPrivacyConfirmed} />
+                  disabled={busy} onValueChange={value => { setPrivacyConfirmed(value); setPublishIssue(''); }} />
               </View>
               <Action label={t('marketplace.publish')}
-                disabled={busy || !privacyConfirmed || Object.values(draft).some(value => !value.trim())}
-                onPress={() => mutate(async () => {
-                  const created = await publishJob(source, {
-                    summary: draft.summary.trim(), broadLocation: draft.broadLocation.trim(), timing: draft.timing.trim(),
-                  });
-                  setJobs(current => [created, ...current]);
-                  setDraft(emptyDraft);
-                  setPrivacyConfirmed(false);
-                }, 'marketplace.published')} />
+                disabled={busy}
+                onPress={() => {
+                  const missing = (Object.keys(limits) as (keyof ListingDraft)[])
+                    .filter(key => !draft[key].trim())
+                    .map(key => t(`marketplace.${key}`));
+                  if (missing.length > 0) {
+                    setPublishIssue(t('marketplace.publishMissingFields', { fields: missing.join(', ') }));
+                    return;
+                  }
+                  if (!privacyConfirmed) {
+                    setPublishIssue(t('marketplace.publishMissingPrivacy'));
+                    return;
+                  }
+                  setPublishIssue('');
+                  mutate(async () => {
+                    const created = await publishJob(source, {
+                      summary: draft.summary.trim(), broadLocation: draft.broadLocation.trim(), timing: draft.timing.trim(),
+                    });
+                    setJobs(current => [created, ...current]);
+                    setDraft(emptyDraft);
+                    setPrivacyConfirmed(false);
+                  }, 'marketplace.published');
+                }} />
+              {publishIssue ? (
+                <Text accessibilityRole="alert" className="mt-1 text-[12px] leading-[1.6] text-red-700">
+                  {publishIssue}
+                </Text>
+              ) : null}
             </View>
           ) : null}
           {isTechnician ? <View>

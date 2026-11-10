@@ -32,6 +32,8 @@
     "broadLocation": "大致位置",
     "timing": "预计时间",
     "publish": "发布工作",
+    "publishMissingFields": "还需填写：{fields}。",
+    "publishMissingPrivacy": "发布前请勾选隐私确认。",
     "published": "工作已发布。",
     "empty": "暂无可显示的工作。",
     "listingDeadline": "工作将于 {date} 截止",

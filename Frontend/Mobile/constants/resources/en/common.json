@@ -32,6 +32,8 @@
     "broadLocation": "Broad location",
     "timing": "Expected timing",
     "publish": "Publish job",
+    "publishMissingFields": "Still needed: {fields}.",
+    "publishMissingPrivacy": "Tick the privacy confirmation before publishing.",
     "published": "Job published.",
     "empty": "There are no marketplace jobs to show.",
     "listingDeadline": "Listing closes {date}",
