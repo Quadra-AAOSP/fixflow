@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import LoadingStatus from '@/components/ui/LoadingStatus.vue';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
 import { useLocale } from '@/i18n';
 import { listSiteRules, saveSiteRule, deleteSiteRule, type RuleDraft } from '@/services/siteRules';
 import { errorMessage } from '@/services/api';
 import { humanize } from '@/utils/maintenance';
-import type { SiteRule, SiteType } from '@/types/maintenance';
+import type { SiteRule } from '@/types/maintenance';
 const { user } = useAuth(); const { t } = useLocale(); const data = useMaintenanceStore();
 const allowed = computed(() => user.value?.role === 'admin' || user.value?.role === 'super_admin');
 const rules = ref<SiteRule[] | null>(null); const busy = ref(false); const loading = ref(false);
 const error = ref(''); const message = ref(''); const editing = ref(false); const id = ref<number | null>(null);
-const removing = ref<SiteRule | null>(null); const filter = ref<SiteType | ''>('');
+const removing = ref<SiteRule | null>(null);
 const editor = ref<HTMLFormElement>(); const confirmation = ref<HTMLElement>();
 const draft = ref<RuleDraft>({ siteType: 'school', category: '', urgencyWeight: 0, sortOrder: 0 });
-const visible = computed(() => (rules.value ?? []).filter(rule => !filter.value || rule.siteType === filter.value));
+const currentType = computed(() => data.selectedSite?.type);
+const visible = computed(() => (rules.value ?? []).filter(rule => currentType.value && rule.siteType === currentType.value).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.category.localeCompare(b.category)));
+watch(() => data.selectedSite?.id, () => { editing.value = false; removing.value = null; message.value = ''; });
 let generation = 0; onBeforeUnmount(() => generation++);
 async function load() {
   if (!allowed.value || busy.value) return;
@@ -25,14 +27,14 @@ async function load() {
   finally { if (current === generation) loading.value = false; }
 }
 async function edit(rule?: SiteRule) {
-  if (busy.value || loading.value) return;
+  if (busy.value || loading.value || !currentType.value) return;
   id.value = rule?.id ?? null; removing.value = null; message.value = ''; error.value = '';
   draft.value = rule ? { siteType: rule.siteType, category: rule.category, urgencyWeight: rule.urgencyWeight ?? 0, sortOrder: rule.sortOrder ?? 0 } :
-    { siteType: filter.value || data.selectedSite?.type || 'school', category: '', urgencyWeight: 0, sortOrder: 0 };
+    { siteType: currentType.value, category: '', urgencyWeight: 0, sortOrder: 0 };
   editing.value = true; await nextTick(); editor.value?.querySelector('input')?.focus();
 }
 async function save() {
-  if (!allowed.value || busy.value) return;
+  if (!allowed.value || busy.value || draft.value.siteType !== currentType.value) return;
   const current = ++generation; busy.value = true; error.value = ''; message.value = '';
   try {
     const saved = await saveSiteRule(id.value, draft.value);
@@ -61,19 +63,19 @@ onMounted(load);
 </script>
 <template>
   <section v-if="allowed" class="dashboard-card live-page">
-    <div class="card-heading"><h1>{{ t('Site rules') }}</h1><button type="button" class="report-issue-button" :disabled="busy || loading" @click="edit()">{{ t('Add category') }}</button></div>
-    <p class="dialog-intro">{{ t('Rules apply to every site of the selected type, not just your site. Changing or deleting a category affects report intake and AI taxonomy for those sites.') }}</p>
+    <div class="card-heading"><h1>{{ t('Site rules') }}</h1><button type="button" class="report-issue-button" :disabled="busy || loading || !currentType" @click="edit()">{{ t('Add category') }}</button></div>
+    <p class="dialog-intro">{{ t('Showing categories for the current site. These rules are shared with other sites of the same type; edits affect those sites too.') }}</p>
     <p v-if="error" class="live-error" role="alert">{{ t(error) }} <button :disabled="busy || loading" type="button" @click="load">{{ t('Retry') }}</button></p>
     <p v-if="message" class="draft-notice" role="status">{{ t(message) }}</p>
     <form v-if="editing" ref="editor" class="draft-form" @submit.prevent="save"><h2>{{ t(id === null ? 'Add category' : 'Edit rule') }}</h2><fieldset class="report-fields" :disabled="busy">
-      <label>{{ t('Site type') }}<select v-model="draft.siteType"><option value="school">{{ t('School') }}</option><option value="hostel">{{ t('Hostel') }}</option><option value="hotel">{{ t('Hotel') }}</option></select></label>
+      <label>{{ t('Site type') }}<select v-model="draft.siteType" disabled><option value="school">{{ t('School') }}</option><option value="hostel">{{ t('Hostel') }}</option><option value="hotel">{{ t('Hotel') }}</option></select></label>
       <label>{{ t('Category code') }}<input v-model="draft.category" required maxlength="128" /></label>
       <label>{{ t('Urgency weight') }}<input v-model.number="draft.urgencyWeight" required type="number" min="-2147483648" max="2147483647" step="1" /></label>
       <label>{{ t('Sort order') }}<input v-model.number="draft.sortOrder" required type="number" min="-2147483648" max="2147483647" step="1" /></label>
       <div class="rule-actions"><button type="submit" class="report-issue-button">{{ t(busy ? 'Saving…' : 'Save rule') }}</button><button type="button" class="text-action" @click="editing = false">{{ t('Cancel') }}</button></div>
     </fieldset></form>
     <section v-if="removing" ref="confirmation" tabindex="-1" class="draft-notice rule-confirmation" :aria-label="t('Delete rule confirmation')"><p>{{ t('Permanently delete category {category} for all {type} sites? This cannot be undone.', { category: removing.category, type: t(humanize(removing.siteType)) }) }}</p><div class="rule-actions"><button type="button" class="text-action" :disabled="busy" @click="remove">{{ t('Delete rule permanently') }}</button><button type="button" class="text-action" :disabled="busy" @click="removing = null">{{ t('Cancel') }}</button></div></section>
-    <label class="rule-filter">{{ t('Site type') }}<select v-model="filter"><option value="">{{ t('All types') }}</option><option value="school">{{ t('School') }}</option><option value="hostel">{{ t('Hostel') }}</option><option value="hotel">{{ t('Hotel') }}</option></select></label>
+    <p class="rule-filter">{{ data.selectedSite?.name || t('Choose a site to view its rules.') }}<span v-if="currentType"> · {{ t(humanize(currentType)) }}</span></p>
     <LoadingStatus v-if="loading" :label="t('Loading rules…')" />
     <ul v-else-if="rules" class="rule-list"><li v-for="rule in visible" :key="rule.id"><div><strong>{{ rule.category }}</strong><p>{{ t(humanize(rule.siteType)) }} · {{ t('Urgency weight') }}: {{ rule.urgencyWeight ?? t('Not specified') }} · {{ t('Sort order') }}: {{ rule.sortOrder ?? t('Not specified') }}</p></div><div class="rule-actions"><button type="button" class="text-action" :disabled="busy" @click="edit(rule)">{{ t('Edit') }}</button><button type="button" class="text-action" :disabled="busy" @click="askRemove(rule)">{{ t('Delete') }}</button></div></li><li v-if="!visible.length">{{ t('No rules for this site type.') }}</li></ul>
   </section>

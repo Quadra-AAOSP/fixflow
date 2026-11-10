@@ -355,22 +355,7 @@ export default function WorkspaceScreen() {
             </View>
             <ArrowRight color={dashboardColors.subtitle} size={16} />
           </Pressable>
-          <View className="mx-4 border-t border-dashboard-card-line" />
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => router.push('/technician/invitations')}
-            className="flex-row items-center justify-between px-4 py-3 active:opacity-70"
-          >
-            <View className="flex-1 pr-3">
-              <Text className="text-[13px] font-semibold text-ink">
-                {t('workspace.invitations')}
-              </Text>
-              <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
-                {t('workspace.invitationsHint')}
-              </Text>
-            </View>
-            <ArrowRight color={dashboardColors.subtitle} size={16} />
-          </Pressable>
+
           <View className="mx-4 border-t border-dashboard-card-line" />
           <Pressable
             accessibilityRole="link"

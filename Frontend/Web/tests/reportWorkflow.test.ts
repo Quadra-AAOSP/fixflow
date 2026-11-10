@@ -1,0 +1,30 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { stubApiFetch } from './csrfFetch';
+import * as api from '../src/services/reportWorkflow';
+afterEach(() => vi.unstubAllGlobals());
+it('uses every published workflow route with the controller payload and HTTP method', async () => {
+  const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);
+  await api.claimReport(7); await api.startReport(7); await api.resolveReport(7, ' Fixed pipe ');
+  await api.escalateReport(7, ' Needs specialist '); await api.overrideReportUrgency(7, 'high', ' Active leak ');
+  await api.listWorkflowHistory(7); await api.listWorkflowResolutions(7); await api.listWorkflowRatings(7); await api.listWorkflowLinks(7);
+  await api.rateReportResolution(7, 12, 4, ' Good repair '); await api.linkReports(7, 8, ' Same source ');
+  expect(fetch.mock.calls.map(([url]) => url)).toEqual(['claim','start','resolve','escalate','urgency','history','resolutions','ratings','links','ratings','links'].map(path => `/api/reports/7/${path}`));
+  expect(fetch.mock.calls[4]![1].method).toBe('PATCH');
+  expect(JSON.parse(fetch.mock.calls[2]![1].body)).toEqual({ description: 'Fixed pipe' });
+  expect(JSON.parse(fetch.mock.calls[4]![1].body)).toEqual({ urgency: 'high', reason: 'Active leak' });
+  expect(JSON.parse(fetch.mock.calls[9]![1].body)).toEqual({ resolutionId: 12, score: 4, feedback: 'Good repair' });
+  expect(JSON.parse(fetch.mock.calls[10]![1].body)).toEqual({ linkedReportId: 8, reason: 'Same source' });
+  expect(fetch.mock.calls[0]![1].headers.get('X-CSRF-TOKEN')).toBe('test-token');
+  expect(fetch.mock.calls[0]![1].credentials).toBe('include');
+});
+it('rejects invalid IDs, blank explanations, overlong input and invalid scores before transport', () => {
+  expect(() => api.claimReport(-1)).toThrow('valid');
+  expect(() => api.resolveReport(1, ' ')).toThrow();
+  expect(() => api.resolveReport(1, 'x'.repeat(10001))).toThrow();
+  expect(() => api.escalateReport(1, 'x'.repeat(2001))).toThrow();
+  expect(() => api.rateReportResolution(1, 2, 6, '')).toThrow('score');
+  expect(() => api.rateReportResolution(1, 2, 2.5, '')).toThrow('score');
+  expect(() => api.rateReportResolution(1, 2, 5, 'x'.repeat(2001))).toThrow('2,000');
+  expect(() => api.linkReports(1, 1, 'Duplicate')).toThrow('itself');
+  expect(() => api.linkReports(1, NaN, 'Bad ID')).toThrow('valid');
+});

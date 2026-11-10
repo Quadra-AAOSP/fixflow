@@ -347,3 +347,11 @@
 .mobile-sidebar .sidebar-version{margin-top:auto}
 
 .report-table td, .report-table th { overflow-wrap: anywhere; }
+
+/* Shared action rhythm: readable labels, usable targets, and room to wrap. */
+.text-action{min-height:44px;padding:8px 4px;font-size:14px;line-height:1.5;white-space:normal;text-align:start;vertical-align:middle;flex-shrink:0}
+.card-heading{flex-wrap:wrap;row-gap:12px}.card-heading>div{min-width:0}.card-heading h2{font-size:18px;line-height:1.4;letter-spacing:-.3px}.card-heading p{font-size:14px;line-height:1.6}
+.dashboard-card>h2{font-size:18px;font-weight:650;line-height:1.4;letter-spacing:-.3px;margin-bottom:12px}
+.dashboard-card>p{font-size:14px;line-height:1.7}.dashboard-card>p+p{margin-top:12px}
+.dashboard-card{padding:24px}.dashboard-card>.draft-form{margin-top:20px}
+@media(max-width:650px){.dashboard-card{padding:20px 16px}.card-heading .text-action{max-width:100%}}

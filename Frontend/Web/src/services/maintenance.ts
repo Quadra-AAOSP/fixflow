@@ -2,6 +2,7 @@ import { sitePayload } from '@/utils/requestFields';
 import { reportIntakePayload } from '@/utils/reportIntake';
 import { AI_REQUEST_TIMEOUT_MS, request } from './api';
 import { REPORT_PHOTO_LIMIT, validateReportPhoto } from './reportPhotos';
+import type { Urgency } from '@/types';
 import type { CreateReportPayload, Report, ReportPage, ReportReporter, Site, SiteRule, SiteType, SitePayload, Subsite, SubsitePayload, SubsiteAlert } from '@/types/maintenance';
 
 export const listSites = () => request<Site[]>('/api/sites');
@@ -43,6 +44,12 @@ export function createReportWithPhotos(payload: CreateReportPayload, photos: Fil
   return request<Report>('/api/reports', { method: 'POST', body });
 }
 export const joinReport = (id: number) => request<Report>(`/api/reports/${id}/join`, { method: 'POST' });
+export const leaveReport = (id: number) => request<Report>(`/api/reports/${id}/leave`, { method: 'POST' });
+export function overrideUrgency(id: number, urgency: Urgency, reason: string) {
+  const message = reason.trim();
+  if (!message || message.length > 500) throw new Error('Enter an urgency reason of 1–500 characters.');
+  return request<Report>(`/api/reports/${id}/urgency`, { method: 'PATCH', body: JSON.stringify({ urgency, reason: message }) });
+}
 export const confirmReport = (id: number, signedName: string) => request<Report>(`/api/reports/${id}/confirm`, { method: 'POST', body: JSON.stringify({ signedName }) });
 export function reopenReport(id: number, reason: string) {
   const message = reason.trim();

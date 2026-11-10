@@ -18,8 +18,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-@SpringBootTest
+@SpringBootTest(properties = {"fixflow.technician-terms.version=test-v1", "fixflow.technician-terms.document-url=https://example.test/terms"})
 class ReportWorkflowIntegrationTest {
+    @Autowired TechnicianTermsAcceptanceRepository termsFixture;
+    @Autowired SiteTechnicianVettingRepository vettingFixture;
+    @Autowired TechnicianVerificationRepository verificationFixture;
     @Autowired WebApplicationContext context;
     @Autowired SiteRepository sites;
     @Autowired UserRepository users;
@@ -40,6 +43,7 @@ class ReportWorkflowIntegrationTest {
         site.setType(SiteType.school); site.setContractStatus(ContractStatus.contracted); site = sites.save(site);
         admin = account(UserRole.admin, site); reporter = account(UserRole.reporter, site);
         technician = account(UserRole.technician, null);
+        VettingFixture.eligible(technician, site, admin, termsFixture, verificationFixture, vettingFixture);
         TechnicianContract contract = new TechnicianContract(); contract.setSite(site); contract.setTechnician(technician);
         contracts.save(contract);
         report = new Report(); report.setSite(site); report.setCreatedBy(reporter);
@@ -53,6 +57,23 @@ class ReportWorkflowIntegrationTest {
         value.setRole(role); value.setSite(site); return users.save(value);
     }
 
+    @Test void reviewApiScopesWritesAndExposesCurrentStatusToTechnician() throws Exception {
+        String path="/api/sites/" + report.getSite().getId() + "/technicians/" + technician.getId() + "/vetting";
+        mvc.perform(get(path).with(user(new AppUserDetails(technician)))).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("approved"));
+        String revoked="{\"status\":\"revoked\",\"identityChecked\":false,\"referencesChecked\":false,\"qualificationsChecked\":false,\"licenceApplicable\":false,\"licenceChecked\":false,\"insuranceApplicable\":false,\"insuranceChecked\":false}";
+        mvc.perform(post(path).with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON).content(revoked)).andExpect(status().isForbidden());
+        mvc.perform(post(path).with(user(new AppUserDetails(admin))).contentType(MediaType.APPLICATION_JSON).content(revoked)).andExpect(status().isOk());
+        mvc.perform(get(path).with(user(new AppUserDetails(technician)))).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("revoked"));
+    }
+    @Test void revokedSiteReviewBlocksClaimAndExpiredReviewBlocksStart() throws Exception {
+        var latest=vettingFixture.findFirstBySiteIdAndTechnicianIdOrderByIdDesc(report.getSite().getId(), technician.getId()).orElseThrow();
+        latest.setStatus("revoked"); vettingFixture.saveAndFlush(latest);
+        String base="/api/reports/" + report.getId();
+        mvc.perform(post(base + "/claim").with(user(new AppUserDetails(technician)))).andExpect(status().isConflict());
+        latest.setStatus("approved"); latest.setExpiresAt(java.time.Instant.now().minusSeconds(1)); vettingFixture.saveAndFlush(latest);
+        report.setAssignedTechnician(technician); report.setStatus(ReportStatus.assigned); reports.saveAndFlush(report);
+        mvc.perform(post(base + "/start").with(user(new AppUserDetails(technician)))).andExpect(status().isConflict());
+    }
     @Test void claimStartResolveAndReadHistory() throws Exception {
         String base = "/api/reports/" + report.getId();
         mvc.perform(post(base + "/claim").with(user(new AppUserDetails(technician))))

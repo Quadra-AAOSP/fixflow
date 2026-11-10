@@ -83,6 +83,8 @@ export type Report = {
   reporterUrgency: Urgency;
   reporterReason: string | null;
   finalUrgency: Urgency | null;
+  calculatedUrgency?: Urgency | null;
+  participationCount?: number;
   status: ReportStatus;
   assignedTechnicianId: number | null;
   editable: boolean;

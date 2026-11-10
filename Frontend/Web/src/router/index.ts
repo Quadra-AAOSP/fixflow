@@ -4,11 +4,14 @@ import { shopManagerRouteAllowed, workspaceRoles } from '@/utils/workspaceAccess
 import { accountHome } from '@/utils/navigation';
 
 const routes: RouteRecordRaw[] = [
+  { path: '/welcome', name: 'landing', meta: { public: true }, component: () => import('@/views/public/LandingView.vue') },
+  ...(['reporters', 'site-admins', 'technicians'] as const).map(audience => ({ path: `/for/${audience}`, name: `landing-${audience}`, meta: { public: true }, props: { audience }, component: () => import('@/views/public/LandingView.vue') })),
+  { path: '/agreements/technician/draft-2026-11-03', redirect: '/agreements/technician/2026-11-03' },
+  { path: '/agreements/technician/2026-11-03', name: 'technician-agreement', component: () => import('@/views/auth/TechnicianAgreementView.vue') },
   { path: '/request-site', name: 'request-site', component: () => import('@/views/auth/SiteApplicationView.vue') },
   { path: '/site-application', name: 'site-application-status', component: () => import('@/views/auth/SiteApplicationView.vue') },
   { path: '/application-access', name: 'application-access', meta: { requiresAuth: true }, props: { applicationOnly: true }, component: () => import('@/views/app/AdminApplicationView.vue') },
   { path: '/setup-site-admin', name: 'site-admin-setup', component: () => import('@/views/auth/SiteApplicationView.vue') },
-  { path: '/agreements/technician/draft-2026-11-03', name: 'technician-agreement-draft', component: () => import('@/views/auth/TechnicianAgreementView.vue') },
   { path: '/shop', component: () => import('@/layouts/ShopLayout.vue'), children: [
     { path: '', name: 'shop', component: () => import('@/views/app/ShopView.vue') },
     { path: 'orders/:orderId', name: 'shop-order', meta: { requiresAuth: true }, component: () => import('@/views/app/ShopOrderView.vue') },
@@ -19,10 +22,10 @@ const routes: RouteRecordRaw[] = [
   ] },
   { path: '/preview', redirect: '/' },
   { path: '/access-policy', component: () => import('@/layouts/AuthLayout.vue'), children: [{ path: '', name: 'access-policy', component: () => import('@/views/auth/AccessPolicyView.vue') }] },
-  { path: '/login', component: () => import('@/layouts/AuthLayout.vue'), meta: { guest: true }, children: [
+  { path: '/login', component: () => import('@/layouts/AuthLayout.vue'), meta: { guest: true, public: true }, children: [
     { path: '', name: 'login', component: () => import('@/views/auth/LoginView.vue') },
   ] },
-  { path: '/register', component: () => import('@/layouts/AuthLayout.vue'), meta: { guest: true }, children: [
+  { path: '/register', component: () => import('@/layouts/AuthLayout.vue'), meta: { guest: true, public: true }, children: [
     { path: '', name: 'register', component: () => import('@/views/auth/RegisterView.vue') },
   ] },
   { path: '/', component: () => import('@/layouts/AppLayout.vue'), meta: { requiresAuth: true }, children: [
@@ -38,6 +41,8 @@ const routes: RouteRecordRaw[] = [
     { path: 'sites/:siteId/subsites', name: 'subsites', meta: { roles: [...workspaceRoles.sites] }, component: () => import('@/views/app/SubsitesView.vue') },
     { path: 'assignments', name: 'assignments', meta: { roles: [...workspaceRoles.assignments] }, component: () => import('@/views/app/AssignmentsView.vue') },
     { path: 'technician', name: 'technician', meta: { roles: ['technician'] }, component: () => import('@/views/app/TechnicianView.vue') },
+    { path: 'technician/marketplace', name: 'technician-marketplace', meta: { roles: ['technician'] }, component: () => import('@/views/app/TechnicianMarketplaceView.vue') },
+    { path: 'building-suggestions', name: 'building-suggestions', meta: { roles: ['reporter'] }, component: () => import('@/views/app/BuildingSuggestionsView.vue') },
     { path: 'marketplace', name: 'marketplace', meta: { roles: [...workspaceRoles.marketplace] }, component: () => import('@/views/app/MarketplaceView.vue') },
     { path: 'technician/invitations', name: 'technician-invitations', meta: { roles: ['technician'] }, component: () => import('@/views/app/TechnicianInvitationsView.vue') },
     { path: 'site-rules', name: 'site-rules', meta: { roles: [...workspaceRoles.team] }, component: () => import('@/views/app/SiteRulesView.vue') },
@@ -48,6 +53,10 @@ const routes: RouteRecordRaw[] = [
   ] },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
+// Public access is opt-in. New content routes require an account by default.
+for (const route of routes) {
+  if (!route.meta?.public) route.meta = { ...route.meta, requiresAuth: true };
+}
 export function createAppRouter(history: RouterHistory = createWebHistory()) {
   const router = createRouter({ history, routes, scrollBehavior(to) {
     return to.hash ? { el: to.hash, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' } : { top: 0 };
@@ -55,7 +64,8 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
   router.beforeEach(async to => {
     const auth = useAuthStore();
     await auth.hydrate();
-    if (to.meta.requiresAuth && !auth.isAuthenticated) return { name: 'login', query: { redirect: to.fullPath } };
+    if (to.name === 'home' && !auth.isAuthenticated) return { name: 'landing' };
+    if (!to.meta.public && !auth.isAuthenticated) return { name: 'landing', query: { redirect: to.fullPath } };
     if (auth.user?.applicationOnly) return to.name === 'application-access' || { name: 'application-access' };
     if (to.name === 'application-access') return accountHome(auth.user);
     if (to.meta.guest && auth.isAuthenticated) return accountHome(auth.user);

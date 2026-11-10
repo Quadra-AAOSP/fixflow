@@ -86,7 +86,7 @@ async function submit() {
           <strong>{{ t('Applicant #{id}', { id: application.userId }) }}</strong>
           <p>{{ t('Site: {site} (ID {id})', { site: data.siteName(application.siteId), id: application.siteId }) }}</p>
           <p>{{ t('Applied {date}', { date: formatDate(application.createdAt, true) }) }}</p>
-          <div class="flex gap-3 mt-3">
+          <div class="action-row mt-3">
             <button type="button" class="report-issue-button" :disabled="applicationsLoading || decidingId !== null" @click="decide(application.id, 'approve')">{{ t("Approve") }}</button>
             <button type="button" class="text-action" :disabled="applicationsLoading || decidingId !== null" @click="decide(application.id, 'reject')">{{ t("Reject") }}</button>
           </div>

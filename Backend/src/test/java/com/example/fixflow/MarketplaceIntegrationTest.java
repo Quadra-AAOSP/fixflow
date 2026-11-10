@@ -26,15 +26,18 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-@SpringBootTest
+@SpringBootTest(properties = {"fixflow.technician-terms.version=test-v1", "fixflow.technician-terms.document-url=https://example.test/terms"})
 class MarketplaceIntegrationTest {
     private static final String LISTINGS = "/api/marketplace/listings";
     private static final String APPLICATION = "{\"note\":\"Available tomorrow\"}";
     private static final String SELECT = "{\"safetyConfirmed\":true}";
+    @Autowired TechnicianTermsAcceptanceRepository termsFixture;
+    @Autowired SiteTechnicianVettingRepository vettingFixture;
     @Autowired WebApplicationContext context;
     @Autowired SiteRepository sites;
     @Autowired UserRepository users;
     @Autowired ReportRepository reports;
+    @Autowired ReportReporterRepository participants;
     @Autowired MarketplaceApplicationRepository applications;
     @Autowired TechnicianVerificationRepository verification;
     @Autowired TechnicianContractRepository contracts;
@@ -52,6 +55,7 @@ class MarketplaceIntegrationTest {
         foreign = account(UserRole.admin, site());
         reporter = account(UserRole.reporter, site);
         technician = verifiedTechnician();
+        VettingFixture.eligible(technician, site, admin, termsFixture, verification, vettingFixture);
         other = account(UserRole.technician, null);
         report = new Report();
         report.setSite(site);
@@ -63,6 +67,7 @@ class MarketplaceIntegrationTest {
         report.setSpecialty("Confidential specialty sentinel");
         report.setReporterUrgency(Urgency.medium);
         report = reports.save(report);
+        var participant = new ReportReporter(); participant.setReportId(report.getId()); participant.setUserId(reporter.getId()); participants.save(participant);
     }
 
     @Test void listingDoesNotGrantReportAccessUntilVerifiedTechnicianAccepts() throws Exception {
@@ -99,7 +104,7 @@ class MarketplaceIntegrationTest {
                 .andExpect(status().isForbidden());
         postJson(reportUrl + "/start", technician, null).andExpect(status().isOk());
         postJson(reportUrl + "/resolve", technician, "{\"description\":\"Repaired fixture\"}").andExpect(status().isOk());
-        postJson(reportUrl + "/confirm", admin, null).andExpect(status().isOk());
+        postJson(reportUrl + "/confirm", reporter, "{\"signedName\":\"Admin\"}").andExpect(status().isOk());
         Long resolution = resolutions.findByReport_IdOrderByIdAsc(report.getId()).getFirst().getId();
         postJson(reportUrl + "/ratings", admin, "{\"resolutionId\":" + resolution + ",\"score\":5}")
                 .andExpect(status().isOk()).andExpect(jsonPath("ratedByCurrentUser").value(true));
@@ -115,6 +120,7 @@ class MarketplaceIntegrationTest {
 
     @Test void expiredOfferCannotActivateAndNextApplicantCanBeSelected() throws Exception {
         User next = verifiedTechnician();
+        VettingFixture.eligible(next, report.getSite(), admin, termsFixture, verification, vettingFixture);
         String listing = LISTINGS + "/" + publish();
         int firstId = apply(listing, technician);
         String first = listing + "/applications/" + firstId;
@@ -130,6 +136,7 @@ class MarketplaceIntegrationTest {
 
     @Test void concurrentSelectionsHaveOneWinnerAndSuspensionPreventsAcceptance() throws Exception {
         User next = verifiedTechnician();
+        VettingFixture.eligible(next, report.getSite(), admin, termsFixture, verification, vettingFixture);
         String listing = LISTINGS + "/" + publish();
         String first = listing + "/applications/" + apply(listing, technician);
         String second = listing + "/applications/" + apply(listing, next);
@@ -225,6 +232,7 @@ class MarketplaceIntegrationTest {
         assertEquals(technician.getId(), reports.findById(report.getId()).orElseThrow().getAssignedTechnician().getId());
     }
     @Test void aContractedClaimPreventsAcceptingTheMarketplaceOffer() throws Exception {
+        VettingFixture.eligible(other, report.getSite(), admin, termsFixture, verification, vettingFixture);
         var contract = new TechnicianContract();
         contract.setSite(report.getSite());
         contract.setTechnician(other);
@@ -300,3 +308,4 @@ class MarketplaceIntegrationTest {
         return account;
     }
 }
+

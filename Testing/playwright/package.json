@@ -1,0 +1,18 @@
+{
+  "name": "fixflow-playwright",
+  "private": true,
+  "version": "1.0.0",
+  "description": "FixFlow Web end-to-end workflow suite",
+  "scripts": {
+    "test": "playwright test",
+    "test:list": "playwright test --list",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^22.15.29",
+    "typescript": "^5.8.3"
+  }
+}

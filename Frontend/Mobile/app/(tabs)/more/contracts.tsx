@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { ArrowRight, Check, Handshake, ShieldCheck } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
+import { SiteVetting } from '@/components/technician/SiteVetting';
 import { Card } from '@/components/ui/Card';
 import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
@@ -194,6 +195,7 @@ export default function ContractsScreen() {
                       <Text className="mt-0.5 text-[10px] text-dashboard-caption">
                         {formatDate(contract.createdAt, true)}
                       </Text>
+                      <SiteVetting siteId={contract.siteId} technicianId={contract.technicianId} admin={isAdmin} />
                     </View>
                     {isAdmin ? (
                       <Pressable
@@ -564,3 +566,6 @@ function AdminView({ t }: { t: TranslateFn }) {
     </Card>
   );
 }
+
+
+

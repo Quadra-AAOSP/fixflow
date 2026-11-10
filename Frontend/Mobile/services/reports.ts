@@ -86,6 +86,11 @@ export function joinReport(id: number): Promise<Report> {
   return api.post<Report>(endpoints.reports.join(id));
 }
 
+/** Non-creator participants can leave; the server recalculates join-based urgency. */
+export function leaveReport(id: number): Promise<Report> {
+  return api.post<Report>(endpoints.reports.leave(id));
+}
+
 export function listReporters(id: number): Promise<ReportReporter[]> {
   return api.get<ReportReporter[]>(endpoints.reports.reporters(id));
 }

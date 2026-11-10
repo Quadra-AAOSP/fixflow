@@ -46,19 +46,14 @@ import {
   getReport,
   getVisionJobStatus,
   joinReport,
+  leaveReport,
   listReporters,
   listReportHistory,
+  overrideUrgency,
   reopenReport,
   triggerVisionProcessing,
   getReportPhotos,
 } from '@/services/reports';
-
-// NOTE: The backend does not currently have a dedicated 'leaveReport' endpoint.
-// Required backend operation:
-// DELETE /api/reports/{id}/reporters/{reporterId}
-// Authorization: Only the reporter themselves or a site admin/super admin
-// Expected behavior: Removes the reporter from the report's reporter list
-// If implemented, add a leaveReport function to the reports service and implement the UI for it.
 import { useCurrentSite } from '@/stores/site';
 import { getPhotoSignedUrl, protectedPhotoPath, readProtectedPhoto } from '@/services/photos';
 import {
@@ -119,6 +114,10 @@ export default function ReportDetailScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [overrideValue, setOverrideValue] = useState<Urgency>('medium');
+  const [overrideReason, setOverrideReason] = useState('');
+  const [overriding, setOverriding] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [ranking, setRanking] = useState<TechnicianRanking | null>(null);
   const [rankingMode, setRankingMode] = useState<RankingMode>('STANDARD');
@@ -547,6 +546,51 @@ export default function ReportDetailScreen() {
     }
   }
 
+  async function onLeave() {
+    setActionError(null);
+    setActionMessage(null);
+    setLeaving(true);
+    try {
+      const updated = await leaveReport(reportId);
+      setReport(updated);
+      setActionMessage(t('reports.detail.leftSuccess'));
+      try {
+        setReporters(await listReporters(reportId));
+      } catch {
+        setReporters(null);
+      }
+    } catch (err) {
+      setActionError(
+        toErrorMessage(err, { fallback: t('reports.detail.couldNotLeave') }),
+      );
+    } finally {
+      setLeaving(false);
+    }
+  }
+
+  async function onOverrideUrgency() {
+    const reason = overrideReason.trim();
+    if (!reason || reason.length > 500) {
+      setActionError(t('reports.detail.overrideReasonRequired'));
+      return;
+    }
+    setActionError(null);
+    setActionMessage(null);
+    setOverriding(true);
+    try {
+      const updated = await overrideUrgency(reportId, overrideValue, reason);
+      setReport(updated);
+      setOverrideReason('');
+      setActionMessage(t('reports.detail.overrideSuccess'));
+    } catch (err) {
+      setActionError(
+        toErrorMessage(err, { fallback: t('reports.detail.couldNotOverride') }),
+      );
+    } finally {
+      setOverriding(false);
+    }
+  }
+
   async function onAssign() {
     setActionError(null);
     setActionMessage(null);
@@ -772,18 +816,25 @@ export default function ReportDetailScreen() {
             void listReportHistory(reportId).then(setHistory).catch(() => {});
           }}
             onDeleted={() => router.replace('/reports')} />
-          {reporters && reporters.some(r => r.userId === user?.id) && (
+          {joined && user?.role === 'reporter' && user.id !== report.createdByUserId ? (
             <Card className="mb-4">
               <View className="flex-row items-center justify-between px-4 py-3">
-                <Text className="text-[12px] text-ink">
+                <Text className="flex-1 pr-3 text-[12px] text-ink">
                   {t('reports.detail.youAreJoined')}
                 </Text>
-                <Text className="text-[10px] text-tone-danger">
-                  {t('reports.detail.leaveReportNotAvailable')}
-                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: leaving, busy: leaving }}
+                  disabled={leaving}
+                  onPress={onLeave}
+                >
+                  <Text className="text-[12px] font-semibold text-tone-danger">
+                    {leaving ? t('reports.detail.leaving') : t('reports.detail.leaveButton')}
+                  </Text>
+                </Pressable>
               </View>
             </Card>
-          )}
+          ) : null}
         </View>
 
         <ReportTimeline items={history} />
@@ -1001,6 +1052,18 @@ export default function ReportDetailScreen() {
             value={t(urgencyLabels[report.reporterUrgency])}
           />
           <DefinitionRow
+            label={t('reports.detail.definition.calculatedUrgency')}
+            value={
+              report.calculatedUrgency
+                ? t(urgencyLabels[report.calculatedUrgency])
+                : t('reports.detail.definition.notDetermined')
+            }
+          />
+          <DefinitionRow
+            label={t('reports.detail.definition.participants')}
+            value={String(report.participationCount ?? reporters?.length ?? 1)}
+          />
+          <DefinitionRow
             label={t('reports.detail.definition.aiUrgency')}
             value={
               report.aiUrgency ? t(urgencyLabels[report.aiUrgency]) : t('reports.detail.definition.notClassified')
@@ -1031,6 +1094,49 @@ export default function ReportDetailScreen() {
             value={String(report.reopenCount)}
           />
         </Card>
+
+        {isOperator && report.status !== 'confirmed' ? (
+          <Card className="mb-4">
+            <Text className="mb-2 text-[15px] font-semibold text-ink" style={{ letterSpacing: -0.3 }}>
+              {t('reports.detail.overrideTitle')}
+            </Text>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              {t('reports.detail.overrideBody')}
+            </Text>
+            <Picker
+              label={t('reports.detail.overrideUrgency')}
+              value={overrideValue}
+              onChange={value => setOverrideValue(value as Urgency)}
+              options={(Object.keys(urgencyLabels) as Urgency[]).map(value => ({
+                value,
+                label: t(urgencyLabels[value]),
+              }))}
+            />
+            <TextField
+              label={t('reports.detail.overrideReason')}
+              value={overrideReason}
+              onChangeText={setOverrideReason}
+              maxLength={500}
+              multiline
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: overriding, busy: overriding }}
+              disabled={overriding}
+              onPress={onOverrideUrgency}
+              className="mt-2 flex-row items-center justify-center rounded-[11px] border px-4 py-3 active:opacity-90"
+              style={{
+                backgroundColor: dashboardColors.ctaBg,
+                borderColor: dashboardColors.ctaBorder,
+                opacity: overriding ? 0.55 : 1,
+              }}
+            >
+              <Text className="text-[13px] font-semibold" style={{ color: dashboardColors.ctaText }}>
+                {overriding ? t('reports.detail.overriding') : t('reports.detail.overrideSave')}
+              </Text>
+            </Pressable>
+          </Card>
+        ) : null}
 
         {actionMessage ? (
           <View className="mb-3 rounded-md px-3 py-2" style={{ backgroundColor: dashboardColors.statMintSoft }}>

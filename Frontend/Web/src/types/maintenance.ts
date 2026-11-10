@@ -24,7 +24,7 @@ export interface Report {
   visibility?: ReportVisibility;
   id: number; siteId: number | null; subsiteId: number | null; createdByUserId: number | null; createdByName: string | null;
   description: string; address: string | null; category: string; specialty: string | null;
-  aiUrgency: Urgency | null; reporterUrgency: Urgency; reporterReason: string | null; finalUrgency: Urgency | null;
+  aiUrgency: Urgency | null; reporterUrgency: Urgency; reporterReason: string | null; finalUrgency: Urgency | null; calculatedUrgency?: Urgency | null; participationCount?: number;
   status: ReportStatus; assignedTechnicianId: number | null; editable: boolean; reopenCount: number;
   createdAt: string; updatedAt: string;
   policy?: {

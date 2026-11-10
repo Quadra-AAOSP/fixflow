@@ -1,17 +1,27 @@
 <script setup lang="ts">
 import { useLocale } from '@/i18n';
+import { onMounted, ref } from 'vue';
+import { request } from '@/services/api';
 import LanguageSelector from '@/components/ui/LanguageSelector.vue';
-import { TECHNICIAN_AGREEMENT_DRAFT_VERSION, technicianAgreementSections } from '@/constants/technicianAgreement';
+import { TECHNICIAN_AGREEMENT_VERSION, technicianAgreementSections } from '@/constants/technicianAgreement';
 const { t } = useLocale();
+const isCurrent = ref(false);
+onMounted(async () => {
+  try {
+    const current = await request<{ currentVersion: string | null; documentUrl: string | null }>('/api/technician-terms/current');
+    const url = current.documentUrl ? new URL(current.documentUrl, window.location.origin) : null;
+    isCurrent.value = current.currentVersion === TECHNICIAN_AGREEMENT_VERSION && url?.origin === window.location.origin && url.pathname === '/agreements/technician/2026-11-03';
+  } catch { /* The document remains available even when status cannot be checked. */ }
+});
 </script>
 <template>
   <main class="agreement-page">
     <LanguageSelector />
     <RouterLink class="text-action" to="/">← {{ t('Return to workspace') }}</RouterLink>
     <article aria-labelledby="agreement-title">
-      <p class="agreement-status">{{ t('Draft for review') }} · {{ TECHNICIAN_AGREEMENT_DRAFT_VERSION }}</p>
+      <p class="agreement-status">{{ t(isCurrent ? 'Current agreement' : 'Agreement version') }} · {{ TECHNICIAN_AGREEMENT_VERSION }}</p>
       <h1 id="agreement-title">{{ t('Technician participation agreement') }}</h1>
-      <p role="note" class="agreement-notice">{{ t('This draft is awaiting review and is not available for acceptance.') }}</p>
+      <p v-if="!isCurrent" role="note" class="agreement-notice">{{ t('Check the technician terms panel for the current agreement and acceptance status.') }}</p>
       <section v-for="(section, index) in technicianAgreementSections" :key="section.title">
         <h2>{{ index + 1 }}. {{ t(section.title) }}</h2>
         <p>{{ t(section.body) }}</p>

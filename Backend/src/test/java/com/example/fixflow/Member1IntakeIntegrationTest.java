@@ -37,9 +37,12 @@ import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.jayway.jsonpath.JsonPath;
 
-@SpringBootTest
+@SpringBootTest(properties = {"fixflow.technician-terms.version=test-v1", "fixflow.technician-terms.document-url=https://example.test/terms"})
 class Member1IntakeIntegrationTest {
 
+	@Autowired private com.example.fixflow.repository.TechnicianTermsAcceptanceRepository termsFixture;
+	@Autowired private com.example.fixflow.repository.TechnicianVerificationRepository verificationFixture;
+	@Autowired private com.example.fixflow.repository.SiteTechnicianVettingRepository vettingFixture;
 	@Autowired
 	private WebApplicationContext webApplicationContext;
 	@Autowired
@@ -72,6 +75,7 @@ class Member1IntakeIntegrationTest {
 		reporter = createUser("m1-reporter", UserRole.reporter, site);
 		admin = createUser("m1-admin", UserRole.admin, site);
 		technician = createUser("m1-tech", UserRole.technician, null);
+        VettingFixture.eligible(technician, site, admin, termsFixture, verificationFixture, vettingFixture);
 	}
 
 	@Test
@@ -135,12 +139,22 @@ class Member1IntakeIntegrationTest {
 		var visible = reportRepository.findById(publicId.longValue()).orElseThrow();
 		visible.setAddress("hiddenaddressneedle");
 		reportRepository.saveAndFlush(visible);
+		var legacyResult = createOpenReport(reporter, "Legacy search fixture");
+		Number legacyId = JsonPath.read(legacyResult.getResponse().getContentAsString(), "$.id");
+		var legacy = reportRepository.findById(legacyId.longValue()).orElseThrow();
+		legacy.setCategory("removed_category");
+		reportRepository.saveAndFlush(legacy);
 		var privateResult = createOpenReport(reporter, "Private search fixture");
 		Number privateId = JsonPath.read(privateResult.getResponse().getContentAsString(), "$.id");
 		var hidden = reportRepository.findById(privateId.longValue()).orElseThrow();
 		hidden.setVisibility(com.example.fixflow.domain.ReportVisibility.PRIVATE);
 		reportRepository.saveAndFlush(hidden);
 		String base = "{\"siteId\":" + site.getId() + ",\"size\":1,\"filters\":";
+
+		mockMvc.perform(post("/api/reports/search").contentType(MediaType.APPLICATION_JSON)
+				.content(base + "{\"category\":\"invented\"}}") .with(user(new AppUserDetails(other))))
+				.andExpect(status().isBadRequest());
+
 		mockMvc.perform(post("/api/reports/search").contentType(MediaType.APPLICATION_JSON)
 				.content(base + "{}}") .with(user(new AppUserDetails(other))))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(1))
@@ -193,7 +207,22 @@ class Member1IntakeIntegrationTest {
 		mockMvc.perform(post("/api/reports/{id}/join", reportId).with(user(new AppUserDetails(peer))))
 				.andExpect(status().isOk());
 		mockMvc.perform(post("/api/reports/{id}/join", reportId).with(user(new AppUserDetails(peer))))
-				.andExpect(status().isOk());
+				.andExpect(status().isOk()).andExpect(jsonPath("$.participationCount").value(2));
+        User peer2 = createUser("m1-peer2", UserRole.reporter, site);
+        User peer3 = createUser("m1-peer3", UserRole.reporter, site);
+        User peer4 = createUser("m1-peer4", UserRole.reporter, site);
+        for (User participant : java.util.List.of(peer2, peer3, peer4)) {
+            mockMvc.perform(post("/api/reports/{id}/join", reportId).with(user(new AppUserDetails(participant))))
+                .andExpect(status().isOk());
+        }
+        mockMvc.perform(post("/api/reports/{id}/join", reportId).with(user(new AppUserDetails(peer4))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.participationCount").value(5))
+            .andExpect(jsonPath("$.calculatedUrgency").value("high"));
+        mockMvc.perform(post("/api/reports/{id}/leave", reportId).with(user(new AppUserDetails(reporter))))
+            .andExpect(status().isConflict());
+        mockMvc.perform(post("/api/reports/{id}/leave", reportId).with(user(new AppUserDetails(peer4))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.participationCount").value(4))
+            .andExpect(jsonPath("$.calculatedUrgency").value("medium"));
 
 		var report = reportRepository.findById(reportId.longValue()).orElseThrow();
 		report.setStatus(ReportStatus.confirmed);

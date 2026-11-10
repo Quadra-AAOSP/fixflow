@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { House, FileText, MapPin, Users, ShieldCheck, Handshake, Wrench, ShoppingBag, Bell, Ellipsis, ChevronDown } from '@lucide/vue';
+import { House, FileText, MapPin, Users, ShieldCheck, Handshake, Wrench, ShoppingBag, Ellipsis, ChevronDown } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
 import { accountHome } from '@/utils/navigation';
@@ -13,7 +13,7 @@ const route = useRoute();
 const data = useMaintenanceStore();
 const { t } = useLocale();
 const emit = defineEmits<{ navigate: [] }>();
-const icons: Record<string, typeof House> = { home: House, reports: FileText, sites: MapPin, assignments: Users, contracts: Handshake, technician: Wrench, invitations: Bell, team: ShieldCheck, shop: ShoppingBag, profile: Users };
+const icons: Record<string, typeof House> = { home: House, reports: FileText, sites: MapPin, assignments: Users, contracts: Handshake, technician: Wrench, team: ShieldCheck, shop: ShoppingBag, profile: Users };
 const navigation = computed(() => workspaceNavigation(user.value, !!data.selectedSite));
 const overflow = ref<HTMLDetailsElement>();
 

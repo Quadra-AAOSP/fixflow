@@ -19,7 +19,7 @@ const mine = computed(() => data.reports.filter(report =>
     <div class="card-heading"><div><h1>{{ t('My reports') }}</h1><p>{{ t('Follow issues you reported or joined.') }}</p></div>
       <RouterLink v-if="data.canCreate && data.selectedSite" to="/reports/new" class="report-issue-button"><Plus :size="19" />{{ t('New report') }}</RouterLink>
     </div>
-    <p class="dialog-intro">{{ t('Browse your community’s reports to find an existing issue before creating another.') }} <RouterLink class="text-action" to="/reports"><FileText :size="16" />{{ t('Browse Reports') }}</RouterLink></p>
+    <p class="dialog-intro">{{ t('My reports includes issues you reported or joined. Browse all site reports to find an existing issue before creating another.') }} <RouterLink class="text-action" to="/reports"><FileText :size="16" />{{ t('Browse all site reports') }}</RouterLink></p>
     <ReportTable v-if="data.loading" :reports="[]" :loading-label="t('Loading reports…')" />
     <p v-else-if="data.reportsError" role="alert" class="live-error">{{ t(data.reportsError) }} <button type="button" @click="data.refresh()">{{ t('Retry') }}</button></p>
     <template v-else-if="data.reportsLoaded"><ReportTable v-if="mine.length" :reports="mine" /><p v-else class="live-empty">{{ t('You have not reported or joined any issues at this site yet.') }}</p></template>

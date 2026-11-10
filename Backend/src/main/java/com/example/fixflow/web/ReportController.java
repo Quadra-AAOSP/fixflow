@@ -143,6 +143,11 @@ public class ReportController {
 		return reportService.listReporters(id, principal);
 	}
 
+	@PostMapping("/{id}/leave")
+	public ReportResponse leave(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
+		return reportService.leave(id, principal);
+	}
+
 	@PostMapping("/{id}/assign")
 	public ReportResponse assign(
 			@PathVariable Long id,

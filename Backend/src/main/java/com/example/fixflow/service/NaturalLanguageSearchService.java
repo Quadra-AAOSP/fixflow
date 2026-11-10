@@ -65,7 +65,8 @@ public class NaturalLanguageSearchService {
             String status = enumValue(node, "status", ReportStatus.values());
             String urgency = enumValue(node, "urgency", Urgency.values());
             String category = text(node, "category", 128);
-            if (category != null && !categories.contains(category)) category = null;
+            if (!node.path("category").isMissingNode() && !node.path("category").isNull()
+                    && (category == null || !categories.contains(category))) return fallback(query);
             String from = date(node, "from"), to = date(node, "to");
             if (from != null && to != null && from.compareTo(to) > 0) { from = null; to = null; }
             Boolean canJoin = node.path("canJoin").isBoolean() && node.path("canJoin").booleanValue() ? true : null;

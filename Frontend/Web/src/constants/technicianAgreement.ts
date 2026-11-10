@@ -1,5 +1,5 @@
-export const TECHNICIAN_AGREEMENT_DRAFT_VERSION = 'draft-2026-11-03';
-// Review content only: never substitute this version for the server-configured active terms.
+export const TECHNICIAN_AGREEMENT_VERSION = '2026-11-03';
+// Team-approved web document. Runtime acceptance uses the backend-configured version.
 export const technicianAgreementSections = [
   {
     "title": "Participation and site contracts",
@@ -31,7 +31,7 @@ export const technicianAgreementSections = [
   },
   {
     "title": "Changes and acceptance",
-    "body": "Review the published version before accepting. The service records acceptance against its configured version and document URL. Reading this draft does not record acceptance, grant access or replace a site contract. Material changes should be published as a new version for review."
+    "body": "Review the published version before accepting. The service records acceptance against its configured version and document URL. Reading this document does not record acceptance, grant access or replace a site contract. Material changes should be published as a new version for review."
   },
   {
     "title": "Items to finalize before publication",

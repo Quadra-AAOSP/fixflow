@@ -67,6 +67,47 @@ it('keeps the basket and retry key when the real service rejects an invalid paym
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(fetch.mock.calls[0]![1].headers.get('Idempotency-Key')).toBe(fetch.mock.calls[1]![1].headers.get('Idempotency-Key'));
 });
+
+it('gives visible feedback when adding a product', async () => {
+  await render();
+  await wrapper.get('.shop-add').trigger('click'); await flushPromises();
+  expect(wrapper.get('.shop-feedback').text()).toContain('Tool added to your basket');
+  expect(wrapper.get('.shop-feedback').classes()).not.toContain('sr-only');
+  expect(useShopStore().count).toBe(1);
+});
+it('gives technicians visible feedback when they add a product to their basket', async () => {
+  useAuthStore().user!.role = 'technician';
+  await render();
+  await wrapper.get('.shop-add').trigger('click'); await flushPromises();
+  expect(wrapper.get('.shop-feedback').text()).toContain('Tool added to your basket');
+  expect(useShopStore().count).toBe(1);
+});
+it('hides the in-stock filter for all-stock catalogues and shows stock counts', async () => {
+  await render();
+  expect(wrapper.text()).not.toContain('In stock only');
+  expect(wrapper.get('.shop-product-bottom small').text()).toBe('3 available');
+});
+it('shows availability without an in-stock filter when catalogue availability is mixed', async () => {
+  useShopStore().catalog!.products.push({ ...product, id: 'empty', name: 'Empty tool', stock: 0 });
+  await render();
+  expect(wrapper.text()).not.toContain('In stock only');
+  expect(wrapper.findAll('.shop-product-bottom small').map(stock => stock.text())).toContain('Out of stock');
+});
+it('shows a simulation step and waits for an explicit payment action', async () => {
+  await render(); useShopStore().setQuantity('tool', 1); await flushPromises();
+  vi.mocked(api.createOrder).mockResolvedValue({ orderId: 'dev-fixture', totalMinor: 1000, paymentProvider: 'dev', checkoutUrl: 'http://localhost/dev' });
+  const checkout = wrapper.findAll('.shop-primary').find(button => button.text() === 'Checkout')!;
+  await checkout.trigger('click'); await flushPromises();
+  expect(api.completeDevPayment).not.toHaveBeenCalled();
+  const simulation = wrapper.get('dialog[aria-labelledby="simulation-title"]');
+  expect(simulation.attributes('open')).toBeDefined();
+  expect(simulation.text()).toContain('No money will be charged');
+  vi.mocked(api.completeDevPayment).mockRejectedValue(new Error('Simulation unavailable'));
+  await simulation.get('.shop-primary').trigger('click'); await flushPromises();
+  expect(api.completeDevPayment).toHaveBeenCalledWith('dev-fixture');
+  expect(simulation.get('[role="alert"]').text()).toBe('Simulation unavailable');
+  expect(simulation.attributes('open')).toBeDefined();
+});
 it('shows the fulfillment stage in buyer order history', async () => {
   vi.mocked(api.listOrders).mockResolvedValue(['ordered','processing','shipped'].map((fulfillmentStatus, i) => ({orderId:`order-${i}`,status:'paid',fulfillmentStatus,currency:'USD',minorUnitDigits:2,totalMinor:1000,items:[]})) as unknown as import('../src/types/shop').ShopOrder[]);
   await render(); await wrapper.findAll('button').find(b => b.text() === 'Orders')!.trigger('click'); await flushPromises();

@@ -62,10 +62,19 @@ Backend/dev/
 Backend/dev/test-results/20261021-081713-424/INTERPRETATION.md
 .trae/
 fixflow-task-prd(1)(1).md
-Testing/
+# Playwright e2e lives here; ignore runner output only.
+Testing/**
+!Testing/playwright/
+!Testing/playwright/**
+Testing/playwright/node_modules/
+Testing/playwright/test-results/
+Testing/playwright/playwright-report/
+Testing/playwright/blob-report/
+Testing/playwright/.auth/
 docs/superpowers/
 Backend/SITE_ONBOARDING.md
 Backend/TECHNICIAN_VERIFICATION_API.md
 docs/
 Backend/data/
 Backend/docker/
+docs/

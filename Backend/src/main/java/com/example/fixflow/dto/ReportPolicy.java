@@ -19,8 +19,7 @@ public record ReportPolicy(String statusGroup, Urgency effectiveUrgency, boolean
             case assigned, in_progress -> "progress";
             default -> "open";
         };
-        Urgency urgency = report.getFinalUrgency() != null
-                ? report.getFinalUrgency() : report.getReporterUrgency();
+        Urgency urgency = report.getEffectiveUrgency();
         boolean unresolved = report.getStatus() != ReportStatus.confirmed
                 && report.getStatus() != ReportStatus.resolved_pending_confirmation;
         return new ReportPolicy(group, urgency, unresolved && (urgency == Urgency.high || urgency == Urgency.critical),

@@ -19,6 +19,8 @@ public class TechnicianTermsController {
     public record AcceptRequest(@NotBlank @Size(max = 64) String version) { }
     private final TechnicianTermsService service;
     public TechnicianTermsController(TechnicianTermsService service) { this.service = service; }
+    @GetMapping("/current")
+    public TechnicianTermsService.CurrentTerms current() { return service.currentTerms(); }
     @GetMapping("/me")
     public TechnicianTermsService.Status me(@AuthenticationPrincipal AppUserDetails actor) {
         return service.status(actor.getId(), actor);

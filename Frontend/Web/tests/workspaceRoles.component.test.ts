@@ -14,11 +14,11 @@ const account: User = { id: 1, role: 'reporter', siteId: 7, firstName: 'Test', l
 beforeEach(() => { setActivePinia(createPinia()); setLocale('en'); });
 describe('role-specific workspace menus', () => {
   it.each([
-    ['reporter', ['/reporter', '/reports', '/sites', '/shop']],
+    ['reporter', ['/reporter', '/building-suggestions', '/sites']],
     ['staff', ['/', '/reports', '/sites', '/assignments', '/shop']],
     ['admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/marketplace', '/site-rules', '/team-access', '/shop']],
     ['super_admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop/manage', '/site-applications', '/technician-verifications', '/shop']],
-    ['technician', ['/technician', '/reports', '/contracts', '/technician/invitations', '/marketplace', '/shop']],
+    ['technician', ['/technician', '/reports', '/contracts', '/marketplace', '/shop']],
     ['shop_manager', ['/shop/dashboard', '/shop/orders-management', '/shop/manage', '/profile']],
   ] as [UserRole, string[]][])('shows only relevant links for %s', (role, expected) => {
     const user = { ...account, role };
@@ -31,7 +31,7 @@ describe('role-specific workspace menus', () => {
     if (role === 'reporter') expect(more).toEqual([]);
   });
   it.each([
-    ['reporter', ['/reporter', '/reports', '/sites']],
+    ['reporter', ['/reporter', '/building-suggestions', '/sites']],
     ['staff', ['/', '/reports', '/assignments']],
     ['admin', ['/', '/reports', '/team-access']],
     ['super_admin', ['/', '/sites']],
