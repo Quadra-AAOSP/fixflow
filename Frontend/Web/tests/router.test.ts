@@ -30,11 +30,11 @@ describe('actual application route guards', () => {
   it.each(['reporter','admin'] as UserRole[])('denies manager orders to %s', async role => { await signIn(role); const router=createAppRouter(createMemoryHistory()); await router.push('/shop/orders-management'); expect(router.currentRoute.value.name).not.toBe('shop-orders-management'); });
   it('allows super admins to manage orders', async () => { await signIn('super_admin'); const router=createAppRouter(createMemoryHistory()); await router.push('/shop/orders-management'); expect(router.currentRoute.value.name).toBe('shop-orders-management'); });
 
-  it.each(['/', '/reports', '/reports/new', '/reports/91', '/sites', '/sites/71/subsites',
-    '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/marketplace', '/profile', '/admin-application'])('sends a signed-out visit to %s to login with its return path', async path => {
+  it.each(['/reports', '/reports/new', '/reports/91', '/sites', '/sites/71/subsites',
+    '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/marketplace', '/profile', '/admin-application'])('sends a signed-out visit to %s to the landing page with its return path', async path => {
     const router = createAppRouter(createMemoryHistory());
     await router.push(path);
-    expect(router.currentRoute.value.name).toBe('login');
+    expect(router.currentRoute.value.name).toBe('landing');
     expect(router.currentRoute.value.query.redirect).toBe(path);
   });
   it.each(['reporter', 'staff', 'technician', 'shop_manager'] as UserRole[])('denies team administration to %s', async role => {
@@ -129,11 +129,12 @@ it.each(['super_admin', 'shop_manager'] as UserRole[])('allows product managemen
   await signIn(role); const router = createAppRouter(createMemoryHistory());
   await router.push('/shop/manage'); expect(router.currentRoute.value.name).toBe('shop-management');
 });
-it('requires sign-in for product management while keeping browsing public', async () => {
+it('requires sign-in for product management and catalogue browsing', async () => {
   const router = createAppRouter(createMemoryHistory());
-  await router.push('/shop/manage'); expect(router.currentRoute.value.name).toBe('login');
+  await router.push('/shop/manage'); expect(router.currentRoute.value.name).toBe('landing');
   expect(router.currentRoute.value.query.redirect).toBe('/shop/manage');
-  await router.push('/shop'); expect(router.currentRoute.value.name).toBe('shop');
+  await router.push('/shop'); expect(router.currentRoute.value.name).toBe('landing');
+  expect(router.currentRoute.value.query.redirect).toBe('/shop');
 });
 it.each(['reporter', 'staff', 'technician', 'shop_manager'] as UserRole[])('denies rule management to %s', async role => {
   await signIn(role); const router = createAppRouter(createMemoryHistory());
@@ -145,7 +146,7 @@ it.each(['admin', 'super_admin'] as UserRole[])('allows rule management for %s',
 });
 it('protects direct site detail URLs for signed-out users', async () => {
   const router = createAppRouter(createMemoryHistory()); await router.push('/sites/7');
-  expect(router.currentRoute.value.name).toBe('login'); expect(router.currentRoute.value.query.redirect).toBe('/sites/7');
+  expect(router.currentRoute.value.name).toBe('landing'); expect(router.currentRoute.value.query.redirect).toBe('/sites/7');
 });
 it.each(['technician', 'shop_manager'] as UserRole[])('keeps site detail out of the %s workspace', async role => {
   await signIn(role); const router = createAppRouter(createMemoryHistory()); await router.push('/sites/7');
@@ -153,9 +154,45 @@ it.each(['technician', 'shop_manager'] as UserRole[])('keeps site detail out of 
 });
 it('requires sign-in to open a direct order detail URL', async () => {
   const router = createAppRouter(createMemoryHistory()); await router.push('/shop/orders/order-a');
-  expect(router.currentRoute.value.name).toBe('login'); expect(router.currentRoute.value.query.redirect).toBe('/shop/orders/order-a');
+  expect(router.currentRoute.value.name).toBe('landing'); expect(router.currentRoute.value.query.redirect).toBe('/shop/orders/order-a');
 });
-it('allows a shop manager to open their order detail page', async () => {
+it('keeps a shop manager out of customer order detail pages', async () => {
   await signIn('shop_manager'); const router = createAppRouter(createMemoryHistory()); await router.push('/shop/orders/order-a');
-  expect(router.currentRoute.value.name).toBe('shop-order');
+  expect(router.currentRoute.value.name).toBe('shop-dashboard');
+});
+
+it('exposes building suggestions to reporters and the hiring marketplace to technicians', async () => {
+  await signIn('reporter'); const router = createAppRouter(createMemoryHistory());
+  await router.push('/building-suggestions'); expect(router.currentRoute.value.name).toBe('building-suggestions');
+  await router.push('/technician/marketplace'); expect(router.currentRoute.value.name).not.toBe('technician-marketplace');
+  await signIn('technician');
+  await router.push('/technician/marketplace'); expect(router.currentRoute.value.name).toBe('technician-marketplace');
+  await router.push('/building-suggestions'); expect(router.currentRoute.value.name).not.toBe('building-suggestions');
+});
+
+it('opens public landing pages for guests while preserving signed-in dashboards', async () => {
+  const router = createAppRouter(createMemoryHistory());
+  await router.push('/'); expect(router.currentRoute.value.name).toBe('landing');
+  for (const path of ['/welcome', '/for/reporters', '/for/site-admins', '/for/technicians']) {
+    await router.push(path); expect(router.currentRoute.value.path).toBe(path);
+  }
+  await signIn('admin'); await router.push('/'); expect(router.currentRoute.value.name).toBe('home');
+});
+
+it.each(['/shop', '/request-site', '/site-application', '/setup-site-admin', '/access-policy', '/agreements/technician/2026-11-03', '/shop/orders/a', '/reports?q=leak#results'])('requires an account for %s', async path => {
+  const router = createAppRouter(createMemoryHistory()); await router.push(path);
+  expect(router.currentRoute.value.name).toBe('landing');
+  expect(router.currentRoute.value.query.redirect).toBe(path);
+});
+it.each(['/login', '/register', '/welcome', '/for/reporters', '/for/site-admins', '/for/technicians'])('keeps the public entry route %s accessible', async path => {
+  const router = createAppRouter(createMemoryHistory()); await router.push(path);
+  expect(router.currentRoute.value.path).toBe(path);
+});
+it('marks every content page outside landing and authentication as protected', () => {
+  const router = createAppRouter(createMemoryHistory());
+  const publicNames = new Set(['landing', 'landing-reporters', 'landing-site-admins', 'landing-technicians', 'login', 'register']);
+  for (const route of router.getRoutes().filter(route => !route.redirect)) {
+    if (publicNames.has(String(route.name)) || route.path === '/login' || route.path === '/register') expect(router.resolve(route.path).meta.public).toBe(true);
+    else expect(router.resolve(route.path).meta.requiresAuth).toBe(true);
+  }
 });

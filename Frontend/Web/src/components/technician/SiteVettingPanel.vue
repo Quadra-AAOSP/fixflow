@@ -45,4 +45,3 @@ async function save(status: 'approved' | 'revoked') {
 </template></section>
 </template>
 <style scoped>label{display:block;margin:10px 0}button{margin:8px}select,input[type=date]{margin-left:8px}</style>
-

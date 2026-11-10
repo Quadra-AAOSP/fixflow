@@ -25,10 +25,10 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
     { to: '/shop/manage', label: 'Product management', icon: 'shop' },
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ];
-  if (role === 'reporter') links.push({ to: '/reporter', label: 'My reports', icon: 'home' });
+  if (role === 'reporter') links.push({ to: '/reporter', label: 'My reports', icon: 'home' }, { to: '/building-suggestions', label: 'My building suggestions', icon: 'sites' });
   else if (role === 'technician') links.push({ to: '/technician', label: 'My workspace', icon: 'technician' });
   else if (workspaceRoles.dashboard.some(value => value === role)) links.push({ to: '/', label: 'Dashboard', icon: 'home' });
-  if (role !== 'technician' || hasSite) links.push({ to: '/reports', label: 'Reports', icon: 'reports' });
+  if (role !== 'reporter' && (role !== 'technician' || hasSite)) links.push({ to: '/reports', label: 'Reports', icon: 'reports' });
   if (workspaceRoles.sites.some(value => value === role)) links.push({ to: '/sites', label: 'Sites', icon: 'sites' });
   if (workspaceRoles.assignments.some(value => value === role)) links.push({ to: '/assignments', label: 'Assignments', icon: 'assignments' });
   if (workspaceRoles.contracts.some(value => value === role)) links.push({ to: '/contracts', label: 'Site contracts', icon: 'contracts' });
@@ -44,7 +44,7 @@ export function workspaceLinks(user: User | null, hasSite: boolean) {
 }
 
 const primaryDestinations: Record<UserRole, string[]> = {
-  reporter: ['/reporter', '/reports', '/sites'],
+  reporter: ['/reporter', '/building-suggestions', '/sites'],
   staff: ['/', '/reports', '/assignments'],
   admin: ['/', '/reports', '/team-access'],
   super_admin: ['/', '/sites'],
@@ -62,5 +62,5 @@ export function workspaceNavigation(user: User | null, hasSite: boolean) {
 
 /** Shared by initial routing and subsequent authenticated role changes. */
 export function shopManagerRouteAllowed(name: unknown) {
-  return ['profile', 'shop-management', 'shop-order', 'shop-dashboard', 'shop-orders-management', 'shop-managed-order'].includes(String(name));
+  return ['profile', 'shop-management', 'shop-dashboard', 'shop-orders-management', 'shop-managed-order'].includes(String(name));
 }

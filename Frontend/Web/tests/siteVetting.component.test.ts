@@ -22,4 +22,3 @@ describe('site vetting selection', () => {
   expect((panel.find('input[type=checkbox]').element as HTMLInputElement).checked).toBe(false);
  });
 });
-

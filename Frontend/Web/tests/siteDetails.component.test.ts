@@ -34,7 +34,8 @@ it('never requests technician contact data or exposes deletion for reporters', a
   useAuthStore().user!.role = 'reporter'; useAuthStore().user!.siteId = 7;
   const { wrapper } = await render();
   expect(api.getSiteTechnicians).not.toHaveBeenCalled();
-  expect(wrapper.text()).not.toContain('tech@example.invalid'); expect(wrapper.text()).not.toContain('Delete site'); wrapper.unmount();
+  expect(wrapper.text()).not.toContain('tech@example.invalid'); expect(wrapper.text()).not.toContain('Delete site');
+  expect(wrapper.text()).not.toContain('Contract status'); expect(wrapper.text()).not.toContain('Contracted'); wrapper.unmount();
 });
 it('requires the exact name and retains details if the server refuses deletion', async () => {
   const { wrapper } = await render();

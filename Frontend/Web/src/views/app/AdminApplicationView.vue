@@ -55,9 +55,9 @@ async function signOut() {
       <p>{{ t('Submitted {date}', { date: formatDate(application.createdAt, true) }) }}</p>
     </div>
     <p v-else>{{ t("No site-admin application is associated with this account.") }}</p>
-    <button type="button" class="registration-link" :disabled="loading" @click="refresh">{{ t("Refresh status") }}</button>
-    <button v-if="applicationOnly" type="button" class="registration-link" :disabled="signingOut" @click="signOut">{{ t('Sign out') }}</button>
-    <RouterLink v-else class="registration-link" to="/">{{ t("Go to your workspace →") }}</RouterLink>
+    <div class="action-row mt-6"><button type="button" class="action-link" :disabled="loading" @click="refresh">{{ t("Refresh status") }}</button>
+    <button v-if="applicationOnly" type="button" class="action-link" :disabled="signingOut" @click="signOut">{{ t('Sign out') }}</button>
+    <RouterLink v-else class="action-link" to="/">{{ t("Go to your workspace →") }}</RouterLink></div>
     <p v-if="signOutError" role="alert">{{ t(signOutError) }}</p>
   </component>
 </template>

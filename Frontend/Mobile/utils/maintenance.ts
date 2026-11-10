@@ -79,6 +79,23 @@ export const effectiveUrgency = (report: Report): Urgency =>
 /** Urgent means high/critical *and* not already resolved. */
 export const isUrgent = (report: Report): boolean => report.policy.urgent;
 
+/**
+ * Statuses a technician may pick an unassigned report up from.
+ * Mirrors `ReportWorkflowService#claim` on the backend.
+ */
+export const CLAIMABLE_STATUSES: ReadonlyArray<ReportStatus> = [
+  'open',
+  'routed',
+  'reopened',
+  'escalated',
+];
+
+/** Unassigned and still waiting for a technician — i.e. an open job. */
+export const isClaimable = (report: Report): boolean =>
+  report.assignedTechnicianId === null &&
+  CLAIMABLE_STATUSES.includes(report.status);
+
+
 export function matchesFilter(report: Report, filter: ReportFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'urgent') return isUrgent(report);

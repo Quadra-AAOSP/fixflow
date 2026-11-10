@@ -51,4 +51,3 @@ async function submit() {
     <ContractApplicationsPanel :initial-site-id="initialSiteId" @contract-created="contractRevision++" />
   </section>
 </template>
-

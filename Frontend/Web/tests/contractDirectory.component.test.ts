@@ -37,7 +37,7 @@ describe('recorded contract directory', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('Contract service unavailable');
     expect(wrapper.text()).not.toContain('No contracts are recorded');
     vi.mocked(api.listSiteContracts).mockResolvedValue([]);
-    await wrapper.get('button').trigger('click'); await flushPromises();
+    await wrapper.findAll('button').find(button => button.text() === 'Refresh contracts')!.trigger('click'); await flushPromises();
     expect(wrapper.text()).toContain('No contracts are recorded for this site.');
   });
   it('discards a late contract response when a super administrator changes sites', async () => {

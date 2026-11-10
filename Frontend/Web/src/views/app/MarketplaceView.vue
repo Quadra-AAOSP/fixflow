@@ -219,4 +219,3 @@ onBeforeUnmount(() => { revision++; listingRequest?.abort(); applicantRequest?.a
 .marketplace-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-block: .75rem; }
 .marketplace-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
-

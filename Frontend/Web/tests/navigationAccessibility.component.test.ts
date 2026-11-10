@@ -8,6 +8,7 @@ import AppLayout from '../src/layouts/AppLayout.vue';
 import { usePageNavigation } from '../src/composables/usePageNavigation';
 import { useAuthStore } from '../src/stores/auth';
 import { useMaintenanceStore } from '../src/stores/maintenance';
+import { useRealtimeStore } from '../src/stores/realtime';
 import { setLocale } from '../src/i18n';
 import * as notifications from '../src/services/notifications';
 const media = { matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() };
@@ -26,6 +27,7 @@ afterEach(() => { wrapper?.unmount(); setLocale('en'); vi.unstubAllGlobals(); vi
 async function render() {
   const Page = { template: '<div><h1>Page</h1><input aria-label="Page field" /></div>' };
   const router = createRouter({ history: createMemoryHistory(), routes: [
+    { path: '/building-suggestions', name: 'building-suggestions', component: Page },
     { path: '/profile', name: 'profile', component: Page }, { path: '/reports', name: 'reports', component: Page },
     { path: '/reports/:id', name: 'report-detail', component: Page }, { path: '/', name: 'home', component: Page },
     { path: '/:pathMatch(.*)*', component: Page },
@@ -51,11 +53,11 @@ describe('workspace keyboard navigation', () => {
   it('closes the mobile drawer and focuses the content landmark after a navigation link', async () => {
     const router = await render();
     await wrapper.get('button[aria-controls]').trigger('click');
-    await wrapper.get('#mobile-navigation a[href="/reports"]').trigger('click'); await flushPromises();
-    expect(router.currentRoute.value.name).toBe('reports');
+    await wrapper.get('#mobile-navigation a[href="/building-suggestions"]').trigger('click'); await flushPromises();
+    expect(router.currentRoute.value.name).toBe('building-suggestions');
     expect(wrapper.get('#mobile-navigation').attributes('open')).toBeUndefined();
     expect(document.activeElement).toBe(wrapper.get('#main-content').element);
-    expect(document.title).toBe('Reports · FixFlow');
+    expect(document.title).toBe('My building suggestions · FixFlow');
     expect(wrapper.get('.skip-link').attributes('href')).toBe('#main-content');
   });
   it('keeps focus in the current control for query or language changes', async () => {
@@ -104,10 +106,10 @@ describe('workspace keyboard navigation', () => {
     expect(document.activeElement).toBe(more.get('summary').element);
   });
 });
-it('does not offer maintenance search or report notifications on the shop-manager profile', async () => {
+it('does not offer maintenance search and retains the shop notification inbox on the shop-manager profile', async () => {
   useAuthStore().user!.role = 'shop_manager'; await render();
   expect(wrapper.find('form[role="search"]').exists()).toBe(false);
-  expect(wrapper.find('button[aria-label="Notifications"]').exists()).toBe(false);
+  expect(wrapper.find('button[aria-label="Notifications"]').exists()).toBe(true);
 });
 it('opens the inbox for a technician without a selected site and displays report changes', async () => {
   useAuthStore().user!.role = 'technician';
@@ -121,7 +123,7 @@ it('opens the inbox for a technician without a selected site and displays report
     hasMore: false,
   });
   await render();
-  await wrapper.get('button.notification-indicator-button').trigger('click');
+  await wrapper.get('button[aria-label^="Notifications"]').trigger('click');
   await flushPromises();
   expect(load).toHaveBeenCalledWith(0);
   const inbox = wrapper.get('dialog[aria-label="Notifications"]');
@@ -137,4 +139,15 @@ it('keeps independent technicians away from unavailable report searches until a 
   data.sites = [{ id: 7, name: 'Accessible fixture', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, createdAt: '', updatedAt: '' }];
   data.selectedSiteId = 7; await nextTick();
   expect(wrapper.find('form[role="search"]').exists()).toBe(true);
+});
+
+it('offers manual updates only while live updates are disconnected', async () => {
+  await render();
+  const realtime = useRealtimeStore();
+  realtime.state = 'offline'; await nextTick();
+  expect(wrapper.find('.manual-sync').exists()).toBe(true);
+  await wrapper.get('.manual-sync').trigger('click');
+  expect(useMaintenanceStore().refresh).toHaveBeenCalled();
+  realtime.state = 'connected'; await nextTick();
+  expect(wrapper.find('.manual-sync').exists()).toBe(false);
 });

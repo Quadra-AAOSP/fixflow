@@ -9,6 +9,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
+  Briefcase,
   Handshake,
   UserRound,
   Wrench,
@@ -25,11 +26,12 @@ import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import { listReports } from '@/services/reports';
+import { listTechnicianContracts } from '@/services/technician';
 import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
 import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import type { Report } from '@/types';
-import { statusGroup } from '@/utils/maintenance';
+import { isClaimable, statusGroup } from '@/utils/maintenance';
 
 /**
  * Landing page for `technician` accounts. Mirrors `TechnicianView.vue`:
@@ -54,11 +56,24 @@ export default function WorkspaceScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!site || !user) return;
+    if (!user) return;
     setError(null);
     try {
-      const result = await listReports({ siteId: site.id });
-      setReports(result);
+      // Technicians usually have no account site, so their work comes from the
+      // sites they hold contracts with. Fan out across those sites and merge.
+      const contracts = await listTechnicianContracts();
+      const siteIds = Array.from(
+        new Set([
+          ...contracts.map((contract) => contract.siteId),
+          ...(site ? [site.id] : []),
+        ]),
+      );
+      const pages = await Promise.all(
+        siteIds.map((siteId) => listReports({ siteId })),
+      );
+      const merged = new Map<number, Report>();
+      for (const report of pages.flat()) merged.set(report.id, report);
+      setReports(Array.from(merged.values()));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t('home.errors.couldNotLoad'),
@@ -85,6 +100,8 @@ export default function WorkspaceScreen() {
     (report) =>
       report.policy.inAssignmentQueue,
   );
+
+  const openJobs = (reports ?? []).filter(isClaimable);
 
   return (
     <Screen>
@@ -179,6 +196,59 @@ export default function WorkspaceScreen() {
             onPress={() => router.push('/more/contracts')}
           />
         </View>
+
+        {/* Open jobs — unassigned reports at the technician's contract sites. */}
+        <Text
+          className="mb-2 mt-4 text-[15px] font-semibold text-ink"
+          style={{ letterSpacing: -0.3 }}
+        >
+          {t('workspace.openJobs')}
+        </Text>
+        <Card className="mb-4">
+          <View className="flex-row items-center gap-3">
+            <View
+              className="h-12 w-12 items-center justify-center rounded-full"
+              style={{ backgroundColor: dashboardColors.statMintSoft }}
+            >
+              <Briefcase
+                color={dashboardColors.statMintDeep}
+                size={24}
+                strokeWidth={1.7}
+              />
+            </View>
+            <View className="flex-1">
+              <Text
+                className="text-[22px] font-semibold text-ink"
+                style={{ letterSpacing: -0.5 }}
+              >
+                {reports === null ? '—' : openJobs.length}
+              </Text>
+              <Text className="mt-0.5 text-[11px] leading-[1.6] text-dashboard-subtitle">
+                {reports === null
+                  ? t('workspace.openJobsLoading')
+                  : openJobs.length === 0
+                    ? t('workspace.openJobsEmpty')
+                    : t('workspace.openJobsSummary', {
+                        count: openJobs.length,
+                        plural: openJobs.length === 1 ? '' : 's',
+                      })}
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push('/technician/open-jobs')}
+            className="mt-3 flex-row items-center gap-1 self-start active:opacity-70"
+          >
+            <Text
+              className="text-[11px] font-semibold"
+              style={{ color: dashboardColors.teal }}
+            >
+              {t('workspace.viewOpenJobs')}
+            </Text>
+            <ArrowRight color={dashboardColors.teal} size={13} />
+          </Pressable>
+        </Card>
 
         {/* Assigned work — mirrors the web's bottom `.dashboard-card`. */}
         <Text

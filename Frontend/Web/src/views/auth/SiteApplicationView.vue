@@ -21,7 +21,7 @@ function amend(){return run(async()=>{status.value=await request('/api/site-appl
 function activate(){return run(async()=>{await request('/api/site-applications/setup',{method:'POST',headers:{'X-Setup-Token':token.value},body:JSON.stringify({password:password.value})});password.value='';token.value='';success.value='Administrator password set. Sign in with the proposed administrator email.';});}
 </script>
 <template><section class="dashboard-card live-page"><h1>{{ setup?'Set up site administrator access':tracking?'Track your site application':'Request a new site' }}</h1>
-<p v-if="!setup">Provide your organization and intended site administrator. Approval creates the site and that administrator account; reporter registration is not required.</p>
+<p v-if="!setup">Provide your organization and intended site administrator using your signed-in account. Approval creates the site and the proposed administrator account.</p>
 <p v-if="error" role="alert">{{ error }}</p><p v-if="success" role="status">{{ success }}</p>
 <form v-if="setup" class="draft-form" @submit.prevent="activate"><label>Private setup token<input v-model="token" type="password" autocomplete="off" required /></label><label>New password<input v-model="password" type="password" minlength="15" maxlength="100" autocomplete="new-password" required /></label><button :disabled="busy">Set password</button></form>
 <template v-else><form v-if="tracking" class="draft-form" @submit.prevent="load"><label>Private tracking token<input v-model="token" type="password" autocomplete="off" required /></label><button :disabled="busy">Check application</button></form>

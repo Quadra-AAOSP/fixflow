@@ -83,6 +83,12 @@ type AssignmentCandidate = {
   proficiency: number;
   specialtyMatch: boolean;
   activeCases: number | null;
+  /**
+   * Why the server ranking left this technician out. They are still offered
+   * to admins so a manual assignment is possible (the assign endpoint only
+   * requires a contract at the site plus accepted terms).
+   */
+  blocker?: 'unavailable' | 'termsPending' | 'noSkillMatch';
 };
 
 /**
@@ -406,12 +412,43 @@ export default function ReportDetailScreen() {
   const assignmentCandidates = useMemo<AssignmentCandidate[]>(() => {
     if (!report) return [];
     if (isReportManager) {
-      return (ranking?.candidates ?? []).map((candidate) => ({
+      const ranked = (ranking?.candidates ?? []).map((candidate) => ({
         technicianId: candidate.technicianId,
         proficiency: candidate.proficiency,
         specialtyMatch: candidate.specialtyMatch,
         activeCases: candidate.activeCases,
       }));
+      // Ranking silently drops technicians who are unavailable, lack a
+      // matching skill, or have no contract. Surface the contracted ones that
+      // were dropped so an admin can still assign them manually.
+      const rankedIds = new Set(ranked.map((candidate) => candidate.technicianId));
+      const contracted = directory.filter((person) =>
+        person.contracts.some((contract) => contract.siteId === report.siteId),
+      );
+      const dropped = contracted
+        .filter((person) => !rankedIds.has(person.id))
+        .map((person): AssignmentCandidate => {
+          const category = report.category.toLowerCase();
+          const specialty = report.specialty?.toLowerCase() ?? null;
+          const hasMatch = person.skills.some(
+            (skill) =>
+              skill.category.toLowerCase() === category &&
+              (!specialty || skill.specialty?.toLowerCase() === specialty),
+          );
+          return {
+            technicianId: person.id,
+            proficiency: 0,
+            specialtyMatch: false,
+            activeCases: null,
+            blocker:
+              person.availabilityStatus !== 'available'
+                ? 'unavailable'
+                : hasMatch
+                  ? 'termsPending'
+                  : 'noSkillMatch',
+          };
+        });
+      return [...ranked, ...dropped];
     }
     if (!report.siteId) return [];
     const category = report.category.toLowerCase();
@@ -1344,20 +1381,32 @@ export default function ReportDetailScreen() {
                             {technicianName(candidate.technicianId)}
                           </Text>
                           <Text className="mt-0.5 text-[10px] text-dashboard-caption">
-                            {t('reports.detail.assignProficiency', {
-                              level: candidate.proficiency,
-                            })}
-                            {' · '}
-                            {t(
-                              candidate.specialtyMatch
-                                ? 'reports.detail.assignSpecialtyMatch'
-                                : 'reports.detail.assignSpecialtyMismatch',
+                            {candidate.blocker
+                              ? t(
+                                  candidate.blocker === 'noSkillMatch'
+                                    ? 'reports.detail.assignBlockerSkill'
+                                    : candidate.blocker === 'termsPending'
+                                      ? 'reports.detail.assignBlockerTerms'
+                                      : 'reports.detail.assignBlockerUnavailable',
+                                )
+                              : t('reports.detail.assignProficiency', {
+                                  level: candidate.proficiency,
+                                })}
+                            {candidate.blocker ? null : (
+                              <>
+                                {' · '}
+                                {t(
+                                  candidate.specialtyMatch
+                                    ? 'reports.detail.assignSpecialtyMatch'
+                                    : 'reports.detail.assignSpecialtyMismatch',
+                                )}
+                                {candidate.activeCases !== null
+                                  ? ` · ${t('reports.detail.assignActiveCases', {
+                                      count: candidate.activeCases,
+                                    })}`
+                                  : ''}
+                              </>
                             )}
-                            {candidate.activeCases !== null
-                              ? ` · ${t('reports.detail.assignActiveCases', {
-                                  count: candidate.activeCases,
-                                })}`
-                              : ''}
                           </Text>
                         </Pressable>
                       );
@@ -1365,7 +1414,11 @@ export default function ReportDetailScreen() {
                   </View>
                 ) : !rankingLoading ? (
                   <Text className="mb-3 text-[11px] leading-[1.7] text-dashboard-subtitle">
-                    {t('reports.detail.assignNoCandidates')}
+                    {t(
+                      isReportManager
+                        ? 'reports.detail.assignNoContracted'
+                        : 'reports.detail.assignNoCandidates',
+                    )}
                   </Text>
                 ) : null}
                 <View className="flex-row items-center gap-2">

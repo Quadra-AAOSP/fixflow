@@ -75,4 +75,3 @@ async function submit() {
     <p class="dialog-intro">{{ t("Site vetting approval is required before work. Contact your site administrator to request a review. Do not enter identity numbers or document links here. A saved trade or site contract is not proof of vetting.") }}</p>
   </section>
 </template>
-

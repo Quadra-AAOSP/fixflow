@@ -19,6 +19,7 @@ import TechnicianInvitationSender from '@/components/technician/TechnicianInvita
 import MarketplacePublishPanel from '@/components/technician/MarketplacePublishPanel.vue';
 import ReportWorkPanel from '@/components/ReportWorkPanel.vue';
 import ReportReviewPanel from '@/components/ReportReviewPanel.vue';
+import ReportWorkflowPanel from '@/components/ReportWorkflowPanel.vue';
 import ReportClassificationPanel from '@/components/ReportClassificationPanel.vue';
 import ReportVisionPanel from '@/components/ReportVisionPanel.vue';
 const { t } = useLocale();
@@ -42,12 +43,13 @@ const confirmingArchive = ref(false);
 const assignmentBusy = ref(false);
 const invitationBusy = ref(false);
 const reviewBusy = ref(false);
+const workflowBusy = ref(false);
 const classificationBusy = ref(false);
 const visionBusy = ref(false);
 const marketplaceBusy = ref(false);
 const workBusy = ref(false);
 const resolutionDraft = ref('');
-const actionInProgress = computed(() => busy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value || visionBusy.value || marketplaceBusy.value || workBusy.value);
+const actionInProgress = computed(() => busy.value || workflowBusy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value || visionBusy.value || marketplaceBusy.value || workBusy.value);
 type TechnicianRoute = 'contracted' | 'invite' | 'marketplace';
 const technicianRoute = ref<TechnicianRoute>('contracted');
 const technicianRoutes = computed(() => {
@@ -158,6 +160,9 @@ async function join() {
   } catch (err) { if (version === generation) actionError.value = errorMessage(err); }
   finally { busy.value = false; }
 }
+function workflowSaved(saved: Report) {
+  report.value = saved; data.upsert(saved); message.value = 'Repair workflow updated by the service.';
+}
 async function leave() {
   if (!report.value || busy.value) return;
   const id = report.value.id;
@@ -256,6 +261,7 @@ async function visionFinished(id: number) {
       <div v-if="report.confirmedAt || report.reopenReason" class="detail-section"><p v-if="report.confirmedAt">{{ report.confirmedByName ? t('Confirmed {date} by {name}', { date: formatDate(report.confirmedAt, true), name: report.confirmedByName }) : t('Confirmed {date}', { date: formatDate(report.confirmedAt, true) }) }}</p><p v-if="report.reopenReason">{{ t('Reopen reason: {reason}', { reason: report.reopenReason }) }}</p></div>
       <ReportClassificationPanel :report="report" :disabled="actionInProgress" @busy="classificationBusy = $event" @saved="classified" />
       <ReportVisionPanel :report="report" :disabled="actionInProgress" @busy="visionBusy = $event" @finished="visionFinished" />
+      <ReportWorkflowPanel supplementary :report="report" :disabled="actionInProgress" @busy="workflowBusy = $event" @saved="workflowSaved" />
       <ReportReviewPanel :report="report" :disabled="actionInProgress" @busy="reviewBusy = $event" @saved="reviewed" />
       <ReportWorkPanel v-model:description="resolutionDraft" :report="report" :disabled="actionInProgress" @busy="workBusy = $event" @saved="workSaved" />
       <section v-if="technicianRoutes.length" class="detail-section">

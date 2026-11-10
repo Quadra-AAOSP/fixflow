@@ -16,25 +16,25 @@ beforeEach(() => {
 });
 it('loads real product detail for editing and applies only the saved response', async () => {
   const wrapper = mount(ShopManagementView); await flushPromises();
-  await wrapper.get('article button').trigger('click'); await flushPromises();
+  await wrapper.get('tbody tr button').trigger('click'); await flushPromises();
   expect(api.getManagedProduct).toHaveBeenCalledWith('drill');
   const form = wrapper.get('form'); expect(form.get('input').attributes('readonly')).toBeDefined();
   await form.findAll('input')[1]!.setValue('Requested title');
   vi.mocked(api.saveManagedProduct).mockResolvedValue({ ...product, name: 'Server saved title' });
   await form.trigger('submit'); await flushPromises();
-  expect(wrapper.get('article h2').text()).toBe('Server saved title'); wrapper.unmount();
+  expect(wrapper.get('tbody tr th').text()).toContain('Server saved title'); wrapper.unmount();
 });
-it('requires a separate confirmation for deactivation and preserves the card on failure', async () => {
+it('requires a separate confirmation for deactivation and preserves the row on failure', async () => {
   const wrapper = mount(ShopManagementView); await flushPromises();
-  await wrapper.findAll('article button')[1]!.trigger('click');
+  await wrapper.findAll('tbody tr button')[1]!.trigger('click');
   expect(api.deactivateManagedProduct).not.toHaveBeenCalled();
   vi.mocked(api.deactivateManagedProduct).mockRejectedValue(new Error('Server refused'));
   await wrapper.get('.product-confirm button').trigger('click'); await flushPromises();
   expect(wrapper.get('[role="alert"]').text()).toContain('Server refused');
-  expect(wrapper.get('article').text()).toContain('Active');
+  expect(wrapper.get('tbody tr').text()).toContain('Active');
   vi.mocked(api.deactivateManagedProduct).mockResolvedValue();
   await wrapper.get('.product-confirm button').trigger('click'); await flushPromises();
-  expect(wrapper.get('article').text()).toContain('Inactive'); wrapper.unmount();
+  expect(wrapper.get('tbody tr').text()).toContain('Inactive'); wrapper.unmount();
 });
 it('hides management and makes no admin request for a reporter', async () => {
   useAuthStore().user!.role = 'reporter';
@@ -50,7 +50,7 @@ it('keeps list failures distinct from empty catalogue results', async () => {
 });
 it('focuses the first editable field after a detail response enables the editor', async () => {
   const wrapper = mount(ShopManagementView, { attachTo: document.body }); await flushPromises();
-  await wrapper.get('article button').trigger('click'); await flushPromises();
+  await wrapper.get('tbody tr button').trigger('click'); await flushPromises();
   expect(document.activeElement).toBe(wrapper.get('form').findAll('input')[1]!.element);
   wrapper.unmount();
 });
