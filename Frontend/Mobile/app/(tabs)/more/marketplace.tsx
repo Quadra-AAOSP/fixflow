@@ -306,7 +306,8 @@ export default function MarketplaceScreen() {
                   {!own && job.status === 'open' ? <>
                     <Field label={t('marketplace.note')} value={note} maxLength={1000} multiline
                       onChangeText={value => setNotes(previous => ({ ...previous, [job.id]: value }))} />
-                    <Action label={t('marketplace.apply')} disabled={busy || !note.trim()}
+                    <Action label={t('marketplace.apply')}
+                      disabled={busy || !note.trim() || (verification !== null && verification !== 'verified') || termsRequired}
                       onPress={() => mutate(() => applyForJob(job.id, note.trim()), 'marketplace.applied')} />
                   </> : null}
                   {own ? <>

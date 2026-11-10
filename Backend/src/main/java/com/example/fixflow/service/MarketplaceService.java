@@ -56,14 +56,12 @@ public class MarketplaceService {
                     .map(listing -> listingView(listing, null, true, now)).toList();
         }
         requireTechnician(actor);
-        var verified = verifications.findById(actor.getId()).filter(this::manualChecks).orElse(null);
-        var technicianSkills = skills.findByTechnician_IdInOrderByIdAsc(List.of(actor.getId()));
-        boolean acceptedTerms = terms.permitsWork(actor.getId());
         return listings.findForTechnician(actor.getId()).stream().flatMap(listing -> {
             var mine = applications.findByListing_IdAndTechnician_Id(listing.getId(), actor.getId()).orElse(null);
-            var status = listingStatus(listing, now);
-            boolean eligible = verified != null && acceptedTerms && matches(listing.getReport(), technicianSkills);
-            if (mine == null && (status != MarketplaceListing.Status.open || !eligible)) {
+            // Every open listing is visible; eligibility (verification, terms,
+            // skills) is enforced when applying so the app can explain the block
+            // instead of showing an empty marketplace.
+            if (mine == null && listingStatus(listing, now) != MarketplaceListing.Status.open) {
                 return java.util.stream.Stream.empty();
             }
             return java.util.stream.Stream.of(listingView(listing, mine, false, now));
