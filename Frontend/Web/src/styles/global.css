@@ -58,3 +58,10 @@ body{margin:0;min-width:0;min-height:100vh}button,a,input{touch-action:manipulat
 
 .notification-indicator-button { position: relative; }
 .notification-unread-dot { position: absolute; top: 7px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: #b63743; border: 1px solid #fff; pointer-events: none; }
+
+/* Reusable standalone action groups, including authentication and shop pages. */
+.action-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.action-link{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;max-width:100%;padding:10px 16px;border:1px solid var(--product-border);border-radius:8px;background:var(--product-surface);color:#006f65;font-size:14px;font-weight:600;line-height:1.5;text-align:center;white-space:normal;text-decoration:none}
+.action-link:hover{background:#effaf6;border-color:#79c9b5}.action-link:disabled{opacity:.55;cursor:not-allowed}
+
+@media(max-width:650px){.action-row>.action-link{flex:1 1 180px}}

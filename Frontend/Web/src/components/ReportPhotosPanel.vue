@@ -98,7 +98,7 @@ async function refreshUrl(item: ReportPhoto) {
       <p v-else>{{ t("Photo preview unavailable. Try refreshing its link.") }}</p>
       <a v-if="safePhotoUrl(item.url)" :href="safePhotoUrl(item.url)" target="_blank" rel="noopener noreferrer" class="text-action">{{ t('View or download photo {number} ↗', { number: index + 1 }) }}</a>
       <button type="button" class="text-action" :disabled="busy" @click="refreshUrl(item)">{{ t('Refresh photo {number} link', { number: index + 1 }) }}</button>
-      <template v-if="canEdit && confirmingId === item.id"><p>{{ t("Remove this photo permanently?") }}</p><button type="button" :disabled="busy" class="text-action" @click="remove(item.id)">{{ t("Confirm removal") }}</button><button type="button" :disabled="busy" class="text-action" @click="confirmingId = null">{{ t("Cancel") }}</button></template>
+      <div v-if="canEdit && confirmingId === item.id" class="photo-confirmation"><p>{{ t("Remove this photo permanently?") }}</p><div class="action-row"><button type="button" :disabled="busy" class="action-link" @click="remove(item.id)">{{ t("Confirm removal") }}</button><button type="button" :disabled="busy" class="action-link" @click="confirmingId = null">{{ t("Cancel") }}</button></div></div>
       <button v-else-if="canEdit" type="button" class="text-action" :disabled="busy" @click="confirmingId = item.id">{{ t('Remove photo {number}', { number: index + 1 }) }}</button>
     </li></ul>
     <form v-if="canEdit" class="draft-form" @submit.prevent="upload"><fieldset class="report-fields" :disabled="loading || busy || photos.length >= REPORT_PHOTO_LIMIT">
@@ -110,4 +110,5 @@ async function refreshUrl(item: ReportPhoto) {
 
 <style scoped>
 .report-photo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:16px 0}.report-photo-grid li{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px;border:1px solid #e4ebe7;border-radius:12px;min-width:0}.report-photo-grid img{width:100%;height:180px;object-fit:contain;border-radius:8px}.report-photo-grid .text-action{text-align:left}
+.photo-confirmation{display:grid;gap:12px;width:100%}
 </style>

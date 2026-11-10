@@ -73,10 +73,11 @@ function openNotifications() {
   notificationDialog.value?.showModal();
   notificationsOpen.value = true;
   shopNoticeEpoch.value++;
-  void loadNotices();
+  if (user.value?.role !== 'shop_manager') void loadNotices();
 }
 watch(() => user.value?.id, () => { noticeVersion++; loadingNotices.value = false; notificationDialog.value?.close(); notificationsOpen.value = false; notices.value = []; noticeError.value = ''; moreNotices.value = false; shopNoticeEpoch.value = 0; });
-const canBrowseReports = computed(() => !!user.value && user.value.role !== 'shop_manager' && (user.value.role !== 'technician' || !!data.selectedSite));
+const isShop = computed(() => route.path.startsWith('/shop'));
+const canBrowseReports = computed(() => !isShop.value && !!user.value && user.value.role !== 'shop_manager' && (user.value.role !== 'technician' || !!data.selectedSite));
 const name = computed(() => [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' '));
 watch(() => route.query.q, value => { search.value = String(value || ''); });
 onMounted(() => data.refresh());
@@ -96,18 +97,18 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
     <div class="dashboard-workspace">
       <header class="dashboard-topbar"><button class="mobile-menu icon-button" :aria-label="t('Open navigation')" aria-controls="mobile-navigation" :aria-expanded="mobileOpen" @click="openNavigation"><Menu :size="22" /></button>
         <form v-if="canBrowseReports" class="dashboard-search" role="search" @submit.prevent="runSearch"><Search :size="19" /><input v-model="search" :aria-label="t('Search reports')" :placeholder="t('Search reports')" /><kbd>↵</kbd></form>
-        <div class="topbar-account"><button v-if="user?.role !== 'shop_manager'" class="icon-button notification-indicator-button" :aria-label="t(hasUnread ? 'Notifications, new notifications' : 'Notifications')" @click="openNotifications"><Bell :size="23" /><span v-if="hasUnread" class="notification-unread-dot" aria-hidden="true" /></button><span class="topbar-divider" /><RouterLink to="/profile" :aria-label="t('{name}: view profile', { name })" class="account-link"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></RouterLink></div>
+        <div class="topbar-account"><button class="icon-button notification-indicator-button" :aria-label="t(hasUnread ? 'Notifications, new notifications' : 'Notifications')" @click="openNotifications"><Bell :size="23" /><span v-if="hasUnread" class="notification-unread-dot" aria-hidden="true" /></button><span class="topbar-divider" /><RouterLink to="/profile" :aria-label="t('{name}: view profile', { name })" class="account-link"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></RouterLink></div>
       </header>
       <main id="main-content" tabindex="-1" class="dashboard-main">
         <div class="workspace-language"><LanguageSelector /></div>
-        <div v-if="user?.role !== 'shop_manager'" class="live-toolbar"><label v-if="user?.role === 'super_admin' && data.sites.length" class="site-selector">{{ t("Site") }}<select :value="data.selectedSiteId" :disabled="data.loading" @change="data.selectSite(Number(($event.target as HTMLSelectElement).value))"><option v-for="site in data.sites" :key="site.id" :value="site.id">{{ site.name }}</option></select></label><span v-else>{{ data.selectedSite?.name || t(data.loading ? 'Loading your site…' : user?.role === 'technician' ? 'Technician account' : 'No site available') }}</span><span class="live-sync">{{ data.loading ? t('Refreshing…') : data.lastSynced ? t('Updated {date}', { date: formatDate(data.lastSynced, true) }) : t('Not synced') }}<button v-if="realtime.state !== 'connected'" class="text-action manual-sync" :disabled="data.loading" :title="t('Fetch the latest site and report data')" @click="data.refresh()"><RefreshCw :size="16" />{{ t('Check for updates') }}</button></span></div>
-        <div v-if="data.sitesError" class="live-error" role="alert">{{ t(data.sitesError) }} <button @click="data.refresh()">{{ t("Retry") }}</button></div>
-        <p v-else-if="!data.loading && !data.sites.length && user?.role !== 'technician' && user?.role !== 'shop_manager'" class="live-empty">{{ t("No sites are available for this account. Ask your administrator to check your site access.") }}</p>
-        <div v-if="user?.siteOnboarding?.setupRequired && user.siteOnboarding.canManageSubsites" class="draft-notice" role="status">
+        <div v-if="!isShop && user?.role !== 'shop_manager'" class="live-toolbar"><label v-if="user?.role === 'super_admin' && data.sites.length" class="site-selector">{{ t("Site") }}<select :value="data.selectedSiteId" :disabled="data.loading" @change="data.selectSite(Number(($event.target as HTMLSelectElement).value))"><option v-for="site in data.sites" :key="site.id" :value="site.id">{{ site.name }}</option></select></label><span v-else>{{ data.selectedSite?.name || t(data.loading ? 'Loading your site…' : user?.role === 'technician' ? 'Technician account' : 'No site available') }}</span><span class="live-sync">{{ data.loading ? t('Refreshing…') : data.lastSynced ? t('Updated {date}', { date: formatDate(data.lastSynced, true) }) : t('Not synced') }}<button v-if="realtime.state !== 'connected'" class="text-action manual-sync" :disabled="data.loading" :title="t('Fetch the latest site and report data')" @click="data.refresh()"><RefreshCw :size="16" />{{ t('Check for updates') }}</button></span></div>
+        <div v-if="!isShop && data.sitesError" class="live-error" role="alert">{{ t(data.sitesError) }} <button @click="data.refresh()">{{ t("Retry") }}</button></div>
+        <p v-else-if="!isShop && !data.loading && !data.sites.length && user?.role !== 'technician' && user?.role !== 'shop_manager'" class="live-empty">{{ t("No sites are available for this account. Ask your administrator to check your site access.") }}</p>
+        <div v-if="!isShop && user?.siteOnboarding?.setupRequired && user.siteOnboarding.canManageSubsites" class="draft-notice" role="status">
           {{ t("Your site needs a labelled building before reports can be submitted.") }}
           <RouterLink :to="`/sites/${user.siteOnboarding.siteId}/subsites`" class="text-action">{{ t("Set up buildings →") }}</RouterLink>
         </div>
-        <p v-if="user?.role !== 'shop_manager'" class="dialog-intro" role="status">{{ t(realtime.state === 'connected' ? 'Live updates connected' : realtime.state === 'connecting' ? 'Connecting and rechecking access…' : 'Live updates disconnected. Check for updates to retrieve current data.') }}</p>
+        <p v-if="!isShop && user?.role !== 'shop_manager'" class="dialog-intro" role="status">{{ t(realtime.state === 'connected' ? 'Live updates connected' : realtime.state === 'connecting' ? 'Connecting and rechecking access…' : 'Live updates disconnected. Check for updates to retrieve current data.') }}</p>
         <RouterView />
       </main>
       <footer class="dashboard-footer"><span><b>FixFlow</b> {{ t('© {year} FixFlow. Keeping spaces working beautifully.', { year: new Date().getFullYear() }) }}</span><span><Heart :size="13" fill="currentColor" />{{ t("Better spaces. Brighter tomorrows.") }}</span></footer>
@@ -115,7 +116,7 @@ function runSearch() { router.push({ name: 'reports', query: search.value.trim()
     <dialog ref="notificationDialog" @close="notificationsOpen = false" class="dashboard-dialog" :aria-label="t('Notifications')">
       <div class="dialog-heading"><h2>{{ t('Notifications') }}</h2><button class="icon-button" :aria-label="t('Close dialog')" @click="notificationDialog?.close()"><X :size="22" /></button></div>
       <div class="notification-sections">
-        <NotificationFeed :title="t('Report updates')" :items="noticeItems" :loading="loadingNotices" :error="noticeError ? t(noticeError) : ''" :more="moreNotices" @retry="loadNotices(noticeRetryPage)" @more="loadNotices(noticePage + 1)" @navigate="notificationDialog?.close()" />
+        <NotificationFeed v-if="user?.role !== 'shop_manager'" :title="t('Report updates')" :items="noticeItems" :loading="loadingNotices" :error="noticeError ? t(noticeError) : ''" :more="moreNotices" @retry="loadNotices(noticeRetryPage)" @more="loadNotices(noticePage + 1)" @navigate="notificationDialog?.close()" />
         <ShopNotifications v-if="notificationsOpen && user?.role !== 'reporter'" :key="shopNoticeEpoch" @navigate="notificationDialog?.close()" />
       </div>
     </dialog>

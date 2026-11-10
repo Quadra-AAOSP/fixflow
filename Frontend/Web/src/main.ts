@@ -22,7 +22,7 @@ const realtime = useRealtimeStore(pinia);
 function expireSession() {
   auth.clearSession();
   if (router.currentRoute.value.meta.requiresAuth) {
-    void router.replace({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } });
+    void router.replace({ name: 'landing', query: { redirect: router.currentRoute.value.fullPath } });
   }
 }
 watch([() => auth.user?.id, () => auth.user?.role, () => auth.user?.siteId], () => {

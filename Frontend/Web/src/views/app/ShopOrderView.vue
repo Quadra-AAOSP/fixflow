@@ -100,7 +100,7 @@ watch([id, () => auth.user?.id, () => auth.user?.role], load, { immediate: true 
 
 <template>
 
-  <section class="order-detail">
+  <section class="order-detail dashboard-card live-page">
 
     <div class="order-heading"><RouterLink to="/shop">{{ t('Back to shop') }}</RouterLink><button type="button" :disabled="busy || loading" @click="load">{{ t('Refresh order') }}</button></div>
 
@@ -140,6 +140,10 @@ watch([id, () => auth.user?.id, () => auth.user?.role], load, { immediate: true 
 
 <style scoped>
 
-.order-detail{color:#233d36;max-width:850px;margin:auto}.order-detail h1{font-size:28px;font-weight:750;margin:24px 0 12px}.order-detail h2{font-size:19px;font-weight:650;margin-bottom:16px}.order-detail p{font-size:14px;line-height:1.8;margin:8px 0}.order-heading,.order-actions{display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}.order-detail button{background:#79e2cd;color:#173e35;padding:10px 16px;border-radius:8px;font-size:13px}.order-detail button:disabled{opacity:.5}.order-detail section{border-top:1px solid #dce7df;padding:24px 0}.order-detail dl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 20px;margin:24px 0;font-size:14px}.order-detail dd{text-align:right;overflow-wrap:anywhere}.order-items{display:grid;gap:16px}.order-items li{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;border:1px solid #dce7df;padding:18px;border-radius:10px;font-size:14px}.order-id,.order-address{overflow-wrap:anywhere;white-space:pre-wrap}.order-error{color:#a0434d}
+.order-detail{color:var(--navy);max-width:850px;margin:auto}.order-detail h1{font-size:28px;font-weight:750;margin:24px 0 12px}.order-detail h2{font-size:19px;font-weight:650;margin-bottom:16px}.order-detail p{font-size:14px;line-height:1.8;margin:8px 0}.order-heading,.order-actions{display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}.order-detail button{background:#79e2cd;color:#173e35;padding:10px 16px;border-radius:8px;font-size:13px}.order-detail button:disabled{opacity:.5}.order-detail section{border-top:1px solid #dce7df;padding:24px 0}.order-detail dl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 20px;margin:24px 0;font-size:14px}.order-detail dd{text-align:right;overflow-wrap:anywhere}.order-items{display:grid;gap:16px}.order-items li{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;border:1px solid #dce7df;padding:18px;border-radius:10px;font-size:14px}.order-id,.order-address{overflow-wrap:anywhere;white-space:pre-wrap}.order-error{color:#a0434d}
 
+
+.order-detail.dashboard-card{max-width:none;margin:0;padding:24px}
+.order-detail button{min-height:44px;font-size:14px}
+@media(max-width:650px){.order-detail.dashboard-card{padding:20px 16px}}
 </style>

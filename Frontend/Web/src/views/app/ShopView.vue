@@ -227,11 +227,11 @@ onMounted(async () => {
         </button>
       </div>
     </div>
-    <section class="shop-intro">
+    <section class="shop-intro welcome-banner">
       <div><span class="shop-eyebrow">{{ t("BUILD YOUR TOOLKIT") }}</span><h2>{{ t("Tools and parts for your next fix") }}</h2><p>{{ t("Find the supplies you need to keep your spaces working.") }}</p></div>
       <a class="shop-primary" href="#shop-catalogue">{{ t("Browse products") }} <ArrowRight :size="18" /></a>
     </section>
-    <section id="shop-catalogue" class="shop-catalogue" :aria-busy="shop.loading">
+    <section id="shop-catalogue" class="shop-catalogue dashboard-card" :aria-busy="shop.loading">
       <div class="shop-section-heading">
         <div><span class="shop-eyebrow">{{ t("BUILD YOUR TOOLKIT") }}</span><h2>{{ t("Find your next essential") }}</h2></div>
         <span v-if="ready" role="status">{{ t(products.length === 1 ? '{count} product' : '{count} products', { count: products.length }) }}</span>
@@ -262,7 +262,7 @@ onMounted(async () => {
         <button v-else class="shop-secondary" type="button" @click="shop.refresh()">{{ t("Refresh catalogue") }}</button>
       </div>
       <div v-else class="shop-product-grid">
-        <article v-for="product in products" :key="product.id" class="shop-product-card">
+        <article v-for="product in products" :key="product.id" class="shop-product-card dashboard-card">
           <button class="shop-product-open" type="button" :aria-label="t('View {name}', { name: product.name })" @click="inspect(product.id)">
             <ProductImage :src="product.imageUrl" :alt="product.name" />
           </button>

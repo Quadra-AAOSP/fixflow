@@ -102,7 +102,7 @@ function money(o: ManagedShopOrder) {
 }
 </script>
 <template>
-  <section class="order-management">
+  <section class="order-management dashboard-card live-page">
     <h1>{{ t("Manage orders") }}</h1>
     <RouterLink v-if="route.params.orderId" to="/shop/orders-management">{{
       t("Back to orders")
@@ -198,4 +198,8 @@ a {
 }
 
 .order-management{max-width:1200px;padding:12px 0 30px;color:var(--navy)}.order-management h1{padding:24px;border:1px solid #fbefe0;border-radius:15px;background:#fff9f1;font-size:25px;letter-spacing:-.6px;margin-bottom:18px}.order-management h2{margin-top:22px}.order-management p{color:var(--muted)}.order-management button{padding:10px 16px;background:#79e2cd;color:#104b45;border:1px solid #65d8c1;border-radius:8px;font-size:13px;font-weight:600}.order-management button:disabled{opacity:.5;cursor:not-allowed}.order-management a{color:var(--teal);font-weight:600}.managed-orders{display:grid;gap:10px;margin-top:20px}.managed-orders li{margin:0;padding:18px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--muted)}.managed-orders li a{display:inline-block;margin-right:8px;overflow-wrap:anywhere}.order-management [role=alert]{padding:14px;background:#fff1f1;border-radius:8px;color:#a0434d}
+
+.order-management.dashboard-card{max-width:none;margin:0;padding:24px}
+.order-management button{min-height:44px;font-size:14px}
+@media(max-width:650px){.order-management.dashboard-card{padding:20px 16px}}
 </style>

@@ -22,7 +22,7 @@ async function onLogout() {
   error.value = '';
   try {
     await logout();
-    await router.replace({ name: 'login' });
+    await router.replace({ name: 'landing' });
   } catch (err) {
     error.value = errorMessage(err);
   } finally {

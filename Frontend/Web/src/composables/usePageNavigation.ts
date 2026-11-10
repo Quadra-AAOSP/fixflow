@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router';
 import { useLocale } from '@/i18n';
 
 const pageTitles: Record<string, string> = {
+  landing: 'Little fixes. Better places.', 'landing-reporters': 'For reporters', 'landing-site-admins': 'For site admins', 'landing-technicians': 'For technicians',
   'building-suggestions': 'My building suggestions', 'technician-marketplace': 'Find sites hiring',
   'site-rules': 'Site rules', home: 'Dashboard', 'reporter-home': 'My reports', reports: 'Reports', 'new-report': 'New report', 'report-detail': 'Report details',
   sites: 'Sites', 'site-detail': 'Site details', subsites: 'Buildings & locations', assignments: 'Assignments', technician: 'My workspace',

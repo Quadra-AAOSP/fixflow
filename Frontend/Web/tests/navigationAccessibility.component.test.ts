@@ -106,10 +106,10 @@ describe('workspace keyboard navigation', () => {
     expect(document.activeElement).toBe(more.get('summary').element);
   });
 });
-it('does not offer maintenance search or report notifications on the shop-manager profile', async () => {
+it('does not offer maintenance search and retains the shop notification inbox on the shop-manager profile', async () => {
   useAuthStore().user!.role = 'shop_manager'; await render();
   expect(wrapper.find('form[role="search"]').exists()).toBe(false);
-  expect(wrapper.find('button[aria-label="Notifications"]').exists()).toBe(false);
+  expect(wrapper.find('button[aria-label="Notifications"]').exists()).toBe(true);
 });
 it('opens the inbox for a technician without a selected site and displays report changes', async () => {
   useAuthStore().user!.role = 'technician';

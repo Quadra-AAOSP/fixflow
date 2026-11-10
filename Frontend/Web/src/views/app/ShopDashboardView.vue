@@ -69,16 +69,16 @@ function money(value: ShopRevenue) {
 }
 </script>
 <template>
-  <section class="shop-dashboard">
+  <section class="shop-dashboard dashboard-card live-page">
     <header>
       <h1>{{ t("Shop dashboard") }}</h1>
       <button type="button" :disabled="loading" @click="refresh">
         {{ t("Refresh") }}
       </button>
     </header>
-    <nav :aria-label="t('Shop navigation')">
-      <RouterLink to="/shop/manage">{{ t("Product management") }}</RouterLink> ·
-      <RouterLink to="/shop/orders-management">{{ t("Manage orders") }}</RouterLink>
+    <nav class="action-row" :aria-label="t('Shop navigation')">
+      <RouterLink class="action-link" to="/shop/manage">{{ t("Product management") }}</RouterLink>
+      <RouterLink class="action-link" to="/shop/orders-management">{{ t("Manage orders") }}</RouterLink>
     </nav>
     <p v-if="loading" role="status">{{ t("Loading shop analytics…") }}</p>
     <div v-else-if="error" role="alert">
@@ -231,4 +231,8 @@ td {
 .shop-dashboard header{padding:24px;border:1px solid #fbefe0;border-radius:15px;background:#fff9f1}
 .shop-dashboard h1{font-size:25px;letter-spacing:-.6px}.shop-dashboard h2{margin:28px 0 8px;font-size:17px}.shop-dashboard p,.shop-dashboard dt{color:var(--muted);line-height:1.6}.shop-dashboard nav{display:flex;gap:12px;margin:18px 0;font-size:0}.shop-dashboard nav a{font-size:13px;color:var(--teal);font-weight:600;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:white}.shop-dashboard button{padding:10px 16px;background:#79e2cd;color:#104b45;border:1px solid #65d8c1;border-radius:8px;font-weight:600}.shop-dashboard button:disabled{opacity:.5}.shop-dashboard dl{gap:12px;margin-top:12px}.shop-dashboard dl>div{padding:18px;border:1px solid var(--line);border-radius:11px}.shop-dashboard dd{margin-top:8px}.shop-dashboard>ul{padding:14px 18px;border:1px solid var(--line);background:#fff;border-radius:11px}.shop-dashboard-table{margin-top:18px;border:1px solid var(--line);border-radius:11px;background:white}.shop-dashboard table{min-width:420px}.shop-dashboard th,.shop-dashboard td{padding:14px;border-color:var(--line)}.shop-dashboard thead{background:#f6f7f9}.trend{padding:12px;background:#f4f8f6;border-radius:8px}.trend div{background:#79e2cd}
 @media(max-width:600px){.shop-dashboard header{padding:20px}.shop-dashboard nav{flex-wrap:wrap}}
+
+.shop-dashboard.dashboard-card{max-width:none;margin:0;padding:24px}
+.shop-dashboard button{min-height:44px;font-size:14px}
+@media(max-width:650px){.shop-dashboard.dashboard-card{padding:20px 16px}}
 </style>

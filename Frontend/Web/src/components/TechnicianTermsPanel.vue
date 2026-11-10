@@ -55,16 +55,16 @@ onMounted(refresh);
 </script>
 
 <template>
-  <section class="contract-choice" aria-labelledby="technician-terms-heading">
+  <section class="contract-choice dashboard-card terms-panel" aria-labelledby="technician-terms-heading">
     <div class="card-heading"><h2 id="technician-terms-heading">{{ t("Technician terms") }}</h2><button class="text-action" type="button" :disabled="loading || saving" @click="refresh">{{ t("Refresh terms") }}</button></div>
-    <RouterLink class="text-action" to="/agreements/technician/2026-11-03">{{ t("Read the approved agreement") }}</RouterLink>
+    <RouterLink class="action-link" to="/agreements/technician/2026-11-03">{{ t("Read the approved agreement") }}</RouterLink>
     <LoadingStatus v-if="loading" :label="t('Loading current terms…')" />
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <template v-if="status && !loading">
       <p v-if="!status.currentVersion || !documentUrl">{{ t('Approved terms are not configured for review.') }} {{ t(status.enforcementRequired ? 'Contact the platform owner before requesting site work.' : 'Acceptance is not currently required by the service.') }}</p>
       <template v-else>
         <p>{{ t('Version {version} · {requirement}', { version: status.currentVersion, requirement: t(status.enforcementRequired ? 'Required before site work and contract requests' : 'Available for review') }) }}</p>
-        <a :href="documentUrl" target="_blank" rel="noopener noreferrer" class="text-action">{{ t("Read the current terms ↗") }}</a>
+        <a :href="documentUrl" target="_blank" rel="noopener noreferrer" class="action-link">{{ t("Read the current terms ↗") }}</a>
         <p v-if="status.acceptedCurrentVersion" role="status">{{ t("You have accepted this version.") }}</p>
         <form v-else @submit.prevent="accept">
           <label class="consent-row"><input v-model="reviewed" type="checkbox" :disabled="saving" required /><span>{{ t('I have read and agree to version {version}.', { version: status.currentVersion }) }}</span></label>
@@ -75,3 +75,7 @@ onMounted(refresh);
     </template>
   </section>
 </template>
+
+<style scoped>
+.terms-panel{border:1px solid var(--line);padding:24px}.terms-panel>.action-link{margin-bottom:16px}.terms-panel>p{font-size:14px;line-height:1.7}.terms-panel .card-heading h2{margin:0}.terms-panel form{display:grid;justify-items:start;gap:16px;margin:20px 0}.terms-panel .consent-row{display:flex;align-items:flex-start;gap:12px;font-size:14px;line-height:1.7}.terms-panel details{margin-top:20px}.terms-panel summary{cursor:pointer;min-height:44px;display:list-item;padding:12px 0;font-size:14px}.terms-panel details li{padding:8px 0;font-size:14px}
+</style>

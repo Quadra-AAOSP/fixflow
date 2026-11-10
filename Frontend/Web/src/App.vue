@@ -12,9 +12,9 @@ const { t } = useLocale();
 const route = useRoute();
 const router = useRouter();
 const accountScope = computed(() => `${user.value?.id ?? 'guest'}:${user.value?.role ?? ''}:${user.value?.siteId ?? ''}:${user.value?.applicationOnly ?? false}`);
-const restrictedRoute = computed(() => user.value?.applicationOnly && route.name !== 'application-access');
+const restrictedRoute = computed(() => (user.value?.applicationOnly && route.name !== 'application-access') || (!isLoading.value && !user.value && !!route.name && !route.meta.public));
 watch(restrictedRoute, restricted => {
-  if (restricted && route.name) void router.replace({ name: 'application-access' });
+  if (restricted && route.name) void router.replace(user.value?.applicationOnly ? { name: 'application-access' } : { name: 'landing', query: { redirect: route.fullPath } });
 });
 </script>
 
