@@ -1,0 +1,265 @@
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { FlatList, RefreshControl, Text, View } from 'react-native';
+import { Briefcase, ClipboardList, Search } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+
+import { Button } from '@/components/ui/Button';
+import { Screen } from '@/components/ui/Screen';
+import { StateView } from '@/components/ui/StateView';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { UrgencyChip } from '@/components/ui/UrgencyChip';
+import { useToast } from '@/components/ui/useToastContext';
+import { dashboardColors, themeColors } from '@/constants/theme';
+import { useAuth } from '@/hooks/useAuth';
+import { ApiError } from '@/lib/apiClient';
+import { claimReport, listReports } from '@/services/reports';
+import { listTechnicianContracts } from '@/services/technician';
+import type { Report, Urgency } from '@/types';
+import { humanize, relativeTime } from '@/utils/format';
+import { effectiveUrgency, isClaimable } from '@/utils/maintenance';
+
+const URGENCY_RANK: Record<Urgency, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
+/**
+ * Technician "Open jobs" board. Every unassigned, still-actionable report at
+ * one of the technician's contract sites is listed here; picking one up calls
+ * `POST /api/reports/{id}/claim`, which flips it to `assigned` and removes it
+ * from this board (the report then lives under "My assignments").
+ *
+ * The site scope mirrors the backend: `claim` requires an active contract at
+ * the report's site plus accepted terms.
+ */
+export default function OpenJobsScreen() {
+  const { t } = useTranslation('common');
+  const router = useRouter();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const palette = themeColors();
+
+  const [jobs, setJobs] = useState<Report[] | null>(null);
+  const [siteNames, setSiteNames] = useState<Record<number, string>>({});
+  const [contractSiteCount, setContractSiteCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [claimingId, setClaimingId] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    setError(null);
+    if (jobs === null) setLoading(true);
+    try {
+      const contracts = await listTechnicianContracts();
+      const siteIds = Array.from(new Set(contracts.map((contract) => contract.siteId)));
+      setContractSiteCount(siteIds.length);
+      setSiteNames(
+        Object.fromEntries(contracts.map((contract) => [contract.siteId, contract.siteName])),
+      );
+      const pages = await Promise.all(siteIds.map((siteId) => listReports({ siteId })));
+      const merged = new Map<number, Report>();
+      for (const report of pages.flat()) merged.set(report.id, report);
+      const open = Array.from(merged.values())
+        .filter(isClaimable)
+        .sort(
+          (a, b) =>
+            URGENCY_RANK[effectiveUrgency(a)] - URGENCY_RANK[effectiveUrgency(b)] ||
+            b.createdAt.localeCompare(a.createdAt),
+        );
+      setJobs(open);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : t('openJobs.errorTitle'),
+      );
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  async function onRefresh() {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function onClaim(id: number) {
+    if (claimingId !== null) return;
+    setClaimingId(id);
+    try {
+      await claimReport(id);
+      // Drop it immediately so the board reflects the pick-up even before the
+      // focus refresh lands.
+      setJobs((previous) => (previous ? previous.filter((job) => job.id !== id) : previous));
+      showToast(t('openJobs.claimed'), 'success');
+      await load();
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : t('openJobs.claimFailed'),
+        'error',
+      );
+    } finally {
+      setClaimingId(null);
+    }
+  }
+
+  const siteName = (id: number | null) =>
+    id === null ? '' : siteNames[id] ?? t('openJobs.fallbackSite', { id });
+
+  return (
+    <Screen>
+      <FlatList
+        data={jobs ?? []}
+        keyExtractor={(item) => String(item.id)}
+        className="flex-1"
+        contentContainerClassName="grow px-5 pb-10 pt-4"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={palette.primary}
+          />
+        }
+        ItemSeparatorComponent={() => <View className="h-3" />}
+        ListHeaderComponent={
+          <View>
+            <View className="mb-2 flex-row items-center gap-3">
+              <View
+                className="rounded-xl p-3"
+                style={{ backgroundColor: dashboardColors.statMintSoft }}
+              >
+                <Briefcase color={dashboardColors.statMintDeep} size={26} />
+              </View>
+              <View className="flex-1">
+                <Text
+                  className="text-xl font-bold text-ink"
+                  style={{ letterSpacing: -0.4 }}
+                >
+                  {t('openJobs.title')}
+                </Text>
+                <Text className="mt-0.5 text-xs text-dashboard-subtitle">
+                  {jobs !== null
+                    ? t('openJobs.count', {
+                        count: jobs.length,
+                        plural: jobs.length === 1 ? '' : 's',
+                      })
+                    : t('openJobs.loading')}
+                </Text>
+              </View>
+            </View>
+
+            <Text className="mb-3 text-[12px] leading-[1.7] text-dashboard-subtitle">
+              {t('openJobs.subtitle')}
+            </Text>
+          </View>
+        }
+        ListEmptyComponent={
+          loading && jobs === null ? (
+            <StateView variant="loading" title={t('openJobs.loading')} />
+          ) : error && jobs === null ? (
+            <StateView
+              variant="error"
+              title={t('openJobs.errorTitle')}
+              description={error}
+              actionLabel={t('openJobs.retry')}
+              onAction={() => {
+                void load();
+              }}
+            />
+          ) : contractSiteCount === 0 ? (
+            <StateView
+              variant="empty"
+              icon={ClipboardList}
+              title={t('openJobs.noContractsTitle')}
+              description={t('openJobs.noContractsDesc')}
+              actionLabel={t('openJobs.manageContracts')}
+              onAction={() => router.push('/more/contracts')}
+            />
+          ) : (
+            <StateView
+              variant="empty"
+              icon={Search}
+              title={t('openJobs.emptyTitle')}
+              description={t('openJobs.emptyDesc')}
+            />
+          )
+        }
+        renderItem={({ item }) => (
+          <JobCard
+            report={item}
+            siteName={siteName(item.siteId)}
+            claiming={claimingId === item.id}
+            disabled={claimingId !== null}
+            onClaim={() => onClaim(item.id)}
+          />
+        )}
+      />
+    </Screen>
+  );
+}
+
+function JobCard({
+  report,
+  siteName,
+  claiming,
+  disabled,
+  onClaim,
+}: {
+  report: Report;
+  siteName: string;
+  claiming: boolean;
+  disabled: boolean;
+  onClaim: () => void;
+}) {
+  const { t } = useTranslation('common');
+  return (
+    <View className="rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
+      <View className="mb-1 flex-row items-center justify-between gap-2">
+        <Text
+          className="text-xs font-medium uppercase tracking-wide text-dashboard-subtitle"
+          numberOfLines={1}
+        >
+          {humanize(report.category)}
+        </Text>
+        <StatusBadge status={report.status} />
+      </View>
+      <Text className="text-sm text-ink" numberOfLines={3}>
+        {report.description}
+      </Text>
+      <View className="mt-3 flex-row items-center justify-between">
+        <UrgencyChip level={effectiveUrgency(report)} />
+        <Text className="text-xs text-dashboard-caption">#{report.id}</Text>
+      </View>
+      <View className="mt-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+        <Text className="text-[11px] text-dashboard-subtitle" numberOfLines={1}>
+          {siteName}
+        </Text>
+        <Text className="text-[11px] text-dashboard-subtitle">
+          {relativeTime(report.createdAt)}
+        </Text>
+      </View>
+      <Button
+        variant="cta"
+        className="mt-3 min-h-0 py-2"
+        label={claiming ? t('openJobs.claiming') : t('openJobs.claim')}
+        loading={claiming}
+        disabled={disabled}
+        onPress={onClaim}
+      />
+    </View>
+  );
+}

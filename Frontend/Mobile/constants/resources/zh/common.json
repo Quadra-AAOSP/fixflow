@@ -19,6 +19,13 @@
     "verificationRequired": "申请前须通过平台审核并接受当前技师条款。",
     "termsRequired": "请在申请前查看并接受当前技师条款。",
     "publishReport": "将报告 #{id} 发布为工作",
+    "chooseReport": "选择要发布的报修",
+    "chooseReportHint": "仅可发布仍在等待技师处理的未指派报修。",
+    "noReportsToPublish": "当前没有可发布的报修。",
+    "reportOption": "报修 #{id}",
+    "selectReport": "选择此报修",
+    "selectedReport": "已选择",
+    "reportNotPublishable": "该报修无法发布：可能已有上架记录、已指派技师，或不属于您的站点。",
     "privacy": "请使用概括性描述和大致位置，避免包含姓名、详细地址、房间号、门禁信息或其他私人信息。",
     "summary": "工作摘要",
     "confirmPrivacy": "我已确认此工作信息不包含私人详情。",
@@ -634,9 +641,13 @@
       "assignRankingFallback": "回退原因：{reason}",
       "assignLoadingCandidates": "正在加载候选技师…",
       "assignNoCandidates": "当前没有可用的匹配技师。",
+      "assignNoContracted": "该站点尚无签约技师。请先批准技师合同，再进行指派。",
       "assignDirectoryError": "无法加载技师目录。",
       "assignRankingError": "无法为该报修排序技师。",
       "assignProficiency": "熟练度 {level}/5",
+      "assignBlockerUnavailable": "当前标记为不可用 — 未参与自动排序",
+      "assignBlockerTerms": "技师条款未接受 — 未参与自动排序",
+      "assignBlockerSkill": "该类别下无技能 — 未参与自动排序",
       "assignSpecialtyMatch": "专长匹配",
       "assignSpecialtyMismatch": "专长不匹配",
       "assignActiveCases": "{count} 个进行中工单",
@@ -732,6 +743,24 @@
       }
     }
   },
+  "openJobs": {
+    "title": "待接工作",
+    "subtitle": "与你签约的站点中尚未指派技师的报修。接取后就会从该列表移除。",
+    "count": "{count} 个待接工作",
+    "loading": "正在加载待接工作…",
+    "claim": "接取工作",
+    "claiming": "正在接取…",
+    "claimed": "已接取，报修已加入你的任务。",
+    "claimFailed": "无法接取该工作。",
+    "emptyTitle": "暂无可接工作",
+    "emptyDesc": "签约站点出现新的未指派报修时会显示在这里。下拉刷新查看。",
+    "noContractsTitle": "尚未关联站点",
+    "noContractsDesc": "待接工作来自与你签约的站点。申请站点合同后即可开始接取工作。",
+    "manageContracts": "站点合同",
+    "fallbackSite": "站点 #{id}",
+    "errorTitle": "无法加载待接工作",
+    "retry": "重试"
+  },
   "assignments": {
     "myAssignmentsTitle": "我的派单",
     "currentAssignmentsTitle": "当前派单",
@@ -779,6 +808,8 @@
       "shop": "物资"
     },
     "menu": {
+      "openJobsTitle": "待接工作",
+      "openJobsSubtitle": "接取签约站点中未指派的工作。",
       "reportsTitle": "报修",
       "reportsSubtitle": "此站点的所有报修。",
       "notificationsTitle": "通知",
@@ -1338,6 +1369,11 @@
   "workspace": {
     "title": "您的技师工作台",
     "subtitle": "您的技能，您选择的站点。",
+    "openJobs": "待接工作",
+    "openJobsSummary": "签约站点有 {count} 份未指派报修。",
+    "openJobsEmpty": "目前没有未指派的报修。",
+    "openJobsLoading": "正在检查待接工作…",
+    "viewOpenJobs": "查看待接工作",
     "availability": {
       "available": "可接单",
       "unavailable": "暂不可接单"

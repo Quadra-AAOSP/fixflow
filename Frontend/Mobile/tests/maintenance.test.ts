@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Report, ReportStatus, Urgency } from '../types';
 import {
   effectiveUrgency,
+  isClaimable,
   matchesFilter,
   searchReports,
   statusGroup,
@@ -73,6 +74,18 @@ function makeReport(overrides: ReportOverrides = {}): Report {
 }
 
 const siteName = (id: number | null) => (id === 7 ? 'Harbour Site' : 'Unknown Site');
+
+describe('open jobs board', () => {
+  it('only unassigned, still-actionable reports are claimable', () => {
+    for (const status of ALL_STATUSES) {
+      expect(isClaimable(makeReport({ status }))).toBe(
+        ['open', 'routed', 'reopened', 'escalated'].includes(status),
+      );
+    }
+    // An assigned report is no longer an open job even in a claimable status.
+    expect(isClaimable(makeReport({ status: 'routed', assignedTechnicianId: 9 }))).toBe(false);
+  });
+});
 
 describe('label maps', () => {
   it('covers all eight report statuses', () => {

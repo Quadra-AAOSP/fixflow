@@ -8,14 +8,16 @@ public record TechnicianContractResponse(
 		Long id,
 		Long technicianId,
 		Long siteId,
-		Instant createdAt
+		Instant createdAt,
+		String siteName
 ) {
 	public static TechnicianContractResponse from(TechnicianContract contract) {
 		return new TechnicianContractResponse(
 				contract.getId(),
 				contract.getTechnician().getId(),
 				contract.getSite().getId(),
-				contract.getCreatedAt()
+				contract.getCreatedAt(),
+				contract.getSite().getName()
 		);
 	}
 }

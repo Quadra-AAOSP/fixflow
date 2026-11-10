@@ -42,6 +42,7 @@ type MenuItem = {
  * scattered role-ifs in the render path, so future additions can't leak.
  */
 type ItemKey =
+  | 'openJobs'
   | 'myVerification' | 'siteApplications' | 'verificationReviews' | 'marketplace'
   | 'myAdminApplication'
   | 'siteSetup'
@@ -75,6 +76,7 @@ type ItemKey =
  *  Anything that needs both a role match AND a capability flag (e.g. user
  *  has an admin application pending) also has an ItemGuard below. */
 const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
+  openJobs: ['technician'],
   myVerification: ['technician'],
   marketplace: ['admin', 'technician'],
   siteApplications: ['super_admin'],
@@ -145,6 +147,12 @@ export default function MoreScreen() {
   };
 
   const allItems: Record<ItemKey, MenuItem> = {
+    openJobs: {
+      icon: Briefcase,
+      titleKey: 'more.menu.openJobsTitle',
+      subtitleKey: 'more.menu.openJobsSubtitle',
+      onPress: () => router.push('/technician/open-jobs'),
+    },
     myVerification: { icon: ShieldCheck, titleKey: 'review.myVerification', subtitleKey: null, onPress: () => router.push('/more/my-verification') },
     marketplace: { icon: Briefcase, titleKey: 'marketplace.title', subtitleKey: null, onPress: () => router.push('/more/marketplace') },
     siteApplications: { icon: Building2, titleKey: 'review.siteReviews', subtitleKey: null, onPress: () => router.push('/more/site-applications') },
@@ -215,7 +223,7 @@ export default function MoreScreen() {
 
   // Group keys into their sections, then filter each by itemVisible.
   // Each section drops out entirely when it has zero visible items.
-  const workspaceKeys: ItemKey[] = ['contractsTechnician', 'myVerification', 'marketplace'];
+  const workspaceKeys: ItemKey[] = ['openJobs', 'contractsTechnician', 'myVerification', 'marketplace'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
     'siteSetup',

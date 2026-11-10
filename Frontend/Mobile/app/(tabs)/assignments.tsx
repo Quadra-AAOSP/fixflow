@@ -35,6 +35,7 @@ import {
   REPORT_FILTERS,
   ReportFilter,
   effectiveUrgency,
+  isClaimable,
   matchesFilter,
   searchReports,
   statusGroup,
@@ -72,6 +73,7 @@ export default function AssignmentsScreen() {
   const [nlFilters, setNlFilters] = useState<NlSearchFilters | null>(null);
   const [searchSiteId, setSearchSiteId] = useState<number | null>(null);
   const [contractSiteIds, setContractSiteIds] = useState<number[]>([]);
+  const [contractSiteNames, setContractSiteNames] = useState<Record<number, string>>({});
   const [searchResults, setSearchResults] = useState<Report[]>([]);
   const [searchPage, setSearchPage] = useState(0);
   const [searchHasMore, setSearchHasMore] = useState(false);
@@ -105,6 +107,9 @@ export default function AssignmentsScreen() {
         const siteIds = Array.from(new Set(contracts.map((contract) => contract.siteId)));
         setContractSiteCount(siteIds.length);
         setContractSiteIds(siteIds);
+        setContractSiteNames(
+          Object.fromEntries(contracts.map((contract) => [contract.siteId, contract.siteName])),
+        );
         setSearchSiteId(previous => previous && siteIds.includes(previous) ? previous : siteIds[0] ?? null);
         const pages = await Promise.all(
           siteIds.map((siteId) => listReports({ siteId })),
@@ -195,18 +200,20 @@ export default function AssignmentsScreen() {
 
   const availableToClaim = useMemo(() => {
     if (!reports || !isTechnician) return [];
-    return (nlFilters ? searchResults : reports).filter(
-      (r) => r.policy.inAssignmentQueue && r.assignedTechnicianId === null,
-    );
-  }, [reports, isTechnician]);
+    // Unassigned queue items are not "in the actor's queue" for a technician
+    // (that flag only covers their own assignments), so match the claimable
+    // status set instead.
+    return (nlFilters ? searchResults : reports).filter(isClaimable);
+  }, [reports, isTechnician, nlFilters, searchResults]);
 
   const scoped = useMemo(() => {
     if (!reports) return [];
     const base = reports.filter((r) => r.policy.inAssignmentQueue);
     if (isTechnician) {
-      // Technician only sees what's either theirs or unassigned (claimable).
-      return base.filter(
-        (r) => r.assignedTechnicianId === null || r.assignedTechnicianId === user?.id,
+      return reports.filter(
+        (r) =>
+          (r.policy.inAssignmentQueue && r.assignedTechnicianId === user?.id) ||
+          isClaimable(r),
       );
     }
     // Staff/admin see everything unresolved â€” sorted by assignee.
@@ -221,8 +228,11 @@ export default function AssignmentsScreen() {
     const map = new Map<number, string>();
     for (const site of sites) map.set(site.id, site.name);
     if (currentSite) map.set(currentSite.id, currentSite.name);
+    for (const [siteId, name] of Object.entries(contractSiteNames)) {
+      if (name) map.set(Number(siteId), name);
+    }
     return map;
-  }, [sites, currentSite]);
+  }, [sites, currentSite, contractSiteNames]);
 
   const siteName = useCallback(
     (id: number | null) => (id === null ? '' : siteNames.get(id) ?? ''),

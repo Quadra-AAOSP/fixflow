@@ -1,5 +1,5 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Action, Field } from '@/components/ReviewControls';
@@ -11,7 +11,10 @@ import {
   type ListingDraft, type MarketplaceApplication, type MarketplaceListing,
 } from '@/services/marketplace';
 import { ownVerification } from '@/services/onboarding';
+import { listReports } from '@/services/reports';
 import { getTechnicianTerms } from '@/services/technician';
+import type { Report } from '@/types';
+import { isClaimable } from '@/utils/maintenance';
 
 const emptyDraft: ListingDraft = { summary: '', broadLocation: '', timing: '' };
 const limits = { summary: 300, broadLocation: 160, timing: 160 };
@@ -22,9 +25,12 @@ export default function MarketplaceScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { reportId } = useLocalSearchParams<{ reportId?: string }>();
-  const source = Number(reportId);
+  const paramReportId = Number(reportId);
+  const paramSource = Number.isSafeInteger(paramReportId) && paramReportId > 0 ? paramReportId : undefined;
   const isAdmin = user?.role === 'admin';
   const isTechnician = user?.role === 'technician';
+  const [source, setSource] = useState<number | undefined>(paramSource);
+  const [publishableReports, setPublishableReports] = useState<Report[] | null>(null);
   const [search, setSearch] = useState('');
   const [aiQuery, setAiQuery] = useState('');
   const [aiIds, setAiIds] = useState<number[] | null>(null);
@@ -44,8 +50,20 @@ export default function MarketplaceScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const canPublish = isAdmin && Number.isSafeInteger(source) && source > 0
-    && !jobs.some(job => job.reportId === source && (job.status === 'assigned' || openStates.includes(job.status)));
+  const canPublish = isAdmin && source !== undefined;
+  // Reports the admin could publish from this screen, excluding ones that
+  // already have a live or awarded marketplace listing.
+  const publishable = (publishableReports ?? []).filter(report =>
+    !jobs.some(job => job.reportId === report.id && (job.status === 'assigned' || openStates.includes(job.status))),
+  );
+  const sourceNotPublishable = source !== undefined && publishableReports !== null
+    && !publishable.some(report => report.id === source);
+
+  // Keep the selection in sync when the screen is already mounted (tab kept
+  // alive) and a report detail pushes a new `reportId`.
+  useEffect(() => {
+    if (paramSource !== undefined) setSource(current => current ?? paramSource);
+  }, [paramSource]);
 
   const run = useCallback(async (operation: () => Promise<void>) => {
     setBusy(true);
@@ -66,6 +84,10 @@ export default function MarketplaceScreen() {
     void run(async () => {
       const listings = await listJobs();
       if (active) setJobs(listings);
+      if (isAdmin) {
+        const siteReports = user?.siteId != null ? await listReports({ siteId: user.siteId }) : [];
+        if (active) setPublishableReports(siteReports.filter(isClaimable));
+      }
       if (isTechnician) {
         const [record, terms] = await Promise.all([ownVerification(), getTechnicianTerms()]);
         if (active) {
@@ -79,6 +101,10 @@ export default function MarketplaceScreen() {
 
   async function refresh() {
     setJobs(await listJobs());
+    if (isAdmin && user?.siteId != null) {
+      const siteReports = await listReports({ siteId: user.siteId });
+      setPublishableReports(siteReports.filter(isClaimable));
+    }
     if (reviewJob !== undefined) setApplications(await listJobApplications(reviewJob));
     if (isTechnician) {
       const [record, terms] = await Promise.all([ownVerification(), getTechnicianTerms()]);
@@ -131,7 +157,32 @@ export default function MarketplaceScreen() {
               <Action label={t('workspace.terms')} onPress={() => router.push('/technician/terms')} />
             </View>
           ) : null}
-          {canPublish ? (
+          {isAdmin ? (
+            <View className="my-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
+              <Text className="mb-1 font-bold text-ink">{t('marketplace.chooseReport')}</Text>
+              <Text className="mb-2 text-ink">{t('marketplace.chooseReportHint')}</Text>
+              {publishableReports === null ? (
+                <Text className="text-ink">{t('review.loading')}</Text>
+              ) : publishable.length === 0 ? (
+                <Text className="text-ink">{t('marketplace.noReportsToPublish')}</Text>
+              ) : publishable.map(report => (
+                <View key={report.id} className="my-2 rounded-lg border border-dashboard-card-line p-3">
+                  <Text className="font-bold text-ink">{t('marketplace.reportOption', { id: report.id })}</Text>
+                  <Text className="mb-1 text-ink" numberOfLines={2}>{report.description}</Text>
+                  <Text className="mb-2 text-ink">{report.category}</Text>
+                  <Action
+                    label={source === report.id ? t('marketplace.selectedReport') : t('marketplace.selectReport')}
+                    disabled={busy || source === report.id}
+                    onPress={() => setSource(report.id)}
+                  />
+                </View>
+              ))}
+              {sourceNotPublishable ? (
+                <Text className="my-2 text-ink">{t('marketplace.reportNotPublishable')}</Text>
+              ) : null}
+            </View>
+          ) : null}
+          {canPublish && !sourceNotPublishable ? (
             <View className="my-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
               <Text className="mb-2 font-bold text-ink">{t('marketplace.publishReport', { id: source })}</Text>
               <Text className="mb-3 text-ink">{t('marketplace.privacy')}</Text>
