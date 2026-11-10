@@ -19,10 +19,9 @@ import {
   addTechnicianSkill,
   listMyTechnicianSkills,
 } from '@/services/technician';
-import { listSiteRules } from '@/services/siteRules';
+import { listAllSiteRules } from '@/services/siteRules';
 import type { SiteRule } from '@/types';
 import type { TechnicianSkill } from '@/types/technician';
-import { useCurrentSite } from '@/stores/site';
 
 /** Proficiency level i18n keys — mirrors the <select> in `TradeProfile.vue`. */
 const PROFICIENCY_LABELS: Record<number, string> = {
@@ -43,7 +42,6 @@ export function TradeProfile() {
   const { t } = useTranslation('common');
   const palette = themeColors();
   const { user } = useAuth();
-  const { site } = useCurrentSite();
   const PROFICIENCY_OPTIONS = Array.from(
     { length: SKILL_PROFICIENCY_MAX - SKILL_PROFICIENCY_MIN + 1 },
     (_, index) => {
@@ -101,33 +99,28 @@ export function TradeProfile() {
   }, [loadTrades, user?.id, user?.role]);
 
   useEffect(() => {
-    if (!site) {
-      setRules([]);
-      return;
-    }
+    // The trade list is the platform category taxonomy (the same categories
+    // reports are filed under), so a technician's skill matches real work even
+    // when their account has no site yet.
     let cancelled = false;
     (async () => {
       try {
-        const next = await listSiteRules(site.type);
+        const next = await listAllSiteRules();
         if (!cancelled) setRules(next);
       } catch {
-        // Failing to load rules shouldn't block the manual entry path —
+        // Failing to load the taxonomy shouldn't block the manual entry path —
         // a free-text category is still acceptable to the backend.
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [site?.type]);
+  }, []);
 
   async function onSubmit() {
     if (user?.role !== 'technician' || loadingTrades || tradeLoadError || submitting) return;
     if (category.trim().length === 0) {
       setError(t('components.tradeProfile.errors.categoryRequired'));
-      return;
-    }
-    if (specialty.trim().length === 0) {
-      setError(t('components.tradeProfile.errors.specialtyRequired'));
       return;
     }
     if (proficiency === '') {
@@ -166,7 +159,7 @@ export function TradeProfile() {
       const result = await addTechnicianSkill({
         technicianId: user.id,
         category: category.trim(),
-        specialty: specialty.trim(),
+        specialty: specialty.trim() || undefined,
         proficiency: proficiencyValue,
       });
       setTrades(current => [...current.filter(trade => trade.id !== result.id), result]);

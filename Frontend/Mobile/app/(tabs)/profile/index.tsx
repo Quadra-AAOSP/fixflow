@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
+import { TradeProfile } from '@/components/technician/TradeProfile';
 import { roleLabels } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -253,6 +254,11 @@ export default function ProfileScreen() {
               </Pressable>
             </Card>
           ) : null}
+
+          {/* Technician skills — trade / specialty / proficiency selection
+              (GET + POST /api/technician-skills), the same component the
+              workspace screen uses. Only rendered for technicians. */}
+          {user.role === 'technician' ? <TradeProfile /> : null}
 
           {/* Preferences — availability for technicians, session echo for
               everyone else. */}

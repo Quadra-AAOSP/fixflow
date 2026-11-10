@@ -775,7 +775,12 @@
     "manageContracts": "Site contracts",
     "fallbackSite": "Site #{id}",
     "errorTitle": "Could not load open jobs",
-    "retry": "Retry"
+    "retry": "Retry",
+    "marketplaceTitle": "Marketplace jobs",
+    "marketplaceHint": "Jobs posted by site admins on the open marketplace — no site contract needed.",
+    "marketplaceOpen": "Open Marketplace",
+    "marketplaceEmpty": "No marketplace jobs right now.",
+    "marketplaceApply": "View & apply in Marketplace"
   },
   "assignments": {
     "myAssignmentsTitle": "My assignments",
@@ -1605,7 +1610,7 @@
       "addTrade": "Add trade →",
       "addAnother": "Add another trade →",
       "primaryTrade": "Primary trade",
-      "specialtyLabel": "Specialty and work you are qualified to undertake",
+      "specialtyLabel": "Specialty and work you are qualified to undertake (optional)",
       "proficiencyLabel": "Self-assessed proficiency",
       "chooseCategory": "Choose a category…",
       "categoryPlaceholder": "e.g. electrical",

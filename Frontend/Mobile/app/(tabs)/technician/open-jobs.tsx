@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, Text, View } from 'react-native';
-import { Briefcase, ClipboardList, Search } from 'lucide-react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { ArrowRight, Briefcase, ClipboardList, Search } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/useToastContext';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
+import { listJobs, type MarketplaceListing } from '@/services/marketplace';
 import { claimReport, listReports } from '@/services/reports';
 import { listTechnicianContracts } from '@/services/technician';
 import type { Report, Urgency } from '@/types';
@@ -43,6 +44,9 @@ export default function OpenJobsScreen() {
   const palette = themeColors();
 
   const [jobs, setJobs] = useState<Report[] | null>(null);
+  // Open marketplace postings from site admins. Loaded separately so a
+  // marketplace failure can't blank the contract job board.
+  const [listings, setListings] = useState<MarketplaceListing[] | null>(null);
   const [siteNames, setSiteNames] = useState<Record<number, string>>({});
   const [contractSiteCount, setContractSiteCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -78,6 +82,13 @@ export default function OpenJobsScreen() {
       );
     } finally {
       setLoading(false);
+    }
+    // Marketplace postings are fetched outside the error path above so the
+    // board still renders if the marketplace endpoint misbehaves.
+    try {
+      setListings(await listJobs());
+    } catch {
+      setListings([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -207,8 +218,121 @@ export default function OpenJobsScreen() {
             onClaim={() => onClaim(item.id)}
           />
         )}
+        ListFooterComponent={
+          <MarketplaceSection
+            listings={listings}
+            loading={loading}
+            onOpen={() => router.push('/more/marketplace')}
+          />
+        }
       />
     </Screen>
+  );
+}
+
+/**
+ * Marketplace postings from site admins, shown below the contract board so
+ * technicians see admin-published jobs without hunting through More.
+ * Applying still happens on `/more/marketplace`, which owns the note field
+ * plus verification/terms gating.
+ */
+function MarketplaceSection({
+  listings,
+  loading,
+  onOpen,
+}: {
+  listings: MarketplaceListing[] | null;
+  loading: boolean;
+  onOpen: () => void;
+}) {
+  const { t } = useTranslation('common');
+  const open = (listings ?? []).filter((job) => job.status === 'open');
+  return (
+    <View className="mt-6">
+      <View className="mb-2 flex-row items-center justify-between gap-2">
+        <Text
+          className="text-[15px] font-semibold text-ink"
+          style={{ letterSpacing: -0.3 }}
+        >
+          {t('openJobs.marketplaceTitle')}
+        </Text>
+        <Pressable
+          accessibilityRole="link"
+          onPress={onOpen}
+          className="flex-row items-center gap-1 active:opacity-70"
+        >
+          <Text
+            className="text-[11px] font-semibold"
+            style={{ color: dashboardColors.teal }}
+          >
+            {t('openJobs.marketplaceOpen')}
+          </Text>
+          <ArrowRight color={dashboardColors.teal} size={13} />
+        </Pressable>
+      </View>
+      <Text className="mb-3 text-[12px] leading-[1.7] text-dashboard-subtitle">
+        {t('openJobs.marketplaceHint')}
+      </Text>
+      {listings === null ? (
+        <Text className="text-xs text-dashboard-caption">
+          {t('openJobs.loading')}
+        </Text>
+      ) : open.length === 0 ? (
+        <Text className="text-xs text-dashboard-caption">
+          {t('openJobs.marketplaceEmpty')}
+        </Text>
+      ) : (
+        open.map((job) => <ListingCard key={job.id} job={job} onOpen={onOpen} />)
+      )}
+    </View>
+  );
+}
+
+function ListingCard({
+  job,
+  onOpen,
+}: {
+  job: MarketplaceListing;
+  onOpen: () => void;
+}) {
+  const { t } = useTranslation('common');
+  return (
+    <View className="mb-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
+      <View className="mb-1 flex-row items-center justify-between gap-2">
+        <Text
+          className="text-xs font-medium uppercase tracking-wide text-dashboard-subtitle"
+          numberOfLines={1}
+        >
+          {humanize(job.category)}
+        </Text>
+        <Text className="text-[11px] font-medium text-dashboard-subtitle">
+          {t(`marketplace.states.${job.status}`)}
+        </Text>
+      </View>
+      <Text className="text-sm text-ink" numberOfLines={3}>
+        {job.summary}
+      </Text>
+      <View className="mt-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+        <Text className="text-[11px] text-dashboard-subtitle" numberOfLines={1}>
+          {job.broadLocation}
+        </Text>
+        <Text className="text-[11px] text-dashboard-subtitle">{job.timing}</Text>
+        <Text className="text-[11px] text-dashboard-subtitle">
+          {[job.specialty, job.urgency].filter(Boolean).join(' · ')}
+        </Text>
+      </View>
+      <Text className="mt-2 text-[11px] text-dashboard-caption">
+        {t('marketplace.listingDeadline', {
+          date: new Date(job.expiresAt).toLocaleString(),
+        })}
+      </Text>
+      <Button
+        variant="cta"
+        className="mt-3 min-h-0 py-2"
+        label={t('openJobs.marketplaceApply')}
+        onPress={onOpen}
+      />
+    </View>
   );
 }
 

@@ -775,7 +775,12 @@
     "manageContracts": "站点合同",
     "fallbackSite": "站点 #{id}",
     "errorTitle": "无法加载待接工作",
-    "retry": "重试"
+    "retry": "重试",
+    "marketplaceTitle": "市场工作",
+    "marketplaceHint": "站点管理员发布到开放市场的工作 — 无需站点合同即可申请。",
+    "marketplaceOpen": "进入市场",
+    "marketplaceEmpty": "暂时没有市场工作。",
+    "marketplaceApply": "前往市场查看并申请"
   },
   "assignments": {
     "myAssignmentsTitle": "我的派单",
@@ -1605,7 +1610,7 @@
       "addTrade": "添加工种 →",
       "addAnother": "添加另一项技能 →",
       "primaryTrade": "主工种",
-      "specialtyLabel": "专长及您有资格从事的工作",
+      "specialtyLabel": "专长及您有资格从事的工作（可选）",
       "proficiencyLabel": "自评熟练度",
       "chooseCategory": "选择类别…",
       "categoryPlaceholder": "例如 电气",
