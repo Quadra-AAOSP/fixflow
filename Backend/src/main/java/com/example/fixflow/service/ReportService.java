@@ -68,6 +68,12 @@ public class ReportService {
 	private final ReportPhotoValidator photoValidator;
 	private final ReportPhotoService reportPhotoService;
 	private final boolean requireSiteSetup;
+	@org.springframework.beans.factory.annotation.Autowired
+	private SiteVettingService vetting;
+	@org.springframework.beans.factory.annotation.Value("${fixflow.urgency.medium-reporters:3}")
+	private int mediumReporters;
+	@org.springframework.beans.factory.annotation.Value("${fixflow.urgency.high-reporters:5}")
+	private int highReporters;
 
 	public ReportService(
 			ReportRepository reportRepository,
@@ -170,6 +176,7 @@ public class ReportService {
 		report.setCategory(category);
 		report.setSpecialty(blankToNull(request.specialty()));
 		report.setReporterUrgency(request.reporterUrgency());
+		report.setCalculatedUrgency(request.reporterUrgency());
 		report.setReporterReason(blankToNull(request.reporterReason()));
 		report.setVisibility(request.visibility() != null
 				? request.visibility() : ReportVisibility.PUBLIC);
@@ -179,7 +186,8 @@ public class ReportService {
 		ReportReporter attachment = new ReportReporter();
 		attachment.setReportId(report.getId());
 		attachment.setUserId(filer.getId());
-		reportReporterRepository.save(attachment);
+		reportReporterRepository.saveAndFlush(attachment);
+		recalculateUrgency(report);
 
 		appendStatusHistory(report, null, ReportStatus.open, filer, "Report created");
 		report = reportRepository.saveAndFlush(report);
@@ -251,9 +259,14 @@ public class ReportService {
 		} catch (RuntimeException ex) { throw new ApiException(400, "Invalid search filters"); }
 		if ((from != null && to != null && from.isAfter(to)) || (filters.category() != null && filters.category().length() > 128)
 				|| (filters.text() != null && filters.text().length() > 500)) throw new ApiException(400, "Invalid search filters");
+		var siteType = siteRepository.findById(scopedSiteId)
+				.orElseThrow(() -> new ApiException(404, "Site not found")).getType();
+		var allowedCategories = categoryTaxonomyService.allowedCategories(siteType);
+		String category = filters.category() == null ? null : categoryTaxonomyService.requireAllowedCategory(siteType, filters.category());
 		Page<Report> result = reportRepository.findAll((root, query, cb) -> {
 			var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
 			predicates.add(cb.equal(root.get("site").get("id"), scopedSiteId));
+			predicates.add(allowedCategories.isEmpty() ? cb.disjunction() : root.get("category").in(allowedCategories));
 			predicates.add(cb.isNull(root.get("archivedAt")));
 			var membership = query.subquery(Long.class);
 			var rr = membership.from(ReportReporter.class);
@@ -268,8 +281,8 @@ public class ReportService {
 			predicates.add(cb.or(cb.equal(root.get("visibility"), ReportVisibility.PUBLIC), sensitive));
 			if (status != null) predicates.add(cb.equal(root.get("status"), status));
 			if (visibility != null) predicates.add(cb.equal(root.get("visibility"), visibility));
-			if (filters.category() != null) predicates.add(cb.equal(root.get("category"), filters.category()));
-			if (urgency != null) predicates.add(cb.equal(cb.coalesce(root.get("finalUrgency"), root.get("reporterUrgency")), urgency));
+			if (category != null) predicates.add(cb.equal(root.get("category"), category));
+			if (urgency != null) predicates.add(cb.equal(cb.coalesce(root.get("finalUrgency"), cb.coalesce(root.get("calculatedUrgency"), root.get("reporterUrgency"))), urgency));
 			if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from.atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
 			if (to != null) predicates.add(cb.lessThan(root.get("createdAt"), to.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
 			if (Boolean.TRUE.equals(filters.canJoin())) {
@@ -327,6 +340,7 @@ public class ReportService {
 			report.setDescription(description);
 			report.setAddress(address);
 			report.setReporterUrgency(request.reporterUrgency());
+			recalculateUrgency(report);
 			report.setReporterReason(reason);
 			if (category != null) {
 				report.setCategory(category);
@@ -413,7 +427,44 @@ public class ReportService {
 			attachment.setUserId(actor.getId());
 			reportReporterRepository.save(attachment);
 		}
+		reportReporterRepository.flush();
+		recalculateUrgency(report);
 		return response(report, actor);
+	}
+
+	@Transactional
+	public ReportResponse leave(Long id, AppUserDetails actor) {
+		if (actor.getRole() != UserRole.reporter) throw new ApiException(403, "Only reporters can leave reports");
+		Report report = reportRepository.findForVisionUpdate(id).orElseThrow(() -> new ApiException(404, "Report not found"));
+		assertCanViewSite(actor, report.getSite().getId());
+		assertCanSeeVisibility(actor, report);
+		if (report.getCreatedBy().getId().equals(actor.getId())) throw new ApiException(409, "The creator cannot leave their report");
+		reportReporterRepository.deleteByReportIdAndUserId(id, actor.getId());
+		reportReporterRepository.flush();
+		recalculateUrgency(report);
+		return response(report, actor);
+	}
+
+	@Transactional
+	public long backfillCalculatedUrgency(long afterId) {
+		var batch = reportRepository.findByCalculatedUrgencyIsNullAndIdGreaterThanOrderByIdAsc(afterId, PageRequest.of(0, 100));
+		for (Report report : batch) {
+			Report locked = reportRepository.findForVisionUpdate(report.getId()).orElseThrow();
+			if (locked.getCalculatedUrgency() == null) recalculateUrgency(locked);
+		}
+		return batch.isEmpty() ? -1 : batch.get(batch.size() - 1).getId();
+	}
+
+	private void recalculateUrgency(Report report) {
+		int count = Math.toIntExact(reportReporterRepository.countByReportId(report.getId()));
+		report.setParticipationCount(count);
+		var base = report.getReporterUrgency();
+		report.setCalculatedUrgency(calculateUrgency(base, count, mediumReporters, highReporters));
+	}
+
+	static com.example.fixflow.domain.Urgency calculateUrgency(com.example.fixflow.domain.Urgency base, int count, int medium, int high) {
+		var boost = count >= high ? com.example.fixflow.domain.Urgency.high : count >= medium ? com.example.fixflow.domain.Urgency.medium : com.example.fixflow.domain.Urgency.low;
+		return base.ordinal() >= boost.ordinal() ? base : boost;
 	}
 
 	@Transactional(readOnly = true)
@@ -449,7 +500,7 @@ public class ReportService {
         if (!contracts.existsByTechnician_IdAndSite_Id(technician.getId(), report.getSite().getId())) {
             throw new ApiException(409, "Technician must have a contract with the report's site before assignment");
         }
-        terms.requireAcceptance(technician.getId());
+        vetting.requireEligible(technician.getId(), report.getSite().getId());
         events.publishEvent(new MarketplaceAssignmentReplaced(report.getId(), actor.getId()));
         ReportStatus previousStatus = report.getStatus();
         Long previousAssignee = report.getAssignedTechnician() == null ? null : report.getAssignedTechnician().getId();

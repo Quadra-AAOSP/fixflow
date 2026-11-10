@@ -17,15 +17,19 @@ import com.example.fixflow.domain.*;
 import com.example.fixflow.repository.*;
 import com.example.fixflow.security.AppUserDetails;
 
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:ranking-api;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
+@SpringBootTest(properties = {"spring.datasource.url=jdbc:h2:mem:ranking-api;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE", "fixflow.technician-terms.version=test-v1", "fixflow.technician-terms.document-url=https://example.test/terms"})
 @org.springframework.transaction.annotation.Transactional
 class TechnicianRankingIntegrationTest {
+    @Autowired TechnicianTermsAcceptanceRepository termsFixture;
+    @Autowired TechnicianVerificationRepository verificationFixture;
+    @Autowired SiteTechnicianVettingRepository vettingFixture;
     @Autowired WebApplicationContext context;
     @Autowired SiteRepository sites;
     @Autowired UserRepository users;
     @Autowired ReportRepository reports;
     @Autowired TechnicianContractRepository contracts;
     @Autowired TechnicianSkillRepository skills;
+    @Autowired TechnicianInvitationRepository invitations;
     @Autowired TechnicianAvailabilityRepository availability;
     MockMvc mvc;
     Site site, other;
@@ -36,6 +40,8 @@ class TechnicianRankingIntegrationTest {
         site = site(); other = site(); admin = userAccount(UserRole.admin, site);
         technician = userAccount(UserRole.technician, null); outsider = userAccount(UserRole.technician, null);
         reporter = userAccount(UserRole.reporter, site); report = report(site, reporter);
+        VettingFixture.eligible(technician, site, admin, termsFixture, verificationFixture, vettingFixture);
+        VettingFixture.eligible(outsider, site, admin, termsFixture, verificationFixture, vettingFixture);
         contract(technician, site); skill(technician); skill(outsider); available(technician);
     }
     Site site() { Site s = new Site(); s.setName("Ranking"); s.setType(SiteType.school); s.setContractStatus(ContractStatus.contracted); return sites.save(s); }
@@ -107,6 +113,17 @@ class TechnicianRankingIntegrationTest {
                 .andExpect(jsonPath("$.items[0].reportId").doesNotExist());
         mvc.perform(get("/api/technician-invitations").with(user(new AppUserDetails(technician))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
+        long invitationId = invitations.findByReport_IdAndTechnician_Id(report.getId(), outsider.getId()).orElseThrow().getId();
+        mvc.perform(get("/api/notifications").with(user(new AppUserDetails(outsider))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].type").value("site_invitation"))
+                .andExpect(jsonPath("$.content[0].invitationId").value(invitationId));
+        mvc.perform(get("/api/technician-invitations/" + invitationId).with(user(new AppUserDetails(outsider))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(invitationId));
+        mvc.perform(get("/api/technician-invitations/" + invitationId).with(user(new AppUserDetails(technician))))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/technician-invitations/" + invitationId).with(user(new AppUserDetails(reporter))))
+                .andExpect(status().isForbidden());
         assertThat(contracts.existsByTechnician_IdAndSite_Id(outsider.getId(), site.getId())).isFalse();
         assertThat(reports.findById(report.getId()).orElseThrow().getAssignedTechnician()).isNull();
     }

@@ -95,6 +95,12 @@ class OnboardingCompletionIntegrationTest {
         mvc.perform(post(path).with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"note\":\"Repeated\"}")).andExpect(status().isConflict());
     }
+    @Test void currentTermsMetadataIsPublicAndContainsNoAcceptanceHistory() throws Exception {
+        mvc.perform(get("/api/technician-terms/current"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.currentVersion").value("v2"))
+                .andExpect(jsonPath("$.documentUrl").value("https://example.test/terms/v2"))
+                .andExpect(jsonPath("$.acceptances").doesNotExist());
+    }
     @Test void currentTermsGateRequestsAndAllowScopedAdminStatus() throws Exception {
         String request = "{\"siteId\":" + site.getId() + "}";
         mvc.perform(post("/api/technician-contract-requests").with(user(new AppUserDetails(technician)))

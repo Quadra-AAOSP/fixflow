@@ -38,7 +38,7 @@ class SqlDataSeederIntegrationTest {
     @Test
     void sqlSeedsAreRepeatableAndEveryDemoPasswordMatchesEmail() {
         var accounts = users.findAll().stream().filter(u -> u.getEmail().endsWith("@fixflow.test")).toList();
-        assertThat(accounts).hasSize(12);
+        assertThat(accounts).hasSize(70);
         for (var user : accounts) {
             assertThat(passwords.matches(user.getEmail(), user.getPasswordHash())).isTrue();
         }

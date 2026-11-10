@@ -36,6 +36,7 @@ public class MarketplaceService {
     private final TechnicianVerificationRepository verifications;
     private final TechnicianSkillRepository skills;
     private final TechnicianTermsService terms;
+    private final SiteVettingService vetting;
     private final ReportWorkflowService workflow;
     private final ReportRatingRepository ratings;
 
@@ -158,6 +159,7 @@ public class MarketplaceService {
         }
         if (!safetyConfirmed) throw conflict("Confirm trade suitability and site access requirements before selection");
         requireEligible(listing, application.getTechnician().getId());
+        vetting.requireEligible(application.getTechnician().getId(), listing.getReport().getSite().getId());
         listing.setStatus(MarketplaceListing.Status.offered);
         application.setStatus(MarketplaceApplication.Status.offered);
         Instant offerExpiry = now.plus(OFFER_DURATION);
@@ -175,6 +177,7 @@ public class MarketplaceService {
         requireOffer(listing, application);
         User technician = requireEligible(listing, actor.getId());
         Report report = listing.getReport();
+        vetting.requireEligible(actor.getId(), report.getSite().getId());
         requireAvailable(report);
         workflow.activateMarketplaceAssignment(report, technician, actor);
         listing.setStatus(MarketplaceListing.Status.assigned);
@@ -265,7 +268,7 @@ public class MarketplaceService {
                 && report.getAssignedTechnician().getId().equals(mine.getTechnician().getId());
         return new ListingView(listing.getId(), listing.getSummary(), listing.getBroadLocation(), listing.getTiming(),
                 listing.getCategory(), admin || awarded ? listing.getSpecialty() : null,
-                report.getFinalUrgency() == null ? report.getReporterUrgency() : report.getFinalUrgency(), listingStatus(listing, now),
+                report.getEffectiveUrgency(), listingStatus(listing, now),
                 listing.getExpiresAt(), admin || awarded ? report.getId() : null,
                 mine == null ? null : applicationView(mine, false, now), admin && canCancelAssignment(listing));
     }

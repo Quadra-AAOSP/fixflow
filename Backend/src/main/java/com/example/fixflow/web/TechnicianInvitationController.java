@@ -18,6 +18,8 @@ public class TechnicianInvitationController {
             @RequestParam(defaultValue = "0") int page, @AuthenticationPrincipal AppUserDetails actor) {
         return invitations.invite(id, request.reason(), page, actor);
     }
+    @GetMapping("/api/technician-invitations/{id}")
+    public TechnicianInvitationService.Invitation detail(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails actor) { return invitations.detail(id, actor); }
     @GetMapping("/api/technician-invitations")
     public TechnicianInvitationService.Inbox inbox(@RequestParam(defaultValue = "0") int page,
             @AuthenticationPrincipal AppUserDetails actor) { return invitations.inbox(page, actor); }

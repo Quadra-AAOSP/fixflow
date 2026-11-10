@@ -57,7 +57,7 @@ it('shows the selected technician route and preserves the mounted panels when sw
   vi.mocked(api.getReport).mockResolvedValue(report({ id: 2, siteId: 71, status: 'open', assignedTechnicianId: null,
     policy: { canSeeSensitive: true, participant: false, canAssign: true, canJoin: false, statusGroup: 'open', effectiveUrgency: 'medium', urgent: false, inAssignmentQueue: false } }));
   await render();
-  const select = wrapper.get('select');
+  const select = wrapper.get('.ranking-route select');
   expect(select.element.value).toBe('contracted');
   const assignment = wrapper.get('technician-assignment-panel-stub');
   expect(assignment.attributes('style') ?? '').not.toContain('display: none');
@@ -74,16 +74,16 @@ it('preserves the marketplace draft during a realtime refresh and removes it on 
     policy: { canSeeSensitive: true, participant: false, canAssign: true, canJoin: false, statusGroup: 'open', effectiveUrgency: 'medium', urgent: false, inAssignmentQueue: false } });
   vi.mocked(api.getReport).mockResolvedValue(marketplaceReport);
   await render();
-  await wrapper.get('select').setValue('marketplace');
+  await wrapper.get('.ranking-route select').setValue('marketplace');
   await wrapper.get('[aria-label="Draft summary"]').setValue('Draft repair');
   let finish!: (value: typeof marketplaceReport) => void;
   vi.mocked(api.getReport).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
   useRealtimeStore().refreshRevision++;
   await nextTick();
-  expect(wrapper.get('select').element.value).toBe('marketplace');
+  expect(wrapper.get('.ranking-route select').element.value).toBe('marketplace');
   expect((wrapper.get('[aria-label="Draft summary"]').element as HTMLInputElement).value).toBe('Draft repair');
   finish(marketplaceReport); await flushPromises();
-  expect(wrapper.get('select').element.value).toBe('marketplace');
+  expect(wrapper.get('.ranking-route select').element.value).toBe('marketplace');
   expect((wrapper.get('[aria-label="Draft summary"]').element as HTMLInputElement).value).toBe('Draft repair');
   useRealtimeStore().accessRevision++;
   await nextTick();

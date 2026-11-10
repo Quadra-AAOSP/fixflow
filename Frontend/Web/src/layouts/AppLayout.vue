@@ -42,9 +42,9 @@ let noticeVersion = 0;
 const notices = ref<ReportNotice[]>([]);
 const noticeItems = computed(() => notices.value.map(notice => ({
   id: notice.id, createdAt: notice.createdAt,
-  title: t(notice.type === 'work_completed' ? 'Work completed' : notice.type === 'report_edited' ? 'Report updated' : 'Report archived'),
-  detail: t(notice.type === 'work_completed' ? 'Report #{id} is ready for your confirmation.' : notice.type === 'report_edited' ? 'Report #{id} was edited.' : 'Report #{id} was archived.', { id: notice.reportId }),
-  to: notice.type === 'report_deleted' ? undefined : `/reports/${notice.reportId}`,
+  title: t(notice.type === 'site_invitation' ? 'Site invitations' : notice.type === 'work_completed' ? 'Work completed' : notice.type === 'report_edited' ? 'Report updated' : 'Report archived'),
+  detail: t(notice.type === 'site_invitation' ? 'Site invitations' : notice.type === 'work_completed' ? 'Report #{id} is ready for your confirmation.' : notice.type === 'report_edited' ? 'Report #{id} was edited.' : 'Report #{id} was archived.', { id: notice.reportId ?? '' }),
+  to: notice.type === 'site_invitation' ? { path: '/technician/invitations', query: { invitationId: notice.invitationId } } : notice.type === 'report_deleted' || notice.reportId == null ? undefined : `/reports/${notice.reportId}`,
 })));
 const noticePage = ref(0);
 const noticeRetryPage = ref(0);

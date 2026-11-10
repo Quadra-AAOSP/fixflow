@@ -74,6 +74,17 @@ public class Report {
 	@Column(name = "reporter_urgency", nullable = false, length = 32)
 	private Urgency reporterUrgency;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "calculated_urgency", length = 32)
+	private Urgency calculatedUrgency;
+
+	@Column(name = "participation_count", nullable = false)
+	private int participationCount = 1;
+
+	public Urgency getEffectiveUrgency() {
+		return finalUrgency != null ? finalUrgency : calculatedUrgency != null ? calculatedUrgency : reporterUrgency;
+	}
+
 	@Column(name = "reporter_reason", columnDefinition = "TEXT")
 	private String reporterReason;
 

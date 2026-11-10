@@ -25,6 +25,7 @@ public class ReportWorkflowService {
     private final ReportRatingRepository ratings;
     private final ReportLinkRepository links;
     private final TechnicianTermsService terms;
+    private final SiteVettingService vetting;
     private final ReportService reportService;
     private final ApplicationEventPublisher events;
 
@@ -32,7 +33,8 @@ public class ReportWorkflowService {
             TechnicianContractRepository contracts, ReportReporterRepository participants,
             StatusHistoryRepository history, ReportResolutionRepository resolutions,
             ReportRatingRepository ratings, ReportLinkRepository links, TechnicianTermsService terms,
-            ReportService reportService, ApplicationEventPublisher events, ReportNotificationRepository notifications) {
+            ReportService reportService, ApplicationEventPublisher events, ReportNotificationRepository notifications, SiteVettingService vetting) {
+        this.vetting=vetting;
         this.reports=reports; this.users=users; this.contracts=contracts; this.participants=participants;
         this.history=history; this.resolutions=resolutions; this.ratings=ratings; this.links=links;
         this.terms=terms; this.reportService=reportService; this.events=events; this.notifications=notifications;
@@ -42,7 +44,7 @@ public class ReportWorkflowService {
         if(actor.getRole()!=UserRole.technician) denied();
         Report report=locked(id);
         if(!contracts.existsByTechnician_IdAndSite_Id(actor.getId(),report.getSite().getId())) denied();
-        terms.requireAcceptance(actor.getId());
+        vetting.requireEligible(actor.getId(), report.getSite().getId());
         if(report.getAssignedTechnician()!=null || !List.of(ReportStatus.open,ReportStatus.routed,
                 ReportStatus.reopened,ReportStatus.escalated).contains(report.getStatus())) conflict("Report is not claimable");
         activateAssignment(report,actor(actor),actor,"Technician claimed report");
@@ -72,7 +74,7 @@ public class ReportWorkflowService {
     }
 
     public ReportResponse start(Long id, AppUserDetails actor) {
-        Report report=locked(id); assigned(report,actor); terms.requireAcceptance(actor.getId());
+        Report report=locked(id); assigned(report,actor); vetting.requireEligible(actor.getId(), report.getSite().getId());
         if(!List.of(ReportStatus.assigned,ReportStatus.reopened,ReportStatus.escalated).contains(report.getStatus()))
             conflict("Report cannot start from its current status");
         transition(report,ReportStatus.in_progress,actor,"Work started",ReportDomainEvent.STATUS_CHANGE);

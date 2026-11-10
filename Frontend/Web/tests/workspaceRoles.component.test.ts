@@ -18,7 +18,7 @@ describe('role-specific workspace menus', () => {
     ['staff', ['/', '/reports', '/sites', '/assignments', '/shop']],
     ['admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/marketplace', '/site-rules', '/team-access', '/shop']],
     ['super_admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop/manage', '/site-applications', '/technician-verifications', '/shop']],
-    ['technician', ['/technician', '/reports', '/contracts', '/technician/marketplace', '/technician/invitations', '/marketplace', '/shop']],
+    ['technician', ['/technician', '/reports', '/contracts', '/marketplace', '/shop']],
     ['shop_manager', ['/shop/dashboard', '/shop/orders-management', '/shop/manage', '/profile']],
   ] as [UserRole, string[]][])('shows only relevant links for %s', (role, expected) => {
     const user = { ...account, role };

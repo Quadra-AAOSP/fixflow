@@ -18,6 +18,12 @@ public class CategoryTaxonomyService {
 	}
 
 	@Transactional(readOnly = true)
+	public java.util.List<String> allowedCategories(SiteType siteType) {
+		return siteRuleRepository.findBySiteTypeOrderBySortOrderAsc(siteType).stream()
+				.map(rule -> rule.getCategory()).toList();
+	}
+
+	@Transactional(readOnly = true)
 	public String requireAllowedCategory(SiteType siteType, String category) {
 		if (category == null || category.isBlank()) {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(), "Category is required");

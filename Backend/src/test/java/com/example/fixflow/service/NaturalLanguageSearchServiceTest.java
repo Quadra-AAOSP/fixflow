@@ -32,7 +32,9 @@ class NaturalLanguageSearchServiceTest {
         when(provider.chat(anyList())).thenReturn("{\"status\":\"open\",\"category\":\"invented\",\"urgency\":\"extreme\",\"from\":\"bad\"}");
         var service = new NaturalLanguageSearchService(sites, rules, contracts, assistant, providers, new ObjectMapper());
         var result = service.search(new NaturalLanguageSearchService.Request(1L, "open reports"), actor);
-        assertThat(result.filters().status()).isEqualTo("open");
+        assertThat(result.fallback()).isTrue();
+        assertThat(result.filters().text()).isEqualTo("open reports");
+        assertThat(result.filters().status()).isNull();
         assertThat(result.filters().category()).isNull();
         assertThat(result.filters().urgency()).isNull();
         assertThat(result.filters().from()).isNull();

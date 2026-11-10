@@ -728,3 +728,22 @@ CREATE TABLE IF NOT EXISTS marketplace_audit (
 
 SET @stmt = (SELECT IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'confirmation_signed_name') = 0, 'ALTER TABLE reports ADD COLUMN confirmation_signed_name VARCHAR(255) NULL', 'SELECT 1'));
 PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS site_technician_vetting (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ site_id BIGINT NOT NULL, technician_id BIGINT NOT NULL, status VARCHAR(16) NOT NULL,
+ reviewed_by BIGINT NOT NULL, reviewed_at TIMESTAMP(6) NOT NULL, expires_at TIMESTAMP(6) NULL,
+ identity_checked BOOLEAN NOT NULL, references_checked BOOLEAN NOT NULL, qualifications_checked BOOLEAN NOT NULL,
+ licence_applicable BOOLEAN NOT NULL, licence_checked BOOLEAN NOT NULL, licence_expires_at TIMESTAMP(6) NULL,
+ insurance_applicable BOOLEAN NOT NULL, insurance_checked BOOLEAN NOT NULL, insurance_expires_at TIMESTAMP(6) NULL,
+ INDEX idx_site_technician_vetting (site_id, technician_id, id),
+ FOREIGN KEY (site_id) REFERENCES sites(id), FOREIGN KEY (technician_id) REFERENCES users(id), FOREIGN KEY (reviewed_by) REFERENCES users(id)
+);
+
+SET @stmt = (SELECT IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'calculated_urgency') = 0, 'ALTER TABLE reports ADD COLUMN calculated_urgency VARCHAR(32) NULL', 'SELECT 1'));
+PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @urgency_backfill = (SELECT COUNT(*) = 0 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'participation_count');
+SET @stmt = (SELECT IF(@urgency_backfill, 'ALTER TABLE reports ADD COLUMN participation_count INT NOT NULL DEFAULT 1', 'SELECT 1'));
+PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @stmt = IF(@urgency_backfill, 'UPDATE reports r SET participation_count = (SELECT COUNT(*) FROM report_reporters rr WHERE rr.report_id = r.id)', 'SELECT 1');
+PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;

@@ -72,6 +72,6 @@ async function submit() {
     </template>
     <h3>{{ t("Before you start work at a site") }}</h3>
     <p class="dialog-intro">{{ t("Arrange a review with the site administrator covering your identity, relevant work history and references, qualifications, applicable trade licences and expiry dates, and insurance appropriate to the work. Requirements depend on the trade and location.") }}</p>
-    <p class="dialog-intro">{{ t("Secure evidence uploads and approval tracking are not available yet. Do not enter identity numbers or document links here. A saved trade or site contract is not proof of vetting.") }}</p>
+    <p class="dialog-intro">{{ t("Site vetting approval is required before work. Contact your site administrator to request a review. Do not enter identity numbers or document links here. A saved trade or site contract is not proof of vetting.") }}</p>
   </section>
 </template>

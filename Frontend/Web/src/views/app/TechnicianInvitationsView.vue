@@ -2,12 +2,14 @@
 import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
 import { onBeforeUnmount, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
-import { getTechnicianInvitations } from '@/services/technician';
+import { getTechnicianInvitations, getTechnicianInvitation } from '@/services/technician';
 import { errorMessage } from '@/services/api';
 import { formatDate, humanize } from '@/utils/maintenance';
 import type { TechnicianInvitationInbox } from '@/types/technician';
 const { t } = useLocale();
+const route = useRoute();
 
 const { user } = useAuth();
 const inbox = ref<TechnicianInvitationInbox | null>(null);
@@ -22,11 +24,11 @@ async function load(page = 0) {
   inbox.value = null; error.value = ''; loading.value = false;
   if (user.value?.role !== 'technician') return;
   loading.value = true;
-  try { const result = await getTechnicianInvitations(page); if (current === generation) inbox.value = result; }
+  try { const id = Number(route.query.invitationId); const result = id > 0 ? { items: [await getTechnicianInvitation(id)], page: 0, hasNext: false } : await getTechnicianInvitations(page); if (current === generation) inbox.value = result; }
   catch (err) { if (current === generation) error.value = errorMessage(err); }
   finally { if (current === generation) loading.value = false; }
 }
-watch(() => [user.value?.id, user.value?.role], () => load(), { immediate: true });
+watch(() => [user.value?.id, user.value?.role, route.query.invitationId], () => load(), { immediate: true });
 </script>
 
 <template>

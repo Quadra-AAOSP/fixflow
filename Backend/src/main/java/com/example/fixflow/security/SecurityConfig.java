@@ -71,7 +71,7 @@ public class SecurityConfig {
 						.requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers("/api/site-applications", "/api/site-applications/status", "/api/site-applications/information", "/api/site-applications/setup").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/policy", "/api/auth/csrf").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/sites").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/sites", "/api/technician-terms/current").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/shop/catalog").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SiteVettingPanel from '@/components/technician/SiteVettingPanel.vue';
 import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
@@ -82,6 +83,7 @@ watch(() => [scopeId.value, user.value?.id, props.revision], load, { immediate: 
 </script>
 
 <template>
+  <SiteVettingPanel v-if="scopeId" :key="scopeId" :site-id="scopeId" :technicians="contracts?.map(c => c.technicianId) ?? []" />
   <section v-if="allowed" class="contract-choice contract-directory">
     <div class="card-heading">
       <div><h2>{{ t('Recorded site contracts') }}</h2><p v-if="data.selectedSite">{{ data.selectedSite.name }}</p></div>

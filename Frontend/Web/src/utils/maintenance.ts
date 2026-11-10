@@ -15,7 +15,7 @@ export function statusGroup(status: ReportStatus): StatusGroup {
   return 'open';
 }
 export const statusTone = (status: ReportStatus) => ({ open: 'coral', progress: 'mint', resolved: 'citron' })[statusGroup(status)];
-export const effectiveUrgency = (report: Report) => report.finalUrgency ?? report.reporterUrgency;
+export const effectiveUrgency = (report: Report) => report.finalUrgency ?? report.calculatedUrgency ?? report.reporterUrgency;
 export const isUrgent = (report: Report) => statusGroup(report.status) !== 'resolved' && ['high', 'critical'].includes(effectiveUrgency(report));
 export function matchesFilter(report: Report, filter: ReportFilter) {
   return filter === 'all' || (filter === 'urgent' ? isUrgent(report) : statusGroup(report.status) === filter);

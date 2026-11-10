@@ -13,6 +13,8 @@ import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportStatus;
 
 public interface ReportRepository extends JpaRepository<Report, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Report> {
+    List<Report> findByCalculatedUrgencyIsNullAndIdGreaterThanOrderByIdAsc(Long id, Pageable pageable);
+
     long countByAssignedTechnician_IdAndStatusIn(Long technicianId, java.util.Collection<ReportStatus> statuses);
     long countByAssignedTechnician_IdAndStatus(Long technicianId, ReportStatus status);
 

@@ -163,6 +163,35 @@ async function join() {
 function workflowSaved(saved: Report) {
   report.value = saved; data.upsert(saved); message.value = 'Repair workflow updated by the service.';
 }
+async function leave() {
+  if (!report.value || busy.value) return;
+  const id = report.value.id;
+  const version = generation;
+  busy.value = true; actionError.value = ''; message.value = '';
+  try {
+    const result = await api.leaveReport(id);
+    if (version !== generation) return;
+    report.value = result; data.upsert(result); message.value = 'You left this report.';
+    await loadReporters(id, version);
+  } catch (err) { if (version === generation) actionError.value = errorMessage(err); }
+  finally { busy.value = false; }
+}
+const overrideUrgency = ref<Urgency>('medium');
+const overrideReason = ref('');
+async function saveUrgencyOverride() {
+  if (!report.value || busy.value) return;
+  const version = generation;
+  busy.value = true; actionError.value = ''; message.value = '';
+  try {
+    const result = await api.overrideUrgency(report.value.id, overrideUrgency.value, overrideReason.value);
+    if (version !== generation) return;
+    report.value = result; data.upsert(result); overrideReason.value = ''; message.value = 'Final urgency updated.';
+  } catch (err) { if (version === generation) actionError.value = errorMessage(err); }
+  finally { busy.value = false; }
+}
+const canLeave = computed(() => user.value?.role === 'reporter' && joined.value && user.value.id !== report.value?.createdByUserId);
+const canOverrideUrgency = computed(() => !!report.value && report.value.status !== 'confirmed'
+  && (user.value?.role === 'staff' || user.value?.role === 'admin' || user.value?.role === 'super_admin'));
 function assigned(saved: Report) {
   report.value = saved;
   data.upsert(saved);
@@ -194,7 +223,7 @@ async function visionFinished(id: number) {
 <template>
   <section class="dashboard-card live-page"><div class="card-heading"><RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />{{ t("All reports") }}</RouterLink><button class="icon-button" :disabled="loading || actionInProgress" :aria-label="t('Reload report')" @click="load()"><RefreshCw :size="17" /></button></div><LoadingStatus v-if="loading" :label="t('Loading report…')" /><p v-else-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <template v-else-if="report"><div class="card-heading"><h1>{{ t('Report #{id}', { id: report.id }) }}</h1><span class="status-badge" :class="statusTone(report.status)">{{ t(statusLabels[report.status]) }}</span></div><p class="report-description">{{ report.description }}</p>
-      <dl class="report-detail-grid"><div v-if="report.visibility"><dt>{{ t('Report visibility') }}</dt><dd>{{ t(report.visibility === 'private' ? 'Private report' : 'Public within your site') }}</dd></div><div><dt>{{ t("Site") }}</dt><dd>{{ data.siteName(report.siteId) }}</dd></div><div><dt>{{ t("Location") }}</dt><dd>{{ report.address || t('Not shared or not provided') }}</dd></div><div><dt>{{ t("Category") }}</dt><dd>{{ t(humanize(report.category)) }}</dd></div><div><dt>{{ t("Specialty") }}</dt><dd>{{ report.specialty ? t(humanize(report.specialty)) : t('Not specified') }}</dd></div><div><dt>{{ t("Reported by") }}</dt><dd>{{ report.createdByName || t('Not shared') }}</dd></div><div><dt>{{ t("Technician") }}</dt><dd>{{ report.assignedTechnicianId == null ? t('Unassigned') : t('Technician #{id}', { id: report.assignedTechnicianId }) }}</dd></div><div><dt>{{ t("Reporter urgency") }}</dt><dd>{{ t(urgencyLabels[report.reporterUrgency]) }}</dd></div><div><dt>{{ t("AI urgency") }}</dt><dd>{{ report.aiUrgency ? t(urgencyLabels[report.aiUrgency]) : t('Not classified') }}</dd></div><div><dt>{{ t("Final urgency") }}</dt><dd>{{ report.finalUrgency ? t(urgencyLabels[report.finalUrgency]) : t('Not determined') }}</dd></div><div><dt>{{ t("Urgency reason") }}</dt><dd>{{ report.reporterReason || t('Not shared or not provided') }}</dd></div><div><dt>{{ t("Created") }}</dt><dd>{{ formatDate(report.createdAt, true) }}</dd></div><div><dt>{{ t("Updated") }}</dt><dd>{{ formatDate(report.updatedAt, true) }}</dd></div><div><dt>{{ t("Times reopened") }}</dt><dd>{{ report.reopenCount }}</dd></div></dl>
+      <dl class="report-detail-grid"><div v-if="report.visibility"><dt>{{ t('Report visibility') }}</dt><dd>{{ t(report.visibility === 'private' ? 'Private report' : 'Public within your site') }}</dd></div><div><dt>{{ t("Site") }}</dt><dd>{{ data.siteName(report.siteId) }}</dd></div><div><dt>{{ t("Location") }}</dt><dd>{{ report.address || t('Not shared or not provided') }}</dd></div><div><dt>{{ t("Category") }}</dt><dd>{{ t(humanize(report.category)) }}</dd></div><div><dt>{{ t("Specialty") }}</dt><dd>{{ report.specialty ? t(humanize(report.specialty)) : t('Not specified') }}</dd></div><div><dt>{{ t("Reported by") }}</dt><dd>{{ report.createdByName || t('Not shared') }}</dd></div><div><dt>{{ t("Technician") }}</dt><dd>{{ report.assignedTechnicianId == null ? t('Unassigned') : t('Technician #{id}', { id: report.assignedTechnicianId }) }}</dd></div><div><dt>{{ t("Reporter urgency") }}</dt><dd>{{ t(urgencyLabels[report.reporterUrgency]) }}</dd></div><div><dt>{{ t("Calculated urgency") }}</dt><dd>{{ report.calculatedUrgency ? t(urgencyLabels[report.calculatedUrgency]) : t('Not determined') }}</dd></div><div><dt>{{ t("People joined") }}</dt><dd>{{ report.participationCount ?? reporters.length }}</dd></div><div><dt>{{ t("AI urgency") }}</dt><dd>{{ report.aiUrgency ? t(urgencyLabels[report.aiUrgency]) : t('Not classified') }}</dd></div><div><dt>{{ t("Final urgency") }}</dt><dd>{{ report.finalUrgency ? t(urgencyLabels[report.finalUrgency]) : t('Not determined') }}</dd></div><div><dt>{{ t("Urgency reason") }}</dt><dd>{{ report.reporterReason || t('Not shared or not provided') }}</dd></div><div><dt>{{ t("Created") }}</dt><dd>{{ formatDate(report.createdAt, true) }}</dd></div><div><dt>{{ t("Updated") }}</dt><dd>{{ formatDate(report.updatedAt, true) }}</dd></div><div><dt>{{ t("Times reopened") }}</dt><dd>{{ report.reopenCount }}</dd></div></dl>
       <p v-if="message" class="draft-notice" role="status">{{ t(message) }}</p><p v-if="actionError" class="live-error" role="alert">{{ t(actionError) }}</p>
       <section v-if="report.policy?.canEdit || report.policy?.canDelete" class="detail-section">
         <div class="card-heading">
@@ -217,7 +246,18 @@ async function visionFinished(id: number) {
           <button class="text-action" type="button" :disabled="actionInProgress" @click="confirmingArchive = false">{{ t('Cancel') }}</button>
         </div>
       </section>
-      <section class="detail-section"><h2>{{ t("People attached to this report") }}</h2><p v-if="reportersError" class="live-error">{{ t(reportersError) }}</p><ul v-else-if="reportersLoaded" class="reporter-list"><li v-for="person in reporters" :key="person.userId">{{ person.userId === user?.id ? t('You') : (person.name || t('User #{id}', { id: person.userId })) }}<span>{{ t('Joined {date}', { date: formatDate(person.joinedAt, true) }) }}</span></li></ul><p v-else class="dialog-intro">{{ t("Reporter identities are only available to people with access to this report.") }}</p><button v-if="user?.role === 'reporter' && !joined" class="report-issue-button" :disabled="actionInProgress" @click="join">{{ t(busy ? 'Saving…' : 'This issue affects me too') }}</button><p v-if="user?.role === 'reporter' && !joined" class="dialog-intro">{{ t("Joining attaches your account to the report and gives you access to its shared details.") }}</p></section>
+      <section class="detail-section"><h2>{{ t("People attached to this report") }}</h2><p v-if="reportersError" class="live-error">{{ t(reportersError) }}</p><ul v-else-if="reportersLoaded" class="reporter-list"><li v-for="person in reporters" :key="person.userId">{{ person.userId === user?.id ? t('You') : (person.name || t('User #{id}', { id: person.userId })) }}<span>{{ t('Joined {date}', { date: formatDate(person.joinedAt, true) }) }}</span></li></ul><p v-else class="dialog-intro">{{ t("Reporter identities are only available to people with access to this report.") }}</p><button v-if="user?.role === 'reporter' && !joined" class="report-issue-button" :disabled="actionInProgress" @click="join">{{ t(busy ? 'Saving…' : 'This issue affects me too') }}</button><p v-if="user?.role === 'reporter' && !joined" class="dialog-intro">{{ t("Joining attaches your account to the report and gives you access to its shared details.") }}</p><button v-if="canLeave" class="text-action" :disabled="actionInProgress" @click="leave">{{ t(busy ? 'Leaving…' : 'Leave report') }}</button></section>
+      <section v-if="canOverrideUrgency" class="detail-section">
+        <h2>{{ t("Override urgency") }}</h2>
+        <p class="dialog-intro">{{ t("Manual final urgency takes precedence over reporter and join-based calculated urgency. Join boosts never reach Critical.") }}</p>
+        <form class="draft-form" @submit.prevent="saveUrgencyOverride">
+          <fieldset class="report-fields" :disabled="actionInProgress">
+            <label>{{ t("Final urgency") }}<select v-model="overrideUrgency"><option v-for="(label, value) in urgencyLabels" :key="value" :value="value as Urgency">{{ t(label) }}</option></select></label>
+            <label>{{ t("Override reason") }}<textarea v-model="overrideReason" required maxlength="500" rows="3" /></label>
+            <button class="report-issue-button" type="submit">{{ t(busy ? 'Saving…' : 'Save urgency override') }}</button>
+          </fieldset>
+        </form>
+      </section>
       <div v-if="report.confirmedAt || report.reopenReason" class="detail-section"><p v-if="report.confirmedAt">{{ report.confirmedByName ? t('Confirmed {date} by {name}', { date: formatDate(report.confirmedAt, true), name: report.confirmedByName }) : t('Confirmed {date}', { date: formatDate(report.confirmedAt, true) }) }}</p><p v-if="report.reopenReason">{{ t('Reopen reason: {reason}', { reason: report.reopenReason }) }}</p></div>
       <ReportClassificationPanel :report="report" :disabled="actionInProgress" @busy="classificationBusy = $event" @saved="classified" />
       <ReportVisionPanel :report="report" :disabled="actionInProgress" @busy="visionBusy = $event" @finished="visionFinished" />
