@@ -3,6 +3,13 @@ import type { ShopCartItemPayload, ShopProduct } from '@/types';
 export { formatMoney } from './format';
 
 /**
+ * Editorial placeholder shown when a catalogue product has no usable image —
+ * the same photography the web shop's `ProductImage` fallback uses.
+ */
+export const PRODUCT_FALLBACK_IMAGE =
+  'https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=600';
+
+/**
  * Returns a URI safe to hand to `<Image>`, or `null`.
  *
  * The web build restricts images to `https` because a browser refuses mixed

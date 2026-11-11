@@ -2,15 +2,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import type { ShopCartItemPayload, ShopProduct } from '@/types';
+import type { ShopCatalog, ShopCartItemPayload, ShopProduct } from '@/types';
 import { BasketLine, toCartPayload } from '@/utils/shop';
 
 interface CartState {
   basket: BasketLine[];
+  /** Catalog currency the basket was built against (`null` = empty). */
+  currency: string | null;
   addToBasket: (product: ShopProduct, quantity?: number) => void;
   updateBasketQuantity: (productId: string, quantity: number) => void;
   removeFromBasket: (productId: string) => void;
   clearBasket: () => void;
+  /**
+   * Reconciles the persisted basket with a freshly loaded catalog — mirrors
+   * the web store's `refresh`: quantities clamp to the new stock, sold-out
+   * or removed products drop out of the basket, and a currency change
+   * resets it entirely (one basket can never mix currencies).
+   */
+  syncCatalog: (catalog: ShopCatalog) => void;
   getBasketLines: () => BasketLine[];
   getCartPayload: () => ShopCartItemPayload[];
 }
@@ -19,6 +28,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       basket: [],
+      currency: null,
       // Adds are clamped to the product's stock snapshot, mirroring the web
       // shop's `setQuantity` behaviour (the + button disables at the cap).
       addToBasket: (product, quantity = 1) => {
@@ -76,7 +86,28 @@ export const useCartStore = create<CartState>()(
           basket: state.basket.filter((item) => item.product.id !== productId),
         }));
       },
-      clearBasket: () => set({ basket: [] }),
+      clearBasket: () => set({ basket: [], currency: null }),
+      syncCatalog: (catalog) => {
+        set((state) => {
+          if (state.currency !== null && state.currency !== catalog.currency) {
+            return { basket: [], currency: catalog.currency };
+          }
+          const byId = new Map(
+            catalog.products.map((product) => [product.id, product]),
+          );
+          const basket = state.basket.flatMap((line) => {
+            const fresh = byId.get(line.product.id);
+            if (!fresh || fresh.stock <= 0) return [];
+            return [
+              {
+                product: fresh,
+                quantity: Math.min(line.quantity, fresh.stock),
+              },
+            ];
+          });
+          return { basket, currency: catalog.currency };
+        });
+      },
       getBasketLines: () => get().basket,
       getCartPayload: () => toCartPayload(get().basket),
     }),

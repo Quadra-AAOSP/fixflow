@@ -28,6 +28,7 @@ import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
 import { StateView } from '@/components/ui/StateView';
 import { TextField } from '@/components/ui/TextField';
+import { useToast } from '@/components/ui/useToastContext';
 import { useAuth } from '@/hooks/useAuth';
 import { shopColors } from '@/constants/theme';
 import { ApiError } from '@/lib/apiClient';
@@ -46,7 +47,7 @@ import type {
 } from '@/types';
 import {
   canShopPurchase,
-  BasketLine,
+  PRODUCT_FALLBACK_IMAGE,
   SHOP_SORT_OPTIONS,
   ShopSortKey,
   basketCount,
@@ -88,6 +89,7 @@ function ShopPurchaseScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useTranslation('common');
+  const { showToast } = useToast();
 
   // Subscribing to the store (instead of calling the getter) is what makes
   // the badge, floating bar, and sheets re-render when the basket changes.
@@ -97,6 +99,7 @@ function ShopPurchaseScreen() {
     (state) => state.updateBasketQuantity,
   );
   const clearBasket = useCartStore((state) => state.clearBasket);
+  const syncCatalog = useCartStore((state) => state.syncCatalog);
 
   const [catalog, setCatalog] = useState<ShopCatalog | null>(null);
   const [loading, setLoading] = useState(false);
@@ -133,6 +136,9 @@ function ShopPurchaseScreen() {
     try {
       const result = await loadCatalog();
       setCatalog(result);
+      // Clamp persisted basket quantities to fresh stock / drop sold-out
+      // lines — the web store does this on every catalog refresh.
+      syncCatalog(result);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t('more.shop.couldNotLoadCatalog'),
@@ -688,7 +694,16 @@ function ShopPurchaseScreen() {
           activeProduct ? updateBasketQuantity(activeProduct.id, value) : undefined
         }
         onAdd={() => {
-          if (activeProduct) addToBasket(activeProduct, 1);
+          if (!activeProduct) return;
+          addToBasket(activeProduct, 1);
+          showToast(
+            t('more.shop.addedToBasket', {
+              name: activeProduct.name,
+              count: basketTotalCount + 1,
+              plural: basketTotalCount + 1 === 1 ? '' : 's',
+            }),
+            'success',
+          );
         }}
         onClose={() => setActiveProduct(null)}
         t={t}
@@ -880,6 +895,16 @@ function BasketSheet({
               key={line.product.id}
               className="mb-3 flex-row items-center gap-3 rounded-xl border border-border bg-card p-3"
             >
+              {/* Thumbnail — the web cart line leads with a 64px product
+                  image (`.shop-cart-line` grid). Same editorial fallback. */}
+              <Image
+                source={{
+                  uri: safeImageUrl(line.product.imageUrl) ?? PRODUCT_FALLBACK_IMAGE,
+                }}
+                className="h-14 w-14 rounded-lg bg-shop-image-bg"
+                resizeMode="cover"
+                accessibilityIgnoresInvertColors
+              />
               <View className="flex-1">
                 <Text
                   className="text-sm font-semibold text-ink"
@@ -889,11 +914,13 @@ function BasketSheet({
                 </Text>
                 <Text className="mt-0.5 text-xs text-muted">
                   {catalog
-                    ? formatMoney(
-                        line.product.priceMinor,
-                        catalog.minorUnitDigits,
-                        catalog.currency,
-                      )
+                    ? t('more.shop.each', {
+                        price: formatMoney(
+                          line.product.priceMinor,
+                          catalog.minorUnitDigits,
+                          catalog.currency,
+                        ),
+                      })
                     : ''}
                 </Text>
                 <Pressable
@@ -909,15 +936,26 @@ function BasketSheet({
                   </Text>
                 </Pressable>
               </View>
-              <QuantityStepper
-                value={line.quantity}
-                onChange={(value) => onChangeQuantity(line.product.id, value)}
-                // min = 0 so a line can be stepped down to nothing — the
-                // stepper then removes it from the basket, matching the
-                // web's per-line "Remove" affordance.
-                min={0}
-                max={Math.max(1, line.product.stock)}
-              />
+              <View className="items-end gap-1">
+                <QuantityStepper
+                  value={line.quantity}
+                  onChange={(value) => onChangeQuantity(line.product.id, value)}
+                  // min = 0 so a line can be stepped down to nothing — the
+                  // stepper then removes it from the basket, matching the
+                  // web's per-line "Remove" affordance.
+                  min={0}
+                  max={Math.max(1, line.product.stock)}
+                />
+                {catalog ? (
+                  <Text className="text-xs font-semibold text-ink">
+                    {formatMoney(
+                      line.product.priceMinor * line.quantity,
+                      catalog.minorUnitDigits,
+                      catalog.currency,
+                    )}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           ))}
 
@@ -937,6 +975,12 @@ function BasketSheet({
               </Text>
             </View>
           ) : null}
+
+          {/* Same expectation-setting note the web basket carries: nothing
+              is reserved until the order is created. */}
+          <Text className="mb-3 text-[11px] leading-4 text-muted">
+            {t('more.shop.basketNote')}
+          </Text>
 
           {error ? (
             <Text className="mb-2 text-xs text-tone-danger">{error}</Text>
@@ -1025,7 +1069,9 @@ function OrdersSheet({
                 #{order.orderId}
               </Text>
               <Text className="text-xs uppercase tracking-wide text-muted">
-                {order.fulfillmentStatus ? t(`orderManagement.status.${order.fulfillmentStatus}`) : order.status.replaceAll('_', ' ')} � {order.paymentStatus.replaceAll('_', ' ')}
+                {order.fulfillmentStatus
+                  ? t(`orderManagement.status.${order.fulfillmentStatus}`)
+                  : t(`more.shop.orderStatus.${order.status}`)}
               </Text>
             </View>
             <Text className="mt-0.5 text-xs text-muted">

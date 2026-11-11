@@ -2,15 +2,16 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useCartStore } from '@/stores/cart';
+import { useToast } from '@/components/ui/useToastContext';
 
 import { shopColors } from '@/constants/theme';
 import type { ShopProduct } from '@/types';
-import { formatMoney, safeImageUrl } from '@/utils/shop';
-
-// Same editorial photography the web shop uses as its fallback tiles
-// (`ShopView.vue` `ProductImage`). Kept at module-level so it's reused.
-const FALLBACK_IMAGE =
-  'https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=600';
+import {
+  PRODUCT_FALLBACK_IMAGE,
+  basketCount,
+  formatMoney,
+  safeImageUrl,
+} from '@/utils/shop';
 
 type ProductCardProps = {
   product: ShopProduct;
@@ -41,10 +42,18 @@ export function ProductCard({
   onPress = () => {},
 }: ProductCardProps) {
   const { t } = useTranslation('common');
+  const { showToast } = useToast();
   const addToBasket = useCartStore((state) => state.addToBasket);
+  const basketLines = useCartStore((state) => state.basket);
 
-  const imageUri = safeImageUrl(product.imageUrl) ?? FALLBACK_IMAGE;
+  const imageUri = safeImageUrl(product.imageUrl) ?? PRODUCT_FALLBACK_IMAGE;
   const outOfStock = product.stock <= 0;
+  // The web disables the card's + button once the basket already holds the
+  // product's full stock (no silent clamping); we mirror that here.
+  const inBasket =
+    basketLines.find((line) => line.product.id === product.id)?.quantity ?? 0;
+  const atCap = inBasket >= product.stock;
+  const addDisabled = outOfStock || atCap;
 
   return (
     <View className={CARD_CLASS}>
@@ -108,19 +117,31 @@ export function ProductCard({
           >
             {outOfStock
               ? t('more.shop.outOfStock')
-              : t('more.shop.inStock')}
+              : t('more.shop.inStockCount', { count: product.stock })}
           </Text>
         </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('more.shop.addToBasket')}
-          disabled={outOfStock}
-          onPress={() => addToBasket(product, 1)}
+          disabled={addDisabled}
+          onPress={() => {
+            addToBasket(product, 1);
+            // Same feedback the web shop toasts after an add, including the
+            // updated basket size so the user knows the tap registered.
+            showToast(
+              t('more.shop.addedToBasket', {
+                name: product.name,
+                count: basketCount(basketLines) + 1,
+                plural: basketCount(basketLines) + 1 === 1 ? '' : 's',
+              }),
+              'success',
+            );
+          }}
           hitSlop={10}
           className="h-8 w-8 items-center justify-center rounded-full"
           style={{
             backgroundColor: shopColors.mint,
-            opacity: outOfStock ? 0.48 : 1,
+            opacity: addDisabled ? 0.48 : 1,
           }}
         >
           <Plus color={shopColors.ink} size={16} />
