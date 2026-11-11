@@ -13,9 +13,11 @@ import { useToast } from '@/components/ui/useToastContext';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listJobs, type MarketplaceListing } from '@/services/marketplace';
+import { listJobs, applyForJob, actOnJobApplication, type MarketplaceListing } from '@/services/marketplace';
+import { ownVerification } from '@/services/onboarding';
 import { claimReport, listReports } from '@/services/reports';
-import { listTechnicianContracts } from '@/services/technician';
+import { getTechnicianTerms, listTechnicianContracts } from '@/services/technician';
+import { TextField } from '@/components/ui/TextField';
 import type { Report, Urgency } from '@/types';
 import { humanize, relativeTime } from '@/utils/format';
 import { effectiveUrgency, isClaimable } from '@/utils/maintenance';
@@ -93,6 +95,16 @@ export default function OpenJobsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Quiet re-fetch after an inline apply / accept / withdraw so the cards
+  // reflect the server state without a full board reload.
+  const refreshListings = useCallback(async () => {
+    try {
+      setListings(await listJobs());
+    } catch {
+      // Keep the current cards on failure.
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       void load();
@@ -138,6 +150,9 @@ export default function OpenJobsScreen() {
         keyExtractor={(item) => String(item.id)}
         className="flex-1"
         contentContainerClassName="grow px-5 pb-10 pt-4"
+        // Keep note-field taps working while the keyboard is open — without
+        // this the first tap only dismisses the keyboard.
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -223,6 +238,7 @@ export default function OpenJobsScreen() {
             listings={listings}
             loading={loading}
             onOpen={() => router.push('/more/marketplace')}
+            onRefreshListings={refreshListings}
           />
         }
       />
@@ -232,21 +248,87 @@ export default function OpenJobsScreen() {
 
 /**
  * Marketplace postings from site admins, shown below the contract board so
- * technicians see admin-published jobs without hunting through More.
- * Applying still happens on `/more/marketplace`, which owns the note field
- * plus verification/terms gating.
+ * technicians see admin-published jobs without hunting through More. The
+ * full lifecycle is inline: apply with a note, withdraw while pending, and
+ * accept/decline when the site admin offers the job — the same
+ * `/api/marketplace` flow `/more/marketplace` drives.
  */
 function MarketplaceSection({
   listings,
   loading,
   onOpen,
+  onRefreshListings,
 }: {
   listings: MarketplaceListing[] | null;
   loading: boolean;
   onOpen: () => void;
+  onRefreshListings: () => Promise<void>;
 }) {
   const { t } = useTranslation('common');
+  const router = useRouter();
+  const { showToast } = useToast();
+  const [notes, setNotes] = useState<Record<number, string>>({});
+  const [busyJob, setBusyJob] = useState<number | null>(null);
+  const [verification, setVerification] = useState<string>();
+  const [termsRequired, setTermsRequired] = useState(false);
+
+  // Apply eligibility mirrors the backend (`apply` → requireEligible):
+  // verified account + current terms accepted. Best-effort fetch; a failure
+  // here only disables the buttons until the next focus.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        try {
+          const [record, terms] = await Promise.all([
+            ownVerification(),
+            getTechnicianTerms(),
+          ]);
+          if (!active) return;
+          setVerification(record.status);
+          setTermsRequired(
+            terms.enforcementRequired && !terms.acceptedCurrentVersion,
+          );
+        } catch {
+          // Server still validates eligibility on apply.
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
   const open = (listings ?? []).filter((job) => job.status === 'open');
+  // Only hard-disable when we *know* the account is blocked (unverified or
+  // terms outstanding). If the gate info failed to load (`undefined`) we let
+  // the tap through — the backend re-validates eligibility on apply and its
+  // error message is shown as a toast, so the button can never silently die.
+  const blocked =
+    (verification !== undefined && verification !== 'verified') ||
+    termsRequired;
+
+  async function runJob(
+    jobId: number,
+    action: () => Promise<unknown>,
+    successKey: string,
+  ) {
+    if (busyJob !== null) return;
+    setBusyJob(jobId);
+    try {
+      await action();
+      showToast(t(successKey), 'success');
+      await onRefreshListings();
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : t('openJobs.actionFailed'),
+        'error',
+      );
+    } finally {
+      setBusyJob(null);
+    }
+  }
+
   return (
     <View className="mt-6">
       <View className="mb-2 flex-row items-center justify-between gap-2">
@@ -273,6 +355,42 @@ function MarketplaceSection({
       <Text className="mb-3 text-[12px] leading-[1.7] text-dashboard-subtitle">
         {t('openJobs.marketplaceHint')}
       </Text>
+
+      {verification && verification !== 'verified' ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/more/my-verification')}
+          className="mb-3 rounded-lg border border-dashboard-card-line bg-dashboard-banner-bg p-3 active:opacity-80"
+        >
+          <Text className="text-[11px] leading-[1.6] text-dashboard-subtitle">
+            {t('marketplace.verificationRequired')}
+          </Text>
+          <Text
+            className="mt-1 text-[11px] font-semibold"
+            style={{ color: dashboardColors.teal }}
+          >
+            {t('review.myVerification')}
+          </Text>
+        </Pressable>
+      ) : null}
+      {termsRequired ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/technician/terms')}
+          className="mb-3 rounded-lg border border-dashboard-card-line bg-dashboard-banner-bg p-3 active:opacity-80"
+        >
+          <Text className="text-[11px] leading-[1.6] text-dashboard-subtitle">
+            {t('marketplace.termsRequired')}
+          </Text>
+          <Text
+            className="mt-1 text-[11px] font-semibold"
+            style={{ color: dashboardColors.teal }}
+          >
+            {t('workspace.terms')}
+          </Text>
+        </Pressable>
+      ) : null}
+
       {listings === null ? (
         <Text className="text-xs text-dashboard-caption">
           {t('openJobs.loading')}
@@ -282,56 +400,173 @@ function MarketplaceSection({
           {t('openJobs.marketplaceEmpty')}
         </Text>
       ) : (
-        open.map((job) => <ListingCard key={job.id} job={job} onOpen={onOpen} />)
-      )}
-    </View>
-  );
-}
+        open.map((job) => {
+          const own = job.myApplication;
+          return (
+            <View
+              key={job.id}
+              className="mb-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4"
+            >
+              <View className="mb-1 flex-row items-center justify-between gap-2">
+                <Text
+                  className="text-xs font-medium uppercase tracking-wide text-dashboard-subtitle"
+                  numberOfLines={1}
+                >
+                  {humanize(job.category)}
+                </Text>
+                <Text className="text-[11px] font-medium text-dashboard-subtitle">
+                  {t(`marketplace.states.${job.status}`)}
+                </Text>
+              </View>
+              <Text className="text-sm font-medium text-ink" numberOfLines={3}>
+                {job.summary}
+              </Text>
+              <View className="mt-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+                <Text
+                  className="text-[11px] text-dashboard-subtitle"
+                  numberOfLines={1}
+                >
+                  {job.broadLocation}
+                </Text>
+                <Text className="text-[11px] text-dashboard-subtitle">
+                  {job.timing}
+                </Text>
+                <Text className="text-[11px] text-dashboard-subtitle">
+                  {[job.specialty, job.urgency].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+              {job.status === 'open' ? (
+                <Text className="mt-2 text-[11px] text-dashboard-caption">
+                  {t('marketplace.listingDeadline', {
+                    date: new Date(job.expiresAt).toLocaleString(),
+                  })}
+                </Text>
+              ) : null}
 
-function ListingCard({
-  job,
-  onOpen,
-}: {
-  job: MarketplaceListing;
-  onOpen: () => void;
-}) {
-  const { t } = useTranslation('common');
-  return (
-    <View className="mb-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
-      <View className="mb-1 flex-row items-center justify-between gap-2">
-        <Text
-          className="text-xs font-medium uppercase tracking-wide text-dashboard-subtitle"
-          numberOfLines={1}
-        >
-          {humanize(job.category)}
-        </Text>
-        <Text className="text-[11px] font-medium text-dashboard-subtitle">
-          {t(`marketplace.states.${job.status}`)}
-        </Text>
-      </View>
-      <Text className="text-sm text-ink" numberOfLines={3}>
-        {job.summary}
-      </Text>
-      <View className="mt-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
-        <Text className="text-[11px] text-dashboard-subtitle" numberOfLines={1}>
-          {job.broadLocation}
-        </Text>
-        <Text className="text-[11px] text-dashboard-subtitle">{job.timing}</Text>
-        <Text className="text-[11px] text-dashboard-subtitle">
-          {[job.specialty, job.urgency].filter(Boolean).join(' · ')}
-        </Text>
-      </View>
-      <Text className="mt-2 text-[11px] text-dashboard-caption">
-        {t('marketplace.listingDeadline', {
-          date: new Date(job.expiresAt).toLocaleString(),
-        })}
-      </Text>
-      <Button
-        variant="cta"
-        className="mt-3 min-h-0 py-2"
-        label={t('openJobs.marketplaceApply')}
-        onPress={onOpen}
-      />
+              {!own ? (
+                <>
+                  <TextField
+                    label={t('marketplace.note')}
+                    value={notes[job.id] ?? ''}
+                    onChangeText={(value) =>
+                      setNotes((previous) => ({ ...previous, [job.id]: value }))
+                    }
+                    placeholder={t('marketplace.note')}
+                    maxLength={1000}
+                    multiline
+                    className="mt-3"
+                  />
+                  <Button
+                    variant="cta"
+                    className="mt-2 min-h-0 py-2"
+                    label={
+                      busyJob === job.id
+                        ? t('openJobs.loading')
+                        : t('marketplace.apply')
+                    }
+                    loading={busyJob === job.id}
+                    disabled={
+                      busyJob !== null ||
+                      !(notes[job.id] ?? '').trim() ||
+                      blocked
+                    }
+                    onPress={() =>
+                      void runJob(
+                        job.id,
+                        () =>
+                          applyForJob(job.id, (notes[job.id] ?? '').trim()),
+                        'marketplace.applied',
+                      )
+                    }
+                  />
+                </>
+              ) : (
+                <>
+                  <Text className="mt-3 text-[12px] font-semibold text-ink">
+                    {t('marketplace.applicationStatus', {
+                      status: t(`marketplace.states.${own.status}`),
+                    })}
+                  </Text>
+                  {own.status === 'pending' ? (
+                    <Button
+                      variant="secondary"
+                      className="mt-2 min-h-0 py-2"
+                      label={t('marketplace.withdraw')}
+                      loading={busyJob === job.id}
+                      disabled={busyJob !== null}
+                      onPress={() =>
+                        void runJob(
+                          job.id,
+                          () =>
+                            actOnJobApplication(job.id, own.id, 'withdraw'),
+                          'marketplace.withdrawn',
+                        )
+                      }
+                    />
+                  ) : null}
+                  {own.status === 'offered' ? (
+                    <>
+                      {own.offerExpiresAt ? (
+                        <Text className="mt-1 text-[11px] text-dashboard-caption">
+                          {t('marketplace.offerDeadline', {
+                            date: new Date(own.offerExpiresAt).toLocaleString(),
+                          })}
+                        </Text>
+                      ) : null}
+                      <View className="mt-2 flex-row gap-2">
+                        <View className="flex-1">
+                          <Button
+                            variant="cta"
+                            className="min-h-0 py-2"
+                            label={t('marketplace.accept')}
+                            loading={busyJob === job.id}
+                            disabled={busyJob !== null}
+                            onPress={() =>
+                              void runJob(
+                                job.id,
+                                () =>
+                                  actOnJobApplication(
+                                    job.id,
+                                    own.id,
+                                    'accept',
+                                  ),
+                                'marketplace.accepted',
+                              )
+                            }
+                          />
+                        </View>
+                        <View className="flex-1">
+                          <Button
+                            variant="secondary"
+                            className="min-h-0 py-2"
+                            label={t('marketplace.decline')}
+                            disabled={busyJob !== null}
+                            onPress={() =>
+                              void runJob(
+                                job.id,
+                                () =>
+                                  actOnJobApplication(
+                                    job.id,
+                                    own.id,
+                                    'decline',
+                                  ),
+                                'marketplace.declined',
+                              )
+                            }
+                          />
+                        </View>
+                      </View>
+                      <Text className="mt-2 text-[11px] leading-[1.6] text-dashboard-caption">
+                        {t('openJobs.acceptHint')}
+                      </Text>
+                    </>
+                  ) : null}
+                </>
+              )}
+            </View>
+          );
+        })
+      )}
     </View>
   );
 }

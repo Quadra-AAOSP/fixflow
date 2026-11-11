@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Check, Camera } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Action, Field } from '@/components/ReviewControls';
+import { themeColors } from '@/constants/theme';
 import { toErrorMessage } from '@/lib/apiClient';
 import {
   escalateReportWork, listReportRatings, listResolutions, rateReportWork, resolveReportWork, startReportWork,
+  uploadReportPhoto,
   type ReportResolution, type ReportRating,
 } from '@/services/reports';
 import type { Report } from '@/types';
@@ -21,10 +25,16 @@ type Props = {
 
 export function ReportWorkActions({ report, isAssignedTechnician, canRate, isOperator, canReadWork, currentUserId, onReportChanged }: Props) {
   const { t } = useTranslation('common');
+  const palette = themeColors();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [description, setDescription] = useState('');
   const [reason, setReason] = useState('');
+  // Completion evidence: the technician attaches a photo of the finished
+  // work before resolving; the site admin sees it alongside the resolution
+  // description when confirming the report.
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoCount, setPhotoCount] = useState(0);
   const [score, setScore] = useState('');
   const [feedback, setFeedback] = useState('');
   const [resolutions, setResolutions] = useState<ReportResolution[]>([]);
@@ -65,6 +75,30 @@ export function ReportWorkActions({ report, isAssignedTechnician, canRate, isOpe
     }
   }
 
+  async function attachPhoto() {
+    if (photoUploading) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    setPhotoUploading(true);
+    setError('');
+    try {
+      await uploadReportPhoto(report.id, {
+        uri: asset.uri,
+        fileName: asset.fileName,
+        mimeType: asset.mimeType ?? 'image/jpeg',
+      });
+      setPhotoCount(count => count + 1);
+    } catch (err) {
+      setError(toErrorMessage(err, { fallback: t('marketplace.error') }));
+    } finally {
+      setPhotoUploading(false);
+    }
+  }
+
   if (!canStart && !canResolve && !canEscalate && !canReadResolution) return null;
 
   return (
@@ -75,6 +109,34 @@ export function ReportWorkActions({ report, isAssignedTechnician, canRate, isOpe
         onPress={() => void run(async () => onReportChanged(await startReportWork(report.id)))} /> : null}
       {canResolve ? <View className="my-2">
         <Field label={t('marketplace.work.resolution')} value={description} onChangeText={setDescription} maxLength={10000} multiline />
+        {/* Completion photo — uploaded straight to the report so the site
+            admin can visually confirm the fix when reviewing the resolution. */}
+        <Pressable
+          accessibilityRole="button"
+          disabled={photoUploading || photoCount >= 5}
+          onPress={() => void attachPhoto()}
+          className="mb-2 flex-row items-center gap-2 self-start rounded-lg border border-dashboard-card-line px-3 py-2 active:opacity-70"
+        >
+          <Camera color={palette.accentForeground} size={16} />
+          <Text className="text-xs font-medium text-ink">
+            {photoUploading
+              ? t('marketplace.work.photoUploading')
+              : photoCount >= 5
+                ? t('marketplace.work.photoLimit')
+                : t('marketplace.work.attachPhoto')}
+          </Text>
+          {photoCount > 0 && !photoUploading ? (
+            <View className="flex-row items-center gap-1">
+              <Check color={palette.tone.success} size={14} />
+              <Text className="text-xs text-ink">{photoCount}</Text>
+            </View>
+          ) : null}
+        </Pressable>
+        {photoCount > 0 ? (
+          <Text className="mb-2 text-[11px] leading-[1.6] text-muted">
+            {t('marketplace.work.photoHint')}
+          </Text>
+        ) : null}
         <Action label={t('marketplace.work.resolve')} disabled={busy || !description.trim()}
           onPress={() => void run(async () => {
             onReportChanged(await resolveReportWork(report.id, description.trim()));

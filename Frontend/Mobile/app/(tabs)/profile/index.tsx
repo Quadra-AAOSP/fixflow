@@ -6,6 +6,7 @@ import {
   Bell,
   Building2,
   ChevronRight,
+  FileSignature,
   Mail,
   Phone,
   Settings,
@@ -252,6 +253,32 @@ export default function ProfileScreen() {
                 </View>
                 <ArrowRight color={dashboardColors.teal} size={14} />
               </Pressable>
+            </Card>
+          ) : null}
+
+          {/* Verification + terms: the two things a super admin checks before
+              approving an account, reachable straight from the profile. */}
+          {user.role === 'technician' ? (
+            <Card padded={false} className="mb-4 overflow-hidden rounded-[16px]">
+              <View className="px-4 pb-1 pt-4">
+                <Text className="text-[12.5px] font-semibold text-ink">
+                  {t('profile.verification.title')}
+                </Text>
+                <Text className="mt-0.5 text-[11px] leading-[1.5] text-dashboard-caption">
+                  {t('profile.verification.kicker')}
+                </Text>
+              </View>
+              <ShortcutRow
+                icon={ShieldCheck}
+                label={t('profile.verification.submission')}
+                onPress={() => router.push('/more/my-verification')}
+              />
+              <ShortcutRow
+                icon={FileSignature}
+                label={t('profile.verification.terms')}
+                onPress={() => router.push('/technician/terms')}
+                last
+              />
             </Card>
           ) : null}
 

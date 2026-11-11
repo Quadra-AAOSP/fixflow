@@ -2,16 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
-import { ArrowRight, Check, ShieldCheck, UserPlus } from 'lucide-react-native';
+import {
+  ArrowRight,
+  Check,
+  KeyRound,
+  ShieldCheck,
+  UserPlus,
+  Users,
+} from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Pill } from '@/components/ui/Pill';
 import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
@@ -21,13 +29,30 @@ import {
   provisionableRoles,
   roleLabels,
 } from '@/constants/access';
-import { dashboardColors, themeColors } from '@/constants/theme';
+import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccountPolicy } from '@/hooks/useAccountPolicy';
 import { ApiError } from '@/lib/apiClient';
 import { provisionUser } from '@/services/admin';
 import { listSites } from '@/services/sites';
 import type { ProvisionUserPayload, Site, UserRole } from '@/types';
+
+/** Numbered step marker used by the section cards. */
+function StepBadge({ step }: { step: number }) {
+  return (
+    <View
+      className="h-6 w-6 items-center justify-center rounded-full"
+      style={{ backgroundColor: dashboardColors.statMintSoft }}
+    >
+      <Text
+        className="text-[11px] font-bold"
+        style={{ color: dashboardColors.statMintDeep }}
+      >
+        {step}
+      </Text>
+    </View>
+  );
+}
 
 /**
  * Team access. Admin and super_admin only. Mirrors `TeamAccessView.vue` on the
@@ -36,7 +61,6 @@ import type { ProvisionUserPayload, Site, UserRole } from '@/types';
  * backend returns the new user; the new person signs in themselves.
  */
 export default function TeamAccessScreen() {
-  const palette = themeColors();
   const { user } = useAuth();
   const policy = useAccountPolicy();
   const { t } = useTranslation('common');
@@ -103,6 +127,7 @@ export default function TeamAccessScreen() {
       <Screen>
         <StateView
           variant="empty"
+          icon={ShieldCheck}
           title={t('more.teamAccess.adminsOnlyTitle')}
           description={t('more.teamAccess.adminsOnlyDesc')}
         />
@@ -122,6 +147,10 @@ export default function TeamAccessScreen() {
   // Shop managers (and super admins) are platform-level accounts — the
   // backend requires a null siteId for them (`AuthService.resolveSiteForRole`).
   const siteless = role === 'shop_manager' || role === 'super_admin';
+  const selectedSiteName = siteless
+    ? t('more.teamAccess.noSitePlatform')
+    : (sites?.find((site) => site.id === siteId)?.name ??
+      t('more.teamAccess.unknownSite'));
 
   async function onSubmit() {
     if (role === null) {
@@ -199,221 +228,277 @@ export default function TeamAccessScreen() {
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
-        {/* Card heading — mirrors the web's `.card-heading` with a
-            large `ShieldCheck` on the right. */}
-        <View className="mb-4 flex-row items-start justify-between">
-          <View className="flex-1 pr-3">
-            <Text
-              className="text-2xl font-bold text-ink"
-              style={{ letterSpacing: -0.5 }}
-            >
-              {t('more.teamAccess.title')}
-            </Text>
-            <Text className="mt-1 text-[13px] leading-[1.7] text-dashboard-subtitle">
-              {user.role === 'super_admin'
+          <PageHeader
+            kicker={t('more.teamAccess.kicker')}
+            title={t('more.teamAccess.title')}
+            subtitle={
+              user.role === 'super_admin'
                 ? t('more.teamAccess.subtitleSuperAdmin')
-                : t('more.teamAccess.subtitleAdmin')}
-            </Text>
-            <Text className="mt-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
-              {t('more.teamAccess.intro')}
-            </Text>
-          </View>
-          <ShieldCheck color={dashboardColors.statMintDeep} size={30} />
-        </View>
+                : t('more.teamAccess.subtitleAdmin')
+            }
+            icon={ShieldCheck}
+          >
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Pill tone="mint" label={t('more.teamAccess.pillAdminsOnly')} />
+              <Pill
+                tone="neutral"
+                label={t('more.teamAccess.sitesAvailable', {
+                  count: sites?.length ?? 0,
+                  plural: (sites?.length ?? 0) === 1 ? '' : 's',
+                })}
+              />
+            </View>
+          </PageHeader>
 
-        {sitesError ? (
-          <StateView
-            variant="error"
-            title={t('more.teamAccess.couldNotLoadSitesTitle')}
-            description={sitesError}
-            actionLabel={t('more.teamAccess.retry')}
-            onAction={() => {
-              void loadSites();
-            }}
-            className="py-6"
-          />
-        ) : null}
+          <Text className="mb-4 text-[11px] leading-[1.75] text-dashboard-caption">
+            {t('more.teamAccess.intro')}
+          </Text>
 
-        {loadingSites && sites === null ? (
-          <Card>
-            <Text className="text-sm text-dashboard-subtitle">{t('more.teamAccess.loadingSites')}</Text>
-          </Card>
-        ) : null}
-
-        {!loadingSites && (sites?.length ?? 0) === 0 && !siteless ? (
-          <StateView
-            variant="empty"
-            title={t('more.teamAccess.noSitesTitle')}
-            description={t('more.teamAccess.noSitesDesc')}
-          />
-        ) : null}
-
-        {siteless || (sites?.length ?? 0) > 0 ? (
-          <Card className="mb-4">
-            {confirmation ? (
-              <View
-                className="mb-3 flex-row items-start gap-2 rounded-md px-3 py-2"
-                style={{ backgroundColor: dashboardColors.statMintSoft }}
+          {confirmation ? (
+            <View
+              className="mb-4 flex-row items-start gap-2 rounded-lg px-3 py-3"
+              style={{ backgroundColor: dashboardColors.statMintSoft }}
+            >
+              <Check color={dashboardColors.statMintDeep} size={16} />
+              <Text
+                accessibilityLiveRegion="polite"
+                className="flex-1 text-[11.5px] leading-[1.7]"
+                style={{ color: dashboardColors.statMintDeep }}
               >
-                <Check color={dashboardColors.statMintDeep} size={16} />
-                <Text
-                  className="flex-1 text-[12px] leading-[1.6]"
-                  style={{ color: dashboardColors.statMintDeep }}
-                >
-                  {confirmation}
-                </Text>
-              </View>
-            ) : null}
+                {confirmation}
+              </Text>
+            </View>
+          ) : null}
 
-            <View className="flex-row gap-3">
-              <View className="flex-1">
+          {sitesError ? (
+            <StateView
+              variant="error"
+              title={t('more.teamAccess.couldNotLoadSitesTitle')}
+              description={sitesError}
+              actionLabel={t('more.teamAccess.retry')}
+              onAction={() => {
+                void loadSites();
+              }}
+            />
+          ) : null}
+
+          {loadingSites && sites === null ? (
+            <StateView variant="loading" title={t('more.teamAccess.loadingSites')} />
+          ) : null}
+
+          {!loadingSites && (sites?.length ?? 0) === 0 && !siteless ? (
+            <StateView
+              variant="empty"
+              icon={Users}
+              title={t('more.teamAccess.noSitesTitle')}
+              description={t('more.teamAccess.noSitesDesc')}
+            />
+          ) : null}
+
+          {siteless || (sites?.length ?? 0) > 0 ? (
+            <>
+              <Card className="mb-4">
+                <View className="mb-4 flex-row items-center gap-2">
+                  <StepBadge step={1} />
+                  <View className="flex-1">
+                    <Text className="text-[13px] font-semibold text-ink">
+                      {t('more.teamAccess.scopeTitle')}
+                    </Text>
+                    <Text className="mt-0.5 text-[10.5px] leading-[1.6] text-dashboard-caption">
+                      {t('more.teamAccess.scopeHint')}
+                    </Text>
+                  </View>
+                </View>
+
                 <Picker
                   label={t('more.teamAccess.roleLabel')}
                   value={role ?? roles[0]}
                   onChange={(value) => setRole(value as UserRole)}
                   options={roleOptions}
                 />
-              </View>
-              {!siteless ? (
-                <View className="flex-1">
+                {!siteless ? (
                   <Picker
                     label={t('more.teamAccess.siteLabel')}
                     value={siteId !== null ? String(siteId) : null}
                     onChange={(value) => setSiteId(Number(value))}
                     options={siteOptions}
                   />
+                ) : null}
+
+                <View
+                  className="flex-row items-center gap-2 rounded-lg px-3 py-2.5"
+                  style={{ backgroundColor: dashboardColors.statMintSoft }}
+                >
+                  <ShieldCheck
+                    color={dashboardColors.statMintDeep}
+                    size={14}
+                  />
+                  <Text
+                    className="flex-1 text-[10.5px] font-medium leading-[1.6]"
+                    style={{ color: dashboardColors.statMintDeep }}
+                  >
+                    {`${t(roleLabels[role ?? 'staff'])} · ${selectedSiteName}`}
+                  </Text>
                 </View>
-              ) : null}
-            </View>
 
-            {siteless ? (
-              <Text className="-mt-2 mb-4 text-[10px] leading-[1.65] text-dashboard-subtitle">
-                {t('more.teamAccess.platformLevelNote', {
-                  role: t(roleLabels[role ?? 'staff']),
-                })}
-              </Text>
-            ) : null}
+                {siteless ? (
+                  <Text className="mt-2 text-[10px] leading-[1.65] text-dashboard-caption">
+                    {t('more.teamAccess.platformLevelNote', {
+                      role: t(roleLabels[role ?? 'staff']),
+                    })}
+                  </Text>
+                ) : null}
+              </Card>
 
-            <View className="flex-row gap-3">
-              <View className="flex-1">
+              <Card className="mb-4">
+                <View className="mb-4 flex-row items-center gap-2">
+                  <StepBadge step={2} />
+                  <View className="flex-1">
+                    <Text className="text-[13px] font-semibold text-ink">
+                      {t('more.teamAccess.identityTitle')}
+                    </Text>
+                    <Text className="mt-0.5 text-[10.5px] leading-[1.6] text-dashboard-caption">
+                      {t('more.teamAccess.identityHint')}
+                    </Text>
+                  </View>
+                  <KeyRound
+                    color={dashboardColors.statMintDeep}
+                    size={16}
+                  />
+                </View>
+
+                <View className="flex-row gap-3">
+                  <View className="flex-1">
+                    <TextField
+                      label={t('more.teamAccess.firstNameLabel')}
+                      value={firstName}
+                      onChangeText={setFirstName}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <TextField
+                      label={t('more.teamAccess.lastNameLabel')}
+                      value={lastName}
+                      onChangeText={setLastName}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                </View>
+
                 <TextField
-                  label={t('more.teamAccess.firstNameLabel')}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  autoCapitalize="words"                />
-              </View>
-              <View className="flex-1">
+                  label={t('more.teamAccess.emailLabel')}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                />
                 <TextField
-                  label={t('more.teamAccess.lastNameLabel')}
-                  value={lastName}
-                  onChangeText={setLastName}
-                  autoCapitalize="words"                />
-              </View>
-            </View>
-
-            <TextField
-              label={t('more.teamAccess.emailLabel')}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-            />
-            <TextField
-              label={t('more.teamAccess.passwordLabel')}
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-              placeholder={t('more.teamAccess.passwordPlaceholder', {
-                count: policy?.passwordMinLength ?? 'the server-required number of',
-              })}            />
-            <Text className="-mt-3 mb-4 text-[10px] leading-[1.65] text-dashboard-subtitle">
-              {t('more.teamAccess.passwordHint', {
-                count: policy?.passwordMinLength ?? 'the required number of',
-              })}
-            </Text>
-            <TextField
-              label={t('more.teamAccess.phoneLabel')}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"            />
-            <TextField
-              label={t('more.teamAccess.addressLabel')}
-              value={address}
-              onChangeText={setAddress}
-              autoCapitalize="words"            />
-
-            {error ? (
-              <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
-                <Text className="text-[11px] leading-[1.7] text-dashboard-error-text">
-                  {error}
+                  label={t('more.teamAccess.passwordLabel')}
+                  value={password}
+                  onChangeText={setPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                  placeholder={t('more.teamAccess.passwordPlaceholder', {
+                    count: policy?.passwordMinLength ?? 'the server-required number of',
+                  })}
+                />
+                <Text className="-mt-3 mb-4 text-[10px] leading-[1.65] text-dashboard-caption">
+                  {t('more.teamAccess.passwordHint', {
+                    count: policy?.passwordMinLength ?? 'the required number of',
+                  })}
                 </Text>
-              </View>
-            ) : null}
+                <TextField
+                  label={t('more.teamAccess.phoneLabel')}
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                />
+                <TextField
+                  label={t('more.teamAccess.addressLabel')}
+                  value={address}
+                  onChangeText={setAddress}
+                  autoCapitalize="words"
+                />
 
-            <Pressable
-              accessibilityRole="button"
-              disabled={submitting}
-              onPress={onSubmit}
-              className="mt-1 flex-row items-center justify-center gap-2 rounded-[11px] border px-4 py-3 active:opacity-90"
-              style={{
-                backgroundColor: dashboardColors.ctaBg,
-                borderColor: dashboardColors.ctaBorder,
-                opacity: submitting ? 0.55 : 1,
-              }}
-            >
-              <UserPlus
-                color={dashboardColors.ctaText}
-                size={17}
-                strokeWidth={2.2}
-              />
-              <Text
-                className="text-[14px] font-semibold"
-                style={{ color: dashboardColors.ctaText }}
-              >
-                {submitting
-                  ? t('more.teamAccess.creating')
-                  : t('more.teamAccess.createAccount')}
+                {error ? (
+                  <View className="mb-3 rounded-md bg-dashboard-error-bg px-3 py-2">
+                    <Text
+                      accessibilityRole="alert"
+                      className="text-[11px] leading-[1.7] text-dashboard-error-text"
+                    >
+                      {error}
+                    </Text>
+                  </View>
+                ) : null}
+
+                <Button
+                  label={
+                    submitting
+                      ? t('more.teamAccess.creating')
+                      : t('more.teamAccess.createAccount')
+                  }
+                  loading={submitting}
+                  onPress={() => void onSubmit()}
+                >
+                  {submitting ? (
+                    <Text
+                      className="text-[15px] font-semibold"
+                      style={{ color: dashboardColors.ctaText }}
+                    >
+                      {t('more.teamAccess.creating')}
+                    </Text>
+                  ) : (
+                    <View className="flex-row items-center gap-2">
+                      <UserPlus
+                        color={dashboardColors.ctaText}
+                        size={16}
+                        strokeWidth={2.2}
+                      />
+                      <Text
+                        className="text-[15px] font-semibold"
+                        style={{ color: dashboardColors.ctaText }}
+                      >
+                        {t('more.teamAccess.createAccount')}
+                      </Text>
+                    </View>
+                  )}
+                </Button>
+              </Card>
+            </>
+          ) : null}
+
+          {/* "Super-admin access is separate" — mirrors the web's
+              `.access-policy-summary` section. The mobile doesn't have a
+              dedicated /access-policy route, so the link is informational. */}
+          <Card>
+            <View className="mb-1 flex-row items-center gap-2">
+              <ShieldCheck color={dashboardColors.statMintDeep} size={15} />
+              <Text className="flex-1 text-[13px] font-semibold text-ink">
+                {t('more.teamAccess.superAdminSeparate')}
               </Text>
-            </Pressable>
-          </Card>
-        ) : null}
-
-        {/* "Super-admin access is separate" — mirrors the web's
-            `.access-policy-summary` section. The mobile doesn't have a
-            dedicated /access-policy route, so the link is informational. */}
-        <Card>
-          <Text
-            className="mb-1 text-[15px] font-semibold text-ink"
-            style={{ letterSpacing: -0.3 }}
-          >
-            {t('more.teamAccess.superAdminSeparate')}
-          </Text>
-          <Text className="mb-2 text-[12px] leading-[1.8] text-dashboard-subtitle">
-            {policy?.managedRoleMessage ?? t('more.teamAccess.managedAccessFallback')}
-          </Text>
-          <View className="flex-row items-center gap-1 self-start">
-            <Text
-              className="text-[11px] font-semibold"
-              style={{ color: dashboardColors.teal }}
-            >
-              {t('more.teamAccess.viewCriteria')}
+            </View>
+            <Text className="mb-2 mt-1 text-[11px] leading-[1.75] text-dashboard-subtitle">
+              {policy?.managedRoleMessage ?? t('more.teamAccess.managedAccessFallback')}
             </Text>
-            <ArrowRight color={dashboardColors.teal} size={13} />
-          </View>
-        </Card>
+            <View className="flex-row items-center gap-1 self-start">
+              <Text
+                className="text-[11px] font-semibold"
+                style={{ color: dashboardColors.teal }}
+              >
+                {t('more.teamAccess.viewCriteria')}
+              </Text>
+              <ArrowRight color={dashboardColors.teal} size={13} />
+            </View>
+          </Card>
 
-        {/* Keeps the old "you can dismiss a confirmation" footnote hidden
-            under the new "Super-admin access is separate" card, but only
-            when no confirmation is showing — the visual weight should
-            belong to the policy section. */}
-        {confirmation ? (
-          <Text className="mt-3 text-[10px] leading-[1.7] text-dashboard-caption">
-            {t('more.teamAccess.dismissNote')}
-          </Text>
-        ) : null}
+          {confirmation ? (
+            <Text className="mt-3 text-[10px] leading-[1.7] text-dashboard-caption">
+              {t('more.teamAccess.dismissNote')}
+            </Text>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

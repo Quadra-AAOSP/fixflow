@@ -7,11 +7,20 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Wrench } from 'lucide-react-native';
+import {
+  Building2,
+  ChevronDown,
+  ChevronUp,
+  SearchX,
+  Wrench,
+} from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Card } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Pill } from '@/components/ui/Pill';
 import { Screen } from '@/components/ui/Screen';
+import { SearchField } from '@/components/ui/SearchField';
 import { StateView } from '@/components/ui/StateView';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,6 +54,12 @@ const AVAILABILITY_TONE: Record<
   },
 };
 
+function initials(technician: TechnicianSummary): string {
+  const first = technician.firstName?.trim().charAt(0) ?? '';
+  const last = technician.lastName?.trim().charAt(0) ?? '';
+  return `${first}${last}`.toUpperCase() || '—';
+}
+
 /**
  * Technicians directory. Read-only list for `staff` and above. Mirrors the
  * read-only structure of `more/sites.tsx`: loading / error / empty via
@@ -73,6 +88,7 @@ export default function TechniciansScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
     if (!canView) return;
@@ -114,25 +130,46 @@ export default function TechniciansScreen() {
     }
   }
 
+  const searched = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    const list = technicians ?? [];
+    if (!term) return list;
+    return list.filter((tech) => {
+      const haystack = [
+        tech.firstName,
+        tech.lastName,
+        fullName(tech.firstName, tech.lastName),
+        tech.email,
+        tech.phone ?? '',
+        ...tech.skills.map((skill) =>
+          `${skill.category} ${skill.specialty ?? ''}`,
+        ),
+      ]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [technicians, query]);
+
   const atSite = useMemo(
     () =>
       site
-        ? (technicians ?? []).filter((tech) =>
+        ? searched.filter((tech) =>
             tech.contracts.some((contract) => contract.siteId === site.id),
           )
         : [],
-    [technicians, site],
+    [searched, site],
   );
 
   const others = useMemo(
     () =>
       site
-        ? (technicians ?? []).filter(
+        ? searched.filter(
             (tech) =>
               !tech.contracts.some((contract) => contract.siteId === site.id),
           )
-        : (technicians ?? []),
-    [technicians, site],
+        : searched,
+    [searched, site],
   );
 
   if (!canView) {
@@ -140,6 +177,7 @@ export default function TechniciansScreen() {
       <Screen>
         <StateView
           variant="empty"
+          icon={Wrench}
           title={t('more.technicians.notAllowedTitle')}
           description={t('more.technicians.notAllowedDesc')}
         />
@@ -166,30 +204,27 @@ export default function TechniciansScreen() {
   return (
     <Screen>
       <View className="flex-1 px-5 pt-4">
-        <View className="mb-4 flex-row items-start justify-between">
-          <View className="flex-1 pr-3">
-            <Text
-              className="text-2xl font-bold text-ink"
-              style={{ letterSpacing: -0.5 }}
-            >
-              {t('more.technicians.title')}
-            </Text>
-            <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-              {technicians
-                ? t('more.technicians.count', {
-                    count: technicians.length,
-                    plural: technicians.length === 1 ? '' : 's',
-                  })
-                : t('more.technicians.subtitleAll')}
-            </Text>
-            {site ? (
-              <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-                {t('more.technicians.subtitleAtSite', { site: site.name })}
-              </Text>
-            ) : null}
+        <PageHeader
+          kicker={t('more.technicians.sectionLegend')}
+          title={t('more.technicians.title')}
+          subtitle={
+            site
+              ? t('more.technicians.subtitleAtSite', { site: site.name })
+              : t('more.technicians.subtitleAll')
+          }
+          icon={Wrench}
+        >
+          <View className="flex-row flex-wrap items-center gap-2">
+            <Pill
+              tone="mint"
+              label={t('more.technicians.count', {
+                count: technicians?.length ?? 0,
+                plural: (technicians?.length ?? 0) === 1 ? '' : 's',
+              })}
+            />
+            {site ? <Pill tone="neutral" label={site.name} /> : null}
           </View>
-          <Wrench color={dashboardColors.teal} size={26} strokeWidth={1.8} />
-        </View>
+        </PageHeader>
 
         {technicians === null && loading ? (
           <StateView variant="loading" title={t('review.loading')} />
@@ -201,82 +236,101 @@ export default function TechniciansScreen() {
             description={t('more.technicians.emptyDesc')}
           />
         ) : (
-          <ScrollView
-            contentContainerClassName="pb-8"
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={palette.primary}
-              />
-            }
-          >
-            {/* Non-blocking error: keeps the last good list visible. */}
-            {error ? (
-              <StateView
-                variant="error"
-                description={error}
-                actionLabel={t('more.technicians.retry')}
-                onAction={() => {
-                  void load();
-                }}
-              />
-            ) : null}
-
-            {site ? (
-              <>
-                <SectionLabel
-                  label={t('more.technicians.sectionAtSite', {
-                    site: site.name,
-                  })}
+          <>
+            <SearchField
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t('more.technicians.searchPlaceholder')}
+              className="mb-3"
+            />
+            <ScrollView
+              contentContainerClassName="pb-8"
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={palette.primary}
                 />
-                {atSite.length === 0 ? (
-                  <StateView
-                    variant="empty"
-                    title={t('more.technicians.noContractedTitle', {
+              }
+            >
+              {/* Non-blocking error: keeps the last good list visible. */}
+              {error ? (
+                <StateView
+                  variant="error"
+                  description={error}
+                  actionLabel={t('more.technicians.retry')}
+                  onAction={() => {
+                    void load();
+                  }}
+                />
+              ) : null}
+
+              {searched.length === 0 ? (
+                <StateView
+                  variant="empty"
+                  icon={SearchX}
+                  title={t('more.technicians.searchEmptyTitle')}
+                  description={t('more.technicians.searchEmptyDesc')}
+                  actionLabel={t('more.technicians.clearSearch')}
+                  onAction={() => setQuery('')}
+                />
+              ) : site ? (
+                <>
+                  <SectionLabel
+                    label={t('more.technicians.sectionAtSite', {
                       site: site.name,
                     })}
-                    description={t('more.technicians.noContractedDesc')}
-                    className="py-6"
                   />
-                ) : (
-                  atSite.map((technician) => (
-                    <TechnicianRow
-                      key={technician.id}
-                      t={t}
-                      technician={technician}
-                      canViewTerms={canViewTerms}
+                  {atSite.length === 0 ? (
+                    <StateView
+                      variant="empty"
+                      title={t('more.technicians.noContractedTitle', {
+                        site: site.name,
+                      })}
+                      description={t('more.technicians.noContractedDesc')}
+                      className="py-6"
                     />
-                  ))
-                )}
-
-                {others.length > 0 ? (
-                  <>
-                    <SectionLabel
-                      label={t('more.technicians.sectionOthers')}
-                    />
-                    {others.map((technician) => (
+                  ) : (
+                    atSite.map((technician) => (
                       <TechnicianRow
                         key={technician.id}
                         t={t}
                         technician={technician}
                         canViewTerms={canViewTerms}
                       />
-                    ))}
-                  </>
-                ) : null}
-              </>
-            ) : (
-              (technicians ?? []).map((technician) => (
-                <TechnicianRow
-                  key={technician.id}
-                  t={t}
-                  technician={technician}
-                  canViewTerms={canViewTerms}
-                />
-              ))
-            )}
-          </ScrollView>
+                    ))
+                  )}
+
+                  {others.length > 0 ? (
+                    <>
+                      <SectionLabel
+                        label={t('more.technicians.sectionOthers')}
+                      />
+                      {others.map((technician) => (
+                        <TechnicianRow
+                          key={technician.id}
+                          t={t}
+                          technician={technician}
+                          canViewTerms={canViewTerms}
+                        />
+                      ))}
+                    </>
+                  ) : null}
+                </>
+              ) : (
+                searched.map((technician) => (
+                  <TechnicianRow
+                    key={technician.id}
+                    t={t}
+                    technician={technician}
+                    canViewTerms={canViewTerms}
+                  />
+                ))
+              )}
+            </ScrollView>
+          </>
         )}
       </View>
     </Screen>
@@ -300,8 +354,8 @@ function AvailabilityChip({
 }) {
   const tone = AVAILABILITY_TONE[status];
   return (
-    <View className={`rounded-md px-2.5 py-1 ${tone.container}`}>
-      <Text className={`text-[11px] font-semibold ${tone.text}`}>
+    <View className={`rounded-full px-2.5 py-1 ${tone.container}`}>
+      <Text className={`text-[10px] font-semibold uppercase ${tone.text}`} style={{ letterSpacing: 0.5 }}>
         {t(tone.labelKey)}
       </Text>
     </View>
@@ -309,8 +363,8 @@ function AvailabilityChip({
 }
 
 /**
- * One technician card: name + availability chip, contact line, the declared
- * skills (category · specialty · level), and the contract sites.
+ * One technician card: identity, availability, declared skills as chips, the
+ * contract sites, and an expandable terms status for admins.
  */
 function TechnicianRow({
   t,
@@ -343,13 +397,23 @@ function TechnicianRow({
   }, [technician.id, termsLoading, t]);
 
   const name = fullName(technician.firstName, technician.lastName);
-  const contact = technician.phone
-    ? `${technician.email} · ${technician.phone}`
-    : technician.email;
+  const contractsCount = technician.contracts.length;
+  const skillsCount = technician.skills.length;
 
   return (
     <Card className="mb-3">
-      <View className="flex-row items-start justify-between gap-2">
+      <View className="flex-row items-start gap-3">
+        <View
+          className="h-10 w-10 items-center justify-center rounded-full"
+          style={{ backgroundColor: dashboardColors.statMintSoft }}
+        >
+          <Text
+            className="text-[13px] font-bold"
+            style={{ color: dashboardColors.statMintDeep }}
+          >
+            {initials(technician)}
+          </Text>
+        </View>
         <View className="flex-1">
           <Text
             className="text-[15px] font-semibold text-ink"
@@ -361,61 +425,104 @@ function TechnicianRow({
             className="mt-0.5 text-[11px] text-dashboard-subtitle"
             numberOfLines={1}
           >
-            {contact}
+            {technician.email}
           </Text>
+          {technician.phone ? (
+            <Text className="mt-0.5 text-[11px] text-dashboard-caption">
+              {technician.phone}
+            </Text>
+          ) : null}
         </View>
         <AvailabilityChip status={technician.availabilityStatus} t={t} />
       </View>
 
+      <View className="mt-3 flex-row gap-2">
+        <View className="flex-1 rounded-lg bg-surface px-2.5 py-2">
+          <Text className="text-[9px] font-semibold uppercase tracking-[0.6px] text-dashboard-caption">
+            {t('more.technicians.skillsLabel')}
+          </Text>
+          <Text className="mt-0.5 text-[12.5px] font-semibold text-ink">
+            {t('more.technicians.skillsCount', {
+              count: skillsCount,
+              plural: skillsCount === 1 ? '' : 's',
+            })}
+          </Text>
+        </View>
+        <View className="flex-1 rounded-lg bg-surface px-2.5 py-2">
+          <Text className="text-[9px] font-semibold uppercase tracking-[0.6px] text-dashboard-caption">
+            {t('more.technicians.contractsLabel')}
+          </Text>
+          <Text className="mt-0.5 text-[12.5px] font-semibold text-ink">
+            {t('more.technicians.contractsCount', {
+              count: contractsCount,
+              plural: contractsCount === 1 ? '' : 's',
+            })}
+          </Text>
+        </View>
+      </View>
+
       <View className="mt-3">
-        <Text className="mb-1 text-[10px] font-semibold uppercase tracking-[1px] text-dashboard-caption">
+        <Text className="mb-1.5 text-[10px] font-semibold uppercase tracking-[1px] text-dashboard-caption">
           {t('more.technicians.skillsLabel')}
         </Text>
-        {technician.skills.length === 0 ? (
+        {skillsCount === 0 ? (
           <Text className="text-[11px] text-dashboard-caption">
             {t('more.technicians.noSkills')}
           </Text>
         ) : (
-          technician.skills.map((skill) => (
-            <Text
-              key={skill.id}
-              className="text-[12px] leading-[1.7] text-ink"
-            >
-              {skill.category} ·{' '}
-              {skill.specialty ?? t('more.technicians.noSpecialty')} ·{' '}
-              {t('more.technicians.level', { level: skill.proficiency })}
-            </Text>
-          ))
+          <View className="flex-row flex-wrap gap-1.5">
+            {technician.skills.map((skill) => (
+              <View
+                key={skill.id}
+                className="rounded-md border border-dashboard-card-line px-2 py-1"
+              >
+                <Text className="text-[10.5px] font-medium text-ink">
+                  {skill.category}
+                  {skill.specialty ? ` · ${skill.specialty}` : ''}
+                  <Text className="text-dashboard-caption">
+                    {' '}
+                    L{skill.proficiency}
+                  </Text>
+                </Text>
+              </View>
+            ))}
+          </View>
         )}
       </View>
 
       <View className="mt-3">
-        <Text className="mb-1 text-[10px] font-semibold uppercase tracking-[1px] text-dashboard-caption">
+        <Text className="mb-1.5 text-[10px] font-semibold uppercase tracking-[1px] text-dashboard-caption">
           {t('more.technicians.contractsLabel')}
         </Text>
-        {technician.contracts.length === 0 ? (
+        {contractsCount === 0 ? (
           <Text className="text-[11px] text-dashboard-caption">
             {t('more.technicians.noContracts')}
           </Text>
         ) : (
-          technician.contracts.map((contract) => (
-            <Text
-              key={`${contract.siteId}-${contract.createdAt}`}
-              className="text-[12px] leading-[1.7] text-ink"
-            >
-              {t('more.technicians.contractLine', {
-                site: contract.siteName,
-                date: formatDate(contract.createdAt),
-              })}
-            </Text>
-          ))
+          <View className="gap-1">
+            {technician.contracts.map((contract) => (
+              <View
+                key={`${contract.siteId}-${contract.createdAt}`}
+                className="flex-row items-center gap-1.5"
+              >
+                <Building2 color={dashboardColors.statMintDeep} size={12} />
+                <Text className="flex-1 text-[11.5px] text-ink">
+                  {t('more.technicians.contractLine', {
+                    site: contract.siteName,
+                    date: formatDate(contract.createdAt),
+                  })}
+                </Text>
+              </View>
+            ))}
+          </View>
         )}
       </View>
 
       {canViewTerms ? (
-        <View className="mt-3">
+        <View className="mt-3 border-t border-dashboard-card-line pt-2.5">
           <Pressable
             accessibilityRole="button"
+            accessibilityState={{ expanded: terms !== null }}
             onPress={() => {
               if (terms) {
                 setTerms(null);
@@ -434,6 +541,11 @@ function TechnicianRow({
                 ? t('more.technicians.hideTerms')
                 : t('more.technicians.viewTerms')}
             </Text>
+            {terms ? (
+              <ChevronUp color={dashboardColors.teal} size={13} />
+            ) : (
+              <ChevronDown color={dashboardColors.teal} size={13} />
+            )}
           </Pressable>
           {termsLoading ? (
             <Text className="mt-1 text-[10px] text-dashboard-caption">
@@ -447,26 +559,20 @@ function TechnicianRow({
           ) : null}
           {terms ? (
             terms.currentVersion ? (
-              <View className="mt-1">
-                <Text className="text-[11px] text-ink">
+              <View className="mt-1.5 flex-row items-center justify-between gap-2">
+                <Text className="flex-1 text-[11px] text-ink">
                   {t('technician.terms.version', {
                     version: terms.currentVersion,
                   })}
                 </Text>
-                <Text
-                  className="mt-0.5 text-[10px] font-semibold"
-                  style={{
-                    color: terms.acceptedCurrentVersion
-                      ? dashboardColors.statMintDeep
-                      : dashboardColors.statCitronDeep,
-                  }}
-                >
-                  {t(
+                <Pill
+                  tone={terms.acceptedCurrentVersion ? 'mint' : 'citron'}
+                  label={t(
                     terms.acceptedCurrentVersion
                       ? 'technician.terms.accepted'
                       : 'technician.terms.notAccepted',
                   )}
-                </Text>
+                />
               </View>
             ) : (
               <Text className="mt-1 text-[10px] text-dashboard-caption">

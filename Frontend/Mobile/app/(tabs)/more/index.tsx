@@ -5,6 +5,7 @@ import {
   Briefcase,
   Building2,
   FileText,
+  Globe,
   NotepadText,
   ShieldCheck,
   ShoppingBag,
@@ -45,6 +46,7 @@ type ItemKey =
   | 'openJobs'
   | 'myVerification' | 'siteApplications' | 'verificationReviews' | 'marketplace'
   | 'myAdminApplication'
+  | 'allReports'
   | 'siteSetup'
   | 'siteRules'
   | 'sites'
@@ -73,6 +75,10 @@ type ItemKey =
  *    editSite            → admin + super_admin
  *    assignTechnician    → admin + super_admin + staff
  *
+ *  Backend AuthService (siteOnboarding):
+ *    canManageSubsites   → site-bound admins only; super_admin has no
+ *                          single site and gets the screen's denial state
+ *
  *  Anything that needs both a role match AND a capability flag (e.g. user
  *  has an admin application pending) also has an ItemGuard below. */
 const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
@@ -81,13 +87,19 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   marketplace: ['admin', 'technician'],
   siteApplications: ['super_admin'],
   verificationReviews: ['super_admin'],
+  // Cross-site report oversight + "notify the site admin" nudge.
+  allReports: ['super_admin'],
 
   // A reporter who applied to be site admin may track the status — guard
   // below requires user.adminApplication !== null.
   myAdminApplication: ['reporter'],
 
-  // SiteSetup = CREATE site → super_admin only (SiteService.create asserts super_admin).
-  siteSetup: ['super_admin'],
+  // SiteSetup = manage the current site's buildings (subsites) via
+  // /api/sites/{id}/subsites. The backend only grants this to site-bound
+  // admins (AuthService.siteOnboarding.canManageSubsites — super admins
+  // have no single site, so the screen denies them). Site *creation* and
+  // editing of site records lives under "Sites" below.
+  siteSetup: ['admin'],
   // Sites = edit / manage existing sites → admin (theirs) + super_admin (all).
   sites: ['admin', 'super_admin'],
   siteRules: ['admin', 'super_admin'],
@@ -157,6 +169,12 @@ export default function MoreScreen() {
     marketplace: { icon: Briefcase, titleKey: 'marketplace.title', subtitleKey: null, onPress: () => router.push('/more/marketplace') },
     siteApplications: { icon: Building2, titleKey: 'review.siteReviews', subtitleKey: null, onPress: () => router.push('/more/site-applications') },
     verificationReviews: { icon: UserCheck, titleKey: 'review.verificationReviews', subtitleKey: null, onPress: () => router.push('/more/verification-reviews') },
+    allReports: {
+      icon: Globe,
+      titleKey: 'more.menu.allReportsTitle',
+      subtitleKey: 'more.menu.allReportsSubtitle',
+      onPress: () => router.push('/more/all-reports'),
+    },
     myAdminApplication: {
       icon: ShieldCheck,
       titleKey: 'more.menu.myAdminApplicationTitle',
@@ -226,6 +244,7 @@ export default function MoreScreen() {
   const workspaceKeys: ItemKey[] = ['openJobs', 'contractsTechnician', 'myVerification', 'marketplace'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
+    'allReports',
     'siteSetup',
     'sites',
     'siteRules',

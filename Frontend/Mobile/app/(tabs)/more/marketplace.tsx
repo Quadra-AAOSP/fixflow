@@ -7,6 +7,7 @@ import { Action, Field } from '@/components/ReviewControls';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
 import { useAuth } from '@/hooks/useAuth';
+import { dashboardColors } from '@/constants/theme';
 import {
   actOnJobApplication, applyForJob, cancelJobAssignment, closeJob, listJobApplications, listJobs, publishJob, searchJobsWithAi,
   type ListingDraft, type MarketplaceApplication, type MarketplaceListing,
@@ -231,7 +232,8 @@ export default function MarketplaceScreen() {
               ) : null}
             </View>
           ) : null}
-          {isTechnician ? <View>
+          {isTechnician ? <View className="my-3 rounded-2xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
+            <Text className="mb-2 text-[13px] font-semibold text-ink">Find the right job</Text>
             <Field label="Describe jobs you are looking for" value={aiQuery} maxLength={500} onChangeText={setAiQuery} />
             <Action label="Search with AI" disabled={busy || !aiQuery.trim()} onPress={() => void run(async () => {
               const result = await searchJobsWithAi(aiQuery.trim());
@@ -241,19 +243,30 @@ export default function MarketplaceScreen() {
             <Action label="Clear AI search" onPress={() => { setAiIds(null); setAiMessage(''); }} />
             {aiMessage ? <Text accessibilityLiveRegion="polite">{aiMessage}</Text> : null}
           </View> : null}
-          <SearchField value={search} onChangeText={setSearch} placeholder="Manual keyword search" />
+          <View className="my-3">
+            <SearchField value={search} onChangeText={setSearch} placeholder="Manual keyword search" />
+          </View>
           {!busy && jobs.length === 0 ? <Text className="my-3 text-ink">{t('marketplace.empty')}</Text> : null}
           {jobs.filter(job => (aiIds === null || aiIds.includes(job.id)) && [job.summary, job.broadLocation, job.timing, job.category, job.specialty, job.urgency].filter(Boolean).join(' ').toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).map(job => {
             const own = job.myApplication;
             const note = notes[job.id] ?? '';
             const accessibleReportId = isAdmin || own?.status === 'accepted' ? job.reportId : null;
             return (
-              <View key={job.id} className="my-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
-                <Text className="mb-2 text-lg font-bold text-ink">{job.summary}</Text>
-                <Text className="text-ink">{job.broadLocation} · {job.timing}</Text>
-                <Text className="text-ink">{[job.category, job.specialty, job.urgency].filter(Boolean).join(' · ')}</Text>
-                <Text className="text-ink">{t(`marketplace.states.${job.status}`)}</Text>
-                {job.status === 'open' ? <Text>{t('marketplace.listingDeadline', { date: new Date(job.expiresAt).toLocaleString() })}</Text> : null}
+              <View key={job.id} className="my-3 rounded-2xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
+                {/* Card header — summary + status pill. */}
+                <View className="mb-2 flex-row items-start justify-between gap-2">
+                  <Text className="flex-1 text-[15px] font-bold leading-snug text-ink" style={{ letterSpacing: -0.2 }}>{job.summary}</Text>
+                  <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: dashboardColors.statMintSoft }}>
+                    <Text className="text-[10px] font-semibold uppercase" style={{ color: dashboardColors.statMintDeep, letterSpacing: 0.6 }}>{t(`marketplace.states.${job.status}`)}</Text>
+                  </View>
+                </View>
+                {/* Meta row — location, timing, trade tags. */}
+                <View className="mb-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+                  <Text className="text-[11px] text-dashboard-subtitle" numberOfLines={1}>{job.broadLocation}</Text>
+                  <Text className="text-[11px] text-dashboard-subtitle">{job.timing}</Text>
+                  <Text className="text-[11px] font-medium text-dashboard-subtitle">{[job.category, job.specialty, job.urgency].filter(Boolean).join(' · ')}</Text>
+                </View>
+                {job.status === 'open' ? <Text className="text-[11px] text-dashboard-caption">{t('marketplace.listingDeadline', { date: new Date(job.expiresAt).toLocaleString() })}</Text> : null}
                 {accessibleReportId !== null ? <Action label={t('marketplace.openReport')} onPress={() => openReport(accessibleReportId)} /> : null}
                 {isAdmin ? <>
                   <Action label={t('marketplace.applicants')} disabled={busy} onPress={() => review(job.id)} />

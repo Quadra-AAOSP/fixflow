@@ -40,6 +40,10 @@ export default function MoreStackLayout() {
         name="notifications"
         options={{ title: t('more.menu.notificationsTitle') }}
       />
+      <Stack.Screen
+        name="all-reports"
+        options={{ title: t('more.menu.allReportsTitle') }}
+      />
       <Stack.Screen name="site-rules" options={{ title: t('more.menu.siteRulesTitle') }} />
       <Stack.Screen name="sites" options={{ title: t('more.menu.sitesTitle') }} />
       <Stack.Screen
