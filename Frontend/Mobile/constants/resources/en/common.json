@@ -1302,8 +1302,25 @@
       "noDescription": "No description provided.",
       "outOfStock": "Out of stock",
       "inStock": "In stock",
-      "inStockCount": "{count} in stock",
+      "inStockCount": "{count} available",
       "quantityInBasket": "{count} in basket",
+      "addedToBasket": "{name} added to your basket. {count} item{plural} in basket.",
+      "each": "{price} each",
+      "basketNote": "Your basket keeps its contents between visits. Stock is reserved only when an order is created.",
+      "orderStatus": {
+        "pending_payment": "Pending payment",
+        "paid": "Paid",
+        "cancelled": "Cancelled",
+        "refunded": "Refunded",
+        "fulfilled": "Fulfilled"
+      },
+      "paymentStatus": {
+        "requires_action": "Payment action needed",
+        "succeeded": "Payment succeeded",
+        "failed": "Payment failed",
+        "cancelled": "Payment cancelled"
+      },
+      "paymentStatusUnknown": "Payment status unavailable",
       "tapToAdd": "Tap + to add to your basket",
       "emptyBasketTitle": "Your basket is empty",
       "emptyBasketDesc": "Tap a product to add it.",

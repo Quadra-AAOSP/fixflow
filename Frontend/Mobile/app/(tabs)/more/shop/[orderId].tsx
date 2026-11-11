@@ -204,7 +204,7 @@ function OrderDetailContent() {
                 {t('more.shop.status')}
               </Text>
               <Text className="mt-0.5 text-base font-semibold text-ink">
-                {order.status.replaceAll('_', ' ')}
+                {t(`more.shop.orderStatus.${order.status}`)}
               </Text>
             </View>
             <View
@@ -215,7 +215,9 @@ function OrderDetailContent() {
                 className="text-xs font-semibold"
                 style={{ color: dashboardColors.teal }}
               >
-                {order.paymentStatus.replaceAll('_', ' ')}
+                {order.paymentStatus
+                  ? t(`more.shop.paymentStatus.${order.paymentStatus}`)
+                  : t('more.shop.paymentStatusUnknown')}
               </Text>
             </View>
           </View>

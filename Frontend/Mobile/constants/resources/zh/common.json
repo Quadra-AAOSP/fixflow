@@ -1305,6 +1305,23 @@
       "inStock": "有货",
       "inStockCount": "库存 {count} 件",
       "quantityInBasket": "购物篮中 {count} 件",
+      "addedToBasket": "「{name}」已加入购物篮，篮内共 {count} 件商品。",
+      "each": "单价 {price}",
+      "basketNote": "购物篮内容会在访问之间保留。库存仅在创建订单时锁定。",
+      "orderStatus": {
+        "pending_payment": "待支付",
+        "paid": "已支付",
+        "cancelled": "已取消",
+        "refunded": "已退款",
+        "fulfilled": "已履约"
+      },
+      "paymentStatus": {
+        "requires_action": "待完成支付",
+        "succeeded": "支付成功",
+        "failed": "支付失败",
+        "cancelled": "支付已取消"
+      },
+      "paymentStatusUnknown": "支付状态不可用",
       "tapToAdd": "点击 + 加入购物篮",
       "emptyBasketTitle": "您的购物篮是空的",
       "emptyBasketDesc": "点击商品即可添加。",
