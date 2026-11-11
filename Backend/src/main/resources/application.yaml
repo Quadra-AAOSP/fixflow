@@ -75,9 +75,11 @@ fixflow:
   reporting:
     require-site-setup: ${REPORTING_REQUIRE_SITE_SETUP:true}
   technician-terms:
-    version: ${TECHNICIAN_TERMS_VERSION:}
-    document-url: ${TECHNICIAN_TERMS_DOCUMENT_URL:}
-    required: ${TECHNICIAN_TERMS_REQUIRED:false}
+    # Published by default so technicians can accept them and super admins can
+    # approve verifications. Point these at an external legal page in production.
+    version: ${TECHNICIAN_TERMS_VERSION:2026-11}
+    document-url: ${TECHNICIAN_TERMS_DOCUMENT_URL:/api/technician-terms/document}
+    required: ${TECHNICIAN_TERMS_REQUIRED:true}
   session:
     absolute-timeout: ${SESSION_ABSOLUTE_TIMEOUT:12h}
   bootstrap:

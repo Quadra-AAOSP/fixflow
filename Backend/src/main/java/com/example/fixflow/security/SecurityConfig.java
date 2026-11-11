@@ -65,13 +65,14 @@ public class SecurityConfig {
                         .addHeaderWriter(new org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter(
                                 org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults().matcher("/api/**"),
                                 new org.springframework.security.web.header.writers.StaticHeadersWriter("Content-Security-Policy",
-                                        "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"))))
+                                        "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'"))))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers("/api/site-applications", "/api/site-applications/status", "/api/site-applications/information", "/api/site-applications/setup").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/policy", "/api/auth/csrf").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/sites", "/api/technician-terms/current").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/sites", "/api/technician-terms/current",
+                                "/api/technician-terms/document").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/shop/catalog").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()

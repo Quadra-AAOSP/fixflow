@@ -24,7 +24,8 @@ public class TechnicianVerificationController {
  private final TechnicianVerificationAuditRepository audits;
  private final UserRepository users;
  private final com.example.fixflow.repository.TechnicianSkillRepository skills;
- public TechnicianVerificationController(TechnicianVerificationRepository records,TechnicianVerificationAuditRepository audits,UserRepository users,com.example.fixflow.repository.TechnicianSkillRepository skills, com.example.fixflow.service.TechnicianTermsService terms){this.terms=terms;this.records=records;this.audits=audits;this.users=users;this.skills=skills;}
+ private final com.example.fixflow.service.NotificationService notifier;
+ public TechnicianVerificationController(TechnicianVerificationRepository records,TechnicianVerificationAuditRepository audits,UserRepository users,com.example.fixflow.repository.TechnicianSkillRepository skills, com.example.fixflow.service.TechnicianTermsService terms, com.example.fixflow.service.NotificationService notifier){this.terms=terms;this.records=records;this.audits=audits;this.users=users;this.skills=skills;this.notifier=notifier;}
  private void role(AppUserDetails actor,UserRole expected){
   if(actor==null || actor.getRole()!=expected || users.findById(actor.getId()).map(User::getRole).orElse(null)!=expected) throw new ApiException(403,"Role not authorized");
  }
@@ -45,7 +46,11 @@ public class TechnicianVerificationController {
   if(List.of("pending","verified","suspended").contains(value.getStatus())) throw new ApiException(409,"Current verification state does not permit submission");
   value.setTechnicianId(actor.getId());value.setEmail(body.email().trim());value.setPhone(body.phone().trim());value.setTrades(body.trades().trim());value.setExperience(body.experience().trim());value.setQualifications(body.qualifications().trim());
   value.setStatus("pending");value.setReason(null);value.setReviewedBy(null);value.setIdentityChecked(false);value.setEmailChecked(false);value.setPhoneChecked(false);value.setTradeChecked(false);
-  records.saveAndFlush(value);audit(value,actor);return value;
+  records.saveAndFlush(value);audit(value,actor);
+  notifier.toSuperAdmins(ReportNotification.Type.verification_submitted,value.getTechnicianId());
+  if(!terms.permitsWork(value.getTechnicianId()))
+   notifier.send(value.getTechnicianId(),ReportNotification.Type.terms_required,null,value.getTechnicianId());
+  return value;
  }
  @GetMapping("/api/admin/technician-verifications") public List<TechnicianVerification> list(@AuthenticationPrincipal AppUserDetails actor){role(actor,UserRole.super_admin);return records.findAll();}
  @GetMapping("/api/admin/technician-verifications/{id}/history") public List<TechnicianVerificationAudit> history(@PathVariable Long id,@AuthenticationPrincipal AppUserDetails actor){role(actor,UserRole.super_admin);return audits.findByTechnicianIdOrderByIdAsc(id);}
@@ -60,7 +65,15 @@ public class TechnicianVerificationController {
   if(body.status().equals("verified")) terms.requireAcceptance(id);
   value.setStatus(body.status());value.setReason(body.reason().trim());value.setReviewedBy(actor.getId());
   value.setIdentityChecked(body.identityChecked());value.setEmailChecked(body.emailChecked());value.setPhoneChecked(body.phoneChecked());value.setTradeChecked(body.tradeChecked());
-  records.saveAndFlush(value);audit(value,actor);return value;
+  records.saveAndFlush(value);audit(value,actor);
+  ReportNotification.Type notice=switch(body.status()){
+   case "verified" -> ReportNotification.Type.verification_verified;
+   case "rejected" -> ReportNotification.Type.verification_rejected;
+   case "suspended" -> ReportNotification.Type.verification_suspended;
+   default -> null;
+  };
+  if(notice!=null) notifier.send(value.getTechnicianId(),notice,null,value.getTechnicianId());
+  return value;
  }
  private void audit(TechnicianVerification value,AppUserDetails actor){
   var item=new TechnicianVerificationAudit();item.setTechnicianId(value.getTechnicianId());item.setActorId(actor.getId());item.setStatus(value.getStatus());

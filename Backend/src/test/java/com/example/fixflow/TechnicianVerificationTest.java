@@ -13,7 +13,8 @@ class TechnicianVerificationTest {
  UserRepository users=mock(UserRepository.class);
  TechnicianSkillRepository skills=mock(TechnicianSkillRepository.class);
  com.example.fixflow.service.TechnicianTermsService terms=mock(com.example.fixflow.service.TechnicianTermsService.class);
- TechnicianVerificationController controller=new TechnicianVerificationController(records,audits,users,skills,terms);
+ com.example.fixflow.service.NotificationService notifier=mock(com.example.fixflow.service.NotificationService.class);
+ TechnicianVerificationController controller=new TechnicianVerificationController(records,audits,users,skills,terms,notifier);
  AppUserDetails actor(UserRole role){User user=new User();user.setId(1L);user.setRole(role);when(users.findById(1L)).thenReturn(Optional.of(user));return new AppUserDetails(user);}
  @Test void unsubmittedTechnicianIsUnverified(){assertEquals("unverified",controller.mine(actor(UserRole.technician)).getStatus());verifyNoInteractions(audits);}
  @Test void initialDefaultsReuseAccountAndTradesWithoutReplacingPriorSubmission(){

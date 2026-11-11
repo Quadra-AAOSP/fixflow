@@ -21,6 +21,9 @@ public class TechnicianTermsController {
     public TechnicianTermsController(TechnicianTermsService service) { this.service = service; }
     @GetMapping("/current")
     public TechnicianTermsService.CurrentTerms current() { return service.currentTerms(); }
+    /** In-app fallback document, used when no external legal URL is configured. */
+    @GetMapping(value = "/document", produces = "text/html;charset=UTF-8")
+    public String document() { return service.documentHtml(); }
     @GetMapping("/me")
     public TechnicianTermsService.Status me(@AuthenticationPrincipal AppUserDetails actor) {
         return service.status(actor.getId(), actor);
