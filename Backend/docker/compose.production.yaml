@@ -18,8 +18,6 @@ services:
     ports: !reset []
   minio:
     image: ${MINIO_IMAGE:?Set an approved supported MinIO image with immutable tag or digest}
-    build: !reset null
-    pull_policy: missing
     ports: !reset []
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set separate storage administrator credentials}

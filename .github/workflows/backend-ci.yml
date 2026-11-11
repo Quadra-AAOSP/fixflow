@@ -65,7 +65,7 @@ jobs:
 
       - name: Docker backend image build
         if: runner.os == 'Linux'
-        run: docker build -t fixflow-backend:ci .
+        run: docker build -f docker/Dockerfile -t fixflow-backend:ci .
 
       - name: Retain backend test diagnostics
         if: always()
