@@ -1,5 +1,6 @@
 import { Image, Pressable, Text, View } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { Package, Plus } from 'lucide-react-native';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCartStore } from '@/stores/cart';
 import { useToast } from '@/components/ui/useToastContext';
@@ -7,7 +8,6 @@ import { useToast } from '@/components/ui/useToastContext';
 import { shopColors } from '@/constants/theme';
 import type { ShopProduct } from '@/types';
 import {
-  PRODUCT_FALLBACK_IMAGE,
   basketCount,
   formatMoney,
   safeImageUrl,
@@ -46,7 +46,11 @@ export function ProductCard({
   const addToBasket = useCartStore((state) => state.addToBasket);
   const basketLines = useCartStore((state) => state.basket);
 
-  const imageUri = safeImageUrl(product.imageUrl) ?? PRODUCT_FALLBACK_IMAGE;
+  // Web parity (`ProductImage.vue`): no URL, or a URL that fails to load,
+  // falls back to a neutral Package-icon placeholder — never a substitute
+  // photo that misrepresents the product.
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUri = imageFailed ? null : safeImageUrl(product.imageUrl);
   const outOfStock = product.stock <= 0;
   // The web disables the card's + button once the basket already holds the
   // product's full stock (no silent clamping); we mirror that here.
@@ -68,12 +72,28 @@ export function ProductCard({
           className="w-full items-center justify-center bg-shop-image-bg"
           style={{ aspectRatio: IMAGE_ASPECT_RATIO }}
         >
-          <Image
-            source={{ uri: imageUri }}
-            className="h-full w-full"
-            resizeMode="cover"
-            accessibilityIgnoresInvertColors
-          />
+          {imageUri ? (
+            <Image
+              source={{ uri: imageUri }}
+              className="h-full w-full"
+              resizeMode="cover"
+              onError={() => setImageFailed(true)}
+              accessibilityIgnoresInvertColors
+            />
+          ) : (
+            <View
+              className="items-center gap-1"
+              accessibilityRole="image"
+              accessibilityLabel={t('more.shop.noImageFor', {
+                name: product.name,
+              })}
+            >
+              <Package color={shopColors.footText} size={32} />
+              <Text className="text-[10px] text-muted">
+                {t('more.shop.noImageShort')}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View className="p-3">

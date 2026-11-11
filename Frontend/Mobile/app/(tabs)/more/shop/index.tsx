@@ -12,6 +12,7 @@ import {
 import {
   ArrowRight,
   ArrowUpRight,
+  Package,
   PackageSearch,
   RefreshCw,
   ShoppingBag,
@@ -48,7 +49,6 @@ import type {
 import {
   canShopPurchase,
   type BasketLine,
-  PRODUCT_FALLBACK_IMAGE,
   SHOP_SORT_OPTIONS,
   ShopSortKey,
   basketCount,
@@ -317,7 +317,7 @@ function ShopPurchaseScreen() {
   return (
     <Screen className="bg-shop-shell px-0 pt-0">
       {user?.role === 'super_admin' || user?.role === 'technician' ? (
-        <Pressable accessibilityRole="button" onPress={() => router.push('/more')}
+        <Pressable accessibilityRole="button" onPress={() => router.replace('/more')}
           className="self-end px-5 pt-3 active:opacity-70">
           <Text className="text-[12px] font-semibold text-ink">{t('tabs.openTools')}</Text>
         </Pressable>
@@ -595,6 +595,8 @@ function ShopPurchaseScreen() {
                   setQuery('');
                   setCategory(ALL_CATEGORIES);
                   setInStockOnly(false);
+                  // Web's clearFilters also resets the sort control.
+                  setSort('featured');
                 }}
               />
             </View>
@@ -897,15 +899,9 @@ function BasketSheet({
               className="mb-3 flex-row items-center gap-3 rounded-xl border border-border bg-card p-3"
             >
               {/* Thumbnail — the web cart line leads with a 64px product
-                  image (`.shop-cart-line` grid). Same editorial fallback. */}
-              <Image
-                source={{
-                  uri: safeImageUrl(line.product.imageUrl) ?? PRODUCT_FALLBACK_IMAGE,
-                }}
-                className="h-14 w-14 rounded-lg bg-shop-image-bg"
-                resizeMode="cover"
-                accessibilityIgnoresInvertColors
-              />
+                  image (`.shop-cart-line` grid). Imageless products get the
+                  web's neutral Package placeholder, not a substitute photo. */}
+              <BasketLineImage product={line.product} t={t} />
               <View className="flex-1">
                 <Text
                   className="text-sm font-semibold text-ink"
@@ -1293,5 +1289,43 @@ function ValuePill({
       <View className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
       <Text className="text-[11px] text-shop-values-text">{label}</Text>
     </View>
+  );
+}
+
+/**
+ * Basket-line thumbnail with the web `ProductImage.vue` fallback: when a
+ * product ships no usable image (or the URL fails to load), render the
+ * neutral Package placeholder instead of a substitute photo.
+ */
+function BasketLineImage({
+  product,
+  t,
+}: {
+  product: ShopProduct;
+  t: TranslateFn;
+}) {
+  const [failed, setFailed] = useState(false);
+  const uri = failed ? null : safeImageUrl(product.imageUrl);
+  if (!uri) {
+    return (
+      <View
+        className="h-14 w-14 items-center justify-center rounded-lg bg-shop-image-bg"
+        accessibilityRole="image"
+        accessibilityLabel={t('more.shop.noImageFor', {
+          name: product.name,
+        })}
+      >
+        <Package color={shopColors.footText} size={22} />
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={{ uri }}
+      className="h-14 w-14 rounded-lg bg-shop-image-bg"
+      resizeMode="cover"
+      onError={() => setFailed(true)}
+      accessibilityIgnoresInvertColors
+    />
   );
 }

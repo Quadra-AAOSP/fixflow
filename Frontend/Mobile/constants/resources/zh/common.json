@@ -1300,6 +1300,7 @@
       "review": "查看 →",
       "noImage": "暂无图片",
       "noImageShort": "暂无图片",
+      "noImageFor": "{name} 的图片不可用",
       "noDescription": "未提供描述。",
       "outOfStock": "缺货",
       "inStock": "有货",
