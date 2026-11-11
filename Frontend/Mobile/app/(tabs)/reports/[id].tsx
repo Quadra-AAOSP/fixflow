@@ -759,7 +759,15 @@ export default function ReportDetailScreen() {
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t('reports.detail.allReports')}
-            onPress={() => router.back()}
+            onPress={() => {
+              // Pop when there is history; on a cold entry (deep link / web
+              // refresh) land on the right list for the role.
+              if (router.canGoBack()) {
+                router.back();
+                return;
+              }
+              router.replace(user?.role === 'technician' ? '/workspace' : '/reports');
+            }}
             className="flex-row items-center gap-1 active:opacity-70"
           >
             <ArrowLeft color={dashboardColors.teal} size={15} />

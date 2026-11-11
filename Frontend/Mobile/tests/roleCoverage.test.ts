@@ -40,13 +40,14 @@ describe('role coverage — every delivery role reaches its own tasks', () => {
     expect(homeRouteForRole('technician')).toBe('/(tabs)/workspace');
     expect(landingRedirectForRoute('technician', '/')).toBe('/(tabs)/workspace');
     expect(landingRedirectForRoute('technician', '/reports')).toBe('/(tabs)/workspace');
-    // A deep-linked report detail is also bounced back to the workspace.
-    expect(landingRedirectForRoute('technician', '/reports/42')).toBe('/(tabs)/workspace');
+    // A report detail is how a technician opens an assigned job — allowed.
+    expect(landingRedirectForRoute('technician', '/reports/42')).toBeNull();
     expect(landingRedirectForRoute('technician', '/workspace')).toBeNull();
     expect(landingRedirectForRoute('technician', '/assignments')).toBeNull();
     expect(landingRedirectForRoute('technician', '/more')).toBeNull();
     expect(landingRedirectForRoute('technician', '/profile')).toBeNull();
-    expect(isTechnicianForbiddenRoute('technician', '/reports/42')).toBe(true);
+    expect(isTechnicianForbiddenRoute('technician', '/reports/42')).toBe(false);
+    expect(isTechnicianForbiddenRoute('technician', '/reports')).toBe(true);
     expect(isTechnicianForbiddenRoute('reporter', '/reports/42')).toBe(false);
   });
 

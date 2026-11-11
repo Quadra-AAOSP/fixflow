@@ -97,9 +97,14 @@ describe('isTabVisible — complete 6-role matrix (backend UserRole source of tr
 });
 
 describe('isTechnicianForbiddenRoute', () => {
-  it('bounces technicians off Home and Reports routes', () => {
+  it('bounces technicians off Home and the Reports list', () => {
     expect(isTechnicianForbiddenRoute('technician', '/')).toBe(true);
-    expect(isTechnicianForbiddenRoute('technician', '/reports/12')).toBe(true);
+    expect(isTechnicianForbiddenRoute('technician', '/reports')).toBe(true);
+    expect(isTechnicianForbiddenRoute('technician', '/reports/new')).toBe(true);
+  });
+
+  it('lets technicians open a report detail (job) from their workspace', () => {
+    expect(isTechnicianForbiddenRoute('technician', '/reports/12')).toBe(false);
   });
 
   it('allows technicians on their own routes', () => {
@@ -148,8 +153,10 @@ describe('landingRedirectForRoute', () => {
     }
   });
 
-  it('bounces technicians off Reports to Workspace', () => {
-    expect(landingRedirectForRoute('technician', '/reports/5')).toBe('/(tabs)/workspace');
+  it('bounces technicians off the Reports list but allows a report detail', () => {
+    expect(landingRedirectForRoute('technician', '/reports')).toBe('/(tabs)/workspace');
+    expect(landingRedirectForRoute('technician', '/reports/new')).toBe('/(tabs)/workspace');
+    expect(landingRedirectForRoute('technician', '/reports/5')).toBeNull();
   });
 
   it('bounces shop_manager off Reports to Home', () => {

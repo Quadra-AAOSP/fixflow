@@ -66,9 +66,14 @@ export function hiddenTabRoutes(role: UserRole): string[] {
   return [...TAB_ROUTES.filter(tab => !isTabVisible(role, tab)), 'technician'];
 }
 
-/** Technician must be bounced off Home / Reports routes when deep-linked. */
+/**
+ * Technician must be bounced off Home and the Reports *list* when deep-linked.
+ * Report details (`/reports/{id}`) stay reachable — that is how a technician
+ * opens a job from Workspace or Assignments.
+ */
 export function isTechnicianForbiddenRoute(role: UserRole | null, pathname: string): boolean {
-  return role === 'technician' && (pathname === '/' || pathname.startsWith('/reports'));
+  return role === 'technician'
+    && (pathname === '/' || pathname === '/reports' || pathname === '/reports/new');
 }
 
 /** The home tab route each role lands on after sign-in. */
@@ -103,11 +108,18 @@ export function landingRedirectForRoute(role: UserRole | null, pathname: string)
 }
 
 /**
- * Screens reachable without their parent tab. Reporters have no More tab, but
- * the home bell still opens the notification feed.
+ * Screens reachable without their parent tab.
+ *
+ *  - reporters have no More tab, but the home bell still opens the feed;
+ *  - technicians have no Reports tab, but their workspace/assignment rows
+ *    open `/reports/{id}` to work the job (report creation stays forbidden).
  */
 function isDeepLinkAllowed(role: UserRole, path: string): boolean {
-  return role === 'reporter' && path === '/more/notifications';
+  if (role === 'reporter') return path === '/more/notifications';
+  if (role === 'technician') {
+    return path.startsWith('/reports/') && path !== '/reports/new';
+  }
+  return false;
 }
 
 const PATH_TO_TAB: ReadonlyArray<readonly [string, TabName]> = [
