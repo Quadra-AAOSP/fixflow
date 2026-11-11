@@ -47,6 +47,7 @@ import type {
 } from '@/types';
 import {
   canShopPurchase,
+  type BasketLine,
   PRODUCT_FALLBACK_IMAGE,
   SHOP_SORT_OPTIONS,
   ShopSortKey,
