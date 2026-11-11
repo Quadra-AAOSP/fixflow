@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import LoadingStatus from '@/components/ui/LoadingStatus.vue';
 import { useLocale } from '@/i18n';
-import ClaimReportPanel from '@/components/technician/ClaimReportPanel.vue';
 import TechnicianTermsPanel from '@/components/TechnicianTermsPanel.vue';
 import TechnicianAvailabilityPanel from '@/components/technician/TechnicianAvailabilityPanel.vue';
 import TechnicianVerificationPanel from '@/components/technician/TechnicianVerificationPanel.vue';
@@ -22,7 +21,6 @@ const accessibleAssigned = computed(() => data.reports.filter(report => report.a
   <RouterLink to="/profile" class="action-link">{{ t("Manage trade details") }} →</RouterLink>
   <RouterLink to="/technician/marketplace" class="action-link">{{ t("Find sites hiring") }} →</RouterLink>
   </nav>
-  <ClaimReportPanel />
   <TechnicianVerificationPanel />
   <TechnicianTermsPanel />
   <TechnicianAvailabilityPanel />

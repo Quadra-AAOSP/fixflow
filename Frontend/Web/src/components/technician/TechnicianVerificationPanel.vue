@@ -13,6 +13,7 @@ onMounted(load);
 <template>
  <section class="dashboard-card verification-panel">
   <h2>{{t('Technician verification')}}</h2>
+  <p>{{t('Platform verification and current terms acceptance are both required before site work. They are separate requirements.')}}</p>
   <p>{{t('Manual platform review is separate from site contracts and job approval. Do not submit identity document numbers or images here.')}}</p>
   <p v-if="loading" role="status">{{t('Loading verification…')}}</p>
   <p v-if="error" role="alert" class="live-error">{{error}} <button type="button" class="text-action" :disabled="loading || busy" @click="load">{{t('Retry')}}</button></p>

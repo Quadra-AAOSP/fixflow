@@ -105,7 +105,7 @@ watch(() => [scopeId.value, user.value?.id, props.revision], load, { immediate: 
       <h3>{{ t('Terms for technician #{id}', { id: terms.technicianId }) }}</h3>
       <p>{{ t('Current version') }}: {{ terms.currentVersion || t('Not configured') }}</p>
       <p>{{ t(terms.acceptedCurrentVersion ? 'Current terms accepted' : 'Current terms not accepted') }}</p>
-      <p>{{ t(terms.enforcementRequired ? 'Terms acceptance is required.' : 'Terms acceptance is not enforced by the server.') }}</p>
+      <p>{{ t('Terms acceptance is required.') }}</p>
       <ul><li v-for="entry in terms.acceptances" :key="entry.version + entry.acceptedAt">{{ entry.version }} · {{ formatDate(entry.acceptedAt, true) }}</li></ul>
       <button type="button" class="text-action" @click="terms = null">{{ t('Close') }}</button>
     </section>

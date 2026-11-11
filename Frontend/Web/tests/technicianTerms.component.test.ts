@@ -65,3 +65,11 @@ it('shows Chinese consent for the exact backend version and never accepts it aut
   expect(api.acceptTechnicianTerms).toHaveBeenCalledWith('v3');
   expect(wrapper.text()).toContain('您已接受此版本');
 });
+it('treats missing terms as a blocking setup problem even when an older server reports optional enforcement', async () => {
+  vi.mocked(api.getTechnicianTerms).mockResolvedValue({ ...status, currentVersion: null, documentUrl: null, enforcementRequired: false });
+  wrapper = mount(TechnicianTermsPanel); await flushPromises();
+  expect(wrapper.get('[role="alert"]').text()).toContain('Required terms are unavailable');
+  expect(wrapper.text()).not.toContain('Acceptance is not currently required');
+  expect(wrapper.find('form').exists()).toBe(false);
+  expect(api.acceptTechnicianTerms).not.toHaveBeenCalled();
+});

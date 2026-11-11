@@ -57,12 +57,13 @@ onMounted(refresh);
 <template>
   <section class="contract-choice dashboard-card terms-panel" aria-labelledby="technician-terms-heading">
     <div class="card-heading"><h2 id="technician-terms-heading">{{ t("Technician terms") }}</h2><button class="text-action" type="button" :disabled="loading || saving" @click="refresh">{{ t("Refresh terms") }}</button></div>
+    <p>{{ t('Current technician terms must be accepted before site work and contract requests.') }}</p>
     <LoadingStatus v-if="loading" :label="t('Loading current terms…')" />
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <template v-if="status && !loading">
-      <p v-if="!status.currentVersion || !documentUrl">{{ t('Approved terms are not configured for review.') }} {{ t(status.enforcementRequired ? 'Contact the platform owner before requesting site work.' : 'Acceptance is not currently required by the service.') }}</p>
+      <p v-if="!status.currentVersion || !documentUrl" class="live-error" role="alert">{{ t('Required terms are unavailable. A platform administrator must configure the current agreement before you can accept it or proceed with site work.') }}</p>
       <template v-else>
-        <p>{{ t('Version {version} · {requirement}', { version: status.currentVersion, requirement: t(status.enforcementRequired ? 'Required before site work and contract requests' : 'Available for review') }) }}</p>
+        <p>{{ t('Version {version} · {requirement}', { version: status.currentVersion, requirement: t('Required before site work and contract requests') }) }}</p>
         <a :href="documentUrl" target="_blank" rel="noopener noreferrer" class="action-link">{{ t("Read the current terms ↗") }}</a>
         <p v-if="status.acceptedCurrentVersion" role="status">{{ t("You have accepted this version.") }}</p>
         <form v-else @submit.prevent="accept">

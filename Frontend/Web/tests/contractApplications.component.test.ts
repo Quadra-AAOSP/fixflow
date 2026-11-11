@@ -104,3 +104,10 @@ it('submits a contract request from Chinese controls without translating its not
   expect(wrapper.text()).toContain('申请 #93 已提交至场地 #71');
   expect(wrapper.get('li').text()).toContain('待审核');
 });
+it('does not let an outdated optional flag bypass terms acceptance', async () => {
+  vi.mocked(termsApi.getTechnicianTerms).mockResolvedValue({ ...terms, enforcementRequired: false, acceptedCurrentVersion: false });
+  wrapper = mount(ContractApplicationsPanel); await flushPromises();
+  const requestForm = wrapper.findAll('form')[1]!;
+  expect(requestForm.get('fieldset').attributes('disabled')).toBeDefined();
+  await requestForm.trigger('submit'); expect(api.requestTechnicianContract).not.toHaveBeenCalled();
+});

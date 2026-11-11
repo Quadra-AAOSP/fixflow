@@ -28,7 +28,7 @@ const note = ref('');
 const reasons = reactive<Record<number, string>>({});
 const terms = ref<TechnicianTermsStatus | null>(null);
 const termsPanel = ref<InstanceType<typeof TechnicianTermsPanel>>();
-const canRequest = computed(() => !!terms.value && (!terms.value.enforcementRequired || terms.value.acceptedCurrentVersion));
+const canRequest = computed(() => !!terms.value?.currentVersion && !!terms.value.documentUrl && terms.value.acceptedCurrentVersion);
 let generation = 0;
 onBeforeUnmount(() => { generation++; });
 

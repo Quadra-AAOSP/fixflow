@@ -1274,5 +1274,8 @@
   "Open assigned work, record your progress, and share the resolution.": "打开已分配的工作，记录进度并分享解决结果。",
   "A technician account starts independently. Site work may require verification, an approved contract, and current terms acceptance.": "技术人员账户独立创建。站点工作可能需要资质审核、已批准的合同以及接受当前条款。",
   "Request a site": "申请站点",
-  "Sign in to continue to this page.": "请登录后继续访问此页面。"
+  "Sign in to continue to this page.": "请登录后继续访问此页面。",
+  "Current technician terms must be accepted before site work and contract requests.": "开展站点工作或申请合同前，必须接受当前技术人员条款。",
+  "Platform verification and current terms acceptance are both required before site work. They are separate requirements.": "开展站点工作前，必须完成平台资质审核并接受当前条款。这是两项独立要求。",
+  "Required terms are unavailable. A platform administrator must configure the current agreement before you can accept it or proceed with site work.": "当前无法查阅必需条款。平台管理员须先配置当前协议，之后才能接受条款或开展站点工作。"
 }
