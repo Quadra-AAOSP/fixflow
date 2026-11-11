@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.fixflow.domain.ShopOrderStatus;
+import com.example.fixflow.domain.ShopProduct;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.ShopOrderRepository;
 import com.example.fixflow.repository.ShopProductRepository;
@@ -70,9 +71,43 @@ public class ShopAnalyticsController {
 			}
 			return new Daily(date, count, new ArrayList<>(totals.values()));
 		}).toList();
+		SalesSummary sales = salesSummary();
 		return new Analytics(now, start, end, total, statuses, money(orders.revenue(REVENUE_STATUSES)),
 				new Products(products.count(), products.countByActiveTrue(), products.countByActiveTrueAndStockGreaterThan(0),
-						products.countByActiveTrueAndStockLessThanEqual(0)), daily);
+						products.countByActiveTrueAndStockLessThanEqual(0)), daily, sales.unitsSold(),
+				sales.top());
+	}
+
+	/**
+	 * All-time best sellers over paid/fulfilled orders. Merges the
+	 * (product, currency) rows from the repository in Java — single-currency
+	 * shops collapse to one row, and a hypothetical multi-currency shop still
+	 * gets one entry per product with summed units.
+	 */
+	private SalesSummary salesSummary() {
+		Map<String, TopProduct> merged = new LinkedHashMap<>();
+		for (Object[] row : orders.topSellers(REVENUE_STATUSES)) {
+			String productId = (String) row[0];
+			long units = ((Number) row[4]).longValue();
+			long revenueMinor = ((Number) row[5]).longValue();
+			TopProduct existing = merged.get(productId);
+			if (existing == null) {
+				merged.put(productId, new TopProduct(productId, (String) row[1],
+						products.findById(productId).map(ShopProduct::getCategory).orElse(null),
+						units, revenueMinor, (String) row[2], (Integer) row[3]));
+			} else {
+				merged.put(productId, new TopProduct(existing.productId(), existing.name(),
+						existing.category(), existing.units() + units,
+						existing.revenueMinor() + revenueMinor, existing.currency(),
+						existing.minorUnitDigits()));
+			}
+		}
+		List<TopProduct> top = merged.values().stream()
+				.sorted(java.util.Comparator.comparingLong(TopProduct::units).reversed())
+				.limit(5)
+				.toList();
+		long unitsSold = merged.values().stream().mapToLong(TopProduct::units).sum();
+		return new SalesSummary(unitsSold, top);
 	}
 
 	private static List<Money> money(List<Object[]> rows) {
@@ -82,6 +117,10 @@ public class ShopAnalyticsController {
 	public record Money(String currency, int minorUnitDigits, long totalMinor) { }
 	public record Daily(LocalDate date, long orders, List<Money> revenue) { }
 	public record Products(long total, long active, long inStock, long outOfStock) { }
+	public record TopProduct(String productId, String name, String category, long units,
+			long revenueMinor, String currency, int minorUnitDigits) { }
+	public record SalesSummary(long unitsSold, List<TopProduct> top) { }
 	public record Analytics(Instant generatedAt, LocalDate trendStartDate, LocalDate trendEndDate, long totalOrders,
-			Map<String, Long> ordersByStatus, List<Money> revenue, Products products, List<Daily> daily) { }
+			Map<String, Long> ordersByStatus, List<Money> revenue, Products products, List<Daily> daily,
+			long unitsSold, List<TopProduct> topProducts) { }
 }
