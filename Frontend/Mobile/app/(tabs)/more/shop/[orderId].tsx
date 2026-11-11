@@ -165,7 +165,7 @@ function OrderDetailContent() {
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
         <Pressable
           accessibilityRole="link"
-          onPress={() => router.push('/more/shop')}
+          onPress={() => router.replace('/more/shop')}
           className="mb-2 flex-row items-center gap-1 self-start active:opacity-70"
         >
           <ArrowLeft color={dashboardColors.teal} size={15} />

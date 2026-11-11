@@ -5,6 +5,7 @@ import { ArrowRight, Briefcase, ClipboardList, Search } from 'lucide-react-nativ
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
+import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -163,6 +164,10 @@ export default function OpenJobsScreen() {
         ItemSeparatorComponent={() => <View className="h-3" />}
         ListHeaderComponent={
           <View>
+            {/* This stack screen has headerShown:false (it draws its own
+                title block), so it needs an explicit back control — otherwise
+                the technician could only leave via the OS back gesture. */}
+            <HeaderBackButton color={palette.ink} popTo="/more" />
             <View className="mb-2 flex-row items-center gap-3">
               <View
                 className="rounded-xl p-3"

@@ -38,7 +38,9 @@ export default function SiteSetupScreen() {
 
   const navigateToSetup = useCallback(() => {
     if (!site) return;
-    router.push('/more/site-setup');
+    // Already on this screen — pushing again stacks an identical entry and
+    // makes "back" appear to do nothing.
+    router.replace('/more/site-setup');
   }, [site, router]);
 
   const canManage = canManageSubsites(user);
@@ -299,7 +301,10 @@ export default function SiteSetupScreen() {
         <Pressable
           accessibilityRole="link"
           accessibilityLabel={t('siteSetup.title')}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace('/more');
+          }}
           className="mb-2 flex-row items-center gap-1 self-start active:opacity-70"
         >
           <ArrowLeft color={dashboardColors.teal} size={15} />

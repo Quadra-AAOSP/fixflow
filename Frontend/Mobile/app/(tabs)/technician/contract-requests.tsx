@@ -120,7 +120,10 @@ export default function TechnicianContractRequestsScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('technician.contractRequests.back')}
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.replace('/more');
+            }}
             className="h-9 w-9 items-center justify-center rounded-full border border-dashboard-card-line bg-dashboard-card-bg active:opacity-80"
           >
             <ArrowLeft color={dashboardColors.teal} size={16} />

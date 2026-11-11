@@ -71,7 +71,13 @@ export default function TechnicianInvitationsScreen() {
         options={{
           title: t('technician.invitations.title'),
           headerLeft: () => (
-            <Pressable onPress={() => router.back()} className="flex-row items-center">
+            <Pressable
+              onPress={() => {
+                if (router.canGoBack()) router.back();
+                else router.replace('/more');
+              }}
+              className="flex-row items-center"
+            >
               <ArrowLeft color={dashboardColors.teal} size={18} />
             </Pressable>
           ),
