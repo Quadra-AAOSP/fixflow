@@ -2,18 +2,91 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import {
+  AlertTriangle,
+  Bell,
+  BellRing,
+  Briefcase,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardList,
+  FileSignature,
+  FileText,
+  Mail,
+  ShieldCheck,
+  Wrench,
+  XCircle,
+} from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
+import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { listShopNotifications } from '@/services/shop';
 import type { ShopNotification } from '@/types/shop';
 import { toErrorMessage } from '@/lib/apiClient';
-import { listNotifications, type ReportNotice } from '@/services/notifications';
+import { listNotifications, type NoticeType, type ReportNotice } from '@/services/notifications';
 import { markNoticesSeen } from '@/lib/notificationSeen';
-import { formatDate } from '@/utils/format';
+import { formatDate, relativeTime } from '@/utils/format';
+
+type NoticeMeta = {
+  titleKey: string;
+  bodyKey: string;
+  Icon: typeof Bell;
+  tint: string;
+  color: string;
+};
+
+const MINT = { tint: dashboardColors.statMintSoft, color: dashboardColors.statMintDeep };
+const AMBER = { tint: 'rgb(254, 243, 199)', color: 'rgb(146, 64, 14)' };
+const RED = { tint: 'rgb(254, 226, 226)', color: 'rgb(185, 28, 28)' };
+const SLATE = { tint: 'rgb(232, 240, 238)', color: 'rgb(51, 81, 77)' };
+
+/** Human title/body + icon + accent for every notice kind. */
+function noticeMeta(type: NoticeType): NoticeMeta {
+  switch (type) {
+    case 'report_assigned':
+      return { ...MINT, Icon: Wrench, titleKey: 'more.notifications.reportAssigned', bodyKey: 'more.notifications.reportAssignedBody' };
+    case 'report_unattended':
+      return { ...AMBER, Icon: BellRing, titleKey: 'more.notifications.unattendedTitle', bodyKey: 'more.notifications.unattendedBody' };
+    case 'technician_assigned':
+      return { ...MINT, Icon: Wrench, titleKey: 'more.notifications.technicianAssigned', bodyKey: 'more.notifications.technicianAssignedBody' };
+    case 'work_completed':
+      return { ...MINT, Icon: CheckCircle2, titleKey: 'more.notifications.workCompletedTitle', bodyKey: 'more.notifications.workCompleted' };
+    case 'verification_verified':
+      return { ...MINT, Icon: ShieldCheck, titleKey: 'more.notifications.verificationVerified', bodyKey: 'more.notifications.verificationVerifiedBody' };
+    case 'verification_rejected':
+      return { ...RED, Icon: XCircle, titleKey: 'more.notifications.verificationRejected', bodyKey: 'more.notifications.verificationRejectedBody' };
+    case 'verification_suspended':
+      return { ...RED, Icon: AlertTriangle, titleKey: 'more.notifications.verificationSuspended', bodyKey: 'more.notifications.verificationSuspendedBody' };
+    case 'verification_submitted':
+      return { ...AMBER, Icon: ClipboardList, titleKey: 'more.notifications.verificationSubmitted', bodyKey: 'more.notifications.verificationSubmittedBody' };
+    case 'terms_required':
+      return { ...AMBER, Icon: FileSignature, titleKey: 'more.notifications.termsRequired', bodyKey: 'more.notifications.termsRequiredBody' };
+    case 'contract_submitted':
+      return { ...AMBER, Icon: ClipboardList, titleKey: 'more.notifications.contractSubmitted', bodyKey: 'more.notifications.contractSubmittedBody' };
+    case 'contract_approved':
+      return { ...MINT, Icon: ShieldCheck, titleKey: 'more.notifications.contractApproved', bodyKey: 'more.notifications.contractApprovedBody' };
+    case 'contract_rejected':
+      return { ...RED, Icon: XCircle, titleKey: 'more.notifications.contractRejected', bodyKey: 'more.notifications.contractRejectedBody' };
+    case 'job_posted':
+      return { ...MINT, Icon: Briefcase, titleKey: 'more.notifications.jobPosted', bodyKey: 'more.notifications.jobPostedBody' };
+    case 'vetting_approved':
+      return { ...MINT, Icon: ShieldCheck, titleKey: 'more.notifications.vettingApproved', bodyKey: 'more.notifications.vettingApprovedBody' };
+    case 'vetting_revoked':
+      return { ...RED, Icon: AlertTriangle, titleKey: 'more.notifications.vettingRevoked', bodyKey: 'more.notifications.vettingRevokedBody' };
+    case 'site_invitation':
+      return { ...MINT, Icon: Mail, titleKey: 'more.notifications.invitationTitle', bodyKey: 'more.notifications.invitationBody' };
+    case 'report_edited':
+      return { ...SLATE, Icon: FileText, titleKey: 'more.notifications.editedTitle', bodyKey: 'more.notifications.edited' };
+    case 'report_deleted':
+      return { ...SLATE, Icon: FileText, titleKey: 'more.notifications.archivedTitle', bodyKey: 'more.notifications.archived' };
+    default:
+      return { ...SLATE, Icon: Bell, titleKey: 'more.notifications.title', bodyKey: 'more.notifications.emptyTitle' };
+  }
+}
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
@@ -57,6 +130,38 @@ function NotificationFeeds() {
     return () => { requestVersion.current++; };
   }, [load]));
 
+  /** Every notice type has a destination; unknown/legacy rows stay inert. */
+  function openNotice(notice: ReportNotice) {
+    switch (notice.type) {
+      case 'site_invitation':
+        router.push({ pathname: '/technician/invitations', params: { invitationId: String(notice.invitationId ?? '') } });
+        return;
+      case 'verification_submitted':
+        router.push('/more/verification-reviews');
+        return;
+      case 'verification_verified':
+      case 'verification_rejected':
+      case 'verification_suspended':
+      case 'terms_required':
+        router.push('/more/my-verification');
+        return;
+      case 'job_posted':
+        router.push('/more/marketplace');
+        return;
+      case 'contract_submitted':
+      case 'vetting_approved':
+      case 'vetting_revoked':
+        router.push('/more/contracts');
+        return;
+      case 'contract_approved':
+      case 'contract_rejected':
+        router.push('/technician/contract-requests');
+        return;
+      default:
+        if (notice.reportId != null) router.push(`/reports/${notice.reportId}`);
+    }
+  }
+
   return (
     <Screen>
       <FlatList data={notices} keyExtractor={notice => String(notice.id)}
@@ -66,14 +171,47 @@ function NotificationFeeds() {
         ListEmptyComponent={!loading && !error ? (
           <StateView variant="empty" title={t('more.notifications.emptyTitle')} />
         ) : null}
-        renderItem={({ item }) => (
-          <Pressable disabled={item.type !== 'work_completed' && item.type !== 'site_invitation'} onPress={() => item.type === 'site_invitation' ? router.push({ pathname: '/technician/invitations', params: { invitationId: String(item.invitationId ?? '') } }) : router.push(`/reports/${item.reportId}`)} accessibilityRole="button"><Card>
-            <Text className="text-sm font-semibold text-ink">
-              {item.type === 'site_invitation' ? t('technician.invitations.title') : item.type === 'work_completed' ? t('more.notifications.workCompleted', { id: item.reportId }) : t(item.type === 'report_edited' ? 'more.notifications.edited' : 'more.notifications.archived', { id: item.reportId })}
-            </Text>
-            <Text className="mt-1 text-xs text-subtitle">{formatDate(item.createdAt, true)}</Text>
-          </Card></Pressable>
-        )}
+        renderItem={({ item }) => {
+          const meta = noticeMeta(item.type);
+          const params = { id: item.reportId ?? item.referenceId ?? '' };
+          const interactive = item.reportId != null || !['report_edited', 'report_deleted'].includes(item.type);
+          return (
+            <Pressable
+              disabled={!interactive}
+              accessibilityRole="button"
+              accessibilityLabel={`${t(meta.titleKey, params)}. ${t(meta.bodyKey, params)}`}
+              onPress={() => openNotice(item)}
+            >
+              <Card className="flex-row items-start gap-3 active:opacity-80">
+                <View
+                  className="mt-0.5 h-9 w-9 items-center justify-center rounded-full"
+                  style={{ backgroundColor: meta.tint }}
+                >
+                  <meta.Icon color={meta.color} size={17} />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-start justify-between gap-2">
+                    <Text className="flex-1 text-[13px] font-semibold leading-[1.4] text-ink">
+                      {t(meta.titleKey, params)}
+                    </Text>
+                    <Text className="text-[10px] text-dashboard-caption">
+                      {relativeTime(item.createdAt)}
+                    </Text>
+                  </View>
+                  <Text className="mt-1 text-[11.5px] leading-[1.55] text-dashboard-subtitle">
+                    {t(meta.bodyKey, params)}
+                  </Text>
+                  <Text className="mt-1.5 text-[10px] text-dashboard-caption">
+                    {formatDate(item.createdAt, true)}
+                  </Text>
+                </View>
+                {interactive ? (
+                  <ChevronRight color={dashboardColors.statMintDeep} size={15} />
+                ) : null}
+              </Card>
+            </Pressable>
+          );
+        }}
         ListFooterComponent={error ? (
           <StateView variant="error" description={error} actionLabel={t('more.notifications.retry')} onAction={() => load(0)} />
         ) : hasMore ? (

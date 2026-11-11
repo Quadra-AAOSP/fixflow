@@ -8,6 +8,7 @@ import type {
   ReportPage,
   ReportPhoto,
   ReportReporter,
+  ReportStatus,
   Urgency,
   VisionJob,
 } from '@/types';
@@ -49,6 +50,58 @@ export async function listReports(opts: { siteId?: number; mine?: boolean }): Pr
 
 export function getReport(id: number): Promise<Report> {
   return api.get<Report>(endpoints.reports.byId(id));
+}
+
+export type ReportSearchFilters = {
+  status?: ReportStatus;
+  category?: string;
+  urgency?: Urgency;
+  from?: string;
+  to?: string;
+  text?: string;
+  /**
+   * Only reports nobody has picked up yet (no assignee, still open/routed/
+   * escalated/reopened). Used by the super-admin oversight queue.
+   */
+  unattended?: boolean;
+  visibility?: string;
+};
+
+export type ReportSearchPage = {
+  content: Report[];
+  page: number;
+  hasMore: boolean;
+};
+
+/**
+ * Server-side search across a site, or — for a super administrator passing
+ * `siteId: null` — across every site. Paged, newest first.
+ */
+export function searchReportsPage(opts: {
+  siteId?: number | null;
+  filters: ReportSearchFilters;
+  page?: number;
+  size?: number;
+}): Promise<ReportSearchPage> {
+  return api.post<ReportSearchPage>('/api/reports/search', {
+    siteId: opts.siteId ?? null,
+    filters: opts.filters,
+    page: opts.page ?? 0,
+    size: opts.size ?? 20,
+  });
+}
+
+/**
+ * Super-admin oversight: ask every administrator of the report's site to look
+ * at a report nobody has picked up. Returns how many admins were notified.
+ */
+export function notifySiteAdmin(
+  reportId: number,
+): Promise<{ recipients: number; siteName: string }> {
+  return api.post<{ recipients: number; siteName: string }>(
+    endpoints.reports.notifySiteAdmin(reportId),
+    {},
+  );
 }
 
 /** Every status transition the report has been through, oldest first. */
@@ -166,6 +219,28 @@ export function getVisionJobStatus(reportId: number, jobId: string): Promise<Vis
 export function getReportPhotos(reportId: number): Promise<ReportPhoto[]> {
   return api.get<ReportPhoto[]>(
     endpoints.reports.photos.list.replace('{id}', String(reportId)),
+  );
+}
+
+/**
+ * Uploads a work photo (e.g. completion evidence) to a report.
+ * Backend contract: `POST /api/reports/{id}/photos`, multipart field "file",
+ * max 5 photos per report (see `ReportPhotoController`).
+ */
+export function uploadReportPhoto(
+  reportId: number,
+  asset: { uri: string; fileName?: string | null; mimeType?: string },
+): Promise<ReportPhoto> {
+  const form = new FormData();
+  form.append('file', {
+    uri: asset.uri,
+    name: asset.fileName ?? 'work-photo.jpg',
+    type: asset.mimeType ?? 'image/jpeg',
+  } as unknown as Blob);
+  return api.post<ReportPhoto>(
+    endpoints.reports.photos.upload.replace('{id}', String(reportId)),
+    undefined,
+    { body: form },
   );
 }
 

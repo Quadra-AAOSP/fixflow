@@ -98,6 +98,9 @@ export const endpoints = {
     /** POST — ranked candidates and active-case counts. */
     technicianRanking: (id: number | string) =>
       `/api/reports/${id}/technician-ranking`,
+    /** POST — super-admin nudge: notify the site's admins about an unattended report. */
+    notifySiteAdmin: (id: number | string) =>
+      `/api/reports/${id}/notify-site-admin`,
     photos: {
       list: '/api/reports/{id}/photos',
       upload: '/api/reports/{id}/photos',

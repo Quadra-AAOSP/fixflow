@@ -11,6 +11,7 @@ import {
 import { AppState, type AppStateStatus } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
+import { setUnauthorizedHandler } from '@/lib/apiClient';
 import * as authApi from '@/services/auth';
 import { ApiError } from '@/services/auth';
 import i18n from '@/constants/i18n';
@@ -330,6 +331,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const subscription = AppState.addEventListener('change', handleAppState);
     return () => subscription.remove();
   }, [user, session.keepAlive, startHeartbeat, stopHeartbeat]);
+
+  // Global 401 recovery. A stale session cookie (expired, or the API was
+  // restarted) made every screen show a raw "Authentication required" while
+  // the app still thought it was signed in. Now the first such 401 attempts a
+  // silent re-login; if that is not possible the user state is cleared and
+  // the root guard sends the user to /login.
+  const recoveringUnauthorized = useRef(false);
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (recoveringUnauthorized.current || !mounted.current) return;
+      recoveringUnauthorized.current = true;
+      void (async () => {
+        try {
+          const relogged = await reloginSilently();
+          if (!mounted.current) return;
+          if (relogged) {
+            setUser(relogged);
+            setSession((s) => ({ ...s, lastHeartbeatAt: new Date() }));
+          } else {
+            setUser(null);
+          }
+        } finally {
+          recoveringUnauthorized.current = false;
+        }
+      })();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [reloginSilently]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
