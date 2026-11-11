@@ -28,16 +28,19 @@ public class ReportWorkflowService {
     private final SiteVettingService vetting;
     private final ReportService reportService;
     private final ApplicationEventPublisher events;
+    private final NotificationService notifier;
 
     public ReportWorkflowService(ReportRepository reports, UserRepository users,
             TechnicianContractRepository contracts, ReportReporterRepository participants,
             StatusHistoryRepository history, ReportResolutionRepository resolutions,
             ReportRatingRepository ratings, ReportLinkRepository links, TechnicianTermsService terms,
-            ReportService reportService, ApplicationEventPublisher events, ReportNotificationRepository notifications, SiteVettingService vetting) {
+            ReportService reportService, ApplicationEventPublisher events, ReportNotificationRepository notifications,
+            SiteVettingService vetting, NotificationService notifier) {
         this.vetting=vetting;
         this.reports=reports; this.users=users; this.contracts=contracts; this.participants=participants;
         this.history=history; this.resolutions=resolutions; this.ratings=ratings; this.links=links;
         this.terms=terms; this.reportService=reportService; this.events=events; this.notifications=notifications;
+        this.notifier=notifier;
     }
 
     public ReportResponse claim(Long id, AppUserDetails actor) {
@@ -71,6 +74,9 @@ public class ReportWorkflowService {
     private void activateAssignment(Report report, User technician, AppUserDetails actor, String reason) {
         report.setAssignedTechnician(technician);
         transition(report,ReportStatus.assigned,actor,reason,ReportDomainEvent.ASSIGNMENT);
+        // The technician learns they have work; the reporter learns who is coming.
+        notifier.send(technician.getId(), ReportNotification.Type.report_assigned, report.getId(), report.getId());
+        notifier.send(report.getCreatedBy().getId(), ReportNotification.Type.technician_assigned, report.getId(), technician.getId());
     }
 
     public ReportResponse start(Long id, AppUserDetails actor) {

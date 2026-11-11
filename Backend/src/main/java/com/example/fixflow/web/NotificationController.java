@@ -25,7 +25,7 @@ public class NotificationController {
         this.invitations = invitations;
     }
 
-    public record Item(Long id, Long reportId, Type type, Instant createdAt, Long invitationId) { }
+    public record Item(Long id, Long reportId, Long referenceId, Type type, Instant createdAt, Long invitationId) { }
     public record Inbox(List<Item> content, boolean hasMore) { }
 
     @GetMapping
@@ -35,8 +35,10 @@ public class NotificationController {
             throw new ApiException(400, "page must be non-negative");
         }
         var result = notifications.findByRecipientIdOrderByIdDesc(actor.getId(), PageRequest.of(page, 20));
-        return new Inbox(result.map(row -> new Item(row.getId(), row.getType() == Type.site_invitation ? null : row.getReportId(),
-                row.getType(), row.getCreatedAt(), row.getType() == Type.site_invitation
+        return new Inbox(result.map(row -> new Item(row.getId(),
+                row.getType() == Type.site_invitation ? null : row.getReportId(),
+                row.getReferenceId(), row.getType(), row.getCreatedAt(),
+                row.getType() == Type.site_invitation && row.getReportId() != null
                     ? invitations.findByReport_IdAndTechnician_Id(row.getReportId(), actor.getId()).map(i -> i.getId()).orElse(null) : null)).getContent(), result.hasNext());
     }
 }

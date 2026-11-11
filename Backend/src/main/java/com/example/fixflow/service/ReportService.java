@@ -213,12 +213,10 @@ public class ReportService {
 		int safePage = Math.max(page, 0);
 		int safeSize = Math.min(Math.max(size, 1), 100);
 		String categoryFilter = blankToNull(category);
-		Page<Report> result = reportRepository.findOpenBySite(
-				scopedSiteId,
-				categoryFilter,
-				ReportStatus.confirmed,
-				PageRequest.of(safePage, safeSize)
-		);
+		PageRequest pageRequest = PageRequest.of(safePage, safeSize);
+		Page<Report> result = scopedSiteId == null
+				? reportRepository.findOpenAllSites(categoryFilter, ReportStatus.confirmed, pageRequest)
+				: reportRepository.findOpenBySite(scopedSiteId, categoryFilter, ReportStatus.confirmed, pageRequest);
 		List<Long> ids = result.getContent().stream().map(Report::getId).toList();
 		Map<Long, Report> detailed = new HashMap<>();
 		if (!ids.isEmpty()) {
@@ -235,7 +233,7 @@ public class ReportService {
 		return new ReportPageResponse(content, safePage, safeSize, result.getTotalElements(), result.getTotalPages());
 	}
 
-	public record SearchFilters(String status, String category, String urgency, String from, String to, String text, Boolean canJoin, String visibility) {}
+	public record SearchFilters(String status, String category, String urgency, String from, String to, String text, Boolean canJoin, String visibility, Boolean unattended) {}
 	public record SearchPage(List<ReportResponse> content, int page, boolean hasMore) {}
 
 	@Transactional(readOnly = true)
@@ -259,14 +257,30 @@ public class ReportService {
 		} catch (RuntimeException ex) { throw new ApiException(400, "Invalid search filters"); }
 		if ((from != null && to != null && from.isAfter(to)) || (filters.category() != null && filters.category().length() > 128)
 				|| (filters.text() != null && filters.text().length() > 500)) throw new ApiException(400, "Invalid search filters");
-		var siteType = siteRepository.findById(scopedSiteId)
-				.orElseThrow(() -> new ApiException(404, "Site not found")).getType();
-		var allowedCategories = categoryTaxonomyService.allowedCategories(siteType);
-		String category = filters.category() == null ? null : categoryTaxonomyService.requireAllowedCategory(siteType, filters.category());
+		// A site-scoped search is restricted to that site's category taxonomy.
+		// The cross-site oversight search (super_admin, no siteId) cannot use a
+		// single taxonomy, so it accepts any category name as-is.
+		List<String> allowedCategories = null;
+		String category = null;
+		if (scopedSiteId != null) {
+			var siteType = siteRepository.findById(scopedSiteId)
+					.orElseThrow(() -> new ApiException(404, "Site not found")).getType();
+			allowedCategories = categoryTaxonomyService.allowedCategories(siteType);
+			category = filters.category() == null ? null
+					: categoryTaxonomyService.requireAllowedCategory(siteType, filters.category());
+		} else if (filters.category() != null && !filters.category().isBlank()) {
+			category = filters.category().trim().toLowerCase(java.util.Locale.ROOT);
+		}
+		List<String> taxonomy = allowedCategories;
+		String categoryFilterValue = category;
 		Page<Report> result = reportRepository.findAll((root, query, cb) -> {
 			var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
-			predicates.add(cb.equal(root.get("site").get("id"), scopedSiteId));
-			predicates.add(allowedCategories.isEmpty() ? cb.disjunction() : root.get("category").in(allowedCategories));
+			if (scopedSiteId != null) {
+				predicates.add(cb.equal(root.get("site").get("id"), scopedSiteId));
+			}
+			if (taxonomy != null) {
+				predicates.add(taxonomy.isEmpty() ? cb.disjunction() : root.get("category").in(taxonomy));
+			}
 			predicates.add(cb.isNull(root.get("archivedAt")));
 			var membership = query.subquery(Long.class);
 			var rr = membership.from(ReportReporter.class);
@@ -280,8 +294,16 @@ public class ReportService {
 			};
 			predicates.add(cb.or(cb.equal(root.get("visibility"), ReportVisibility.PUBLIC), sensitive));
 			if (status != null) predicates.add(cb.equal(root.get("status"), status));
+			// "Unattended" = nobody has picked it up yet. Resolved work and
+			// already-assigned work are excluded so the oversight queue stays
+			// about reports that still need a first response.
+			if (Boolean.TRUE.equals(filters.unattended())) {
+				predicates.add(cb.isNull(root.get("assignedTechnician")));
+				predicates.add(root.get("status").in(
+						ReportStatus.open, ReportStatus.routed, ReportStatus.escalated, ReportStatus.reopened));
+			}
 			if (visibility != null) predicates.add(cb.equal(root.get("visibility"), visibility));
-			if (category != null) predicates.add(cb.equal(root.get("category"), category));
+			if (categoryFilterValue != null) predicates.add(cb.equal(root.get("category"), categoryFilterValue));
 			if (urgency != null) predicates.add(cb.equal(cb.coalesce(root.get("finalUrgency"), cb.coalesce(root.get("calculatedUrgency"), root.get("reporterUrgency"))), urgency));
 			if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from.atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
 			if (to != null) predicates.add(cb.lessThan(root.get("createdAt"), to.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
@@ -407,6 +429,49 @@ public class ReportService {
 				.map(id -> new ReportNotification(id, report.getId(), type, now)).toList());
 		appendStatusHistory(report, report.getStatus(), report.getStatus(), loadUser(actor.getId()),
 				type == ReportNotification.Type.report_edited ? "Report edited" : "Report archived");
+	}
+
+	public record NotifySiteAdminsResult(int recipients, String siteName) {}
+
+	/**
+	 * Super-admin oversight action: nudge every administrator of the report's
+	 * site about a report that nobody has picked up yet.
+	 *
+	 * <p>The inbox row carries the report id, so the admin can open the report
+	 * straight from the notice. Refusing already-attended reports keeps the
+	 * notice meaningful (and stops duplicate nudges from piling up on work that
+	 * is already moving).</p>
+	 */
+	@Transactional
+	public NotifySiteAdminsResult notifySiteAdmin(Long id, AppUserDetails actor) {
+		if (actor.getRole() != UserRole.super_admin) {
+			throw new ApiException(HttpStatus.FORBIDDEN.value(),
+					"Only super administrators can notify site administrators");
+		}
+		Report report = reportRepository.findDetailedById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
+		boolean stillOpen = report.getStatus() == ReportStatus.open
+				|| report.getStatus() == ReportStatus.routed
+				|| report.getStatus() == ReportStatus.escalated
+				|| report.getStatus() == ReportStatus.reopened;
+		if (!stillOpen || report.getAssignedTechnician() != null) {
+			throw new ApiException(HttpStatus.CONFLICT.value(),
+					"Only reports that nobody has picked up can be escalated to the site administrator");
+		}
+		Long siteId = report.getSite().getId();
+		List<Long> recipients = userRepository.findIdsBySiteAndRole(siteId, UserRole.admin);
+		if (recipients.isEmpty()) {
+			throw new ApiException(HttpStatus.CONFLICT.value(),
+					"This site has no site administrator to notify");
+		}
+		Instant now = Instant.now();
+		notifications.saveAll(recipients.stream()
+				.map(recipientId -> new ReportNotification(recipientId, report.getId(),
+						ReportNotification.Type.report_unattended, now))
+				.toList());
+		appendStatusHistory(report, report.getStatus(), report.getStatus(), loadUser(actor.getId()),
+				"Site administrator notified about unattended report");
+		return new NotifySiteAdminsResult(recipients.size(), report.getSite().getName());
 	}
 
 	@Transactional
@@ -759,11 +824,14 @@ public class ReportService {
 		return filer.getSite();
 	}
 
+	/**
+	 * Site scope for read/list operations. A {@code null} return means "no site
+	 * restriction" and is only ever produced for a super administrator who did
+	 * not pick a site — that is the cross-site oversight view.
+	 */
 	private Long resolveSiteForList(AppUserDetails actor, Long siteId) {
 		if (actor.getRole() == UserRole.super_admin) {
-			if (siteId == null) {
-				throw new ApiException(HttpStatus.BAD_REQUEST.value(), "siteId is required");
-			}
+			// null = every site; a concrete id = that site only.
 			return siteId;
 		}
 		// Technicians are not scoped to a single site — their access comes

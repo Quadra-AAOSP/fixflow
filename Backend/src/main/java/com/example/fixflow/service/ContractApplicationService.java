@@ -25,14 +25,17 @@ public class ContractApplicationService {
     private final UserRepository users;
     private final SiteRepository sites;
     private final TechnicianTermsService terms;
+    private final NotificationService notifier;
 
     public ContractApplicationService(TechnicianContractApplicationRepository applications,
-            TechnicianContractRepository contracts, UserRepository users, SiteRepository sites, TechnicianTermsService terms) {
+            TechnicianContractRepository contracts, UserRepository users, SiteRepository sites,
+            TechnicianTermsService terms, NotificationService notifier) {
         this.applications = applications;
         this.contracts = contracts;
         this.users = users;
         this.sites = sites;
         this.terms = terms;
+        this.notifier = notifier;
     }
 
     @Transactional
@@ -51,7 +54,10 @@ public class ContractApplicationService {
         terms.requireAcceptance(technician.getId());
         application.setSite(sites.findById(request.siteId()).orElseThrow(() -> new ApiException(404, "Site not found")));
         application.setNote(request.note());
-        return ContractApplicationResponse.from(applications.saveAndFlush(application));
+        var saved = applications.saveAndFlush(application);
+        notifier.toSiteAdmins(saved.getSite().getId(),
+                com.example.fixflow.domain.ReportNotification.Type.contract_submitted, saved.getId());
+        return ContractApplicationResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -94,6 +100,11 @@ public class ContractApplicationService {
         application.setDecisionReason(decision.reason());
         application.setDecidedBy(users.findById(actor.getId()).orElseThrow(() -> new ApiException(401, "User not found")));
         application.setDecidedAt(Instant.now());
+        notifier.send(application.getTechnician().getId(),
+                application.getStatus() == TechnicianContractApplication.Status.approved
+                        ? com.example.fixflow.domain.ReportNotification.Type.contract_approved
+                        : com.example.fixflow.domain.ReportNotification.Type.contract_rejected,
+                null, application.getId());
         return ContractApplicationResponse.from(application);
     }
 

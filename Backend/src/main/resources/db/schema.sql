@@ -301,12 +301,33 @@ DEALLOCATE PREPARE report_archive_statement;
 CREATE TABLE IF NOT EXISTS report_notifications (
     id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     recipient_id BIGINT UNSIGNED NOT NULL,
-    report_id    BIGINT UNSIGNED NOT NULL,
+    report_id    BIGINT UNSIGNED NULL,
+    reference_id BIGINT UNSIGNED NULL,
     type         VARCHAR(32) NOT NULL,
     created_at   TIMESTAMP(6) NOT NULL,
     INDEX idx_report_notification_inbox (recipient_id, id),
     CONSTRAINT fk_report_notification_recipient FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Account-level notices (verification, terms, contracts, marketplace jobs) carry
+-- no report, so report_id became nullable and reference_id was added.
+SET @notification_report_nullable = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'report_notifications'
+        AND column_name = 'report_id' AND is_nullable = 'NO') > 0,
+    'ALTER TABLE report_notifications MODIFY COLUMN report_id BIGINT UNSIGNED NULL', 'SELECT 1');
+PREPARE notification_report_statement FROM @notification_report_nullable;
+EXECUTE notification_report_statement;
+DEALLOCATE PREPARE notification_report_statement;
+
+SET @notification_reference_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'report_notifications'
+        AND column_name = 'reference_id') = 0,
+    'ALTER TABLE report_notifications ADD COLUMN reference_id BIGINT UNSIGNED NULL', 'SELECT 1');
+PREPARE notification_reference_statement FROM @notification_reference_migration;
+EXECUTE notification_reference_statement;
+DEALLOCATE PREPARE notification_reference_statement;
 
 SET @confirm_user_migration = IF(
     (SELECT COUNT(*) FROM information_schema.columns

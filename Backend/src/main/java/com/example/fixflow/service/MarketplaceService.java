@@ -39,6 +39,7 @@ public class MarketplaceService {
     private final SiteVettingService vetting;
     private final ReportWorkflowService workflow;
     private final ReportRatingRepository ratings;
+    private final NotificationService notifier;
 
     public record ListingView(Long id, String summary, String broadLocation, String timing,
             String category, String specialty, Urgency urgency, MarketplaceListing.Status status,
@@ -87,6 +88,8 @@ public class MarketplaceService {
         listing.setExpiresAt(now.plus(LISTING_DURATION));
         listings.save(listing);
         audit(listing, null, actor.getId(), "published", now);
+        // Tell skilled technicians that a matching job just went live.
+        notifier.toTechniciansWithSkill(report.getCategory(), ReportNotification.Type.job_posted, listing.getId());
         return listingView(listing, null, true, now);
     }
 
