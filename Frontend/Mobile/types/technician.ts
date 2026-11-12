@@ -31,6 +31,8 @@ export type TechnicianContract = {
   technicianId: number;
   siteId: number;
   createdAt: string;
+  /** Site name, so technicians (who have no account site) can label jobs. */
+  siteName: string;
 };
 
 /** Ranking strategy for `POST /api/reports/{id}/technician-ranking`. */

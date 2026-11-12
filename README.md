@@ -20,7 +20,7 @@ Multi-site maintenance reporting platform (school / hostel / hotel) with AI-assi
 | Object storage | MinIO (Docker, persistent volume) |
 | AI | Gemini (primary); Ollama fallback (stretch/spike) |
 | Tests | JUnit + Mockito (backend), Vitest (mobile) |
-| Infra | Docker Compose (`Backend/compose.yaml`) |
+| Infra | Docker Compose (`Backend/docker/compose.yaml`) |
 
 ---
 
@@ -29,14 +29,13 @@ Multi-site maintenance reporting platform (school / hostel / hotel) with AI-assi
 ```
 Fixflow/
 ├── Backend/                 # Spring Boot API
-│   ├── compose.yaml         # MySQL, Ollama, RabbitMQ
+│   ├── docker/              # Compose + Dockerfile + env templates
 │   └── src/main/resources/
 │       └── db/schema.sql    # Domain DDL (authoritative)
 ├── Frontend/
-│   ├── Web/                 # Vue 3 web client (reporter-first, auth parity)
-│   └── Mobile/              # Expo Router React Native (reporter-first)
-├── Database/                # Reserved for DB scripts / seeds
-├── Testing/                 # Test notes / records
+│   ├── Web/                 # Vue 3 web client
+│   └── Mobile/              # Expo Router React Native
+├── Testing/playwright/      # Web end-to-end workflows
 └── README.md
 ```
 
@@ -91,7 +90,7 @@ Apply schema (with MySQL running):
 mysql -u myuser -p mydatabase < Backend/src/main/resources/db/schema.sql
 ```
 
-Compose defaults (`Backend/compose.yaml`): database `mydatabase`, user `myuser`, password `secret`.
+Compose defaults come from your env file (`Backend/docker/compose.env.example`: database/user `fixflow`, MySQL on host port `3307`).
 
 ---
 
@@ -105,18 +104,25 @@ Compose defaults (`Backend/compose.yaml`): database `mydatabase`, user `myuser`,
 
 ### 1. Start infrastructure
 
+Copy `Backend/docker/compose.env.example` to a path outside Git (or `Backend/docker/docker.env`), fill secrets, then:
+
 ```bash
-cd Backend
-docker compose up -d
+cd Backend/docker
+chmod +x compose.sh
+./compose.sh --env-file /absolute/path/to/docker.env -p fixflow-local up -d --build --wait
 ```
+
+PowerShell: `./compose.ps1 -EnvFile C:\path\to\docker.env -p fixflow-local up -d --build --wait`
+
+See [`Backend/docker/DOCKER.md`](Backend/docker/DOCKER.md) for MinIO, production override, and smoke checks.
 
 ### 2. Create tables
 
-```bash
-mysql -h 127.0.0.1 -P <mapped-port> -u myuser -p mydatabase < src/main/resources/db/schema.sql
-```
+With Compose, the backend applies `schema.sql` on startup. For a manual MySQL import:
 
-Check the published MySQL port with `docker compose ps` (Compose maps `3306` without a host pin by default).
+```bash
+mysql -h 127.0.0.1 -P 3307 -u fixflow -p fixflow < src/main/resources/db/schema.sql
+```
 
 ### 3. Run backend
 

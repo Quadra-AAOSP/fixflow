@@ -50,6 +50,14 @@ describe('role coverage — every delivery role reaches its own tasks', () => {
     expect(isTechnicianForbiddenRoute('reporter', '/reports/42')).toBe(false);
   });
 
+  it('technician: nested technician routes stay reachable (open jobs, invitations)', () => {
+    expect(landingRedirectForRoute('technician', '/technician/open-jobs')).toBeNull();
+    expect(landingRedirectForRoute('technician', '/technician/invitations')).toBeNull();
+    // Other roles are bounced off the technician stack.
+    expect(landingRedirectForRoute('reporter', '/technician/open-jobs')).toBe('/(tabs)');
+    expect(landingRedirectForRoute('staff', '/technician/open-jobs')).toBe('/(tabs)');
+  });
+
   it('staff: triage home + reports, no workspace', () => {
     expect(homeRouteForRole('staff')).toBe('/(tabs)');
     expect(isTabVisible('staff', 'reports')).toBe(true);

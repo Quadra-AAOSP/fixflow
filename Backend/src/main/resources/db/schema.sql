@@ -730,15 +730,15 @@ SET @stmt = (SELECT IF((SELECT COUNT(*) FROM information_schema.columns WHERE ta
 PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS site_technician_vetting (
- id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
- site_id BIGINT NOT NULL, technician_id BIGINT NOT NULL, status VARCHAR(16) NOT NULL,
- reviewed_by BIGINT NOT NULL, reviewed_at TIMESTAMP(6) NOT NULL, expires_at TIMESTAMP(6) NULL,
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ site_id BIGINT UNSIGNED NOT NULL, technician_id BIGINT UNSIGNED NOT NULL, status VARCHAR(16) NOT NULL,
+ reviewed_by BIGINT UNSIGNED NOT NULL, reviewed_at TIMESTAMP(6) NOT NULL, expires_at TIMESTAMP(6) NULL,
  identity_checked BOOLEAN NOT NULL, references_checked BOOLEAN NOT NULL, qualifications_checked BOOLEAN NOT NULL,
  licence_applicable BOOLEAN NOT NULL, licence_checked BOOLEAN NOT NULL, licence_expires_at TIMESTAMP(6) NULL,
  insurance_applicable BOOLEAN NOT NULL, insurance_checked BOOLEAN NOT NULL, insurance_expires_at TIMESTAMP(6) NULL,
  INDEX idx_site_technician_vetting (site_id, technician_id, id),
  FOREIGN KEY (site_id) REFERENCES sites(id), FOREIGN KEY (technician_id) REFERENCES users(id), FOREIGN KEY (reviewed_by) REFERENCES users(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET @stmt = (SELECT IF((SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'calculated_urgency') = 0, 'ALTER TABLE reports ADD COLUMN calculated_urgency VARCHAR(32) NULL', 'SELECT 1'));
 PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;

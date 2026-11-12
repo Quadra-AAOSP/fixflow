@@ -113,6 +113,7 @@ function isDeepLinkAllowed(role: UserRole, path: string): boolean {
 const PATH_TO_TAB: ReadonlyArray<readonly [string, TabName]> = [
   ['/workspace', 'workspace'],
   ['/assignments', 'assignments'],
+  ['/technician', 'assignments'],
   ['/staff-dashboard', 'staff-dashboard'],
   ['/reports', 'reports'],
   ['/more', 'more'],

@@ -1,9 +1,11 @@
-# Local stack. Use --env-file for secrets and -p for isolated volumes.
+# Local stack. Pass secrets with --env-file <path> (or ./compose.sh / ./compose.ps1).
+# Example: docker compose --env-file /absolute/path/to/docker.env -p fixflow-local up -d --build
 services:
   backend:
     image: ${BACKEND_IMAGE:-fixflow-backend:local}
     build:
-      context: .
+      context: ..
+      dockerfile: docker/Dockerfile
       args:
         DOCKER_LIBRARY: ${DOCKER_LIBRARY:-docker.io/library}
     restart: unless-stopped
@@ -75,12 +77,7 @@ services:
     logging: *bounded-logs
 
   minio:
-    image: fixflow-minio:7aac2a2
-    build:
-      context: docker/minio
-      args:
-        DOCKER_LIBRARY: ${DOCKER_LIBRARY:-docker.io/library}
-    pull_policy: build
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-09-07T16-13-09Z}
     command: ['server', '/data', '--console-address', ':9001']
     restart: unless-stopped
     environment:
@@ -92,10 +89,10 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ['CMD', 'curl', '--fail', '--silent', 'http://127.0.0.1:9000/minio/health/ready']
+      test: ['CMD', 'curl', '--fail', '--silent', '--max-time', '3', 'http://127.0.0.1:9000/minio/health/ready']
       interval: 5s
       timeout: 5s
-      start_period: 20s
+      start_period: 30s
       retries: 30
     logging: *bounded-logs
 

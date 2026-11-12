@@ -75,7 +75,9 @@ class MarketplaceIntegrationTest {
         mvc.perform(get(LISTINGS)).andExpect(status().isUnauthorized());
         postJson(LISTINGS, foreign, publication()).andExpect(status().isForbidden());
         String listing = LISTINGS + "/" + publish();
-        mvc.perform(get(LISTINGS).with(as(other))).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        // Open listings are visible to every technician; applying is what
+        // requires verification, accepted terms and a matching skill.
+        mvc.perform(get(LISTINGS).with(as(other))).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
         mvc.perform(get(LISTINGS).with(as(technician))).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].summary").value("Repair fixture"))
                 .andExpect(jsonPath("$[0].reportId").doesNotExist())

@@ -824,7 +824,9 @@ public class ReportService {
 			case staff, admin, super_admin -> true;
 			case technician -> report.getAssignedTechnician() != null
 					&& report.getAssignedTechnician().getId().equals(actor.getId());
-			case reporter -> reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
+			case reporter -> (report.getCreatedBy() != null
+					&& report.getCreatedBy().getId().equals(actor.getId()))
+					|| reportReporterRepository.existsByReportIdAndUserId(report.getId(), actor.getId());
 			case shop_manager -> false;
 		};
 	}
