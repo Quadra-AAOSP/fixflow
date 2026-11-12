@@ -137,3 +137,20 @@ it('accepts a suggested building and closes its request only after the building 
   expect(api.resolveSubsiteRequest).toHaveBeenCalledWith(7, 9);
   expect(wrapper.text()).not.toContain('Accept suggestion');
 });
+it('requires a deliberate confirmation before archiving and supports cancellation', async () => {
+  vi.mocked(api.archiveSubsite).mockResolvedValue(undefined);
+  wrapper = render(); await flushPromises();
+  const archive = wrapper.get('button[aria-label="Archive Original Main Building"]');
+  await archive.trigger('click');
+  expect(api.archiveSubsite).not.toHaveBeenCalled();
+  const confirmation = wrapper.get('.archive-confirmation');
+  expect(confirmation.text()).toContain('no longer be available for new reports');
+  await confirmation.findAll('button').find(button => button.text() === 'Cancel')!.trigger('click');
+  expect(wrapper.find('.archive-confirmation').exists()).toBe(false);
+  expect(api.archiveSubsite).not.toHaveBeenCalled();
+  await archive.trigger('click');
+  await wrapper.get('.archive-confirmation').findAll('button').find(button => button.text() === 'Confirm archive')!.trigger('click');
+  await flushPromises();
+  expect(api.archiveSubsite).toHaveBeenCalledWith(7, 42);
+  expect(wrapper.find('button[aria-label="Archive Original Main Building"]').exists()).toBe(false);
+});

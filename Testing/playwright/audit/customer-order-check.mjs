@@ -1,0 +1,20 @@
+import {chromium} from 'playwright';
+import fs from 'node:fs/promises';
+const out='/tmp/fixflow-hci-live';const sql=await fs.readFile(new URL('../../../Backend/src/main/resources/db/demo-data.sql',import.meta.url),'utf8');const accounts={};for(const l of sql.split('\n')){if(!l.startsWith('INSERT INTO users'))continue;const email=l.match(/SELECT '([^']+)'/)[1];const role=l.match(/, '(reporter|staff|admin|technician|super_admin|shop_manager)',/)[1];accounts[role]??=email;}
+const b=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});const evidence=[];
+async function login(role){const c=await b.newContext({viewport:{width:390,height:844}});const p=await c.newPage();await p.goto('http://localhost:5173/login',{waitUntil:'domcontentloaded'});await p.getByLabel('Email',{exact:true}).fill(accounts[role]);await p.getByLabel('Password',{exact:true}).fill(accounts[role]);await p.getByRole('button',{name:/sign in/i}).click();await p.waitForURL(u=>u.pathname!='/login');await p.waitForTimeout(350);return {c,p};}
+
+const {c,p}=await login('admin');
+const csrfResponse=await c.request.get('http://localhost:8080/api/auth/csrf');const csrf=await csrfResponse.json();
+const headers={[csrf.headerName]:csrf.token};const catalogResponse=await c.request.get('http://localhost:8080/api/shop/catalog');const catalog=await catalogResponse.json();const product=catalog.products.filter(x=>x.stock>0).sort((a,b)=>a.priceMinor-b.priceMinor)[0];
+if(!product)throw new Error('No in-stock product available for audit.');
+let created;
+try{
+const response=await c.request.post('http://localhost:8080/api/shop/orders',{headers:{...headers,'Idempotency-Key':'hci-live-audit-'+Date.now()},data:{items:[{productId:product.id,quantity:1}],shippingName:'HCI LOCAL TEST — CANCEL AFTER REVIEW',shippingAddress:'Local development test only; do not dispatch'}});
+if(!response.ok())throw new Error('Test order creation failed: '+response.status());created=await response.json();await fs.writeFile(out+'/customer-order-test-record.json',JSON.stringify({orderId:created.orderId,paymentProvider:created.paymentProvider,originalStock:product.stock,productId:product.id}));
+for(const width of [1365,390]){await p.setViewportSize({width,height:900});await p.goto('http://localhost:5173/shop/orders/'+created.orderId,{waitUntil:'domcontentloaded'});await p.getByRole('button',{name:'Cancel order',exact:true}).waitFor();await p.screenshot({path:out+'/customer-order-pending-'+width+'.png',fullPage:true});evidence.push({check:'actual customer order renders',width,path:new URL(p.url()).pathname,overflow:await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth)});}
+await p.getByRole('button',{name:'Cancel order',exact:true}).click();await p.getByRole('button',{name:'Keep order',exact:true}).click();evidence.push({check:'cancel confirmation can be dismissed',orderStillPending:await p.getByRole('button',{name:'Cancel order',exact:true}).isVisible()});
+await p.getByRole('button',{name:'Cancel order',exact:true}).click();await p.getByRole('button',{name:'Confirm order cancellation',exact:true}).click();await p.waitForTimeout(500);const current=await c.request.get('http://localhost:8080/api/shop/orders/'+created.orderId);const order=await current.json();evidence.push({check:'actual cancellation',status:order.status,paymentProvider:created.paymentProvider});await p.screenshot({path:out+'/customer-order-cancelled-390.png',fullPage:true});
+const newCatalog=await (await c.request.get('http://localhost:8080/api/shop/catalog')).json();evidence.push({check:'stock reservation released',restored:newCatalog.products.find(x=>x.id===product.id)?.stock===product.stock});
+}finally{if(created){const latestCsrf=await (await c.request.get('http://localhost:8080/api/auth/csrf')).json();await c.request.post('http://localhost:8080/api/shop/orders/'+created.orderId+'/cancel',{headers:{[latestCsrf.headerName]:latestCsrf.token}}); }await fs.writeFile(out+'/customer-order-check.json',JSON.stringify(evidence,null,2));await c.close();await b.close();}
+console.log(JSON.stringify(evidence,null,2));

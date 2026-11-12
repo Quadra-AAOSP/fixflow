@@ -24,6 +24,7 @@ const error = ref<string | null>(null);
 const submitting = ref(false);
 
 async function onSubmit() {
+  if (submitting.value) return;
   error.value = null;
   const trimmedEmail = email.value.trim();
   if (!trimmedEmail || !password.value) {
@@ -42,7 +43,7 @@ async function onSubmit() {
         err.status === 401 ? 'Invalid email or password.' : err.message;
     } else {
       error.value =
-        'Unable to reach the server. Check your connection and API URL.';
+        'Unable to sign in. Check your connection and try again.';
     }
   } finally {
     submitting.value = false;
@@ -60,12 +61,14 @@ async function onSubmit() {
     </div>
 
     <form @submit.prevent="onSubmit">
+      <fieldset :disabled="submitting" class="min-w-0 border-0 p-0">
       <TextField
         v-model="email"
         label="Email"
         type="email"
         :maxlength="EMAIL_MAX_LENGTH"
         autocomplete="email"
+        required
         placeholder="you@example.com"
       />
       <TextField
@@ -74,12 +77,14 @@ async function onSubmit() {
         type="password"
         :maxlength="PASSWORD_MAX_LENGTH"
         autocomplete="current-password"
+        required
         placeholder="••••••••"
       />
 
       <p v-if="error" role="alert" class="mb-3 text-sm text-urgency-critical">{{ t(error) }}</p>
 
       <Button label="Sign in →" type="submit" :loading="submitting" />
+      </fieldset>
     </form>
 
     <p class="mt-6 text-center text-sm text-muted dark:text-muted-dark">

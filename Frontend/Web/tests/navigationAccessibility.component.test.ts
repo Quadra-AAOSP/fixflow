@@ -86,24 +86,32 @@ describe('workspace keyboard navigation', () => {
       expect(wrapper.find(`${selector} a[href="/reports"]`).exists()).toBe(false);
     }
   });
-  it('keeps additional destinations behind More and returns keyboard focus when it closes', async () => {
+  it('shows the five administrator destinations without an overflow menu', async () => {
     useAuthStore().user!.role = 'super_admin';
-    useAuthStore().user!.siteId = null;
     await render();
     for (const selector of ['.desktop-sidebar', '#mobile-navigation']) {
       const nav = wrapper.get(`${selector} nav`);
-      expect(nav.element.children).toHaveLength(3);
-      expect(nav.find(':scope > a[href="/site-applications"]').exists()).toBe(false);
-      expect(nav.get('details a[href="/site-applications"]').exists()).toBe(true);
+      expect(nav.findAll(':scope > a').map(link => link.attributes('href'))).toEqual(['/', '/reports', '/sites', '/team', '/shop']);
+      expect(nav.find('details').exists()).toBe(false);
     }
-    const more = wrapper.get('.desktop-sidebar details');
-    expect(more.attributes('open')).toBeUndefined();
-    more.element.setAttribute('open', '');
-    const link = more.get('a[href="/site-applications"]');
-    (link.element as HTMLElement).focus();
-    await link.trigger('keydown', { key: 'Escape' });
-    expect(more.attributes('open')).toBeUndefined();
-    expect(document.activeElement).toBe(more.get('summary').element);
+  });
+  it('opens the account menu with keyboard focus and returns focus on Escape', async () => {
+    await render();
+    const trigger = wrapper.get<HTMLButtonElement>('button[aria-controls="account-menu"]');
+    trigger.element.focus(); await trigger.trigger('keydown', { key: 'ArrowDown' }); await flushPromises();
+    const menu = wrapper.get('[role="menu"]');
+    expect(trigger.attributes('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(menu.get('a[href="/profile"]').element);
+    await menu.trigger('keydown', { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(menu.get('a[href="/settings"]').element);
+    await menu.trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger.element);
+  });
+  it('moves language controls into Settings and removes global report search', async () => {
+    await render();
+    expect(wrapper.find('form[role="search"]').exists()).toBe(false);
+    expect(wrapper.find('.workspace-language').exists()).toBe(false);
   });
 });
 it('does not offer maintenance search and retains the shop notification inbox on the shop-manager profile', async () => {
@@ -128,7 +136,7 @@ it('opens the inbox for a technician without a selected site and displays report
   expect(load).toHaveBeenCalledWith(0);
   const inbox = wrapper.get('dialog[aria-label="Notifications"]');
   expect(inbox.attributes('open')).toBeDefined();
-  expect(inbox.get('a[href="/technician/invitations?invitationId=42"]').text()).toContain('Site invitations');
+  expect(inbox.get('a[href="/contracts"]').text()).toContain('Contract activity');
   expect(inbox.text()).toContain('Report #81 was archived.');
   expect(inbox.text()).toContain('Report #80 was edited.');
 });
@@ -138,7 +146,7 @@ it('keeps independent technicians away from unavailable report searches until a 
   const data = useMaintenanceStore();
   data.sites = [{ id: 7, name: 'Accessible fixture', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, createdAt: '', updatedAt: '' }];
   data.selectedSiteId = 7; await nextTick();
-  expect(wrapper.find('form[role="search"]').exists()).toBe(true);
+  expect(wrapper.find('form[role="search"]').exists()).toBe(false);
 });
 
 it('offers manual updates only while live updates are disconnected', async () => {

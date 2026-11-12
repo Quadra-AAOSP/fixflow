@@ -1,10 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { request, setUnauthorizedHandler } from '../src/services/api';
 import { assignTechnician, classifyReport, createReport, joinReport, listRules } from '../src/services/maintenance';
+import { getSiteAdminApplication } from '../src/services/auth';
 import { stubApiFetch } from './csrfFetch';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); setUnauthorizedHandler(() => {}); });
 describe('API transport', () => {
+  it('accepts the application endpoint empty success without masking invalid JSON or network failures', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 200 })));
+    await expect(getSiteAdminApplication()).resolves.toBeNull();
+    await expect(request('/api/sites')).rejects.toThrow('Unable to reach the server');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('not JSON', { status: 200 })));
+    await expect(getSiteAdminApplication()).rejects.toThrow('Unable to reach the server');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Network error')));
+    await expect(getSiteAdminApplication()).rejects.toThrow('Unable to reach the server');
+  });
+
   it('never dispatches a request whose scope was already cancelled', async () => {
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
     const controller = new AbortController(); controller.abort();

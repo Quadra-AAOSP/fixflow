@@ -42,8 +42,8 @@ function csrfToken(signal: AbortSignal): Promise<CsrfToken> {
 // OpenRouter may use three 30-second attempts and backoff before returning.
 export const AI_REQUEST_TIMEOUT_MS = 120_000;
 
-export async function request<T>(path: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
-  const { timeoutMs = 20_000, ...init } = options;
+export async function request<T>(path: string, options: RequestInit & { timeoutMs?: number; allowEmptyResponse?: boolean } = {}): Promise<T> {
+  const { timeoutMs = 20_000, allowEmptyResponse = false, ...init } = options;
   const requestRevision = sessionRevision;
   const controller = new AbortController();
   pendingControllers.add(controller);
@@ -80,7 +80,10 @@ export async function request<T>(path: string, options: RequestInit & { timeoutM
       throw new ApiError(response.status, message);
     }
     if (response.status === 204) return undefined as T;
-    const value = await response.json() as T;
+    // Only endpoints whose contract permits an absent record opt into empty 200 responses.
+    const value = allowEmptyResponse
+      ? await response.text().then(body => body.length === 0 ? null as T : JSON.parse(body) as T)
+      : await response.json() as T;
     assertCurrent();
     return value;
   } catch (error) {

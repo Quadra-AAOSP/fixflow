@@ -12,8 +12,8 @@ export function logout(): Promise<void> {
   return request('/api/auth/logout', { method: 'POST' });
 }
 export function getMe(): Promise<User> { return request('/api/auth/me'); }
-export function getSiteAdminApplication(): Promise<SiteAdminApplication | null> {
-  return request('/api/auth/site-admin-application');
+export async function getSiteAdminApplication(): Promise<SiteAdminApplication | null> {
+  return (await request<SiteAdminApplication | null | undefined>('/api/auth/site-admin-application', { allowEmptyResponse: true })) ?? null;
 }
 export function getPendingSiteAdminApplications(): Promise<SiteAdminApplication[]> {
   return request('/api/admin/site-admin-applications');

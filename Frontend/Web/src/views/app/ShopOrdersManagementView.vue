@@ -102,50 +102,75 @@ function money(o: ManagedShopOrder) {
 }
 </script>
 <template>
-  <section class="order-management dashboard-card live-page">
-    <h1>{{ t("Manage orders") }}</h1>
-    <RouterLink v-if="route.params.orderId" to="/shop/orders-management">{{
-      t("Back to orders")
-    }}</RouterLink
-    ><button @click="load(0)" :disabled="loading">{{ t("Refresh") }}</button>
+  <section class="order-management live-page">
+    <header class="orders-heading">
+      <div>
+        <RouterLink v-if="route.params.orderId" to="/shop/orders-management">{{
+          t("Back to orders")
+        }}</RouterLink>
+        <h1>{{ t("Manage orders") }}</h1>
+      </div>
+      <button @click="load(0)" :disabled="loading">{{ t("Refresh") }}</button>
+    </header>
     <p v-if="loading" role="status">{{ t("Loading orders…") }}</p>
-    <p v-if="error" role="alert">
-      {{ t("Could not load or update orders.") }}
+    <div v-if="error" role="alert" class="orders-notice">
+      <p>{{ t("Could not load or update orders.") }}</p>
       <button @click="load(0)">{{ t("Retry") }}</button>
-    </p>
-    <template v-if="order"
-      ><h2>{{ order.orderId }}</h2>
-      <p>
-        {{ t("Payment status") }}:
-        {{ t(order.paymentStatus || "Not available") }}
-      </p>
-      <p>
-        {{ t("Fulfillment status") }}:
-        {{ t(order.fulfillmentStatus || "Not available") }}
-      </p>
-      <p>{{ money(order) }}</p>
-      <p>{{ order.shippingName }} · {{ order.shippingPhone }}</p>
-      <p>{{ order.shippingAddress }}</p>
-      <p v-if="order.deliveryConfirmedAt && order.deliverySignedName">
-        {{ t("Received by") }} {{ order.deliverySignedName }} ·
-        {{ order.deliveryConfirmedAt }}
-      </p>
-      <ul>
-        <li v-for="item in order.items" :key="item.productId">
-          {{ item.quantity }} × {{ item.name }}
-        </li>
-      </ul>
-      <button
-        v-for="status in order.allowedTransitions"
-        :key="status"
-        :disabled="loading"
-        @click="advance(status)"
-      >
-        {{ t(status === "processing" ? "Start processing" : "Mark shipped") }}
-      </button></template
+    </div>
+    <div v-if="order" class="managed-order-layout">
+      <section class="order-surface order-summary">
+        <h2>{{ order.orderId }}</h2>
+        <dl>
+          <div>
+            <dt>{{ t("Payment status") }}</dt>
+            <dd>{{ t(order.paymentStatus || "Not available") }}</dd>
+          </div>
+          <div>
+            <dt>{{ t("Fulfillment status") }}</dt>
+            <dd>{{ t(order.fulfillmentStatus || "Not available") }}</dd>
+          </div>
+          <div>
+            <dt>{{ t("Total") }}</dt>
+            <dd class="order-total">{{ money(order) }}</dd>
+          </div>
+        </dl>
+        <div class="order-transitions">
+          <button
+            v-for="status in order.allowedTransitions"
+            :key="status"
+            :disabled="loading"
+            @click="advance(status)"
+          >
+            {{
+              t(status === "processing" ? "Start processing" : "Mark shipped")
+            }}
+          </button>
+        </div>
+      </section>
+      <section class="order-surface order-delivery">
+        <h2>{{ t("Delivery") }}</h2>
+        <p>{{ order.shippingName }} · {{ order.shippingPhone }}</p>
+        <p>{{ order.shippingAddress }}</p>
+        <p v-if="order.deliveryConfirmedAt && order.deliverySignedName">
+          {{ t("Received by") }} {{ order.deliverySignedName }} ·
+          {{ order.deliveryConfirmedAt }}
+        </p>
+      </section>
+      <section class="order-surface order-items">
+        <h2>{{ t("Items") }}</h2>
+        <ul>
+          <li v-for="item in order.items" :key="item.productId">
+            <span>{{ item.name }}</span
+            ><strong>× {{ item.quantity }}</strong>
+          </li>
+        </ul>
+      </section>
+    </div>
+    <section
+      v-else-if="!route.params.orderId"
+      class="order-surface orders-queue"
     >
-    <template v-else-if="!route.params.orderId"
-      ><p v-if="!loading && !error && !orders.length">
+      <p v-if="!loading && !error && !orders.length">
         {{ t("No orders yet.") }}
       </p>
       <ul class="managed-orders">
@@ -155,51 +180,160 @@ function money(o: ManagedShopOrder) {
               name: 'shop-managed-order',
               params: { orderId: item.orderId },
             }"
-            >{{ item.orderId }}</RouterLink
+            ><strong>{{ item.orderId }}</strong
+            ><span class="order-state">{{
+              t(item.fulfillmentStatus || "Not available")
+            }}</span
+            ><span class="order-amount">{{ money(item) }}</span></RouterLink
           >
-          · {{ t(item.fulfillmentStatus || "Not available") }} ·
-          {{ money(item) }}
         </li>
       </ul>
       <button v-if="more" :disabled="loading" @click="load(page + 1)">
         {{ t("Load more") }}
-      </button></template
-    >
+      </button>
+    </section>
   </section>
 </template>
 <style scoped>
 .order-management {
-  max-width: 900px;
-  margin: auto;
-  padding: 2rem;
-  color: var(--product-ink);
+  display: grid;
+  gap: 24px;
+  color: #152742;
+}
+.orders-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 }
 h1 {
-  font-size: 1.9rem;
-  font-weight: 650;
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.035em;
 }
 h2 {
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 22px;
+  overflow-wrap: anywhere;
 }
-p,
-li {
-  margin: 0.75rem 0;
+.orders-heading a {
+  display: inline-block;
+  color: #006f65;
+  margin-bottom: 12px;
 }
 button {
-  padding: 0.6rem;
-  margin: 0.3rem;
-  background: var(--mint);
-  color: var(--product-ink);
+  min-height: 44px;
+  border: 1px solid #b9cdc7;
+  padding: 10px 16px;
   border-radius: 8px;
+  background: white;
+  color: #006f65;
+  font-weight: 650;
 }
-a {
-  text-decoration: underline;
+button:disabled {
+  opacity: 0.5;
 }
-
-.order-management{max-width:1200px;padding:12px 0 30px;color:var(--navy)}.order-management h1{padding:24px;border:1px solid #fbefe0;border-radius:15px;background:#fff9f1;font-size:25px;letter-spacing:-.6px;margin-bottom:18px}.order-management h2{margin-top:22px}.order-management p{color:var(--muted)}.order-management button{padding:10px 16px;background:#79e2cd;color:#104b45;border:1px solid #65d8c1;border-radius:8px;font-size:13px;font-weight:600}.order-management button:disabled{opacity:.5;cursor:not-allowed}.order-management a{color:var(--teal);font-weight:600}.managed-orders{display:grid;gap:10px;margin-top:20px}.managed-orders li{margin:0;padding:18px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--muted)}.managed-orders li a{display:inline-block;margin-right:8px;overflow-wrap:anywhere}.order-management [role=alert]{padding:14px;background:#fff1f1;border-radius:8px;color:#a0434d}
-
-.order-management.dashboard-card{max-width:none;margin:0;padding:24px}
-.order-management button{min-height:44px;font-size:14px}
-@media(max-width:650px){.order-management.dashboard-card{padding:20px 16px}}
+.managed-order-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.order-surface {
+  border: 1px solid #dce5e4;
+  background: white;
+  padding: 26px;
+  border-radius: 14px;
+  min-width: 0;
+}
+dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+dt {
+  color: #52677b;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+dd {
+  font-size: 16px;
+  font-weight: 650;
+}
+.order-total {
+  font-size: 26px;
+}
+.order-transitions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid #e5ece9;
+}
+.order-delivery p {
+  line-height: 1.7;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+.order-items {
+  grid-column: 1 / -1;
+}
+.order-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid #e5ece9;
+}
+.managed-orders li + li {
+  border-top: 1px solid #e5ece9;
+}
+.managed-orders a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px 140px;
+  align-items: center;
+  gap: 20px;
+  padding: 22px 0;
+}
+.managed-orders strong {
+  overflow-wrap: anywhere;
+}
+.order-state {
+  font-size: 13px;
+  color: #52677b;
+}
+.order-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.orders-queue > button {
+  margin-top: 20px;
+}
+.orders-notice {
+  color: #a0434d;
+}
+@media (max-width: 700px) {
+  .managed-order-layout {
+    grid-template-columns: 1fr;
+  }
+  .order-items {
+    grid-column: 1;
+  }
+  .order-surface {
+    padding: 20px;
+  }
+  .managed-orders a {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .order-state {
+    grid-column: 1;
+  }
+  .order-amount {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+}
 </style>

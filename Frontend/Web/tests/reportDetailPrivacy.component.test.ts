@@ -61,12 +61,13 @@ it('shows the selected technician route and preserves the mounted panels when sw
   expect(select.element.value).toBe('contracted');
   const assignment = wrapper.get('technician-assignment-panel-stub');
   expect(assignment.attributes('style') ?? '').not.toContain('display: none');
-  expect(wrapper.get('technician-invitation-sender-stub').attributes('style')).toContain('display: none');
-  await select.setValue('invite');
-  expect(wrapper.get('technician-assignment-panel-stub').attributes('style')).toContain('display: none');
-  expect(wrapper.get('technician-invitation-sender-stub').attributes('style') ?? '').not.toContain('display: none');
+  expect(select.findAll('option').map(option => option.attributes('value'))).toEqual(['contracted', 'marketplace']);
+  expect(wrapper.find('technician-invitation-sender-stub').exists()).toBe(false);
   await select.setValue('marketplace');
-  expect(wrapper.get('[aria-label="Draft summary"]').isVisible()).toBe(true);
+  expect(wrapper.get('[aria-label="Draft summary"]').exists()).toBe(true);
+  await wrapper.get('[aria-label="Draft summary"]').setValue('Retained draft');
+  await select.setValue('contracted'); await select.setValue('marketplace');
+  expect((wrapper.get('[aria-label="Draft summary"]').element as HTMLInputElement).value).toBe('Retained draft');
 });
 it('preserves the marketplace draft during a realtime refresh and removes it on access revocation', async () => {
   useAuthStore().user = { ...actor, role: 'admin', siteId: 71 };

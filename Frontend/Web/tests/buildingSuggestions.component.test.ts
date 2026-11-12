@@ -15,7 +15,7 @@ it('keeps another submission available after receiving a pending receipt', async
   const wrapper = mount(BuildingSuggestionsView);
   await wrapper.get('textarea').setValue('Science Annex'); await wrapper.get('form').trigger('submit'); await flushPromises();
   expect(wrapper.text()).toContain('#10');
-  expect(wrapper.text()).toContain('not your full request history');
+  expect(wrapper.text()).toContain('Earlier suggestions are not available here. Your submitted requests remain saved.');
   await wrapper.get('textarea').setValue('Library'); await wrapper.get('form').trigger('submit'); await flushPromises();
   expect(requestSubsiteAddition).toHaveBeenNthCalledWith(2, 7, 'Library');
   expect(wrapper.text()).toContain('#11'); wrapper.unmount();

@@ -113,3 +113,51 @@ it('shows the fulfillment stage in buyer order history', async () => {
   await render(); await wrapper.findAll('button').find(b => b.text() === 'Orders')!.trigger('click'); await flushPromises();
   const history=wrapper.get('#orders-title').element.closest('dialog')!; expect(history.textContent).toContain('Ordered'); expect(history.textContent).toContain('Processing'); expect(history.textContent).toContain('Shipped');
 });
+
+it('keeps checkout unavailable while a current total is pending', async () => {
+  let finish!: (value: ShopQuote) => void;
+  vi.mocked(api.quoteCheckout).mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  await render();
+  useShopStore().setQuantity('tool', 1); await flushPromises();
+  const checkout = wrapper.findAll('button').find(button => button.text() === 'Checkout')!;
+  expect(checkout.attributes('disabled')).toBeDefined();
+  expect(wrapper.text()).toContain('Calculating your order total…');
+  checkout.element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  await flushPromises();
+  expect(api.createOrder).not.toHaveBeenCalled();
+  finish(quote(1000)); await flushPromises();
+  expect(checkout.attributes('disabled')).toBeUndefined();
+});
+
+it('requires retrying a failed total and preserves delivery data during recovery', async () => {
+  vi.mocked(api.quoteCheckout).mockRejectedValueOnce(new Error('Quote service unavailable')).mockResolvedValueOnce(quote(1200));
+  await render(); useShopStore().setQuantity('tool', 1); await flushPromises();
+  await wrapper.get('input[autocomplete="name"]').setValue('Retained buyer');
+  await wrapper.get('textarea[autocomplete="street-address"]').setValue('Retained delivery address');
+  const checkout = wrapper.findAll('button').find(button => button.text() === 'Checkout')!;
+  expect(checkout.attributes('disabled')).toBeDefined();
+  checkout.element.dispatchEvent(new MouseEvent('click', { bubbles: true })); await flushPromises();
+  expect(api.createOrder).not.toHaveBeenCalled();
+  const retry = wrapper.findAll('button').find(button => button.text() === 'Retry order total')!;
+  await retry.trigger('click'); await flushPromises();
+  expect(checkout.attributes('disabled')).toBeUndefined();
+  expect(wrapper.get('input[autocomplete="name"]').element.value).toBe('Retained buyer');
+  expect(wrapper.get('textarea[autocomplete="street-address"]').element.value).toBe('Retained delivery address');
+  expect(wrapper.findAll('.shop-cart-total').at(-1)!.text()).toContain('US$12.00');
+});
+
+it('keeps catalogue refresh near the basket heading and prevents it during checkout', async () => {
+  await render(); useShopStore().setQuantity('tool', 1); await flushPromises();
+  const basket = wrapper.get('dialog[aria-labelledby="basket-title"]');
+  const refresh = basket.get('.basket-refresh');
+  const children = [...basket.element.children];
+  expect(children.indexOf(refresh.element)).toBeLessThan(children.indexOf(basket.get('.shop-cart-line').element));
+  let finish!: (value: { orderId: string; totalMinor: number; paymentProvider: string; checkoutUrl: string }) => void;
+  vi.mocked(api.createOrder).mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  await basket.findAll('button').find(button => button.text() === 'Checkout')!.trigger('click');
+  expect(refresh.attributes('disabled')).toBeDefined();
+  finish({ orderId: 'dev-fixture', totalMinor: 1000, paymentProvider: 'dev', checkoutUrl: 'http://localhost/dev' });
+  await flushPromises();
+  const simulation = wrapper.get('dialog[aria-labelledby="simulation-title"]');
+  expect(simulation.findAll('button').find(button => button.text() === 'Leave unpaid')!.classes()).toContain('shop-secondary');
+});

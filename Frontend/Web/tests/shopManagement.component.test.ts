@@ -54,3 +54,17 @@ it('focuses the first editable field after a detail response enables the editor'
   expect(document.activeElement).toBe(wrapper.get('form').findAll('input')[1]!.element);
   wrapper.unmount();
 });
+
+it('explains product code, image URL and catalogue visibility without changing payload fields', async () => {
+  const wrapper = mount(ShopManagementView); await flushPromises();
+  await wrapper.findAll('button').find(button => button.text() === 'New product')!.trigger('click');
+  const form = wrapper.get('form');
+  expect(form.text()).toContain('Product code');
+  expect(form.get('input[aria-describedby="product-code-hint"]').attributes('maxlength')).toBe('64');
+  expect(form.get('#product-code-hint').text()).toContain('unique code');
+  expect(form.get('#product-image-hint').text()).toContain('no file extension is required');
+  expect(form.get('#product-visibility-hint').text()).toContain('do not appear in the customer catalogue');
+  expect(form.get('input[type="checkbox"]').attributes('aria-describedby')).toBe('product-visibility-hint');
+  expect(api.saveManagedProduct).not.toHaveBeenCalled();
+  wrapper.unmount();
+});

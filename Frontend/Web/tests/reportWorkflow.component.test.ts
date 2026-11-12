@@ -60,7 +60,7 @@ it('does not present a failed history read as empty and preserves server-masked 
   vi.mocked(api.listWorkflowHistory).mockRejectedValue(new Error('History unavailable'));
   await render(); expect(wrapper.text()).toContain('History unavailable'); expect(wrapper.text()).not.toContain('No history available.');
   vi.mocked(api.listWorkflowHistory).mockResolvedValue([{ id: 1, fromStatus: null, toStatus: 'open', changedByUserId: null, note: null, createdAt: '2026-11-04T00:00:00Z' }]);
-  await wrapper.findAll('button').find(button => button.text() === 'Refresh workflow')!.trigger('click'); await flushPromises();
+  await wrapper.findAll('button').find(button => button.text() === 'Retry')!.trigger('click'); await flushPromises();
   expect(wrapper.text()).not.toContain('History unavailable'); expect(wrapper.find('ol li').exists()).toBe(true);
 });
 it('discards an old private history response after changing report scope', async () => {

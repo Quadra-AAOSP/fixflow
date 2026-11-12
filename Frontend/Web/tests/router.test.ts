@@ -31,11 +31,11 @@ describe('actual application route guards', () => {
   it('allows super admins to manage orders', async () => { await signIn('super_admin'); const router=createAppRouter(createMemoryHistory()); await router.push('/shop/orders-management'); expect(router.currentRoute.value.name).toBe('shop-orders-management'); });
 
   it.each(['/reports', '/reports/new', '/reports/91', '/sites', '/sites/71/subsites',
-    '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/marketplace', '/profile', '/admin-application'])('sends a signed-out visit to %s to the landing page with its return path', async path => {
+    '/assignments', '/technician', '/technician/invitations', '/team-access', '/contracts', '/marketplace', '/profile', '/settings', '/team', '/admin-application'])('sends a signed-out visit to %s to the landing page with its return path', async path => {
     const router = createAppRouter(createMemoryHistory());
     await router.push(path);
     expect(router.currentRoute.value.name).toBe('landing');
-    expect(router.currentRoute.value.query.redirect).toBe(path);
+    expect(router.currentRoute.value.query.redirect).toBe(path === '/technician/invitations' ? '/contracts' : path);
   });
   it.each(['reporter', 'staff', 'technician', 'shop_manager'] as UserRole[])('denies team administration to %s', async role => {
     await signIn(role);
@@ -179,20 +179,31 @@ it('opens public landing pages for guests while preserving signed-in dashboards'
   await signIn('admin'); await router.push('/'); expect(router.currentRoute.value.name).toBe('home');
 });
 
-it.each(['/shop', '/request-site', '/site-application', '/setup-site-admin', '/access-policy', '/agreements/technician/2026-11-03', '/shop/orders/a', '/reports?q=leak#results'])('requires an account for %s', async path => {
+it.each(['/shop', '/agreements/technician/2026-11-03', '/shop/orders/a', '/reports?q=leak#results'])('requires an account for %s', async path => {
   const router = createAppRouter(createMemoryHistory()); await router.push(path);
   expect(router.currentRoute.value.name).toBe('landing');
-  expect(router.currentRoute.value.query.redirect).toBe(path);
+  expect(router.currentRoute.value.query.redirect).toBe(path === '/technician/invitations' ? '/contracts' : path);
 });
-it.each(['/login', '/register', '/welcome', '/for/reporters', '/for/site-admins', '/for/technicians'])('keeps the public entry route %s accessible', async path => {
+it.each(['/login', '/register', '/welcome', '/for/reporters', '/for/site-admins', '/for/technicians', '/request-site', '/site-application', '/setup-site-admin', '/access-policy'])('keeps the public entry route %s accessible', async path => {
   const router = createAppRouter(createMemoryHistory()); await router.push(path);
   expect(router.currentRoute.value.path).toBe(path);
 });
-it('marks every content page outside landing and authentication as protected', () => {
+it('protects all workspace content while explicitly allowing public onboarding', () => {
   const router = createAppRouter(createMemoryHistory());
-  const publicNames = new Set(['landing', 'landing-reporters', 'landing-site-admins', 'landing-technicians', 'login', 'register']);
+  const publicNames = new Set(['landing', 'landing-reporters', 'landing-site-admins', 'landing-technicians', 'login', 'register', 'request-site', 'site-application-status', 'site-admin-setup']);
   for (const route of router.getRoutes().filter(route => !route.redirect)) {
-    if (publicNames.has(String(route.name)) || route.path === '/login' || route.path === '/register') expect(router.resolve(route.path).meta.public).toBe(true);
+    if (publicNames.has(String(route.name)) || route.path === '/login' || route.path === '/register' || route.path === '/access-policy') expect(router.resolve(route.path).meta.public).toBe(true);
     else expect(router.resolve(route.path).meta.requiresAuth).toBe(true);
   }
+});
+
+it.each(['reporter','staff','admin','super_admin','technician','shop_manager'] as UserRole[])('allows Settings for signed-in %s accounts', async role => {
+  await signIn(role); const router = createAppRouter(createMemoryHistory()); await router.push('/settings'); expect(router.currentRoute.value.name).toBe('settings');
+});
+it('keeps legacy technician-review role restrictions while grouping management in Team', async () => {
+  await signIn('admin'); const router = createAppRouter(createMemoryHistory()); await router.push('/technician-verifications'); expect(router.currentRoute.value.name).not.toBe('technician-verifications');
+  await router.push('/team'); expect(router.currentRoute.value.name).toBe('team');
+});
+it('takes legacy invitation links to existing contract records', async () => {
+  await signIn('technician'); const router = createAppRouter(createMemoryHistory()); await router.push('/technician/invitations'); expect(router.currentRoute.value.name).toBe('contracts');
 });

@@ -18,9 +18,9 @@ beforeEach(() => {
   useAuthStore().user = { id: 1, role: 'reporter', siteId: 7, firstName: 'Test', lastName: 'Buyer', email: 'buyer@example.invalid', phone: null, address: null };
   vi.mocked(api.getOrder).mockResolvedValue(order);
 });
-async function render() {
+async function render(attach = false) {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/shop/orders/:orderId', component: { template: '<div />' } }, { path: '/shop', component: { template: '<div />' } }] });
-  await router.push('/shop/orders/order-a'); const wrapper = mount(ShopOrderView, { global: { plugins: [router] } }); await flushPromises(); return { wrapper, router };
+  await router.push('/shop/orders/order-a'); const wrapper = mount(ShopOrderView, { attachTo: attach ? document.body : undefined, global: { plugins: [router] } }); await flushPromises(); return { wrapper, router };
 }
 it('shows authoritative line totals, delivery and returned currency precision', async () => {
   const { wrapper } = await render(); expect(api.getOrder).toHaveBeenCalledWith('order-a');
@@ -64,4 +64,38 @@ it('rejects a receipt name longer than 160 characters', async () => {
   await input.setValue('A'.repeat(161)); await wrapper.get('input[type=checkbox]').setValue(true);
   expect(wrapper.findAll('button').find(b=>b.text()==='Confirm delivery')!.attributes('disabled')).toBeDefined();
   await wrapper.get('form').trigger('submit'); expect(api.confirmDelivery).not.toHaveBeenCalled(); wrapper.unmount();
+});
+
+it('moves focus to the updated status after cancellation removes its action', async () => {
+  vi.mocked(api.cancelOrder).mockResolvedValue({ ...order, status: 'cancelled' });
+  const { wrapper } = await render(true);
+  await wrapper.findAll('button').find(b => b.text() === 'Cancel order')!.trigger('click');
+  const confirm = wrapper.findAll('button').find(b => b.text() === 'Confirm order cancellation')!;
+  (confirm.element as HTMLButtonElement).focus();
+  await confirm.trigger('click'); await flushPromises();
+  expect(document.activeElement).toBe(wrapper.get('.order-status').element);
+  expect(wrapper.get('[role="status"]').text()).toBe('Order cancelled.');
+  wrapper.unmount();
+});
+it('moves focus to the updated status after delivery confirmation removes its form', async () => {
+  vi.mocked(api.getOrder).mockResolvedValue({ ...order, status: 'paid', fulfillmentStatus: 'shipped', canConfirmDelivery: true });
+  vi.mocked(api.confirmDelivery).mockResolvedValue({ ...order, status: 'paid', fulfillmentStatus: 'delivered', canConfirmDelivery: false });
+  const { wrapper } = await render(true);
+  await wrapper.get('input:not([type=checkbox])').setValue('Buyer');
+  await wrapper.get('input[type=checkbox]').setValue(true);
+  (wrapper.findAll('button').find(b => b.text() === 'Confirm delivery')!.element as HTMLButtonElement).focus();
+  await wrapper.get('form').trigger('submit'); await flushPromises();
+  expect(document.activeElement).toBe(wrapper.get('.order-status').element);
+  expect(wrapper.get('[role="status"]').text()).toBe('Delivery confirmed.');
+  wrapper.unmount();
+});
+
+it('formats machine status values as readable customer labels', async () => {
+  vi.mocked(api.getOrder).mockResolvedValue({ ...order, status: 'paid', paymentStatus: 'requires_action', fulfillmentStatus: 'in_transit' });
+  const { wrapper } = await render();
+  expect(wrapper.get('.order-status').text()).toContain('Paid');
+  expect(wrapper.get('.order-status').text()).toContain('Requires action');
+  expect(wrapper.text()).toContain('In transit');
+  expect(wrapper.text()).not.toContain('requires_action');
+  wrapper.unmount();
 });

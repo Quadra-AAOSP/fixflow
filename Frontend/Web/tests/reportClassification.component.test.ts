@@ -31,7 +31,7 @@ describe('separate AI assessment', () => {
     wrapper = mount(ReportClassificationPanel, { props: { report: report({ description: 'Reporter text', aiReport: {
       urgency: 'medium', category: null, specialty: null, description: null, urgencyReason: null,
     } }) } });
-    expect(wrapper.text()).toContain('Not shared or not available');
+    expect(wrapper.text()).toContain('Restricted to site staff and administrators');
     expect(wrapper.text()).not.toContain('Reporter text');
     expect(wrapper.find('button').exists()).toBe(false);
   });

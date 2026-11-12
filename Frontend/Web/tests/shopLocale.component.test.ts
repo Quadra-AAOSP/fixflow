@@ -29,7 +29,7 @@ async function render() {
 it('translates controls and prices while preserving actual product data and search input', async () => {
   await render(); await wrapper.get('.shop-search input').setValue('Original');
   setLocale('zh-CN'); await nextTick();
-  expect(wrapper.get('h1').text()).toBe('点滴关怀，从这里开始。');
+  expect(wrapper.get('h1').text()).toBe('商店');
   expect(wrapper.get('.shop-search input').attributes('aria-label')).toBe('搜索商品');
   expect(wrapper.get<HTMLInputElement>('.shop-search input').element.value).toBe('Original');
   expect(wrapper.text()).toContain('Original Tool'); expect(wrapper.text()).toContain('Original Brand');

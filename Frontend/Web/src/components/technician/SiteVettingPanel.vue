@@ -28,7 +28,7 @@ async function save(status: 'approved' | 'revoked') {
 <section class="contract-choice">
 <h2>Site technician vetting</h2><p>Site approval is required before work and is separate from platform verification, terms and contracts. Do not enter identity numbers or document links.</p>
 <label>Technician <select v-model.number="technicianId" @change="existing=null"><option :value="undefined">Select a technician</option><option v-for="id in technicians" :key="id" :value="id">Technician #{{ id }}</option></select></label>
-<button type="button" :disabled="busy || !technicianId" @click="load">Load review</button>
+<button type="button" :disabled="busy || !technicianId" @click="load">{{ busy ? 'Loading…' : 'Load review' }}</button>
 <p v-if="error" role="alert">{{ error }}</p>
 <template v-if="existing"><p role="status">Site vetting: {{ existing.status }} <span v-if="existing.review?.expiresAt"> · expires {{ new Date(existing.review.expiresAt).toLocaleDateString() }}</span></p>
 <p>Record a new review after completing the checks:</p>
@@ -44,4 +44,6 @@ async function save(status: 'approved' | 'revoked') {
 <button type="button" :disabled="busy" @click="save('revoked')">Revoke approval</button>
 </template></section>
 </template>
-<style scoped>label{display:block;margin:10px 0}button{margin:8px}select,input[type=date]{margin-left:8px}</style>
+<style scoped>
+label{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0;font-size:13px}select,input[type=date]{min-height:40px;padding:8px 12px;border:1px solid #cbdad2;border-radius:7px;background:white;max-width:100%;min-width:0;font:inherit}button{min-height:40px;padding:9px 14px;margin:8px 8px 8px 0;border:1px solid #cbdad2;border-radius:7px;color:#006f65;font-weight:600;background:white}button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #006f65;outline-offset:3px}
+</style>

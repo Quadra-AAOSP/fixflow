@@ -1,0 +1,15 @@
+import { chromium } from 'playwright';
+import fs from 'node:fs/promises';
+const sql=await fs.readFile(new URL('../../../Backend/src/main/resources/db/demo-data.sql',import.meta.url),'utf8');
+const credentials={};for(const line of sql.split('\n')){if(!line.startsWith('INSERT INTO users'))continue;const email=line.match(/SELECT '([^']+)'/)[1];const role=line.match(/, '(reporter|staff|admin|technician|super_admin|shop_manager)',/)[1];credentials[role]??=email;}
+const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});const results=[];
+for(const role of ['reporter','staff','admin','super_admin','technician','shop_manager']){
+ const context=await browser.newContext({viewport:{width:702,height:804}});const p=await context.newPage();await p.goto('http://localhost:5173/login',{waitUntil:'domcontentloaded'});await p.getByLabel('Email',{exact:true}).fill(credentials[role]);await p.getByLabel('Password',{exact:true}).fill(credentials[role]);await p.getByRole('button',{name:/sign in/i}).click();await p.waitForURL(u=>!u.pathname.endsWith('/login'));await p.waitForTimeout(350);
+ await p.getByRole('button',{name:'Open navigation',exact:true}).click();await p.screenshot({path:`/tmp/fixflow-hci-live/comments-shell-${role}-702.png`,fullPage:true});
+ const navigation=await p.locator('#mobile-navigation nav > a').allTextContents();await p.keyboard.press('Escape');
+ const trigger=p.getByRole('button',{name:'Account menu',exact:true});await trigger.focus();await trigger.press('ArrowDown');await p.getByRole('menu').waitFor();const menuFocus=await p.evaluate(()=>document.activeElement?.textContent);await p.getByRole('menu').press('Escape');const escapeFocus=await trigger.evaluate(el=>document.activeElement===el);
+ await trigger.click();await p.getByRole('menuitem',{name:'Settings',exact:true}).click();await p.getByRole('heading',{name:'Settings',exact:true}).waitFor();await p.screenshot({path:`/tmp/fixflow-hci-live/comments-settings-${role}-702.png`,fullPage:true});const settings={path:new URL(p.url()).pathname,language:await p.getByLabel('Language').count(),search:await p.locator('form[role="search"]').count(),overflow:await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth)};
+ let team=null;if(role==='admin'||role==='super_admin'){await p.goto('http://localhost:5173/team?tab=technicians',{waitUntil:'domcontentloaded'});await p.getByRole('heading',{name:'Team',exact:true}).waitFor();await p.waitForTimeout(400);await p.screenshot({path:`/tmp/fixflow-hci-live/comments-team-${role}-702.png`,fullPage:true});team={tabs:await p.locator('.team-workspace > header nav a').allTextContents(),active:await p.locator('.team-workspace > header nav a[aria-current]').textContent(),overflow:await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth)};}
+ results.push({role,navigation,menuFocus,escapeFocus,settings,team});await context.close();
+}
+await fs.writeFile('/tmp/fixflow-hci-live/comments-shell-702.json',JSON.stringify(results,null,2));console.log(JSON.stringify(results));await browser.close();

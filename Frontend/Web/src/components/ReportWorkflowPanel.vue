@@ -65,10 +65,10 @@ async function perform(action: 'start' | 'resolve' | 'escalate' | 'urgency' | 'r
 </script>
 <template>
   <section class="detail-section workflow-panel">
-    <div class="card-heading"><h2>{{ t('Repair workflow') }}</h2><button type="button" class="text-action" :disabled="busy || disabled || loading" @click="loadDetails">{{ t('Refresh workflow') }}</button></div>
+    <h2>{{ t('Repair workflow') }}</h2>
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p><p v-if="message" role="status">{{ t(message) }}</p>
     <p v-if="loading" role="status">{{ t('Loading workflow…') }}</p>
-    <p v-for="failure in readErrors" :key="failure.label" role="alert" class="live-error">{{ t(failure.label) }}: {{ t(failure.error) }}</p>
+    <p v-for="failure in readErrors" :key="failure.label" role="alert" class="live-error">{{ t(failure.label) }}: {{ t(failure.error) }} <button type="button" class="text-action" :disabled="busy || disabled || loading" @click="loadDetails">{{ t('Retry') }}</button></p>
     <fieldset :disabled="busy || disabled || loading" class="workflow-actions">
       <button v-if="canStart" type="button" class="report-issue-button" @click="perform('start')">{{ t('Start work') }}</button>
       <form v-if="canResolve" @submit.prevent="perform('resolve')"><label>{{ t('Work completed and resolution details') }}<textarea v-model="description" required maxlength="10000" rows="4" /></label><button type="submit" class="report-issue-button">{{ t('Submit resolution for confirmation') }}</button></form>
@@ -84,5 +84,5 @@ async function perform(action: 'start' | 'resolve' | 'escalate' | 'urgency' | 'r
   </section>
 </template>
 <style scoped>
-.workflow-panel h3{font-size:17px;font-weight:650;margin:22px 0 12px}.workflow-actions{display:grid;gap:18px;margin:20px 0}.workflow-actions form{display:grid;gap:14px;padding-top:14px}.workflow-actions label{display:grid;gap:6px}.workflow-actions textarea,.workflow-actions input,.workflow-actions select{width:100%;padding:12px;border:1px solid #b6c8bf;border-radius:8px;background:white}.workflow-panel article,.workflow-panel li{padding:12px 0;border-bottom:1px solid #e4ebe7;font-size:14px;line-height:1.7}.workflow-copy{white-space:pre-wrap;overflow-wrap:anywhere}.workflow-panel summary{cursor:pointer;font-weight:600}.workflow-panel fieldset:disabled{opacity:.65}
+.workflow-panel h3{font-size:17px;font-weight:650;margin:22px 0 12px}.workflow-actions{display:grid;gap:18px;margin:20px 0}.workflow-actions form{display:grid;gap:14px;padding-top:14px}.workflow-actions label{display:grid;gap:6px}.workflow-actions textarea,.workflow-actions input,.workflow-actions select{width:100%;padding:12px;border:1px solid #b6c8bf;border-radius:8px;background:white}.workflow-panel article,.workflow-panel li{padding:12px 0;border-bottom:1px solid #e4ebe7;font-size:14px;line-height:1.7}.workflow-copy{white-space:pre-wrap;overflow-wrap:anywhere}.workflow-panel summary{cursor:pointer;font-weight:600;min-height:44px;padding:12px 16px;border:1px solid #b6c8bf;border-radius:8px;background:#f5f9f7;color:#006f65}.workflow-panel summary:focus-visible{outline:2px solid #00766b;outline-offset:3px}.workflow-panel fieldset:disabled{opacity:.65}
 </style>

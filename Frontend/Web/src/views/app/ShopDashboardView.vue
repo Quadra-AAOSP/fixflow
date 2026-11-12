@@ -69,7 +69,7 @@ function money(value: ShopRevenue) {
 }
 </script>
 <template>
-  <section class="shop-dashboard dashboard-card live-page">
+  <section class="shop-dashboard live-page">
     <header>
       <h1>{{ t("Shop dashboard") }}</h1>
       <button type="button" :disabled="loading" @click="refresh">
@@ -77,162 +77,238 @@ function money(value: ShopRevenue) {
       </button>
     </header>
     <nav class="action-row" :aria-label="t('Shop navigation')">
-      <RouterLink class="action-link" to="/shop/manage">{{ t("Product management") }}</RouterLink>
-      <RouterLink class="action-link" to="/shop/orders-management">{{ t("Manage orders") }}</RouterLink>
+      <RouterLink class="action-link" to="/shop/manage">{{
+        t("Product management")
+      }}</RouterLink>
+      <RouterLink class="action-link" to="/shop/orders-management">{{
+        t("Manage orders")
+      }}</RouterLink>
     </nav>
     <p v-if="loading" role="status">{{ t("Loading shop analytics…") }}</p>
     <div v-else-if="error" role="alert">
       <p>{{ t("Could not load shop analytics.") }}</p>
       <button type="button" @click="refresh">{{ t("Retry") }}</button>
     </div>
-    <template v-if="data">
-      <h2>{{ t("All-time revenue") }}</h2>
-      <p>{{ t("Paid and fulfilled orders, including shipping and tax.") }}</p>
-      <ul v-if="data.revenue.length">
-        <li
-          v-for="amount in data.revenue"
-          :key="amount.currency + amount.minorUnitDigits"
-        >
-          {{ money(amount) }}
-        </li>
-      </ul>
-      <p v-else>{{ t("No paid revenue yet.") }}</p>
-      <h2>{{ t("Orders") }}: {{ data.totalOrders }}</h2>
-      <dl>
-        <div v-for="(count, status) in data.ordersByStatus" :key="status">
-          <dt>{{ t(labels[status]) }}</dt>
-          <dd>{{ count }}</dd>
+    <div v-if="data" class="analytics-layout">
+      <section class="analytics-revenue">
+        <h2>{{ t("All-time revenue") }}</h2>
+        <p>{{ t("Paid and fulfilled orders, including shipping and tax.") }}</p>
+        <ul v-if="data.revenue.length">
+          <li
+            v-for="amount in data.revenue"
+            :key="amount.currency + amount.minorUnitDigits"
+          >
+            {{ money(amount) }}
+          </li>
+        </ul>
+        <p v-else>{{ t("No paid revenue yet.") }}</p>
+      </section>
+      <section class="analytics-orders">
+        <h2>{{ t("Orders") }}: {{ data.totalOrders }}</h2>
+        <dl>
+          <div v-for="(count, status) in data.ordersByStatus" :key="status">
+            <dt>{{ t(labels[status]) }}</dt>
+            <dd>{{ count }}</dd>
+          </div>
+        </dl>
+      </section>
+      <section class="analytics-products">
+        <h2>{{ t("Products") }}</h2>
+        <dl>
+          <div v-for="(count, label) in data.products" :key="label">
+            <dt>{{ t(labels[label]) }}</dt>
+            <dd>{{ count }}</dd>
+          </div>
+        </dl>
+      </section>
+      <section class="analytics-history">
+        <h2>{{ t("Daily orders and paid revenue") }}</h2>
+        <p>
+          {{ t("By order creation date (UTC)") }}: {{ data.trendStartDate }} –
+          {{ data.trendEndDate }}
+        </p>
+        <p v-if="data.daily.every((day) => day.orders === 0)">
+          {{ t("No orders in this period.") }}
+        </p>
+        <div v-else class="trend" role="img" :aria-label="t('Order trend')">
+          <div
+            v-for="day in data.daily"
+            :key="day.date"
+            :title="`${day.date}: ${day.orders}`"
+            :style="{
+              height: `${(day.orders / Math.max(1, ...data.daily.map((d) => d.orders))) * 100}%`,
+            }"
+          ></div>
         </div>
-      </dl>
-      <h2>{{ t("Products") }}</h2>
-      <dl>
-        <div v-for="(count, label) in data.products" :key="label">
-          <dt>{{ t(labels[label]) }}</dt>
-          <dd>{{ count }}</dd>
+        <p class="table-scroll-hint">{{ t("Scroll horizontally to see all columns.") }}</p>
+        <div class="shop-dashboard-table" role="region" tabindex="0" :aria-label="t('Daily orders and paid revenue')">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t("Date") }}</th>
+                <th>{{ t("Orders") }}</th>
+                <th>{{ t("Paid revenue") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="day in data.daily" :key="day.date">
+                <td>{{ day.date }}</td>
+                <td>{{ day.orders }}</td>
+                <td>
+                  <span
+                    v-for="amount in day.revenue"
+                    :key="amount.currency + amount.minorUnitDigits"
+                    class="shop-dashboard-amount"
+                    >{{ money(amount) }}</span
+                  ><span v-if="!day.revenue.length">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </dl>
-      <h2>{{ t("Daily orders and paid revenue") }}</h2>
-      <p>
-        {{ t("By order creation date (UTC)") }}: {{ data.trendStartDate }} –
-        {{ data.trendEndDate }}
-      </p>
-      <p v-if="data.daily.every((day) => day.orders === 0)">
-        {{ t("No orders in this period.") }}
-      </p>
-      <div v-else class="trend" role="img" :aria-label="t('Order trend')">
-        <div
-          v-for="day in data.daily"
-          :key="day.date"
-          :title="`${day.date}: ${day.orders}`"
-          :style="{
-            height: `${(day.orders / Math.max(1, ...data.daily.map((d) => d.orders))) * 100}%`,
-          }"
-        ></div>
-      </div>
-      <div class="shop-dashboard-table">
-        <table>
-          <thead>
-            <tr>
-              <th>{{ t("Date") }}</th>
-              <th>{{ t("Orders") }}</th>
-              <th>{{ t("Paid revenue") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="day in data.daily" :key="day.date">
-              <td>{{ day.date }}</td>
-              <td>{{ day.orders }}</td>
-              <td>
-                <span
-                  v-for="amount in day.revenue"
-                  :key="amount.currency + amount.minorUnitDigits"
-                  class="shop-dashboard-amount"
-                  >{{ money(amount) }}</span
-                ><span v-if="!day.revenue.length">—</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </template>
+      </section>
+    </div>
   </section>
 </template>
 <style scoped>
+.table-scroll-hint { display: none; color: #52677b; font-size: 13px; margin: 8px 0; }
+@media (max-width: 700px) { .table-scroll-hint { display: block; } }
 .shop-dashboard {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+  display: grid;
+  gap: 24px;
+  color: #152742;
 }
-header {
+.shop-dashboard > header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 16px;
 }
 h1 {
-  font-size: 1.9rem;
-  font-weight: 650;
-  line-height: 1.2;
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.035em;
 }
 h2 {
-  margin-top: 2rem;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 16px;
 }
-.shop-dashboard > ul li {
-  font-size: 1.7rem;
-  font-weight: 600;
+.shop-dashboard nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #dce5e4;
+}
+.shop-dashboard nav a,
+button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #b9cdc7;
+  border-radius: 8px;
+  color: #006f65;
+  background: white;
+  font-size: 14px;
+  font-weight: 650;
+}
+button:disabled {
+  opacity: 0.5;
+}
+.analytics-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.analytics-layout > section {
+  background: white;
+  border: 1px solid #dce5e4;
+  border-radius: 14px;
+  padding: 26px;
+  min-width: 0;
+}
+.analytics-revenue {
+  grid-column: 1 / -1;
+}
+.analytics-revenue ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-top: 20px;
+}
+.analytics-revenue li {
+  font-size: 32px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+p,
+dt {
+  color: #52677b;
+  font-size: 14px;
+  line-height: 1.6;
 }
 dl {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
 }
 dl > div {
-  padding: 0.75rem;
-  border: 1px solid var(--product-border);
-  background: var(--product-surface);
+  border-top: 1px solid #e5ece9;
+  padding-top: 12px;
 }
 dd {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 650;
+  margin-top: 6px;
+  font-size: 26px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.shop-dashboard-table {
-  overflow-x: auto;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-}
-th,
-td {
-  text-align: left;
-  padding: 0.65rem;
-  border-bottom: 1px solid var(--product-border);
+.analytics-history {
+  grid-column: 1 / -1;
 }
 .trend {
   display: flex;
   align-items: end;
-  gap: 2px;
-  height: 100px;
+  height: 120px;
+  gap: 4px;
+  margin: 24px 0;
+  border-bottom: 1px solid #b9cdc7;
 }
 .trend div {
   flex: 1;
-  background: var(--mint);
+  background: #79e2cd;
+  min-width: 2px;
+}
+.shop-dashboard-table {
+  overflow-x: auto;
+  margin-top: 24px;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 400px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+th,
+td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #e5ece9;
+  text-align: left;
+}
+th {
+  background: #f1f6f4;
+  font-weight: 650;
 }
 .shop-dashboard-amount {
   display: block;
 }
-
-.shop-dashboard{max-width:1200px;padding:12px 0 30px;color:var(--navy)}
-.shop-dashboard header{padding:24px;border:1px solid #fbefe0;border-radius:15px;background:#fff9f1}
-.shop-dashboard h1{font-size:25px;letter-spacing:-.6px}.shop-dashboard h2{margin:28px 0 8px;font-size:17px}.shop-dashboard p,.shop-dashboard dt{color:var(--muted);line-height:1.6}.shop-dashboard nav{display:flex;gap:12px;margin:18px 0;font-size:0}.shop-dashboard nav a{font-size:13px;color:var(--teal);font-weight:600;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:white}.shop-dashboard button{padding:10px 16px;background:#79e2cd;color:#104b45;border:1px solid #65d8c1;border-radius:8px;font-weight:600}.shop-dashboard button:disabled{opacity:.5}.shop-dashboard dl{gap:12px;margin-top:12px}.shop-dashboard dl>div{padding:18px;border:1px solid var(--line);border-radius:11px}.shop-dashboard dd{margin-top:8px}.shop-dashboard>ul{padding:14px 18px;border:1px solid var(--line);background:#fff;border-radius:11px}.shop-dashboard-table{margin-top:18px;border:1px solid var(--line);border-radius:11px;background:white}.shop-dashboard table{min-width:420px}.shop-dashboard th,.shop-dashboard td{padding:14px;border-color:var(--line)}.shop-dashboard thead{background:#f6f7f9}.trend{padding:12px;background:#f4f8f6;border-radius:8px}.trend div{background:#79e2cd}
-@media(max-width:600px){.shop-dashboard header{padding:20px}.shop-dashboard nav{flex-wrap:wrap}}
-
-.shop-dashboard.dashboard-card{max-width:none;margin:0;padding:24px}
-.shop-dashboard button{min-height:44px;font-size:14px}
-@media(max-width:650px){.shop-dashboard.dashboard-card{padding:20px 16px}}
+@media (max-width: 700px) {
+  .analytics-layout {
+    grid-template-columns: 1fr;
+  }
+  .analytics-layout > section {
+    grid-column: 1;
+    padding: 20px;
+  }
+}
 </style>

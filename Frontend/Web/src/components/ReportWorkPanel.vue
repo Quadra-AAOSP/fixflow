@@ -160,5 +160,7 @@ function rate() {
 </template>
 
 <style scoped>
+summary{cursor:pointer;min-height:44px;padding:12px 16px;border:1px solid #b6c8bf;border-radius:8px;background:#f5f9f7;color:#006f65;font-weight:600}summary:focus-visible{outline:2px solid #00766b;outline-offset:3px}
+
 .work-description { white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>

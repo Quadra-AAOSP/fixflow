@@ -8,7 +8,7 @@ const pageTitles: Record<string, string> = {
   'site-rules': 'Site rules', home: 'Dashboard', 'reporter-home': 'My reports', reports: 'Reports', 'new-report': 'New report', 'report-detail': 'Report details',
   sites: 'Sites', 'site-detail': 'Site details', subsites: 'Buildings & locations', assignments: 'Assignments', technician: 'My workspace',
   'technician-invitations': 'Site invitations', 'team-access': 'Team access', contracts: 'Site contracts',
-  profile: 'Profile', 'admin-application': 'Your application', 'application-access': 'Your application', login: 'Sign in', register: 'Create an account',
+  team: 'Team', settings: 'Settings', profile: 'Profile', 'admin-application': 'Your application', 'application-access': 'Your application', login: 'Sign in', register: 'Create an account',
   'access-policy': 'Access requirements', 'shop-order': 'Order details', shop: 'Shop', 'shop-management': 'Product management',
 };
 

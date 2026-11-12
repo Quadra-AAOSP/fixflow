@@ -12,6 +12,7 @@ const props = defineProps<{ report: Report; disabled?: boolean }>();
 const emit = defineEmits<{ saved: [report: Report]; busy: [value: boolean] }>();
 const { user } = useAuth();
 const manager = computed(() => user.value?.role === 'admin' || user.value?.role === 'super_admin');
+const detailsAllowed = computed(() => manager.value || user.value?.role === 'staff');
 const busy = ref(false);
 const error = ref('');
 let generation = 0;
@@ -30,11 +31,11 @@ async function classify() {
 <template>
   <section class="detail-section">
     <div class="card-heading"><h2>{{ t("AI assessment") }}</h2><button v-if="manager" type="button" class="text-action" :disabled="busy || disabled" @click="classify">{{ t(busy ? 'Classifying…' : 'Classify report') }}</button></div>
-    <p class="dialog-intro">{{ t("AI assessment is separate from the reporter’s description and urgency. Only details returned for your access level appear here.") }}</p>
+    <p class="dialog-intro">{{ t(detailsAllowed ? "AI classification uses the report description, address, site type and allowed categories. Fields marked not returned are missing from the service response; they are not inferred from the urgency." : "AI urgency is shared with your role. AI category, specialty, description and reasoning are restricted to site staff and administrators.") }}</p>
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
-    <dl class="report-detail-grid"><div><dt>{{ t("AI urgency") }}</dt><dd>{{ report.aiReport?.urgency ? t(urgencyLabels[report.aiReport.urgency]) : t('Not classified') }}</dd></div><div><dt>{{ t("AI category") }}</dt><dd>{{ report.aiReport?.category ? t(humanize(report.aiReport.category)) : t('Not shared or not available') }}</dd></div><div><dt>{{ t("AI specialty") }}</dt><dd>{{ report.aiReport?.specialty ? t(humanize(report.aiReport.specialty)) : t('Not shared or not available') }}</dd></div></dl>
-    <h3>{{ t("AI description") }}</h3><p class="ai-assessment-copy">{{ report.aiReport?.description || t('Not shared or not available') }}</p>
-    <h3>{{ t("AI urgency reason") }}</h3><p class="ai-assessment-copy">{{ report.aiReport?.urgencyReason || t('Not shared or not available') }}</p>
+    <dl class="report-detail-grid"><div><dt>{{ t("AI urgency") }}</dt><dd>{{ report.aiReport?.urgency ? t(urgencyLabels[report.aiReport.urgency]) : t('Not classified') }}</dd></div><div><dt>{{ t("AI category") }}</dt><dd>{{ report.aiReport?.category ? t(humanize(report.aiReport.category)) : t(detailsAllowed ? 'Not returned by the service' : 'Restricted to site staff and administrators') }}</dd></div><div><dt>{{ t("AI specialty") }}</dt><dd>{{ report.aiReport?.specialty ? t(humanize(report.aiReport.specialty)) : t(detailsAllowed ? 'Not returned by the service' : 'Restricted to site staff and administrators') }}</dd></div></dl>
+    <h3>{{ t("AI description") }}</h3><p class="ai-assessment-copy">{{ report.aiReport?.description || t(detailsAllowed ? 'Not returned by the service' : 'Restricted to site staff and administrators') }}</p>
+    <h3>{{ t("AI urgency reason") }}</h3><p class="ai-assessment-copy">{{ report.aiReport?.urgencyReason || t(detailsAllowed ? 'Not returned by the service' : 'Restricted to site staff and administrators') }}</p>
   </section>
 </template>
 

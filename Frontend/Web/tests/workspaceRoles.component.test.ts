@@ -14,34 +14,24 @@ const account: User = { id: 1, role: 'reporter', siteId: 7, firstName: 'Test', l
 beforeEach(() => { setActivePinia(createPinia()); setLocale('en'); });
 describe('role-specific workspace menus', () => {
   it.each([
-    ['reporter', ['/reporter', '/building-suggestions', '/sites']],
-    ['staff', ['/', '/reports', '/sites', '/assignments', '/shop']],
-    ['admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/marketplace', '/site-rules', '/team-access', '/shop']],
-    ['super_admin', ['/', '/reports', '/sites', '/assignments', '/contracts', '/site-rules', '/team-access', '/shop/manage', '/site-applications', '/technician-verifications', '/shop']],
-    ['technician', ['/technician', '/reports', '/contracts', '/marketplace', '/shop']],
+    ['reporter', ['/reporter', '/reports/new', '/sites', '/building-suggestions']],
+    ['staff', ['/', '/reports', '/assignments', '/sites', '/shop']],
+    ['admin', ['/', '/reports', '/sites', '/team', '/shop']],
+    ['super_admin', ['/', '/reports', '/sites', '/team', '/shop']],
+    ['technician', ['/technician', '/marketplace', '/contracts', '/shop']],
     ['shop_manager', ['/shop/dashboard', '/shop/orders-management', '/shop/manage', '/profile']],
-  ] as [UserRole, string[]][])('shows only relevant links for %s', (role, expected) => {
-    const user = { ...account, role };
-    expect(workspaceLinks(user, true).map(link => link.to)).toEqual(expected);
-    const { primary, more } = workspaceNavigation(user, true);
-    expect(primary.length + Number(more.length > 0)).toBeLessThanOrEqual(4);
-    const visible = [...primary, ...more].map(link => link.to).sort();
-    const expectedVisible = role === 'reporter' ? expected.filter(to => to !== '/shop') : expected;
-    expect(visible).toEqual([...expectedVisible].sort());
-    if (role === 'reporter') expect(more).toEqual([]);
-  });
-  it.each([
-    ['reporter', ['/reporter', '/building-suggestions', '/sites']],
-    ['staff', ['/', '/reports', '/assignments']],
-    ['admin', ['/', '/reports', '/team-access']],
-    ['super_admin', ['/', '/sites']],
-    ['technician', ['/technician', '/marketplace']],
-    ['shop_manager', ['/shop/dashboard', '/profile']],
-  ] as [UserRole, string[]][])('prioritizes the primary destinations for %s', (role, expected) => {
-    expect(workspaceNavigation({ ...account, role }, true).primary.map(link => link.to)).toEqual(expected);
+  ] as [UserRole, string[]][])('shows four or five useful primary destinations for %s', (role, expected) => {
+    const { primary, more } = workspaceNavigation({ ...account, role }, true);
+    expect(primary.map(link => link.to)).toEqual(expected);
+    expect(primary.length).toBeGreaterThanOrEqual(4);
+    expect(primary.length).toBeLessThanOrEqual(5);
+    expect(more).toEqual([]);
   });
   it('hides site report browsing for independent technicians without an accessible site', () => {
     expect(workspaceLinks({ ...account, role: 'technician', siteId: null }, false).map(link => link.to)).not.toContain('/reports');
+  });
+  it('does not expose workspace navigation to application-only accounts', () => {
+    expect(workspaceNavigation({ ...account, applicationOnly: true }, true)).toEqual({ primary: [], more: [] });
   });
 });
 it('shows created and joined reports but excludes unrelated peer reports from the reporter home', async () => {
