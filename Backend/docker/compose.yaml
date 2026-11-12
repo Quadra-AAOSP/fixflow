@@ -7,6 +7,9 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       args:
+        HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+        NO_PROXY: ${BUILD_NO_PROXY:-localhost,127.0.0.1}
         DOCKER_LIBRARY: ${DOCKER_LIBRARY:-docker.io/library}
     restart: unless-stopped
     ports:
@@ -77,13 +80,12 @@ services:
     logging: *bounded-logs
 
   minio:
-    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-09-07T16-13-09Z}
+    image: ${MINIO_IMAGE:-netvark/minio:latest}
     command: ['server', '/data', '--console-address', ':9001']
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY}
-      MINIO_BROWSER: 'off'
     ports:
       - '${MINIO_BIND_ADDRESS:-127.0.0.1}:${MINIO_HOST_PORT:-9000}:9000'
     volumes:
