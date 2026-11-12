@@ -39,6 +39,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { canManageShop } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 import { ApiError, toErrorMessage } from '@/lib/apiClient';
+import { productImageSource } from '@/utils/shopImages';
 import {
   adminCreateProduct,
   adminDeleteProduct,
@@ -681,13 +682,22 @@ function FormSectionLabel({ children }: { children: string }) {
   );
 }
 
-function ProductThumb({ url, name, t }: { url: string | null; name: string; t: TranslateFn }) {
+function ProductThumb({
+  product,
+  t,
+}: {
+  product: ShopAdminProduct;
+  t: TranslateFn;
+}) {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     setFailed(false);
-  }, [url]);
+  }, [product.id, product.imageUrl]);
 
-  if (!url || failed) {
+  // Bundled photo first, then the URL an admin may have typed in.
+  const source = failed ? null : productImageSource(product);
+
+  if (!source) {
     return (
       <View
         className="h-12 w-12 items-center justify-center rounded-[10px]"
@@ -699,11 +709,14 @@ function ProductThumb({ url, name, t }: { url: string | null; name: string; t: T
   }
   return (
     <Image
-      source={{ uri: url }}
+      source={source}
       onError={() => setFailed(true)}
       resizeMode="cover"
-      accessibilityLabel={t('more.shopAdmin.imageA11y', { name })}
+      accessibilityLabel={t('more.shopAdmin.imageA11y', { name: product.name })}
       accessibilityRole="image"
+      // Explicit size: a bundled asset carries its own pixel dimensions, and
+      // react-native-web lets those win over the `h-12 w-12` classes.
+      style={{ width: 48, height: 48, borderRadius: 10 }}
       className="h-12 w-12 rounded-[10px]"
     />
   );
@@ -749,7 +762,7 @@ function ProductCard({
         className="active:opacity-80"
       >
         <View className="flex-row items-start gap-3">
-          <ProductThumb url={product.imageUrl} name={product.name} t={t} />
+          <ProductThumb product={product} t={t} />
           <View className="flex-1">
             <View className="flex-row items-center justify-between gap-2">
               <Text

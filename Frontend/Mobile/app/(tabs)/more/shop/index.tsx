@@ -1,7 +1,6 @@
 import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Image,
   Pressable,
@@ -12,11 +11,13 @@ import {
 import {
   ArrowRight,
   ArrowUpRight,
+  CreditCard,
   Package,
   PackageSearch,
   RefreshCw,
   ShoppingBag,
   ShoppingBasket,
+  Trash2,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -54,20 +55,20 @@ import {
   basketCount,
   matchesProductQuery,
   productCategories,
-  safeImageUrl,
+  shortOrderRef,
   sortProducts,
   toCartPayload,
 } from '@/utils/shop';
 import { useCartStore } from '@/stores/cart';
 import { formatDate, formatMoney, fullName } from '@/utils/format';
+import { PRODUCT_IMAGES, productImageSource } from '@/utils/shopImages';
 
 const ALL_CATEGORIES = 'all'
 
-// Same editorial photography the web shop uses (`ShopView.vue`).
-const HERO_IMAGE =
-  'https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=1200';
-const EDITORIAL_IMAGE =
-  'https://images.pexels.com/photos/30413428/pexels-photo-30413428.jpeg?auto=compress&cs=tinysrgb&w=1000';
+// Same editorial photography the web shop uses (`ShopView.vue`), bundled with
+// the app so the shop looks identical without a network round-trip.
+const HERO_IMAGE = PRODUCT_IMAGES['cordless-drill-18v'];
+const EDITORIAL_IMAGE = PRODUCT_IMAGES['multi-bit-set'];
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -120,6 +121,11 @@ function ShopPurchaseScreen() {
   const [basketError, setBasketError] = useState<string | null>(null);
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  /** Where the current quote came from — a "Buy now" must not clear the basket. */
+  const [checkoutMode, setCheckoutMode] = useState<'basket' | 'buy-now'>('basket');
+  /** Flips on the first submit so empty fields only turn red after a try. */
+  const [checkoutAttempted, setCheckoutAttempted] = useState(false);
+  const [buyNowBusy, setBuyNowBusy] = useState(false);
   const [shippingName, setShippingName] = useState('');
   const [shippingPhone, setShippingPhone] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
@@ -229,6 +235,8 @@ function ShopPurchaseScreen() {
     setBasketError(null);
     try {
       const quote = await quoteCheckout(toCartPayload(basketLines));
+      setCheckoutMode('basket');
+      setCheckoutAttempted(false);
       setCheckoutQuote(quote);
       setBasketSheetOpen(false);
     } catch (err) {
@@ -241,8 +249,45 @@ function ShopPurchaseScreen() {
     }
   }
 
+  /**
+   * "Buy now" — quote the single item straight from the detail sheet and open
+   * checkout, skipping the basket. The basket is left untouched, so a user can
+   * buy one thing immediately while keeping what they were collecting.
+   */
+  async function buyNow(product: ShopProduct, quantity: number) {
+    if (!canShopPurchase(user?.role) || !catalog) return;
+    if (!user) {
+      showToast(t('more.shop.errors.signInToOrder'), 'error');
+      return;
+    }
+    setBuyNowBusy(true);
+    try {
+      const quote = await quoteCheckout([
+        { productId: product.id, quantity: Math.max(1, quantity) },
+      ]);
+      if (quote.lines.length === 0) {
+        showToast(t('more.shop.soldOutJustNow'), 'error');
+        await load();
+        return;
+      }
+      setCheckoutMode('buy-now');
+      setCheckoutAttempted(false);
+      setCheckoutError(null);
+      setCheckoutQuote(quote);
+      setActiveProduct(null);
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : t('more.shop.errors.refreshQuote'),
+        'error',
+      );
+    } finally {
+      setBuyNowBusy(false);
+    }
+  }
+
   async function placeOrder() {
     if (!canShopPurchase(user?.role) || !checkoutQuote) return;
+    setCheckoutAttempted(true);
     if (shippingName.trim().length === 0) {
       setCheckoutError(t('more.shop.errors.shippingName'));
       return;
@@ -267,10 +312,16 @@ function ShopPurchaseScreen() {
         shippingPhone: shippingPhone.trim(),
         shippingAddress: shippingAddress.trim(),
       });
-      clearBasket();
-      setShippingName('');
-      setShippingPhone('');
-      setShippingAddress('');
+      // A Buy-now order must not wipe the basket the user was curating.
+      if (checkoutMode === 'basket') clearBasket();
+      setCheckoutQuote(null);
+      setCheckoutMode('basket');
+      setCheckoutAttempted(false);
+      // Reset to the profile values the sheet was pre-filled with, otherwise
+      // the next checkout starts with empty required fields.
+      setShippingName(fullName(user.firstName, user.lastName));
+      setShippingPhone(user.phone ?? '');
+      setShippingAddress(user.address ?? '');
       router.replace(`/more/shop/${order.orderId}`);
     } catch (err) {
       setCheckoutError(
@@ -285,29 +336,23 @@ function ShopPurchaseScreen() {
 
   // Mirrors the web's `cancelPending`: pending-payment orders can be
   // cancelled from the orders sheet, then the catalog reloads so any
-  // reserved stock is reflected in the tiles.
-  function confirmCancelOrder(orderId: string) {
-    Alert.alert(t('more.shop.cancelOrderTitle'), t('more.shop.cancelOrderBody'), [
-      { text: t('more.shop.keepOrder'), style: 'cancel' },
-      {
-        text: t('more.shop.cancelOrder'),
-        style: 'destructive',
-        onPress: async () => {
-          setOrdersError(null);
-          try {
-            await cancelOrder(orderId);
-            await loadOrders();
-            await load();
-          } catch (err) {
-            setOrdersError(
-              err instanceof ApiError
-                ? err.message
-                : t('more.shop.errors.cancelOrder'),
-            );
-          }
-        },
-      },
-    ]);
+  // reserved stock is reflected in the tiles. The confirmation lives in the
+  // sheet itself — `Alert.alert` is a no-op on react-native-web, which made
+  // the old cancel button appear broken in the browser build.
+  async function cancelPendingOrder(orderId: string) {
+    setOrdersError(null);
+    try {
+      await cancelOrder(orderId);
+      await loadOrders();
+      await load();
+      showToast(t('more.shop.orderCancelledToast'), 'success');
+    } catch (err) {
+      setOrdersError(
+        err instanceof ApiError
+          ? err.message
+          : t('more.shop.errors.cancelOrder'),
+      );
+    }
   }
 
   function scrollToCatalogue() {
@@ -425,7 +470,7 @@ function ShopPurchaseScreen() {
                 <View className="mx-5 mb-4 mt-1 overflow-hidden rounded-[20px] bg-shop-hero">
                   <View>
                     <Image
-                      source={{ uri: HERO_IMAGE }}
+                      source={HERO_IMAGE}
                       style={{ width: '100%', height: 176 }}
                       resizeMode="cover"
                       accessibilityIgnoresInvertColors
@@ -529,6 +574,7 @@ function ShopPurchaseScreen() {
                       className={`text-[11px] font-semibold ${
                         inStockOnly ? 'text-shop-ink' : 'text-shop-values-text'
                       }`}
+                      style={inStockOnly ? { color: shopColors.mintInk } : undefined}
                     >
                       {t('more.shop.inStockOnly')}
                     </Text>
@@ -551,6 +597,7 @@ function ShopPurchaseScreen() {
                           className={`text-[11px] font-semibold ${
                             selected ? 'text-shop-ink' : 'text-shop-values-text'
                           }`}
+                          style={selected ? { color: shopColors.mintInk } : undefined}
                         >
                           {value === ALL_CATEGORIES ? t('more.shop.allProducts') : value}
                         </Text>
@@ -605,7 +652,7 @@ function ShopPurchaseScreen() {
             filtered.length > 0 ? (
               <View className="mx-5 mb-8 mt-4 overflow-hidden rounded-[20px] bg-shop-editorial-bg p-4">
                 <Image
-                  source={{ uri: EDITORIAL_IMAGE }}
+                  source={EDITORIAL_IMAGE}
                   style={{ width: '100%', height: 144, borderRadius: 14 }}
                   resizeMode="cover"
                   accessibilityIgnoresInvertColors
@@ -692,21 +739,24 @@ function ShopPurchaseScreen() {
       <ProductDetailSheet
         product={activeProduct}
         catalog={catalog}
-        quantity={activeQuantity}
-        onChangeQuantity={(value) =>
-          activeProduct ? updateBasketQuantity(activeProduct.id, value) : undefined
-        }
-        onAdd={() => {
+        inBasketQuantity={activeQuantity}
+        busy={buyNowBusy}
+        onAdd={(quantity) => {
           if (!activeProduct) return;
-          addToBasket(activeProduct, 1);
+          addToBasket(activeProduct, quantity);
+          const next = basketTotalCount + quantity;
           showToast(
             t('more.shop.addedToBasket', {
               name: activeProduct.name,
-              count: basketTotalCount + 1,
-              plural: basketTotalCount + 1 === 1 ? '' : 's',
+              count: next,
+              plural: next === 1 ? '' : 's',
             }),
             'success',
           );
+        }}
+        onBuyNow={(quantity) => {
+          if (!activeProduct) return;
+          void buyNow(activeProduct, quantity);
         }}
         onClose={() => setActiveProduct(null)}
         t={t}
@@ -741,7 +791,9 @@ function ShopPurchaseScreen() {
           setOrdersSheetOpen(false);
           router.push(`/more/shop/${orderId}`);
         }}
-        onCancelOrder={confirmCancelOrder}
+        onCancelOrder={(orderId) => {
+          void cancelPendingOrder(orderId);
+        }}
         t={t}
       />
 
@@ -750,6 +802,8 @@ function ShopPurchaseScreen() {
         quote={checkoutQuote}
         submitting={checkoutSubmitting}
         error={checkoutError}
+        mode={checkoutMode}
+        attempted={checkoutAttempted}
         name={shippingName}
         phone={shippingPhone}
         address={shippingAddress}
@@ -759,6 +813,8 @@ function ShopPurchaseScreen() {
         onClose={() => {
           setCheckoutQuote(null);
           setCheckoutError(null);
+          setCheckoutAttempted(false);
+          setCheckoutMode('basket');
         }}
         onPlace={placeOrder}
         t={t}
@@ -770,87 +826,167 @@ function ShopPurchaseScreen() {
 type ProductDetailSheetProps = {
   product: ShopProduct | null;
   catalog: ShopCatalog | null;
-  quantity: number;
-  onChangeQuantity: (value: number) => void;
-  onAdd: () => void;
+  inBasketQuantity: number;
+  busy: boolean;
+  onAdd: (quantity: number) => void;
+  onBuyNow: (quantity: number) => void;
   onClose: () => void;
   t: TranslateFn;
 };
 
+/**
+ * Product detail. Two exits, matching how people actually shop: "Add to
+ * basket" to keep collecting, and "Buy now" to check out this single line
+ * immediately. The quantity picker is local to the sheet so both buttons can
+ * use it — the basket only changes when Add is pressed.
+ */
 function ProductDetailSheet({
   product,
   catalog,
-  quantity,
-  onChangeQuantity,
+  inBasketQuantity,
+  busy,
   onAdd,
+  onBuyNow,
   onClose,
   t,
 }: ProductDetailSheetProps) {
+  const [quantity, setQuantity] = useState(1);
+
+  // A different product opens the sheet → start the picker over at one.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (product) setQuantity(1);
+  }, [product?.id]);
+
   if (!product) return null;
-  const imageUri = safeImageUrl(product.imageUrl);
+
+  const imageSource = productImageSource(product);
   const outOfStock = product.stock <= 0;
+  const money = (value: number) =>
+    catalog ? formatMoney(value, catalog.minorUnitDigits, catalog.currency) : '';
+  const stockLabel = outOfStock
+    ? t('more.shop.outOfStock')
+    : product.stock <= 5
+      ? t('more.shop.stockLeft', { count: product.stock })
+      : t('more.shop.inStockCount', { count: product.stock });
+
   return (
-    <ModalSheet visible={!!product} title={product.name} onClose={onClose}>
-      {imageUri ? (
+    <ModalSheet
+      visible={!!product}
+      title={t('more.shop.productDetails')}
+      onClose={onClose}
+      busy={busy}
+      footer={
+        <View>
+          <View className="mb-3 flex-row items-baseline justify-between">
+            <Text className="text-[12px] text-muted">
+              {t('more.shop.itemTotal')}
+            </Text>
+            <Text className="text-[18px] font-bold text-ink">
+              {money(product.priceMinor * quantity)}
+            </Text>
+          </View>
+          <View className="flex-row gap-2">
+            <Button
+              variant="secondary"
+              label={t('more.shop.addToBasket')}
+              onPress={() => onAdd(quantity)}
+              disabled={outOfStock || busy}
+              className="flex-1"
+            />
+            <Button
+              label={busy ? t('more.shop.buyNowBusy') : t('more.shop.buyNow')}
+              onPress={() => onBuyNow(quantity)}
+              disabled={outOfStock || busy}
+              className="flex-1"
+            />
+          </View>
+          <Text className="mt-2 text-center text-[11px] text-muted">
+            {outOfStock
+              ? t('more.shop.outOfStockHint')
+              : t('more.shop.buyNowNote')}
+          </Text>
+        </View>
+      }
+    >
+      {imageSource ? (
         <Image
-          source={{ uri: imageUri }}
+          source={imageSource}
           resizeMode="cover"
-          style={{ width: '100%', height: 180, borderRadius: 12 }}
+          style={{ width: '100%', height: 220, borderRadius: 14 }}
+          accessibilityIgnoresInvertColors
         />
       ) : (
-        <View className="h-44 items-center justify-center rounded-xl bg-border/40">
-          <Text className="text-xs text-muted">{t('more.shop.noImage')}</Text>
+        <View className="h-52 items-center justify-center gap-1 rounded-[14px] bg-shop-image-bg">
+          <Package color={shopColors.footText} size={38} />
+          <Text className="text-[11px] text-muted">{t('more.shop.noImage')}</Text>
         </View>
       )}
+
+      <View className="mt-3 flex-row flex-wrap items-center gap-2">
+        {product.category ? (
+          <View className="rounded-full border border-shop-tab-line bg-card px-2.5 py-1">
+            <Text
+              className="text-[9px] font-bold uppercase text-shop-foot-text"
+              style={{ letterSpacing: 1.1 }}
+            >
+              {product.category}
+            </Text>
+          </View>
+        ) : null}
+        <View
+          className="rounded-full px-2.5 py-1"
+          style={{ backgroundColor: outOfStock ? 'transparent' : shopColors.mint }}
+        >
+          <Text
+            className={`text-[10px] font-semibold ${
+              outOfStock ? 'text-tone-danger' : 'text-shop-ink'
+            }`}
+            style={outOfStock ? undefined : { color: shopColors.mintInk }}
+          >
+            {stockLabel}
+          </Text>
+        </View>
+      </View>
+
+      <Text
+        className="mt-2 text-[21px] font-bold leading-7 text-shop-ink"
+        style={{ letterSpacing: -0.4 }}
+      >
+        {product.name}
+      </Text>
       {product.brand ? (
-        <Text className="mt-3 text-xs uppercase tracking-wide text-muted">
+        <Text className="mt-0.5 text-[12px] text-shop-product-body">
           {product.brand}
         </Text>
       ) : null}
-      <Text className="mt-2 text-base text-ink">
+      <Text className="mt-2.5 text-[20px] font-bold text-shop-ink">
+        {money(product.priceMinor)}
+      </Text>
+      <Text className="mt-2 text-[13px] leading-5 text-shop-editorial-text">
         {product.description ?? t('more.shop.noDescription')}
       </Text>
-      <View className="mt-3 flex-row items-center justify-between">
-        <Text className="text-lg font-bold text-primary">
-          {catalog
-            ? formatMoney(product.priceMinor, catalog.minorUnitDigits, catalog.currency)
-            : ''}
-        </Text>
-        <Text
-          className={`text-xs ${
-            outOfStock ? 'text-tone-danger' : 'text-muted'
-          }`}
-        >
-          {outOfStock
-            ? t('more.shop.outOfStock')
-            : t('more.shop.inStockCount', { count: product.stock })}
-        </Text>
-      </View>
 
-      {/* In-basket lines get the stepper (step down to 0 to remove, like the
-          web's per-line controls); lines not yet in the basket get the same
-          "Add to basket" CTA the web detail dialog shows. */}
-      <View className="mt-5">
-        {quantity > 0 ? (
+      {outOfStock ? null : (
+        <View className="mt-4 rounded-[14px] border border-shop-card-line bg-card px-3 py-3">
           <View className="flex-row items-center justify-between">
+            <Text className="text-[12px] font-semibold text-ink">
+              {t('more.shop.quantityLabel')}
+            </Text>
             <QuantityStepper
               value={quantity}
-              onChange={onChangeQuantity}
-              min={0}
+              onChange={setQuantity}
+              min={1}
               max={Math.max(1, product.stock)}
             />
-            <Text className="ml-3 flex-1 text-right text-xs text-muted">
-              {t('more.shop.quantityInBasket', { count: quantity })}
-            </Text>
           </View>
-        ) : (
-          <Button
-            label={t('more.shop.addToBasket')}
-            onPress={onAdd}
-            disabled={outOfStock}
-          />
-        )}
-      </View>
+          {inBasketQuantity > 0 ? (
+            <Text className="mt-2 text-[11px] text-muted">
+              {t('more.shop.alreadyInBasket', { count: inBasketQuantity })}
+            </Text>
+          ) : null}
+        </View>
+      )}
     </ModalSheet>
   );
 }
@@ -896,62 +1032,65 @@ function BasketSheet({
           {lines.map((line) => (
             <View
               key={line.product.id}
-              className="mb-3 flex-row items-center gap-3 rounded-xl border border-border bg-card p-3"
+              className="mb-3 rounded-[14px] border border-border bg-card p-3"
             >
-              {/* Thumbnail — the web cart line leads with a 64px product
-                  image (`.shop-cart-line` grid). Imageless products get the
-                  web's neutral Package placeholder, not a substitute photo. */}
-              <BasketLineImage product={line.product} t={t} />
-              <View className="flex-1">
-                <Text
-                  className="text-sm font-semibold text-ink"
-                  numberOfLines={2}
-                >
-                  {line.product.name}
-                </Text>
-                <Text className="mt-0.5 text-xs text-muted">
-                  {catalog
-                    ? t('more.shop.each', {
-                        price: formatMoney(
-                          line.product.priceMinor,
-                          catalog.minorUnitDigits,
-                          catalog.currency,
-                        ),
-                      })
-                    : ''}
-                </Text>
+              <View className="flex-row gap-3">
+                {/* Thumbnail — the web cart line leads with a 64px product
+                    image (`.shop-cart-line` grid). Imageless products get the
+                    web's neutral Package placeholder, not a substitute photo. */}
+                <BasketLineImage product={line.product} t={t} />
+                <View className="flex-1">
+                  <Text
+                    className="text-[13px] font-semibold text-ink"
+                    numberOfLines={2}
+                  >
+                    {line.product.name}
+                  </Text>
+                  <Text className="mt-0.5 text-[11px] text-muted">
+                    {catalog
+                      ? t('more.shop.each', {
+                          price: formatMoney(
+                            line.product.priceMinor,
+                            catalog.minorUnitDigits,
+                            catalog.currency,
+                          ),
+                        })
+                      : ''}
+                  </Text>
+                  {catalog ? (
+                    <Text className="mt-1 text-[13px] font-semibold text-ink">
+                      {formatMoney(
+                        line.product.priceMinor * line.quantity,
+                        catalog.minorUnitDigits,
+                        catalog.currency,
+                      )}
+                    </Text>
+                  ) : null}
+                </View>
                 <Pressable
                   onPress={() => onChangeQuantity(line.product.id, 0)}
                   accessibilityRole="button"
                   accessibilityLabel={t('more.shop.removeA11y', {
                     name: line.product.name,
                   })}
-                  className="mt-1 self-start active:opacity-70"
+                  hitSlop={8}
+                  className="h-8 w-8 items-center justify-center rounded-full active:opacity-60"
                 >
-                  <Text className="text-[11px] font-medium text-tone-danger underline">
-                    {t('more.shop.remove')}
-                  </Text>
+                  <Trash2 color={shopColors.footText} size={15} />
                 </Pressable>
               </View>
-              <View className="items-end gap-1">
+              <View className="mt-2.5 flex-row items-center justify-between border-t border-border pt-2.5">
                 <QuantityStepper
                   value={line.quantity}
                   onChange={(value) => onChangeQuantity(line.product.id, value)}
-                  // min = 0 so a line can be stepped down to nothing — the
-                  // stepper then removes it from the basket, matching the
-                  // web's per-line "Remove" affordance.
-                  min={0}
+                  min={1}
                   max={Math.max(1, line.product.stock)}
                 />
-                {catalog ? (
-                  <Text className="text-xs font-semibold text-ink">
-                    {formatMoney(
-                      line.product.priceMinor * line.quantity,
-                      catalog.minorUnitDigits,
-                      catalog.currency,
-                    )}
-                  </Text>
-                ) : null}
+                <Text className="text-[10px] text-muted">
+                  {line.quantity >= line.product.stock
+                    ? t('more.shop.stockLeft', { count: line.product.stock })
+                    : t('more.shop.inStockCount', { count: line.product.stock })}
+                </Text>
               </View>
             </View>
           ))}
@@ -973,8 +1112,11 @@ function BasketSheet({
             </View>
           ) : null}
 
-          {/* Same expectation-setting note the web basket carries: nothing
-              is reserved until the order is created. */}
+          {/* Same expectation-setting notes the web basket carries: totals
+              firm up at checkout, and nothing is reserved until then. */}
+          <Text className="mb-1 text-[11px] leading-4 text-muted">
+            {t('more.shop.basketTotalsNote')}
+          </Text>
           <Text className="mb-3 text-[11px] leading-4 text-muted">
             {t('more.shop.basketNote')}
           </Text>
@@ -1035,6 +1177,13 @@ function OrdersSheet({
   onCancelOrder,
   t,
 }: OrdersSheetProps) {
+  const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
+
+  // Closing and reopening the sheet should never leave a row mid-confirmation.
+  useEffect(() => {
+    if (!visible) setConfirmingCancelId(null);
+  }, [visible]);
+
   return (
     <ModalSheet visible={visible} title={t('more.shop.myOrders')} onClose={onClose}>
       {loading ? (
@@ -1055,49 +1204,101 @@ function OrdersSheet({
         />
       ) : (
         orders.map((order) => (
-          <Pressable
+          // The row is a View, not a Pressable: the cancel affordance is a
+          // sibling button. Nesting Pressables renders <button> inside
+          // <button> on web, which React flags as invalid DOM nesting.
+          <View
             key={order.orderId}
-            onPress={() => onSelect(order.orderId)}
-            accessibilityRole="button"
-            className="mb-2 rounded-xl border border-border bg-card p-3 active:opacity-80"
+            className="mb-2 overflow-hidden rounded-xl border border-border bg-card"
           >
-            <View className="flex-row items-center justify-between">
-              <Text className="text-sm font-semibold text-ink">
-                #{order.orderId}
-              </Text>
-              <Text className="text-xs uppercase tracking-wide text-muted">
-                {order.fulfillmentStatus
-                  ? t(`orderManagement.status.${order.fulfillmentStatus}`)
-                  : t(`more.shop.orderStatus.${order.status}`)}
-              </Text>
-            </View>
-            <Text className="mt-0.5 text-xs text-muted">
-              {t('more.shop.basketCount', {
-                count: order.items.length,
-                plural: order.items.length === 1 ? '' : 's',
-              })}{' '}
-              ·{' '}
-              {formatMoney(order.totalMinor, order.minorUnitDigits, order.currency)}
-            </Text>
-            <Text className="mt-0.5 text-xs text-muted" numberOfLines={1}>
-              {order.items.map((item) => `${item.quantity}× ${item.name}`).join(', ')}
-            </Text>
-            <Text className="mt-0.5 text-xs text-muted">
-              {formatDate(order.createdAt, true)}
-            </Text>
-            {order.status === 'pending_payment' ? (
-              <Pressable
-                onPress={() => onCancelOrder(order.orderId)}
-                accessibilityRole="button"
-                accessibilityLabel={t('more.shop.cancelOrder')}
-                className="mt-2 self-start active:opacity-70"
-              >
-                <Text className="text-[11px] font-medium text-tone-danger underline">
-                  {t('more.shop.cancelOrder')}
+            <Pressable
+              onPress={() => onSelect(order.orderId)}
+              accessibilityRole="button"
+              className="p-3 active:opacity-80"
+            >
+              <View className="flex-row items-center justify-between gap-2">
+                <Text className="text-sm font-semibold text-ink">
+                  #{shortOrderRef(order.orderId)}
                 </Text>
-              </Pressable>
+                <View
+                  className="rounded-full px-2.5 py-1"
+                  style={{ backgroundColor: orderChip(order).bg }}
+                >
+                  <Text
+                    className="text-[10px] font-semibold"
+                    style={{ color: orderChip(order).ink }}
+                  >
+                    {order.fulfillmentStatus
+                      ? t(`orderManagement.status.${order.fulfillmentStatus}`)
+                      : t(`more.shop.orderStatus.${order.status}`)}
+                  </Text>
+                </View>
+              </View>
+              <View className="mt-1 flex-row items-center justify-between">
+                <Text className="flex-1 text-xs text-muted" numberOfLines={1}>
+                  {order.items.map((item) => `${item.quantity}× ${item.name}`).join(', ')}
+                </Text>
+                <Text className="ml-2 text-[13px] font-semibold text-ink">
+                  {formatMoney(order.totalMinor, order.minorUnitDigits, order.currency)}
+                </Text>
+              </View>
+              <Text className="mt-1.5 text-[11px] text-muted">
+                {t('more.shop.itemsCount', {
+                  count: order.items.reduce((sum, item) => sum + item.quantity, 0),
+                  plural: order.items.length === 1 ? '' : 's',
+                })}{' '}
+                · {formatDate(order.createdAt, true)}
+              </Text>
+            </Pressable>
+
+            {order.status === 'pending_payment' ? (
+              <View className="border-t border-border px-3 py-2">
+                {confirmingCancelId === order.orderId ? (
+                  <View className="flex-row items-center gap-2">
+                    <Text className="flex-1 text-[11px] leading-4 text-muted">
+                      {t('more.shop.cancelOrderBody')}
+                    </Text>
+                    <Pressable
+                      onPress={() => setConfirmingCancelId(null)}
+                      accessibilityRole="button"
+                      className="rounded-full border border-border px-3 py-1.5 active:opacity-70"
+                    >
+                      <Text className="text-[11px] font-semibold text-ink">
+                        {t('more.shop.keepOrder')}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setConfirmingCancelId(null);
+                        onCancelOrder(order.orderId);
+                      }}
+                      accessibilityRole="button"
+                      className="rounded-full px-3 py-1.5 active:opacity-80"
+                      style={{ backgroundColor: shopColors.coral }}
+                    >
+                      <Text
+                        className="text-[11px] font-semibold"
+                        style={{ color: shopColors.mintInk }}
+                      >
+                        {t('more.shop.confirmCancel')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => setConfirmingCancelId(order.orderId)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('more.shop.cancelOrder')}
+                    className="self-start active:opacity-70"
+                  >
+                    <Text className="text-[11px] font-medium text-tone-danger underline">
+                      {t('more.shop.cancelOrder')}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             ) : null}
-          </Pressable>
+          </View>
         ))
       )}
     </ModalSheet>
@@ -1109,6 +1310,9 @@ type CheckoutSheetProps = {
   quote: ShopQuote | null;
   submitting: boolean;
   error: string | null;
+  mode: 'basket' | 'buy-now';
+  /** Set after the first submit attempt so empty fields can turn red. */
+  attempted: boolean;
   name: string;
   phone: string;
   address: string;
@@ -1125,6 +1329,8 @@ function CheckoutSheet({
   quote,
   submitting,
   error,
+  mode,
+  attempted,
   name,
   phone,
   address,
@@ -1136,6 +1342,13 @@ function CheckoutSheet({
   t,
 }: CheckoutSheetProps) {
   if (!visible || !quote) return null;
+
+  const money = (value: number) =>
+    formatMoney(value, quote.minorUnitDigits, quote.currency);
+  const itemCount = quote.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const nameMissing = attempted && name.trim().length === 0;
+  const addressMissing = attempted && address.trim().length === 0;
+
   return (
     <ModalSheet
       visible={visible}
@@ -1143,87 +1356,88 @@ function CheckoutSheet({
       onClose={onClose}
       busy={submitting}
       footer={
-        <Button
-          label={submitting ? t('more.shop.placing') : t('more.shop.placeOrder')}
-          loading={submitting}
-          onPress={onPlace}
-        />
+        <View className="flex-row items-center gap-3">
+          <View className="flex-1">
+            <Text className="text-[10px] uppercase tracking-wide text-muted">
+              {t('more.shop.total')}
+            </Text>
+            <Text className="text-[19px] font-bold text-ink">
+              {money(quote.totalMinor)}
+            </Text>
+          </View>
+          <Button
+            label={submitting ? t('more.shop.placing') : t('more.shop.placeOrder')}
+            loading={submitting}
+            onPress={onPlace}
+            className="flex-1"
+          />
+        </View>
       }
     >
-      <View className="mb-3 rounded-xl border border-border bg-card p-3">
-        <Text className="text-sm font-semibold text-ink">
-          {t('more.shop.orderSummary')}
-        </Text>
+      <Text className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted">
+        {mode === 'buy-now'
+          ? t('more.shop.checkoutFromBuyNow', {
+              count: itemCount,
+              plural: itemCount === 1 ? '' : 's',
+            })
+          : t('more.shop.checkoutFromBasket', {
+              count: itemCount,
+              plural: itemCount === 1 ? '' : 's',
+            })}
+      </Text>
+
+      {error ? (
+        <View className="mb-3 rounded-xl border border-tone-danger bg-card px-3 py-2">
+          <Text className="text-[12px] text-tone-danger">{error}</Text>
+        </View>
+      ) : null}
+
+      <View className="mb-4 rounded-[14px] border border-border bg-card p-3">
         {quote.lines.length === 0 ? (
-          <Text className="mt-2 text-xs text-muted">
+          <Text className="text-xs text-muted">
             {t('more.shop.emptyCheckout')}
           </Text>
         ) : (
           quote.lines.map((line) => (
-            <View
-              key={line.productId}
-              className="mt-2 flex-row items-center justify-between"
-            >
-              <Text className="flex-1 text-xs text-ink" numberOfLines={1}>
-                {line.name} · ×{line.quantity}
-              </Text>
-              <Text className="text-xs text-muted">
-                {formatMoney(
-                  line.lineTotalMinor,
-                  quote.minorUnitDigits,
-                  quote.currency,
-                )}
+            <View key={line.productId} className="mb-2 flex-row items-center gap-3">
+              <CheckoutLineImage productId={line.productId} t={t} />
+              <View className="flex-1">
+                <Text className="text-[12px] font-semibold text-ink" numberOfLines={2}>
+                  {line.name}
+                </Text>
+                <Text className="mt-0.5 text-[11px] text-muted">
+                  {t('more.shop.unitPrice', { price: money(line.unitPriceMinor) })} ·
+                  ×{line.quantity}
+                </Text>
+              </View>
+              <Text className="text-[13px] font-semibold text-ink">
+                {money(line.lineTotalMinor)}
               </Text>
             </View>
           ))
         )}
         {quote.lines.length > 0 ? (
-          <View className="mt-3 border-t border-border pt-2">
-            <SummaryRow
-              label={t('more.shop.subtotal')}
-              value={formatMoney(
-                quote.subtotalMinor,
-                quote.minorUnitDigits,
-                quote.currency,
-              )}
-            />
-            <SummaryRow
-              label={t('more.shop.shipping')}
-              value={formatMoney(
-                quote.shippingMinor,
-                quote.minorUnitDigits,
-                quote.currency,
-              )}
-            />
-            <SummaryRow
-              label={t('more.shop.tax')}
-              value={formatMoney(
-                quote.taxMinor,
-                quote.minorUnitDigits,
-                quote.currency,
-              )}
-            />
-            <View className="mt-2 border-t border-border pt-2">
-              <SummaryRow
-                label={t('more.shop.total')}
-                bold
-                value={formatMoney(
-                  quote.totalMinor,
-                  quote.minorUnitDigits,
-                  quote.currency,
-                )}
-              />
+          <View className="mt-1 border-t border-border pt-2">
+            <SummaryRow label={t('more.shop.subtotal')} value={money(quote.subtotalMinor)} />
+            <SummaryRow label={t('more.shop.shipping')} value={money(quote.shippingMinor)} />
+            <SummaryRow label={t('more.shop.tax')} value={money(quote.taxMinor)} />
+            <View className="mt-1.5 border-t border-border pt-1.5">
+              <SummaryRow label={t('more.shop.total')} bold value={money(quote.totalMinor)} />
             </View>
           </View>
         ) : null}
       </View>
 
+      <Text className="mb-2 text-[13px] font-semibold text-ink">
+        {t('more.shop.deliveryDetails')}
+      </Text>
       <TextField
         label={t('more.shop.shippingNameLabel')}
         value={name}
         onChangeText={onChangeName}
         placeholder={t('more.shop.fullNamePlaceholder')}
         autoCapitalize="words"
+        error={nameMissing ? t('more.shop.errors.shippingName') : undefined}
       />
       <TextField
         label={t('more.shop.phoneLabel')}
@@ -1239,10 +1453,60 @@ function CheckoutSheet({
         autoCapitalize="words"
         multiline
         numberOfLines={2}
+        error={addressMissing ? t('more.shop.errors.shippingAddress') : undefined}
       />
 
-      {error ? <Text className="text-xs text-tone-danger">{error}</Text> : null}
+      <View className="mb-2 mt-1 rounded-[14px] border border-border bg-card px-3 py-3">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-[13px] font-semibold text-ink">
+            {t('more.shop.payment')}
+          </Text>
+          <View className="flex-row items-center gap-1.5 rounded-full bg-shop-mint px-2.5 py-1">
+            <CreditCard color={shopColors.mintInk} size={12} />
+            <Text
+              className="text-[10px] font-semibold text-shop-ink"
+              style={{ color: shopColors.mintInk }}
+            >
+              {t('more.shop.paymentSandbox')}
+            </Text>
+          </View>
+        </View>
+        <Text className="mt-1.5 text-[11px] leading-4 text-muted">
+          {t('more.shop.payAfterPlace')}
+        </Text>
+      </View>
     </ModalSheet>
+  );
+}
+
+/**
+ * Checkout line thumbnail. The quote only carries ids and names, so the photo
+ * comes from the bundled catalogue map; an unknown product keeps the neutral
+ * Package placeholder rather than borrowing another product's picture.
+ */
+function CheckoutLineImage({
+  productId,
+  t,
+}: {
+  productId: string;
+  t: TranslateFn;
+}) {
+  const source = PRODUCT_IMAGES[productId];
+  if (!source) {
+    return (
+      <View className="h-10 w-10 items-center justify-center rounded-lg bg-shop-image-bg">
+        <Package color={shopColors.footText} size={16} />
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={source}
+      resizeMode="cover"
+      style={{ width: 40, height: 40, borderRadius: 8 }}
+      accessibilityLabel={t('more.shop.items')}
+      accessibilityIgnoresInvertColors
+    />
   );
 }
 
@@ -1269,6 +1533,20 @@ function SummaryRow({
       </Text>
     </View>
   );
+}
+
+/**
+ * Status chip colours for an order row: mint once money is in, citron while
+ * the payment is still outstanding, muted once the order is dead.
+ */
+function orderChip(order: ShopOrder): { bg: string; ink: string } {
+  if (order.status === 'cancelled' || order.status === 'refunded') {
+    return { bg: 'transparent', ink: shopColors.footText };
+  }
+  if (order.status === 'pending_payment') {
+    return { bg: shopColors.basketBadge, ink: shopColors.mintInk };
+  }
+  return { bg: shopColors.mint, ink: shopColors.mintInk };
 }
 
 /**
@@ -1305,8 +1583,8 @@ function BasketLineImage({
   t: TranslateFn;
 }) {
   const [failed, setFailed] = useState(false);
-  const uri = failed ? null : safeImageUrl(product.imageUrl);
-  if (!uri) {
+  const source = failed ? null : productImageSource(product);
+  if (!source) {
     return (
       <View
         className="h-14 w-14 items-center justify-center rounded-lg bg-shop-image-bg"
@@ -1321,7 +1599,10 @@ function BasketLineImage({
   }
   return (
     <Image
-      source={{ uri }}
+      source={source}
+      // Explicit size: bundled assets carry intrinsic pixel sizes that
+      // react-native-web prefers over the `h-14 w-14` classes.
+      style={{ width: 56, height: 56, borderRadius: 8 }}
       className="h-14 w-14 rounded-lg bg-shop-image-bg"
       resizeMode="cover"
       onError={() => setFailed(true)}
