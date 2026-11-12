@@ -258,6 +258,8 @@ const shopLight = {
   shell: 'rgb(255, 254, 250)',
   ink: 'rgb(35, 61, 54)',
   mint: 'rgb(121, 226, 205)',
+  /** Text/icons that sit on the mint fill — dark in both colour modes. */
+  mintInk: 'rgb(16, 75, 69)',
   coral: 'rgb(226, 121, 121)',
   citron: 'rgb(220, 226, 121)',
   wordmarkSub: 'rgb(122, 134, 121)',

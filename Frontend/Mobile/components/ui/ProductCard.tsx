@@ -10,8 +10,8 @@ import type { ShopProduct } from '@/types';
 import {
   basketCount,
   formatMoney,
-  safeImageUrl,
 } from '@/utils/shop';
+import { productImageSource } from '@/utils/shopImages';
 
 type ProductCardProps = {
   product: ShopProduct;
@@ -46,11 +46,12 @@ export function ProductCard({
   const addToBasket = useCartStore((state) => state.addToBasket);
   const basketLines = useCartStore((state) => state.basket);
 
-  // Web parity (`ProductImage.vue`): no URL, or a URL that fails to load,
-  // falls back to a neutral Package-icon placeholder — never a substitute
-  // photo that misrepresents the product.
+  // Photos for the demo catalogue are bundled with the app; a product added
+  // later can still supply a URL. Neither one available, or the remote URL
+  // fails, falls back to the neutral Package-icon placeholder — never a
+  // substitute photo that misrepresents the product.
   const [imageFailed, setImageFailed] = useState(false);
-  const imageUri = imageFailed ? null : safeImageUrl(product.imageUrl);
+  const imageSource = imageFailed ? null : productImageSource(product);
   const outOfStock = product.stock <= 0;
   // The web disables the card's + button once the basket already holds the
   // product's full stock (no silent clamping); we mirror that here.
@@ -72,9 +73,12 @@ export function ProductCard({
           className="w-full items-center justify-center bg-shop-image-bg"
           style={{ aspectRatio: IMAGE_ASPECT_RATIO }}
         >
-          {imageUri ? (
+          {imageSource ? (
             <Image
-              source={{ uri: imageUri }}
+              source={imageSource}
+              // Explicit fill: bundled assets carry intrinsic pixel sizes that
+              // react-native-web prefers over the `h-full w-full` classes.
+              style={{ width: '100%', height: '100%' }}
               className="h-full w-full"
               resizeMode="cover"
               onError={() => setImageFailed(true)}
@@ -164,7 +168,7 @@ export function ProductCard({
             opacity: addDisabled ? 0.48 : 1,
           }}
         >
-          <Plus color={shopColors.ink} size={16} />
+          <Plus color={shopColors.mintInk} size={16} />
         </Pressable>
       </View>
     </View>
