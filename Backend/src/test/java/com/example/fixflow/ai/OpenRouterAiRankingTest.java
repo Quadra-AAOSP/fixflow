@@ -11,7 +11,7 @@ import com.sun.net.httpserver.HttpServer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
-class OpenRouterRankingProviderTest {
+class OpenRouterAiRankingTest {
     @Test void mapsConfiguredProviderOrderWithoutIdentityOrFreeTextAndRejectsMalformedOutput() throws Exception {
         var json = new ObjectMapper();
         var body = new AtomicReference<String>();
@@ -24,9 +24,9 @@ class OpenRouterRankingProviderTest {
         });
         server.start();
         try {
-            var provider = new OpenRouterRankingProvider(json, "local-key", "http://127.0.0.1:" + server.getAddress().getPort() + "/chat", "configured-model", 2);
-            var candidates = List.of(new TechnicianRankingProvider.Candidate(0, 5, true, 2),
-                    new TechnicianRankingProvider.Candidate(1, 4, true, 0));
+            var provider = OpenRouterAi.rankingOnly(json, "local-key", "http://127.0.0.1:" + server.getAddress().getPort() + "/chat", "configured-model", 2);
+            var candidates = List.of(new OpenRouterAi.RankCandidate(0, 5, true, 2),
+                    new OpenRouterAi.RankCandidate(1, 4, true, 0));
             assertThat(provider.rank("plumbing", "PRIVATE SPECIALTY", candidates)).containsExactly(1, 0);
             assertThat(body.get()).contains("configured-model", "activeCases").doesNotContain("PRIVATE SPECIALTY", "technicianId", "email", "address");
             result.set("not-json");

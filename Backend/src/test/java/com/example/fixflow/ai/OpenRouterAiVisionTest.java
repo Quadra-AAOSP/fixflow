@@ -10,9 +10,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import com.sun.net.httpserver.HttpServer;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.example.fixflow.ai.dto.VisionClassificationRequest;
+import com.example.fixflow.ai.dto.ClassificationRequest;
 
-class OpenRouterVisionProviderTest {
+class OpenRouterAiVisionTest {
     private HttpServer server;
     private final List<String> bodies = new CopyOnWriteArrayList<>();
     private boolean malformed;
@@ -32,13 +32,13 @@ class OpenRouterVisionProviderTest {
         server.start();
     }
     @AfterEach void stop() { server.stop(0); }
-    private OpenRouterVisionProvider provider() {
-        return new OpenRouterVisionProvider(new ObjectMapper(), "fake-key",
+    private OpenRouterAi provider() {
+        return OpenRouterAi.visionOnly(new ObjectMapper(), "fake-key",
                 "http://127.0.0.1:" + server.getAddress().getPort() + "/chat",
                 "primary-vision", "fallback-vision", 2, 256);
     }
-    private VisionClassificationRequest request() {
-        return VisionClassificationRequest.builder().imageData(new byte[] {1,2,3})
+    private ClassificationRequest request() {
+        return ClassificationRequest.builder().imageData(new byte[] {1,2,3})
                 .mimeType("image/png").description("Pipe leak").address("DO NOT TRANSMIT THIS ADDRESS")
                 .allowedCategories(List.of("plumbing", "general")).build();
     }

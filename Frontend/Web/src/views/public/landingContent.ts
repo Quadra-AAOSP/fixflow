@@ -1,10 +1,20 @@
 import { ClipboardList, Building2, Wrench } from '@lucide/vue';
+
+export const sharedSteps = [
+  ['Report it clearly', 'A location, a description, and helpful photos give every issue a useful starting point.'],
+  ['Bring the right people together', 'Site teams review reports and coordinate the people who can help.'],
+  ['Follow it through', 'Track progress, review completed work, and keep a shared record of the fix.'],
+] as const;
+
 export const audiences = {
   reporters: {
-    icon: ClipboardList, label: 'For reporters', eyebrow: 'A better space starts with you',
+    icon: ClipboardList,
+    label: 'For reporters',
+    eyebrow: 'For reporters',
     title: 'Notice something? Make a little difference.',
     description: 'Give maintenance issues a clear place to go. Share what needs attention, follow your reports, and help your community keep things working.',
-    action: 'Create your account', to: '/register',
+    action: 'Create your account',
+    to: '/register',
     steps: [
       ['Pinpoint the problem', 'Choose your site and building, describe the issue, and add helpful photos.'],
       ['Stay in the loop', 'Track your reports and join an existing issue instead of reporting it twice.'],
@@ -13,10 +23,13 @@ export const audiences = {
     note: 'Reporter accounts belong to a site. If your site is missing, ask its administrator about getting it set up.',
   },
   'site-admins': {
-    icon: Building2, label: 'For site admins', eyebrow: 'Less chasing. More clarity.',
+    icon: Building2,
+    label: 'For site admins',
+    eyebrow: 'For site admins',
     title: 'Keep your spaces working, together.',
     description: 'Bring reports, buildings, and maintenance coordination into one workspace. Give your team a clearer view of what needs attention next.',
-    action: 'Request a site', to: '/request-site',
+    action: 'Request a site',
+    to: '/request-site',
     steps: [
       ['Bring your site on board', 'Apply for your school, hostel, or hotel. Site administration access is reviewed before approval.'],
       ['Make every location clear', 'Set up labelled buildings and review suggestions for missing places.'],
@@ -25,10 +38,13 @@ export const audiences = {
     note: 'Site administrator access requires approval. Submitting a site request does not create an approved site or administrator account.',
   },
   technicians: {
-    icon: Wrench, label: 'For technicians', eyebrow: 'Your skills. Your choice.',
+    icon: Wrench,
+    label: 'For technicians',
+    eyebrow: 'For technicians',
     title: 'Put your skills to work in better spaces.',
     description: 'Build your trade profile, explore opportunities, and keep your work organised. Choose the sites you work with and track each job from start to finish.',
-    action: 'Join as a technician', to: '/register',
+    action: 'Join as a technician',
+    to: '/register',
     steps: [
       ['Introduce your skills', 'Create your account and add your trades, experience, and qualifications.'],
       ['Find the right work', 'Explore the job marketplace and review site contract opportunities.'],
@@ -37,4 +53,5 @@ export const audiences = {
     note: 'A technician account starts independently. Site work may require verification, an approved contract, and current terms acceptance.',
   },
 } as const;
+
 export type Audience = keyof typeof audiences;

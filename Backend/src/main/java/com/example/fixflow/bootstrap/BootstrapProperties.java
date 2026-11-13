@@ -1,4 +1,4 @@
-package com.example.fixflow.config;
+package com.example.fixflow.bootstrap;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

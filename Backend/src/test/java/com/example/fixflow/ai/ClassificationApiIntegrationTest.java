@@ -28,7 +28,7 @@ class ClassificationApiIntegrationTest {
     @Autowired SiteRepository sites;
     @Autowired UserRepository users;
     @Autowired ReportRepository reports;
-    @MockitoBean AIProvider provider;
+    @MockitoBean OpenRouterAi provider;
     private MockMvc mvc;
     private Site site;
     private User admin;

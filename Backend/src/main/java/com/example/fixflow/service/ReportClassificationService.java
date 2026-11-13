@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
-import com.example.fixflow.ai.AIProvider;
 import com.example.fixflow.ai.AIProviderException;
+import com.example.fixflow.ai.OpenRouterAi;
 import com.example.fixflow.ai.dto.ClassificationRequest;
 import com.example.fixflow.ai.dto.ClassificationResponse;
 import com.example.fixflow.domain.Report;
@@ -33,13 +33,13 @@ public class ReportClassificationService {
     private static final Logger log = LoggerFactory.getLogger(ReportClassificationService.class);
     private static final String GENERAL_CATEGORY = "general";
 
-    private final ObjectProvider<AIProvider> aiProvider;
+    private final ObjectProvider<OpenRouterAi> openRouter;
     private final SiteRuleRepository siteRuleRepository;
 
     public ReportClassificationService(
-            ObjectProvider<AIProvider> aiProvider,
+            ObjectProvider<OpenRouterAi> openRouter,
             SiteRuleRepository siteRuleRepository) {
-        this.aiProvider = aiProvider;
+        this.openRouter = openRouter;
         this.siteRuleRepository = siteRuleRepository;
     }
 
@@ -48,14 +48,14 @@ public class ReportClassificationService {
         List<String> allowedCategories = siteRuleRepository.findBySiteTypeOrderBySortOrderAsc(siteType).stream()
                 .map(SiteRule::getCategory)
                 .toList();
-        AIProvider provider = aiProvider.getIfAvailable();
-        if (provider == null) {
+        OpenRouterAi ai = openRouter.getIfAvailable();
+        if (ai == null) {
             applyFallback(report, siteType, "No AI provider is configured");
             return;
         }
 
         try {
-            ClassificationResponse response = provider.classifyText(ClassificationRequest.builder()
+            ClassificationResponse response = ai.classifyText(ClassificationRequest.builder()
                     .description(report.getDescription())
                     .address(report.getAddress())
                     .siteType(siteType.name())
@@ -67,12 +67,9 @@ public class ReportClassificationService {
         }
     }
 
-    public void applyVision(Report report, com.example.fixflow.ai.dto.VisionClassificationResponse result) {
+    public void applyVision(Report report, ClassificationResponse result) {
         try {
-            applyValidatedClassification(report, report.getSite().getType(),
-                    ClassificationResponse.builder().category(result.getCategory())
-                            .specialty(result.getSpecialty()).urgency(result.getUrgency())
-                            .analysisDescription(result.getAnalysisDescription()).urgencyReason(result.getUrgencyReason()).build());
+            applyValidatedClassification(report, report.getSite().getType(), result);
         } catch (RuntimeException invalid) {
             applyFallback(report, report.getSite().getType(), "Invalid or unavailable vision classification");
         }

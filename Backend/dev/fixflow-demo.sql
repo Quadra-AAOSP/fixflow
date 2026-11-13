@@ -1,9 +1,5 @@
--- FixFlow standalone MySQL demo dump (development only).
--- Contains schema.sql + reference-data.sql + demo-data.sql verbatim.
--- Passwords for @fixflow.test accounts equal the email address.
-
-CREATE DATABASE IF NOT EXISTS `fixflow_demo` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `fixflow_demo`;
+-- FixFlow standalone MySQL dump for local demos / disposable containers.
+-- Contains schema.sql + demo-data.sql verbatim.
 
 -- FixFlow domain schema (MySQL 8+)
 -- Source of truth aligned with fixflow-project-plan-v2.md §2
@@ -754,10 +750,15 @@ SET @stmt = (SELECT IF(@urgency_backfill, 'ALTER TABLE reports ADD COLUMN partic
 PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @stmt = IF(@urgency_backfill, 'UPDATE reports r SET participation_count = (SELECT COUNT(*) FROM report_reporters rr WHERE rr.report_id = r.id)', 'SELECT 1');
 PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;
--- FixFlow reference data: site_rules taxonomy + shop catalog.
--- Repeatable: INSERT IGNORE / unique keys; does not overwrite stock or weights.
 
--- site_rules: SiteType x categories (from SiteRulesSeeder)
+-- FixFlow demo seed (development only; passwords equal emails).
+-- Includes reference taxonomy/shop catalog + demo accounts/data.
+-- Repeatable: INSERT IGNORE / WHERE NOT EXISTS — never overwrites passwords or stock.
+-- Technician terms: version=demo-v1 url=https://example.test/technician-terms/demo-v1
+-- Set TECHNICIAN_TERMS_VERSION / TECHNICIAN_TERMS_DOCUMENT_URL to those values for demos.
+
+
+-- site_rules: SiteType x categories (mirrors DataSeeder)
 INSERT IGNORE INTO site_rules (site_type, category, urgency_weight, sort_order) VALUES ('school', 'plumbing', 40, 1);
 INSERT IGNORE INTO site_rules (site_type, category, urgency_weight, sort_order) VALUES ('school', 'electrical', 50, 2);
 INSERT IGNORE INTO site_rules (site_type, category, urgency_weight, sort_order) VALUES ('school', 'hvac', 35, 3);
@@ -777,7 +778,7 @@ INSERT IGNORE INTO site_rules (site_type, category, urgency_weight, sort_order) 
 INSERT IGNORE INTO site_rules (site_type, category, urgency_weight, sort_order) VALUES ('hotel', 'cleaning', 10, 5);
 INSERT IGNORE INTO site_rules (site_type, category, urgency_weight, sort_order) VALUES ('hotel', 'general', 15, 6);
 
--- shop_products: from ShopCatalogSeeder (fixed ids)
+-- shop_products: mirrors DataSeeder (fixed ids)
 INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES ('cordless-drill-18v', '18V Cordless Drill', 'Compact cordless drill for everyday mounting and light woodwork around shared spaces.', 'Power tools', 'FixFlow Basics', 'https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=800', 8990, 25, TRUE, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000');
 INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES ('multi-bit-set', '40-Piece Bit Set', 'Mixed screwdriver and drill bits for common fixtures, furniture, and fittings.', 'Hand tools', 'FixFlow Basics', 'https://images.pexels.com/photos/30413428/pexels-photo-30413428.jpeg?auto=compress&cs=tinysrgb&w=800', 2490, 40, TRUE, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000');
 INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES ('adjustable-wrench', 'Adjustable Wrench 250mm', 'Steel adjustable wrench for plumbing valves and general fastener work.', 'Hand tools', NULL, NULL, 1890, 30, TRUE, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000');
@@ -786,10 +787,7 @@ INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_
 INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES ('silicone-sealant', 'Neutral Silicone Sealant', 'Bathroom and kitchen sealing for joints, splashbacks, and fittings.', 'Consumables', 'SealPro', NULL, 1290, 45, TRUE, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000');
 INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES ('safety-gloves', 'Cut-Resistant Work Gloves', 'Pair of protective gloves sized for maintenance crews and DIY reporters.', 'Safety', 'GuardHand', NULL, 1590, 50, TRUE, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000');
 INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES ('toolbox-small', 'Compact Toolbox', 'Organiser case for bits, fasteners, and small hand tools on site visits.', 'Storage', 'FixFlow Basics', NULL, 4590, 12, TRUE, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000');
--- FixFlow demo seed data (development only; passwords equal emails).
--- Repeatable: WHERE NOT EXISTS / INSERT IGNORE — never overwrites passwords or stock.
--- Technician terms seeded as version=demo-v1 url=https://example.test/technician-terms/demo-v1
--- Set TECHNICIAN_TERMS_VERSION / TECHNICIAN_TERMS_DOCUMENT_URL to those values for demos.
+
 
 -- Sites (one per SiteType), contracted
 INSERT INTO sites (name, type, contract_status, address, description, created_at, updated_at) SELECT 'Demo School', 'school', 'contracted', 'Demo school campus address', 'Demo School demo site', '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM sites WHERE name = 'Demo School');

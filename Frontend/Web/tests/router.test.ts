@@ -173,8 +173,11 @@ it('exposes building suggestions to reporters and the hiring marketplace to tech
 it('opens public landing pages for guests while preserving signed-in dashboards', async () => {
   const router = createAppRouter(createMemoryHistory());
   await router.push('/'); expect(router.currentRoute.value.name).toBe('landing');
-  for (const path of ['/welcome', '/for/reporters', '/for/site-admins', '/for/technicians']) {
-    await router.push(path); expect(router.currentRoute.value.path).toBe(path);
+  await router.push('/welcome'); expect(router.currentRoute.value.path).toBe('/welcome');
+  for (const [path, hash] of [['/for/reporters', '#reporters'], ['/for/site-admins', '#site-admins'], ['/for/technicians', '#technicians']] as const) {
+    await router.push(path);
+    expect(router.currentRoute.value.path).toBe('/welcome');
+    expect(router.currentRoute.value.hash).toBe(hash);
   }
   await signIn('admin'); await router.push('/'); expect(router.currentRoute.value.name).toBe('home');
 });
@@ -184,13 +187,13 @@ it.each(['/shop', '/agreements/technician/2026-11-03', '/shop/orders/a', '/repor
   expect(router.currentRoute.value.name).toBe('landing');
   expect(router.currentRoute.value.query.redirect).toBe(path === '/technician/invitations' ? '/contracts' : path);
 });
-it.each(['/login', '/register', '/welcome', '/for/reporters', '/for/site-admins', '/for/technicians', '/request-site', '/site-application', '/setup-site-admin', '/access-policy'])('keeps the public entry route %s accessible', async path => {
+it.each(['/login', '/register', '/welcome', '/request-site', '/site-application', '/setup-site-admin', '/access-policy'])('keeps the public entry route %s accessible', async path => {
   const router = createAppRouter(createMemoryHistory()); await router.push(path);
   expect(router.currentRoute.value.path).toBe(path);
 });
 it('protects all workspace content while explicitly allowing public onboarding', () => {
   const router = createAppRouter(createMemoryHistory());
-  const publicNames = new Set(['landing', 'landing-reporters', 'landing-site-admins', 'landing-technicians', 'login', 'register', 'request-site', 'site-application-status', 'site-admin-setup']);
+  const publicNames = new Set(['landing', 'login', 'register', 'request-site', 'site-application-status', 'site-admin-setup']);
   for (const route of router.getRoutes().filter(route => !route.redirect)) {
     if (publicNames.has(String(route.name)) || route.path === '/login' || route.path === '/register' || route.path === '/access-policy') expect(router.resolve(route.path).meta.public).toBe(true);
     else expect(router.resolve(route.path).meta.requiresAuth).toBe(true);

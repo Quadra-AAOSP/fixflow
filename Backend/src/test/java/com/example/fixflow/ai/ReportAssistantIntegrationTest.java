@@ -37,7 +37,7 @@ class ReportAssistantIntegrationTest {
     @Autowired UserRepository users;
     @Autowired ReportRepository reports;
     @Autowired ReportReporterRepository reportReporters;
-    @MockitoBean ChatProvider chatProvider;
+    @MockitoBean OpenRouterAi chatProvider;
     private MockMvc mvc;
     private final ObjectMapper json = new ObjectMapper();
     private Site site;

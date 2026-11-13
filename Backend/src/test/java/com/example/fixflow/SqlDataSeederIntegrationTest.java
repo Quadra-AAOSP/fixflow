@@ -7,7 +7,7 @@ import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import com.example.fixflow.config.SqlDataSeeder;
+import com.example.fixflow.bootstrap.DataSeeder;
 import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.domain.UserRole;
 
@@ -19,7 +19,7 @@ import com.example.fixflow.domain.UserRole;
         "fixflow.seed.demo-enabled=true"
 })
 class SqlDataSeederIntegrationTest {
-    @Autowired SqlDataSeeder seeder;
+    @Autowired DataSeeder seeder;
     @Autowired JdbcTemplate jdbc;
     @Autowired UserRepository users;
     @Autowired PasswordEncoder passwords;
@@ -28,7 +28,7 @@ class SqlDataSeederIntegrationTest {
     void standaloneDumpContainsTheCurrentSqlSources() throws Exception {
         String dump = java.nio.file.Files.readString(java.nio.file.Path.of("dev/fixflow-demo.sql"))
                 .replace("\r\n", "\n");
-        for (String file : new String[] { "schema.sql", "reference-data.sql", "demo-data.sql" }) {
+        for (String file : new String[] { "schema.sql", "demo-data.sql" }) {
             String source = java.nio.file.Files.readString(java.nio.file.Path.of("src/main/resources/db", file))
                     .replace("\r\n", "\n").trim();
             assertThat(dump).contains(source);

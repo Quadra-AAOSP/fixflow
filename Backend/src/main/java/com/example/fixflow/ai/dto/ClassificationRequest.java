@@ -1,14 +1,14 @@
 package com.example.fixflow.ai.dto;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 /**
- * Request DTO for AI classification of maintenance reports.
+ * Classification input for text and vision. Image fields are only set for vision.
  */
 @Data
 @Builder
@@ -16,8 +16,10 @@ import java.util.List;
 @AllArgsConstructor
 public class ClassificationRequest {
 
-    private String description;
-    private String siteType;
-    private List<String> allowedCategories;
-    private String address;
+	private String description;
+	private String siteType;
+	private List<String> allowedCategories;
+	private String address;
+	private byte[] imageData;
+	private String mimeType;
 }

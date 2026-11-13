@@ -13,9 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.multipart.MultipartFile;
-import com.example.fixflow.ai.VisionProvider;
-import com.example.fixflow.ai.dto.VisionClassificationRequest;
-import com.example.fixflow.ai.dto.VisionClassificationResponse;
+import com.example.fixflow.ai.OpenRouterAi;
+import com.example.fixflow.ai.dto.ClassificationRequest;
+import com.example.fixflow.ai.dto.ClassificationResponse;
 import com.example.fixflow.domain.*;
 import com.example.fixflow.repository.*;
 import com.example.fixflow.security.AppUserDetails;
@@ -27,15 +27,15 @@ public class ReportVisionService {
     private final ReportRepository reports;
     private final ReportVisionJobRepository jobs;
     private final SiteRuleRepository rules;
-    private final ObjectProvider<VisionProvider> provider;
+    private final ObjectProvider<OpenRouterAi> openRouter;
     private final ReportClassificationService classification;
     private final TransactionTemplate transactions;
 
     public ReportVisionService(ReportRepository reports, ReportVisionJobRepository jobs,
-            SiteRuleRepository rules, ObjectProvider<VisionProvider> provider,
+            SiteRuleRepository rules, ObjectProvider<OpenRouterAi> openRouter,
             ReportClassificationService classification, PlatformTransactionManager manager) {
         this.reports = reports; this.jobs = jobs; this.rules = rules;
-        this.provider = provider; this.classification = classification;
+        this.openRouter = openRouter; this.classification = classification;
         this.transactions = new TransactionTemplate(manager);
     }
 
@@ -44,7 +44,8 @@ public class ReportVisionService {
         Report report = reports.findForVisionUpdate(reportId).orElseThrow(() -> new ApiException(404, "Report not found"));
         authorize(report, actor);
         if (!consent) throw new ApiException(400, "Explicit consent is required; do not submit faces, personal or confidential information");
-        if (provider.getIfAvailable() == null) throw new ApiException(503, "Vision processing is disabled");
+        OpenRouterAi ai = openRouter.getIfAvailable();
+        if (ai == null || !ai.visionEnabled()) throw new ApiException(503, "Vision processing is disabled");
         if (report.getStatus() != ReportStatus.open) throw new ApiException(409, "Only open reports accept initial vision classification");
         if (jobs.existsByReportIdAndStatusIn(reportId, List.of("queued", "processing"))) {
             throw new ApiException(409, "A vision job is already pending for this report");
@@ -70,8 +71,8 @@ public class ReportVisionService {
 
     /** Called by a separate scheduled thread, never by the report creation request. */
     public void processPending() {
-        VisionProvider vision = provider.getIfAvailable();
-        if (vision == null) return;
+        OpenRouterAi vision = openRouter.getIfAvailable();
+        if (vision == null || !vision.visionEnabled()) return;
         transactions.executeWithoutResult(tx -> jobs.recover(Instant.now().minusSeconds(600)));
         for (var candidate : jobs.findTop10ByStatusOrderByCreatedAtAsc("queued")) {
             var input = transactions.execute(tx -> {
@@ -84,13 +85,13 @@ public class ReportVisionService {
                 if (report == null) {
                     job.setStatus("stale"); job.setImageData(null); return null;
                 }
-                return VisionClassificationRequest.builder().imageData(job.getImageData()).mimeType("image/png")
+                return ClassificationRequest.builder().imageData(job.getImageData()).mimeType("image/png")
                         .description(job.getDescription()).siteType(report.getSite().getType().name())
                         .allowedCategories(rules.findBySiteTypeOrderBySortOrderAsc(report.getSite().getType())
                                 .stream().map(SiteRule::getCategory).toList()).build();
             });
             if (input == null) continue;
-            VisionClassificationResponse result;
+            ClassificationResponse result;
             try { result = vision.classifyImage(input); }
             catch (Exception unavailable) { result = null; }
             var response = result;

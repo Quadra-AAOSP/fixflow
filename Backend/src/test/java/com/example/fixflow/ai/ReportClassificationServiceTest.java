@@ -30,10 +30,10 @@ import org.springframework.beans.factory.ObjectProvider;
 class ReportClassificationServiceTest {
 
     @Mock
-    private ObjectProvider<AIProvider> aiProvider;
+    private ObjectProvider<OpenRouterAi> aiProvider;
 
     @Mock
-    private AIProvider provider;
+    private OpenRouterAi provider;
 
     @Mock
     private SiteRuleRepository siteRuleRepository;

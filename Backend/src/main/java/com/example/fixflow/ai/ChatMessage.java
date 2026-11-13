@@ -1,7 +1,7 @@
 package com.example.fixflow.ai;
 
 /**
- * A single conversation turn for {@link ChatProvider}. The role is one of
+ * A single conversation turn for {@link OpenRouterAi#chat}. The role is one of
  * "system", "user" or "assistant"; the content is the raw message text.
  */
 public record ChatMessage(String role, String content) {

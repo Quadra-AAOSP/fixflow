@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.fixflow.ai.AIProviderException;
 import com.example.fixflow.ai.ChatMessage;
-import com.example.fixflow.ai.ChatProvider;
+import com.example.fixflow.ai.OpenRouterAi;
 import com.example.fixflow.ai.openrouter.ModelJson;
 import com.example.fixflow.domain.SiteRule;
 import com.example.fixflow.domain.Urgency;
@@ -33,15 +33,15 @@ public class ReportTriageService {
     private final SiteRepository sites;
     private final SiteRuleRepository rules;
     private final ReportAssistantService assistant;
-    private final ObjectProvider<ChatProvider> providers;
+    private final ObjectProvider<OpenRouterAi> openRouter;
     private final ObjectMapper json;
 
     public ReportTriageService(SiteRepository sites, SiteRuleRepository rules,
-            ReportAssistantService assistant, ObjectProvider<ChatProvider> providers, ObjectMapper json) {
+            ReportAssistantService assistant, ObjectProvider<OpenRouterAi> openRouter, ObjectMapper json) {
         this.sites = sites;
         this.rules = rules;
         this.assistant = assistant;
-        this.providers = providers;
+        this.openRouter = openRouter;
         this.json = json;
     }
 
@@ -67,8 +67,8 @@ public class ReportTriageService {
         }
         List<String> categories = rules.findBySiteTypeOrderBySortOrderAsc(site.getType()).stream()
                 .map(SiteRule::getCategory).toList();
-        ChatProvider provider = providers.getIfAvailable();
-        if (provider == null) {
+        OpenRouterAi ai = openRouter.getIfAvailable();
+        if (ai == null) {
             return fallback();
         }
         List<ChatMessage> outbound = new ArrayList<>();
@@ -85,7 +85,7 @@ public class ReportTriageService {
             outbound.add("user".equals(turn.role()) ? ChatMessage.user(turn.content()) : ChatMessage.assistant(turn.content()));
         }
         try {
-            String response = ModelJson.unwrap(provider.chat(outbound));
+            String response = ModelJson.unwrap(ai.chat(outbound));
             if (response == null || response.isBlank()) {
                 return fallback();
             }

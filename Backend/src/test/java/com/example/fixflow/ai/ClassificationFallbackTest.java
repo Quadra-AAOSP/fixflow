@@ -25,8 +25,8 @@ class ClassificationFallbackTest {
     }
     @SuppressWarnings("unchecked")
     private void check(String failure, boolean general) throws Exception {
-        ObjectProvider<AIProvider> providers = mock(ObjectProvider.class);
-        AIProvider provider = mock(AIProvider.class);
+        ObjectProvider<OpenRouterAi> providers = mock(ObjectProvider.class);
+        OpenRouterAi provider = mock(OpenRouterAi.class);
         SiteRuleRepository rules = mock(SiteRuleRepository.class);
         when(rules.findBySiteTypeOrderBySortOrderAsc(SiteType.school)).thenReturn(List.of());
         when(rules.existsBySiteTypeAndCategory(SiteType.school, "general")).thenReturn(general);

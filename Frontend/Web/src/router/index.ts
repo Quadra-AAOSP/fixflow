@@ -5,7 +5,10 @@ import { accountHome } from '@/utils/navigation';
 
 const routes: RouteRecordRaw[] = [
   { path: '/welcome', name: 'landing', meta: { public: true }, component: () => import('@/views/public/LandingView.vue') },
-  ...(['reporters', 'site-admins', 'technicians'] as const).map(audience => ({ path: `/for/${audience}`, name: `landing-${audience}`, meta: { public: true }, props: { audience }, component: () => import('@/views/public/LandingView.vue') })),
+  ...(['reporters', 'site-admins', 'technicians'] as const).map(audience => ({
+    path: `/for/${audience}`,
+    redirect: { path: '/welcome', hash: `#${audience}` },
+  })),
   { path: '/agreements/technician/draft-2026-11-03', redirect: '/agreements/technician/2026-11-03' },
   { path: '/agreements/technician/2026-11-03', name: 'technician-agreement', component: () => import('@/views/auth/TechnicianAgreementView.vue') },
   { path: '/request-site', name: 'request-site', meta: { public: true }, component: () => import('@/views/auth/SiteApplicationView.vue') },

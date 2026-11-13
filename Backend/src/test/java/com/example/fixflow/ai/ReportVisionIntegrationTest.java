@@ -21,7 +21,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import com.example.fixflow.ai.dto.VisionClassificationResponse;
+import com.example.fixflow.ai.dto.ClassificationResponse;
 import com.example.fixflow.domain.*;
 import com.example.fixflow.repository.*;
 import com.example.fixflow.security.AppUserDetails;
@@ -38,12 +38,13 @@ class ReportVisionIntegrationTest {
     @Autowired UserRepository users;
     @Autowired ReportRepository reports;
     @Autowired ReportVisionJobRepository jobs;
-    @MockitoBean VisionProvider provider;
+    @MockitoBean OpenRouterAi provider;
     private MockMvc mvc;
     private User actor;
     private Report report;
 
     @BeforeEach void setup() {
+        when(provider.visionEnabled()).thenReturn(true);
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
         Site site = new Site(); site.setName("Vision campus"); site.setType(SiteType.school);
         site.setContractStatus(ContractStatus.contracted); site = sites.save(site);
@@ -77,12 +78,12 @@ class ReportVisionIntegrationTest {
         when(provider.classifyImage(any())).thenAnswer(call -> {
             started.countDown();
             if (!finish.await(15, TimeUnit.SECONDS)) throw new IllegalStateException();
-            return VisionClassificationResponse.builder().category("electrical").specialty("lighting")
+            return ClassificationResponse.builder().category("electrical").specialty("lighting")
                     .urgency("high").analysisDescription("Damaged lighting visible")
                     .urgencyReason("Exposed wiring may cause harm").model("test-vision").build();
         });
         String id = enqueue();
-        verifyNoInteractions(provider);
+        verify(provider, never()).classifyImage(any());
         try (var executor = java.util.concurrent.Executors.newSingleThreadExecutor()) {
             var worker = executor.submit(service::processPending);
             try {
@@ -128,7 +129,7 @@ class ReportVisionIntegrationTest {
     }
 
     @Test void invalidResultFallsBackAndChangedReportIsNotOverwritten() throws Exception {
-        when(provider.classifyImage(any())).thenReturn(VisionClassificationResponse.builder()
+        when(provider.classifyImage(any())).thenReturn(ClassificationResponse.builder()
                 .category("invented").urgency("extreme").build());
         String first = enqueue(); service.processPending();
         assertThat(jobs.findById(first).orElseThrow().getStatus()).isEqualTo("review_required");
@@ -159,6 +160,6 @@ class ReportVisionIntegrationTest {
                 .andExpect(status().isForbidden());
         mvc.perform(multipart(endpoint()).file(image()).param("consent", "true")
                 .with(user(new AppUserDetails(actor)))).andExpect(status().isConflict());
-        verifyNoInteractions(provider);
+        verify(provider, never()).classifyImage(any());
     }
 }

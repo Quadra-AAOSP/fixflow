@@ -19,7 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class OpenRouterProviderTest {
+class OpenRouterAiTextTest {
 
     private final AtomicReference<String> requestBody = new AtomicReference<>();
     private HttpServer server;
@@ -57,7 +57,7 @@ class OpenRouterProviderTest {
 
     @Test
     void classifiesUsingConfiguredOpenRouterSettings() throws Exception {
-        OpenRouterProvider provider = provider("test-api-key");
+        OpenRouterAi provider = provider("test-api-key");
         ClassificationRequest request = ClassificationRequest.builder()
                 .description("Water is leaking from the sink")
                 .siteType("hostel")
@@ -94,7 +94,7 @@ class OpenRouterProviderTest {
 
     @Test
     void rejectsClassificationWhenApiKeyIsMissing() {
-        OpenRouterProvider provider = provider("");
+        OpenRouterAi provider = provider("");
         ClassificationRequest request = ClassificationRequest.builder()
                 .description("Broken light")
                 .siteType("school")
@@ -108,8 +108,8 @@ class OpenRouterProviderTest {
         assertEquals(AIProviderException.AIErrorType.AUTHENTICATION_ERROR, exception.getErrorType());
     }
 
-    private OpenRouterProvider provider(String apiKey) {
-        return new OpenRouterProvider(
+    private OpenRouterAi provider(String apiKey) {
+        return OpenRouterAi.textOnly(
                 new ObjectMapper(),
                 apiKey,
                 "test-model",
@@ -148,7 +148,7 @@ class OpenRouterProviderTest {
 
     @Test void timeoutHasAnExplicitErrorType() {
         responseDelay = 1500;
-        var provider = new OpenRouterProvider(new ObjectMapper(), "test-key", "test-model",
+        var provider = OpenRouterAi.textOnly(new ObjectMapper(), "test-key", "test-model",
                 "http://127.0.0.1:" + server.getAddress().getPort() + "/chat/completions",
                 1, 0, 0, 0, 100);
         assertFailure(provider, AIProviderException.AIErrorType.TIMEOUT);
@@ -164,7 +164,7 @@ class OpenRouterProviderTest {
         assertFailure(provider("test-key"), AIProviderException.AIErrorType.INVALID_RESPONSE);
     }
 
-    private void assertFailure(OpenRouterProvider provider, AIProviderException.AIErrorType expected) {
+    private void assertFailure(OpenRouterAi provider, AIProviderException.AIErrorType expected) {
         var error = assertThrows(AIProviderException.class, () -> provider.classifyText(
                 ClassificationRequest.builder().description("Leaking pipe").siteType("school")
                         .allowedCategories(List.of("plumbing", "general")).build()));

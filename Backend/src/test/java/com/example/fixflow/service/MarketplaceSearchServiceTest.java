@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
-import com.example.fixflow.ai.ChatProvider;
+import com.example.fixflow.ai.OpenRouterAi;
 import com.example.fixflow.domain.*;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.web.ApiException;
@@ -17,8 +17,8 @@ class MarketplaceSearchServiceTest {
     @Test void uncontractedTechnicianGetsOnlyEligibleResultsWithValidatedFiltersAndFallback() throws Exception {
         var market = mock(MarketplaceService.class);
         var assistant = mock(ReportAssistantService.class);
-        @SuppressWarnings("unchecked") ObjectProvider<ChatProvider> providers = mock(ObjectProvider.class);
-        var provider = mock(ChatProvider.class);
+        @SuppressWarnings("unchecked") ObjectProvider<OpenRouterAi> providers = mock(ObjectProvider.class);
+        var provider = mock(OpenRouterAi.class);
         var user = new User(); user.setId(7L); user.setRole(UserRole.technician);
         var actor = new AppUserDetails(user); // no site or contract
         var job = new MarketplaceService.ListingView(1L, "Fix pipe", "North", "Today", "plumbing", "pipe", Urgency.high, MarketplaceListing.Status.open, Instant.now(), null, null, false);

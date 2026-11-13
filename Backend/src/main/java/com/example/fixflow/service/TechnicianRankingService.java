@@ -22,7 +22,7 @@ public class TechnicianRankingService {
     private final TechnicianSkillRepository skills;
     private final TechnicianAvailabilityRepository availability;
     private final TechnicianTermsService terms;
-    private final org.springframework.beans.factory.ObjectProvider<com.example.fixflow.ai.TechnicianRankingProvider> provider;
+    private final org.springframework.beans.factory.ObjectProvider<com.example.fixflow.ai.OpenRouterAi> openRouter;
     private final TechnicianRankingAuditRepository audits;
     private final org.springframework.transaction.support.TransactionTemplate transactions;
     private record Snapshot(String category, String specialty, List<Candidate> candidates) { }
@@ -30,11 +30,11 @@ public class TechnicianRankingService {
     public TechnicianRankingService(ReportRepository reports, TechnicianContractRepository contracts,
             TechnicianSkillRepository skills, TechnicianAvailabilityRepository availability,
             TechnicianTermsService terms,
-            org.springframework.beans.factory.ObjectProvider<com.example.fixflow.ai.TechnicianRankingProvider> provider,
+            org.springframework.beans.factory.ObjectProvider<com.example.fixflow.ai.OpenRouterAi> openRouter,
             TechnicianRankingAuditRepository audits, org.springframework.transaction.PlatformTransactionManager manager) {
         this.reports = reports; this.contracts = contracts; this.skills = skills;
         this.availability = availability; this.terms = terms;
-        this.provider = provider; this.audits = audits;
+        this.openRouter = openRouter; this.audits = audits;
         this.transactions = new org.springframework.transaction.support.TransactionTemplate(manager);
     }
 
@@ -44,16 +44,16 @@ public class TechnicianRankingService {
         Mode method = Mode.STANDARD;
         String fallback = null;
         if (mode == Mode.AI) {
-            var ai = provider.getIfAvailable();
-            if (ai == null) fallback = "AI ranking is not configured; deterministic ranking used";
+            var ai = openRouter.getIfAvailable();
+            if (ai == null || !ai.rankingEnabled()) fallback = "AI ranking is not configured; deterministic ranking used";
             else if (result.size() < 2 || result.size() > 50) fallback = "AI ranking requires 2-50 eligible candidates";
             else {
                 List<Integer> order = null;
                 try {
-                    List<com.example.fixflow.ai.TechnicianRankingProvider.Candidate> inputs = new java.util.ArrayList<>();
+                    List<com.example.fixflow.ai.OpenRouterAi.RankCandidate> inputs = new java.util.ArrayList<>();
                     for (int i = 0; i < result.size(); i++) {
                         Candidate c = result.get(i);
-                        inputs.add(new com.example.fixflow.ai.TechnicianRankingProvider.Candidate(
+                        inputs.add(new com.example.fixflow.ai.OpenRouterAi.RankCandidate(
                                 i, c.proficiency(), c.specialtyMatch(), c.activeCases()));
                     }
                     // Normal API calls have no database transaction held during this network operation.

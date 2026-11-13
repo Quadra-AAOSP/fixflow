@@ -6,7 +6,7 @@ import static org.mockito.Mockito.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import com.example.fixflow.ai.TechnicianRankingProvider;
+import com.example.fixflow.ai.OpenRouterAi;
 import com.example.fixflow.ai.AIProviderException;
 import com.example.fixflow.service.TechnicianRankingService;
 import com.example.fixflow.repository.TechnicianRankingAuditRepository;
@@ -15,7 +15,7 @@ import com.example.fixflow.domain.AvailabilityStatus;
 import java.util.List;
 
 class AiTechnicianRankingIntegrationTest extends TechnicianRankingIntegrationTest {
-    @MockitoBean TechnicianRankingProvider provider;
+    @MockitoBean OpenRouterAi provider;
     @Autowired TechnicianRankingService rankingService;
     @Autowired TechnicianRankingAuditRepository audits;
 
@@ -26,9 +26,10 @@ class AiTechnicianRankingIntegrationTest extends TechnicianRankingIntegrationTes
 
     @Test void realAiOrderUsesTemporarySlotsAndIsAudited() throws Exception {
         secondCandidate();
+        when(provider.rankingEnabled()).thenReturn(true);
         when(provider.rank(anyString(), nullable(String.class), anyList())).thenAnswer(call -> {
-            List<TechnicianRankingProvider.Candidate> candidates = call.getArgument(2);
-            assertThat(candidates).extracting(TechnicianRankingProvider.Candidate::slot).containsExactly(0, 1);
+            List<OpenRouterAi.RankCandidate> candidates = call.getArgument(2);
+            assertThat(candidates).extracting(OpenRouterAi.RankCandidate::slot).containsExactly(0, 1);
             return List.of(1, 0);
         });
         var result = rank();
@@ -43,6 +44,7 @@ class AiTechnicianRankingIntegrationTest extends TechnicianRankingIntegrationTes
 
     @Test void manipulatedCandidatesAndProviderErrorsFallBack() throws Exception {
         secondCandidate();
+        when(provider.rankingEnabled()).thenReturn(true);
         for (var order : List.of(List.of(0, 0), List.of(0, 999), List.of(0))) {
             when(provider.rank(anyString(), nullable(String.class), anyList())).thenReturn(order);
             assertThat(rank().methodUsed()).isEqualTo(TechnicianRankingService.Mode.STANDARD);
@@ -54,6 +56,7 @@ class AiTechnicianRankingIntegrationTest extends TechnicianRankingIntegrationTes
 
     @Test void changedAvailabilityIsRevalidatedAfterProviderResponse() throws Exception {
         secondCandidate();
+        when(provider.rankingEnabled()).thenReturn(true);
         when(provider.rank(anyString(), nullable(String.class), anyList())).thenAnswer(call -> {
             var row = availability.findById(outsider.getId()).orElseThrow();
             row.setStatus(AvailabilityStatus.unavailable); availability.saveAndFlush(row);

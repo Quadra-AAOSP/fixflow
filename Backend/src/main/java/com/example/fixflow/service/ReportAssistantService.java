@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.fixflow.ai.AIProviderException;
 import com.example.fixflow.ai.ChatMessage;
-import com.example.fixflow.ai.ChatProvider;
+import com.example.fixflow.ai.OpenRouterAi;
 import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportVisibility;
 import com.example.fixflow.domain.StatusHistory;
@@ -55,18 +55,18 @@ public class ReportAssistantService {
     private final ReportRepository reports;
     private final ReportReporterRepository reportReporters;
     private final StatusHistoryRepository statusHistory;
-    private final ObjectProvider<ChatProvider> chatProvider;
+    private final ObjectProvider<OpenRouterAi> openRouter;
     private final Map<Long, Deque<Instant>> requestHits = new ConcurrentHashMap<>();
 
     public ReportAssistantService(
             ReportRepository reports,
             ReportReporterRepository reportReporters,
             StatusHistoryRepository statusHistory,
-            ObjectProvider<ChatProvider> chatProvider) {
+            ObjectProvider<OpenRouterAi> openRouter) {
         this.reports = reports;
         this.reportReporters = reportReporters;
         this.statusHistory = statusHistory;
-        this.chatProvider = chatProvider;
+        this.openRouter = openRouter;
     }
 
     public AssistantReply ask(Long reportId, List<Turn> messages, AppUserDetails actor) {
@@ -78,8 +78,8 @@ public class ReportAssistantService {
         boolean canSeeSensitive = canSeeSensitive(actor, report);
         assertCanChat(actor, report, canSeeSensitive);
 
-        ChatProvider provider = chatProvider.getIfAvailable();
-        if (provider == null) {
+        OpenRouterAi ai = openRouter.getIfAvailable();
+        if (ai == null) {
             throw new ApiException(503, "Assistant is not configured");
         }
 
@@ -96,7 +96,7 @@ public class ReportAssistantService {
                     : ChatMessage.assistant(turn.content()));
         }
         try {
-            return new AssistantReply(provider.chat(outbound), false);
+            return new AssistantReply(ai.chat(outbound), false);
         } catch (AIProviderException | RuntimeException unavailable) {
             return new AssistantReply(null, true);
         }
