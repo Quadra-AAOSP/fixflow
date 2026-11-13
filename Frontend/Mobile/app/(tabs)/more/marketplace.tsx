@@ -13,7 +13,7 @@ import {
   type ListingDraft, type MarketplaceApplication, type MarketplaceListing,
 } from '@/services/marketplace';
 import { ownVerification } from '@/services/onboarding';
-import { listReports } from '@/services/reports';
+import { getReport, listReportsPage } from '@/services/reports';
 import { getTechnicianTerms } from '@/services/technician';
 import type { Report } from '@/types';
 import { isClaimable } from '@/utils/maintenance';
@@ -65,7 +65,7 @@ export default function MarketplaceScreen() {
   // Keep the selection in sync when the screen is already mounted (tab kept
   // alive) and a report detail pushes a new `reportId`.
   useEffect(() => {
-    if (paramSource !== undefined) setSource(current => current ?? paramSource);
+    if (paramSource !== undefined) setSource(paramSource);
   }, [paramSource]);
 
   const run = useCallback(async (operation: () => Promise<void>) => {
@@ -81,6 +81,20 @@ export default function MarketplaceScreen() {
     }
   }, [t]);
 
+  const loadPublishableReports = useCallback(async (): Promise<Report[]> => {
+    if (user?.siteId == null) return [];
+    const page = await listReportsPage({ siteId: user.siteId, size: 100 });
+    const reports = (page.content ?? []).filter(isClaimable);
+    if (paramSource === undefined) return reports;
+    if (reports.some(report => report.id === paramSource)) return reports;
+    try {
+      const linked = await getReport(paramSource);
+      return isClaimable(linked) ? [linked, ...reports] : reports;
+    } catch {
+      return reports;
+    }
+  }, [paramSource, user?.siteId]);
+
   useFocusEffect(useCallback(() => {
     if (!isAdmin && !isTechnician) return;
     let active = true;
@@ -88,8 +102,8 @@ export default function MarketplaceScreen() {
       const listings = await listJobs();
       if (active) setJobs(listings);
       if (isAdmin) {
-        const siteReports = user?.siteId != null ? await listReports({ siteId: user.siteId }) : [];
-        if (active) setPublishableReports(siteReports.filter(isClaimable));
+        const siteReports = await loadPublishableReports();
+        if (active) setPublishableReports(siteReports);
       }
       if (isTechnician) {
         const [record, terms] = await Promise.all([ownVerification(), getTechnicianTerms()]);
@@ -100,13 +114,12 @@ export default function MarketplaceScreen() {
       }
     });
     return () => { active = false; };
-  }, [isAdmin, isTechnician, run]));
+  }, [isAdmin, isTechnician, loadPublishableReports, run, user?.siteId]));
 
   async function refresh() {
     setJobs(await listJobs());
     if (isAdmin && user?.siteId != null) {
-      const siteReports = await listReports({ siteId: user.siteId });
-      setPublishableReports(siteReports.filter(isClaimable));
+      setPublishableReports(await loadPublishableReports());
     }
     if (reviewJob !== undefined) setApplications(await listJobApplications(reviewJob));
     if (isTechnician) {

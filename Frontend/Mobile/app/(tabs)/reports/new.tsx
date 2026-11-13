@@ -86,11 +86,12 @@ function extFromUri(uri: string): string {
 }
 
 function mimeForUri(uri: string, fallback?: string): string {
-  if (fallback) return fallback;
+  const candidate = (fallback ?? '').toLowerCase();
+  if (candidate === 'image/png' || candidate === 'image/jpeg' || candidate === 'image/jpg') {
+    return candidate === 'image/jpg' ? 'image/jpeg' : candidate;
+  }
   const ext = extFromUri(uri);
   if (ext === 'png') return 'image/png';
-  if (ext === 'heic' || ext === 'heif') return 'image/heic';
-  if (ext === 'webp') return 'image/webp';
   return 'image/jpeg';
 }
 
@@ -265,8 +266,8 @@ export default function NewReportScreen() {
 
     const opts: ImagePicker.ImagePickerOptions = {
       mediaTypes: ['images'],
-      allowsMultipleSelection: source === 'gallery',
-      selectionLimit: MAX_PHOTO_COUNT - photos.length,
+      allowsMultipleSelection: false,
+      selectionLimit: 1,
       quality: 0.7,
     };
 

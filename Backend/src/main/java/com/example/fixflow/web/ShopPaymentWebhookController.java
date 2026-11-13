@@ -1,11 +1,8 @@
 package com.example.fixflow.web;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,15 +18,6 @@ public class ShopPaymentWebhookController {
 
 	public ShopPaymentWebhookController(ShopPaymentService shopPaymentService) {
 		this.shopPaymentService = shopPaymentService;
-	}
-
-	@PostMapping("/webhook")
-	public ResponseEntity<Void> stripeWebhook(
-			@RequestBody String payload,
-			@RequestHeader(value = "Stripe-Signature", required = false) String signature
-	) {
-		shopPaymentService.handleStripeWebhook(payload, signature);
-		return ResponseEntity.ok().build();
 	}
 
 	@PostMapping("/dev/complete/{publicId}")

@@ -40,6 +40,7 @@ import com.example.fixflow.repository.ReportNotificationRepository;
 import com.example.fixflow.repository.ReportPhotoRepository;
 import com.example.fixflow.repository.ReportReporterRepository;
 import com.example.fixflow.repository.ReportRepository;
+import com.example.fixflow.repository.ReportVisionJobRepository;
 import com.example.fixflow.repository.SiteRepository;
 import com.example.fixflow.repository.StatusHistoryRepository;
 import com.example.fixflow.repository.SubsiteRepository;
@@ -67,6 +68,8 @@ public class ReportService {
 	private final ObjectStorageService objectStorageService;
 	private final ReportPhotoValidator photoValidator;
 	private final ReportPhotoService reportPhotoService;
+	private final ReportVisionService reportVisionService;
+	private final ReportVisionJobRepository reportVisionJobRepository;
 	private final boolean requireSiteSetup;
 	@org.springframework.beans.factory.annotation.Autowired
 	private SiteVettingService vetting;
@@ -93,6 +96,8 @@ public class ReportService {
 			ObjectStorageService objectStorageService,
 			ReportPhotoValidator photoValidator,
 			ReportPhotoService reportPhotoService,
+			ReportVisionService reportVisionService,
+			ReportVisionJobRepository reportVisionJobRepository,
 			@org.springframework.beans.factory.annotation.Value("${fixflow.reporting.require-site-setup:true}") boolean requireSiteSetup
 	) {
 		this.reportRepository = reportRepository;
@@ -112,6 +117,8 @@ public class ReportService {
 		this.objectStorageService = objectStorageService;
 		this.photoValidator = photoValidator;
 		this.reportPhotoService = reportPhotoService;
+		this.reportVisionService = reportVisionService;
+		this.reportVisionJobRepository = reportVisionJobRepository;
 		this.requireSiteSetup = requireSiteSetup;
 	}
 
@@ -193,6 +200,7 @@ public class ReportService {
 		report = reportRepository.saveAndFlush(report);
 
 		storePhotos(report, photos, 0);
+		enqueueVisionForFirstPhoto(report.getId(), photos, actor);
 
 		return response(reportRepository.findDetailedById(report.getId()).orElse(report), actor);
 	}
@@ -595,6 +603,7 @@ public class ReportService {
 		long existing = reportPhotoRepository.countByReport_Id(reportId);
 		photoValidator.validateBatch(photos, (int) existing);
 		List<ReportPhoto> stored = storePhotos(report, photos, (int) existing);
+		enqueueVisionForFirstPhoto(reportId, photos, actor);
 		return stored.stream()
 				.map(photo -> ReportPhotoResponse.from(photo, reportId,
 						ReportPhotoService.contentPath(reportId, photo.getId())))
@@ -695,6 +704,16 @@ public class ReportService {
 		Long assignee = report.getAssignedTechnician() == null ? null : report.getAssignedTechnician().getId();
 		events.publishEvent(com.example.fixflow.realtime.ReportDomainEvent.of(eventType,
 				report.getSite().getId(), report.getId(), from, report.getStatus(), assignee, assignee));
+	}
+
+	private void enqueueVisionForFirstPhoto(Long reportId, List<MultipartFile> photos, AppUserDetails actor) {
+		if (photos == null || photos.isEmpty()) {
+			return;
+		}
+		photos.stream()
+				.filter(file -> file != null && !file.isEmpty())
+				.findFirst()
+				.ifPresent(file -> reportVisionService.enqueueAttachedPhoto(reportId, file, actor));
 	}
 
 	private List<ReportPhoto> storePhotos(Report report, List<MultipartFile> photos, int startingSortOrder) {
@@ -921,11 +940,18 @@ public class ReportService {
 				? actor.getRole() == UserRole.technician ? reportPhotoService.listWithSessionUrls(report.getId())
                         : reportPhotoService.listWithPresignedUrls(report.getId())
 				: List.of();
+		ReportResponse.VisionJob visionJob = canSee
+				? reportVisionJobRepository.findFirstByReportIdOrderByCreatedAtDesc(report.getId())
+						.map(job -> new ReportResponse.VisionJob(
+								job.getId(), job.getReportId(), job.getStatus(), job.getModel()))
+						.orElse(null)
+				: null;
 		return ReportResponse.from(report, com.example.fixflow.dto.ReportPolicy.from(
 				report, canSee, participant, canAssign,
 				actor.getRole() == UserRole.reporter && !participant, ownQueue,
 				canEdit, canEdit && report.getStatus() != ReportStatus.in_progress), photos,
-                actor.getRole() == UserRole.admin || actor.getRole() == UserRole.super_admin || actor.getRole() == UserRole.staff);
+                actor.getRole() == UserRole.admin || actor.getRole() == UserRole.super_admin || actor.getRole() == UserRole.staff,
+				visionJob);
 	}
 
 	private User loadUser(Long id) {

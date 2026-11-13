@@ -1,11 +1,24 @@
 #requires -Version 7.0
 [CmdletBinding()]
-param([switch]$MySqlOnly, [switch]$ConfigurationOnly)
+param(
+    [switch]$MySqlOnly,
+    [switch]$ConfigurationOnly,
+    [string]$EnvFile = (Join-Path $PSScriptRoot 'compose.env.example')
+)
 
 $ErrorActionPreference = 'Stop'
 $project = 'fixflow-docker-check-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
-$backendRoot = Split-Path $PSScriptRoot -Parent
-$composeArgs = @('--project-name', $project, '--env-file', "$PSScriptRoot/compose.env.example", '-f', "$backendRoot/compose.yaml")
+$dockerRoot = $PSScriptRoot
+if (-not (Test-Path -LiteralPath $EnvFile)) {
+    throw "Env file not found: $EnvFile"
+}
+$resolvedEnv = (Resolve-Path -LiteralPath $EnvFile).Path
+$composeArgs = @(
+    '--project-directory', $dockerRoot,
+    '--project-name', $project,
+    '--env-file', $resolvedEnv,
+    '-f', "$dockerRoot/compose.yaml"
+)
 $started = $false
 function Free-Port {
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
@@ -32,7 +45,7 @@ $temporary = @{
     BACKEND_BIND_ADDRESS='127.0.0.1'; MINIO_BIND_ADDRESS='127.0.0.1'; SESSION_COOKIE_SECURE='false'
     SEED_DEMO_DATA='false'; OPENROUTER_API_KEY=''; OPENROUTER_VISION_ENABLED='false'; OPENROUTER_RANKING_ENABLED='false'
     CORS_ALLOWED_ORIGIN_PATTERNS='http://localhost:5173'; WEBSOCKET_ALLOWED_ORIGINS='http://localhost:5173'
-    MINIO_IMAGE='fixflow-minio:7aac2a2'; BACKEND_IMAGE='fixflow-backend:local'
+    MINIO_IMAGE='minio/minio:RELEASE.2025-09-07T16-13-09Z'; BACKEND_IMAGE='fixflow-backend:local'
     PRODUCTION_CORS_ORIGINS='https://frontend.example.test'
     PRODUCTION_WEBSOCKET_ORIGINS='https://frontend.example.test'
     PRODUCTION_MINIO_PUBLIC_ENDPOINT='https://photos.example.test'
@@ -48,14 +61,18 @@ try {
     if ($local.services.backend.environment.DB_HOST -ne 'mysql' -or
             $local.services.backend.environment.SEED_DEMO_DATA -ne 'false' -or
             $local.services.PSObject.Properties.Name -contains 'rabbitmq') { throw 'Local Compose contract mismatch.' }
+    if ($local.services.minio.build -or
+            [string]$local.services.minio.image -notmatch 'minio') {
+        throw "Local MinIO must use a published image (got build=$($local.services.minio.build) image=$($local.services.minio.image))"
+    }
     $env:MINIO_ROOT_USER='isolated-test-admin'
     $env:MINIO_ROOT_PASSWORD=[Guid]::NewGuid().ToString('N')
-    $production = Compose @('-f', "$backendRoot/compose.production.yaml", 'config', '--format', 'json') | ConvertFrom-Json
+    $production = Compose @('-f', "$dockerRoot/compose.production.yaml", 'config', '--format', 'json') | ConvertFrom-Json
     if ($production.services.mysql.ports -or $production.services.minio.ports -or
             $production.services.minio.build -or
             $production.services.backend.environment.SESSION_COOKIE_SECURE -ne 'true') { throw 'Production override contract mismatch.' }
     foreach ($key in $temporary.Keys) { [Environment]::SetEnvironmentVariable($key, $temporary[$key], 'Process') }
-    Write-Host 'Local and production Compose contracts passed (no deployment performed).'
+    Write-Host "Local and production Compose contracts passed (env file: $resolvedEnv)."
     if ($ConfigurationOnly) { return }
     $started = $true
     if ($MySqlOnly) {

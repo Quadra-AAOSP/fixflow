@@ -58,5 +58,3 @@ fixflow:
     flat-shipping-minor: 500
     checkout-success-url: http://localhost:5173/shop
     checkout-cancel-url: http://localhost:5173/shop
-    stripe-secret-key:
-    stripe-webhook-secret:

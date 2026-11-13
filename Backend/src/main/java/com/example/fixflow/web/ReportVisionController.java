@@ -17,6 +17,12 @@ public class ReportVisionController {
             @AuthenticationPrincipal AppUserDetails actor) {
         return ResponseEntity.accepted().body(service.enqueue(reportId, image, consent, actor));
     }
+    @GetMapping
+    public ReportVisionService.Status latest(@PathVariable Long reportId,
+            @AuthenticationPrincipal AppUserDetails actor) {
+        return service.latest(reportId, actor);
+    }
+
     @GetMapping("/{jobId}")
     public ReportVisionService.Status status(@PathVariable Long reportId, @PathVariable String jobId,
             @AuthenticationPrincipal AppUserDetails actor) { return service.get(reportId, jobId, actor); }

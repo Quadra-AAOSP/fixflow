@@ -88,7 +88,7 @@ async function refreshUrl(item: ReportPhoto) {
 <template>
   <section v-if="allowed" class="detail-section">
     <div class="card-heading"><h2>{{ t("Report photos") }}</h2><button class="text-action" type="button" :disabled="loading || busy" @click="load">{{ t("Refresh photos") }}</button></div>
-    <p class="dialog-intro">{{ t('Up to {limit} photos, 5 MiB each. Photos are shared with people authorized to access this report.', { limit: REPORT_PHOTO_LIMIT }) }}</p>
+    <p class="dialog-intro">{{ t('One JPEG or PNG photo, up to 5 MiB. The photo is shared with people authorized to access this report and sent to AI analysis when available.') }}</p>
     <p v-if="error" class="live-error" role="alert">{{ t(error) }}</p><p v-if="success" class="draft-notice" role="status">{{ t(success) }}</p>
     <LoadingStatus v-if="loading" :label="t('Loading photos…')" />
     <p v-else-if="!error && !photos.length">{{ t("No photos attached.") }}</p>

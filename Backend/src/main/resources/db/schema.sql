@@ -260,7 +260,7 @@ CREATE TABLE IF NOT EXISTS reports (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
--- report_photos — max 5 images per report (≤5MB each); MinIO object keys
+-- report_photos — max 1 image per report (≤5MB); MinIO object keys; also sent to AI vision
 -- ---------------------------------------------------------------------------
 -- Preserve existing installations: CREATE TABLE IF NOT EXISTS alone does not
 -- add columns. Prepared SQL keeps this additive migration restart-safe on MySQL 8.
@@ -543,7 +543,7 @@ CREATE TABLE IF NOT EXISTS shop_order_items (
 CREATE TABLE IF NOT EXISTS shop_payments (
     id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     order_id      BIGINT UNSIGNED NOT NULL,
-    provider      ENUM('stripe', 'dev') NOT NULL,
+    provider      ENUM('dev') NOT NULL,
     provider_ref  VARCHAR(255)    NULL,
     status        ENUM(
                       'requires_action',

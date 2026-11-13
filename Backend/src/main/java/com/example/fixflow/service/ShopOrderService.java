@@ -52,7 +52,7 @@ public class ShopOrderService {
 		this.shopCatalogService = shopCatalogService;
 		this.shopOrderRepository = shopOrderRepository;
 		this.shopProductRepository = shopProductRepository;
-		this.paymentProvider = selectProvider(paymentProviders, shopProperties);
+		this.paymentProvider = selectProvider(paymentProviders);
 		this.entityManager = entityManager;
 		this.notices = notices;
 		this.users = users;
@@ -227,12 +227,11 @@ public class ShopOrderService {
 		return new ShopCreateOrderResponse(order.getPublicId(), order.getTotalMinor(), checkoutUrl, provider);
 	}
 
-	private static PaymentProvider selectProvider(List<PaymentProvider> providers, ShopProperties properties) {
-		ShopPaymentProvider wanted = properties.stripeEnabled() ? ShopPaymentProvider.stripe : ShopPaymentProvider.dev;
+	private static PaymentProvider selectProvider(List<PaymentProvider> providers) {
 		return providers.stream()
-				.filter(p -> p.type() == wanted)
+				.filter(p -> p.type() == ShopPaymentProvider.dev)
 				.findFirst()
-				.orElseThrow(() -> new IllegalStateException("No payment provider for " + wanted));
+				.orElseThrow(() -> new IllegalStateException("No simulated payment provider configured"));
 	}
 
 	private static void requireBuyer(AppUserDetails principal) {

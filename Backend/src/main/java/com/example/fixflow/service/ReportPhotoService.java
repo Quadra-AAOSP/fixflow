@@ -30,18 +30,21 @@ public class ReportPhotoService {
 	private final ReportPhotoRepository reportPhotoRepository;
 	private final ObjectStorageService objectStorageService;
 	private final ReportPhotoValidator photoValidator;
+	private final ReportVisionService reportVisionService;
 
 	public ReportPhotoService(
 			ReportRepository reportRepository,
 			ReportReporterRepository reportReporterRepository,
 			ReportPhotoRepository reportPhotoRepository,
 			ObjectStorageService objectStorageService,
-			ReportPhotoValidator photoValidator) {
+			ReportPhotoValidator photoValidator,
+			ReportVisionService reportVisionService) {
 		this.reportRepository = reportRepository;
 		this.reportReporterRepository = reportReporterRepository;
 		this.reportPhotoRepository = reportPhotoRepository;
 		this.objectStorageService = objectStorageService;
 		this.photoValidator = photoValidator;
+		this.reportVisionService = reportVisionService;
 	}
 
 	@Transactional(readOnly = true)
@@ -56,8 +59,9 @@ public class ReportPhotoService {
 		photoValidator.validateOne(file);
 
 		long existingCount = reportPhotoRepository.countByReportId(reportId);
-		if (existingCount >= 5) {
-			throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY.value(), "Maximum 5 photos per report");
+		if (existingCount >= ReportPhotoValidator.MAX_PHOTOS) {
+			throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY.value(),
+					"A report may have at most " + ReportPhotoValidator.MAX_PHOTOS + " photos");
 		}
 
 		String contentType = photoValidator.normalizeContentType(file.getContentType());
@@ -82,6 +86,7 @@ public class ReportPhotoService {
 		photo.setFileSizeBytes((int) file.getSize());
 		photo.setSortOrder(sortOrder);
 		photo = reportPhotoRepository.save(photo);
+		reportVisionService.enqueueAttachedPhoto(reportId, file, actor);
 
 		return toResponse(photo, reportId);
 	}

@@ -76,5 +76,9 @@ Backend/SITE_ONBOARDING.md
 Backend/TECHNICIAN_VERIFICATION_API.md
 docs/
 Backend/data/
-Backend/docker/
+# Local Compose secrets (keep examples tracked; do not ignore Backend/docker/)
+Backend/docker/docker.env
+Backend/docker/production.env
+Backend/docker.env
+Backend/production.env
 docs/
