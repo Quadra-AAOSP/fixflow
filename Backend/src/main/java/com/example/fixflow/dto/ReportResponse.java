@@ -38,22 +38,29 @@ public record ReportResponse(
 		Instant createdAt,
 		Instant updatedAt,
         ReportPolicy policy,
-        AiReport aiReport
+        AiReport aiReport,
+        VisionJob visionJob
 ) {
     public record AiReport(Urgency urgency, String category, String specialty, String description, String urgencyReason) { }
+    public record VisionJob(String jobId, Long reportId, String status, String model) { }
 	public static ReportResponse from(Report report, ReportPolicy policy) {
-        return from(report, policy, List.of(), false);
+        return from(report, policy, List.of(), false, null);
     }
     public static ReportResponse from(Report report, ReportPolicy policy, boolean includeAiDetails) {
-        return from(report, policy, List.of(), includeAiDetails);
+        return from(report, policy, List.of(), includeAiDetails, null);
 	}
 
 	public static ReportResponse from(Report report, ReportPolicy policy, List<ReportPhotoResponse> photos) {
-        return from(report, policy, photos, false);
+        return from(report, policy, photos, false, null);
     }
 
     public static ReportResponse from(Report report, ReportPolicy policy, List<ReportPhotoResponse> photos,
             boolean includeAiDetails) {
+        return from(report, policy, photos, includeAiDetails, null);
+    }
+
+    public static ReportResponse from(Report report, ReportPolicy policy, List<ReportPhotoResponse> photos,
+            boolean includeAiDetails, VisionJob visionJob) {
 		boolean includeSensitive = policy.canSeeSensitive();
 		Long createdById = null;
 		String createdByName = null;
@@ -102,7 +109,8 @@ public record ReportResponse(
                 new AiReport(report.getAiUrgency(), includeAiDetails ? report.getAiCategory() : null,
                         includeAiDetails ? report.getAiSpecialty() : null,
                         includeAiDetails ? report.getAiDescription() : null,
-                        includeAiDetails ? report.getAiUrgencyReason() : null)
+                        includeAiDetails ? report.getAiUrgencyReason() : null),
+                visionJob
 		);
 	}
 }

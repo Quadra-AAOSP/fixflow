@@ -156,6 +156,10 @@ export function triggerVisionProcessing(
 /**
  * Gets the status of a vision processing job.
  */
+export function getLatestVisionJob(reportId: number): Promise<VisionJob> {
+  return api.get<VisionJob>(endpoints.reports.vision(reportId));
+}
+
 export function getVisionJobStatus(reportId: number, jobId: string): Promise<VisionJob> {
   return api.get<VisionJob>(endpoints.reports.visionJob(reportId, jobId));
 }

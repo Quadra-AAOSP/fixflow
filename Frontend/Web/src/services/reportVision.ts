@@ -12,4 +12,7 @@ export function enqueueReportVision(reportId: number, image: File, consent: bool
   const body = new FormData(); body.append('image', image); body.append('consent', 'true');
   return request<ReportVisionJob>(`/api/reports/${reportId}/vision`, { method: 'POST', body });
 }
-export const getReportVisionJob = (reportId: number, jobId: string) => request<ReportVisionJob>(`/api/reports/${reportId}/vision/${encodeURIComponent(jobId)}`);
+export const getLatestReportVisionJob = (reportId: number) =>
+  request<ReportVisionJob>(`/api/reports/${reportId}/vision`);
+export const getReportVisionJob = (reportId: number, jobId: string) =>
+  request<ReportVisionJob>(`/api/reports/${reportId}/vision/${encodeURIComponent(jobId)}`);

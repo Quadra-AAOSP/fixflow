@@ -12,16 +12,14 @@ import com.example.fixflow.web.ApiException;
 @Component
 public class ReportPhotoValidator {
 
-	public static final int MAX_PHOTOS = 5;
+	public static final int MAX_PHOTOS = 1;
 	public static final long MAX_BYTES = 5L * 1024 * 1024;
 
+	/** JPEG/PNG only — the attached photo is also sent to vision analysis. */
 	private static final Set<String> ALLOWED_TYPES = Set.of(
 			"image/jpeg",
 			"image/jpg",
-			"image/png",
-			"image/webp",
-			"image/gif",
-			"image/heic"
+			"image/png"
 	);
 
 	public void validateBatch(List<MultipartFile> files, int existingCount) {
@@ -48,7 +46,7 @@ public class ReportPhotoValidator {
 		}
 		String contentType = normalizeContentType(file.getContentType());
 		if (!ALLOWED_TYPES.contains(contentType)) {
-			throw new ApiException(422, "Photo must be jpeg, png, webp, gif, or heic");
+			throw new ApiException(422, "Photo must be jpeg or png");
 		}
 	}
 
@@ -65,9 +63,6 @@ public class ReportPhotoValidator {
 		return switch (normalizeContentType(contentType)) {
 			case "image/jpeg", "image/jpg" -> "jpg";
 			case "image/png" -> "png";
-			case "image/webp" -> "webp";
-			case "image/gif" -> "gif";
-			case "image/heic" -> "heic";
 			default -> "bin";
 		};
 	}

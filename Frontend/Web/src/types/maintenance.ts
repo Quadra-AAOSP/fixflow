@@ -38,6 +38,7 @@ export interface Report {
   confirmedByName?: string | null;
   confirmedAt?: string | null;
   aiReport?: { urgency: Urgency | null; category: string | null; specialty: string | null; description: string | null; urgencyReason: string | null };
+  visionJob?: ReportVisionJob | null;
 }
 export interface ReportPhoto {
   id: number; objectKey: string; url: string | null; contentType: string;

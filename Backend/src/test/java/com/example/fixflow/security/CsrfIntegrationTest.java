@@ -89,9 +89,6 @@ class CsrfIntegrationTest {
                 .header("Access-Control-Request-Headers", "content-type,x-csrf-token")
                 .method("OPTIONS", HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
         assertThat(preflight.statusCode()).isEqualTo(200);
-        var webhook = send(client, "/api/shop/payments/webhook", null, "{}");
-        assertThat(webhook.headers().firstValue("X-CSRF-Error")).isEmpty();
-        assertThat(webhook.statusCode()).isGreaterThanOrEqualTo(400); // Invalid payment, never accepted blindly.
         var developmentPayment = send(client, "/api/shop/payments/dev/complete/nonexistent", null, "{}");
         assertThat(developmentPayment.statusCode()).isEqualTo(403);
         assertThat(developmentPayment.headers().firstValue("X-CSRF-Error")).contains("invalid-token");

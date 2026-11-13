@@ -60,12 +60,44 @@ public class ReportVisionService {
         return status(job);
     }
 
+    /**
+     * Queues vision analysis for a newly attached report photo. Attaching the
+     * photo is treated as consent. No-ops when vision is disabled or a job is
+     * already pending; other validation errors still propagate.
+     */
+    public void enqueueAttachedPhoto(Long reportId, MultipartFile image, AppUserDetails actor) {
+        if (image == null || image.isEmpty() || provider.getIfAvailable() == null) {
+            return;
+        }
+        try {
+            enqueue(reportId, image, true, actor);
+        } catch (ApiException ex) {
+            if (ex.getStatus() == 409 || ex.getStatus() == 503) {
+                return;
+            }
+            throw ex;
+        }
+    }
+
     @Transactional(readOnly = true)
     public Status get(Long reportId, String jobId, AppUserDetails actor) {
         Report report = reports.findById(reportId).orElseThrow(() -> new ApiException(404, "Report not found"));
         authorize(report, actor);
         return jobs.findById(jobId).filter(j -> j.getReportId().equals(reportId)).map(this::status)
                 .orElseThrow(() -> new ApiException(404, "Vision job not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public Status latest(Long reportId, AppUserDetails actor) {
+        Report report = reports.findById(reportId).orElseThrow(() -> new ApiException(404, "Report not found"));
+        authorize(report, actor);
+        return jobs.findFirstByReportIdOrderByCreatedAtDesc(reportId).map(this::status)
+                .orElseThrow(() -> new ApiException(404, "Vision job not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public Status latestOrNull(Long reportId) {
+        return jobs.findFirstByReportIdOrderByCreatedAtDesc(reportId).map(this::status).orElse(null);
     }
 
     /** Called by a separate scheduled thread, never by the report creation request. */

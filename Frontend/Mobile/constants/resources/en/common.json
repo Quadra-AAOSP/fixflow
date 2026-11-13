@@ -549,23 +549,23 @@
         "transcribing": "Transcribing…"
       },
       "photos": {
-        "label": "Photos",
+        "label": "Photo",
         "gallery": "Choose from gallery",
         "camera": "Take photo",
-        "count": "{count} of {max} photos",
-        "limitReached": "Maximum {max} photos",
+        "count": "{count} of {max} photo",
+        "limitReached": "Only {max} photo can be attached",
         "tooLarge": "Photo must be {size} MB or smaller.",
         "permissionDenied": "Photo access is required. Enable it in Settings.",
-        "uploadFailed": "Could not upload one or more photos.",
+        "uploadFailed": "Could not upload the photo.",
         "remove": "Remove photo"
       },
       "suggestionTitle": "Suggest a missing building",
-      "suggestionBody": "If a building or area is missing, let the administrator know so they can add it.",
+      "suggestionBody": "If a building or area is missing, let the administrator know so they can add it. You can send another suggestion while one is still pending.",
       "suggestionLabel": "What's missing?",
       "suggestionPlaceholder": "e.g. Block C, or the east stairwell",
       "suggestionSubmit": "Send suggestion",
       "suggestionSubmitting": "Sending…",
-      "suggestionSuccess": "Suggestion sent — an administrator will review it.",
+      "suggestionSuccess": "Suggestion sent — you can suggest another while it is reviewed.",
       "suggestionFailed": "Could not send the suggestion."
     },
     "detail": {
@@ -734,6 +734,8 @@
         "analyze": "Choose a photo for AI analysis",
         "checkStatus": "Check AI analysis status",
         "running": "Analyzing photos…",
+        "progress": "OpenRouter: {status} · {model}",
+        "modelPending": "model pending",
         "consentTitle": "AI photo analysis",
         "consentMessage": "The selected photo will be sent to the AI vision service. Do not choose a photo with faces or personal or confidential information. Continue?",
         "cancel": "Cancel",

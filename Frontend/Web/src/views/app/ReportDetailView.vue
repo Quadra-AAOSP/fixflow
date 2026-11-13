@@ -22,6 +22,8 @@ import ReportReviewPanel from '@/components/ReportReviewPanel.vue';
 import ReportWorkflowPanel from '@/components/ReportWorkflowPanel.vue';
 import ReportClassificationPanel from '@/components/ReportClassificationPanel.vue';
 import ReportVisionPanel from '@/components/ReportVisionPanel.vue';
+import { getReportVisionJob } from '@/services/reportVision';
+import type { ReportVisionJob } from '@/types/maintenance';
 const { t } = useLocale();
 
 const route = useRoute();
@@ -46,8 +48,54 @@ const reviewBusy = ref(false);
 const workflowBusy = ref(false);
 const classificationBusy = ref(false);
 const visionBusy = ref(false);
+const visionOverview = ref<ReportVisionJob | null>(null);
+const visionOverviewChecking = ref(false);
+let visionOverviewTimer: ReturnType<typeof setTimeout> | undefined;
 const marketplaceBusy = ref(false);
 const workBusy = ref(false);
+const visionPending = computed(() =>
+  !!visionOverview.value && ['queued', 'processing'].includes(visionOverview.value.status));
+function stopVisionOverviewPoll() {
+  if (visionOverviewTimer) clearTimeout(visionOverviewTimer);
+  visionOverviewTimer = undefined;
+}
+function scheduleVisionOverviewPoll() {
+  stopVisionOverviewPoll();
+  if (visionPending.value) {
+    visionOverviewTimer = setTimeout(() => { void refreshVisionOverview(); }, 3000);
+  }
+}
+async function refreshVisionOverview() {
+  const current = report.value;
+  if (!current?.visionJob?.jobId && !visionOverview.value?.jobId) return;
+  const jobId = visionOverview.value?.jobId ?? current!.visionJob!.jobId;
+  const reportId = current?.id ?? visionOverview.value?.reportId;
+  if (!reportId) return;
+  visionOverviewChecking.value = true;
+  try {
+    const latest = await getReportVisionJob(reportId, jobId);
+    if (report.value?.id === reportId) {
+      visionOverview.value = latest;
+      if (report.value) report.value = { ...report.value, visionJob: latest };
+      if (['queued', 'processing'].includes(latest.status)) scheduleVisionOverviewPoll();
+      else {
+        stopVisionOverviewPoll();
+        if (latest.status === 'completed' || latest.status === 'review_required') {
+          await visionFinished(reportId);
+        }
+      }
+    }
+  } catch {
+    scheduleVisionOverviewPoll();
+  } finally {
+    visionOverviewChecking.value = false;
+  }
+}
+function syncVisionOverview(job: ReportVisionJob | null | undefined) {
+  visionOverview.value = job ?? null;
+  if (visionPending.value) scheduleVisionOverviewPoll();
+  else stopVisionOverviewPoll();
+}
 const resolutionDraft = ref('');
 const actionInProgress = computed(() => busy.value || workflowBusy.value || assignmentBusy.value || invitationBusy.value || reviewBusy.value || classificationBusy.value || visionBusy.value || marketplaceBusy.value || workBusy.value);
 type TechnicianRoute = 'contracted' | 'invite' | 'marketplace';
@@ -69,7 +117,7 @@ watch([technicianRoutes, () => report.value?.id], ([choices]) => {
   if (!choices.includes(technicianRoute.value)) technicianRoute.value = choices[0] ?? 'contracted';
 }, { immediate: true });
 let generation = 0;
-onBeforeUnmount(() => { generation++; realtime.setReport(null); });
+onBeforeUnmount(() => { generation++; stopVisionOverviewPoll(); realtime.setReport(null); });
 watch(report, value => realtime.setReport(value));
 watch(() => realtime.accessRevision, () => {
   if (realtime.accessReason !== 'disconnect') resolutionDraft.value = '';
@@ -107,12 +155,14 @@ async function load(background = false) {
     if (version !== generation) return;
     if (background && report.value !== snapshot) return;
     report.value = result; data.upsert(result);
+    syncVisionOverview(result.visionJob);
     await loadReporters(id, version);
   } catch (err) {
     if (version !== generation) return;
     if (!background || (err instanceof ApiError && (err.status === 401 || err.status === 403 || err.status === 404))) {
       resolutionDraft.value = '';
       report.value = null; reporters.value = []; reportersLoaded.value = false; error.value = errorMessage(err);
+      syncVisionOverview(null);
     }
   }
   finally { if (version === generation) loading.value = false; }
@@ -223,7 +273,7 @@ async function visionFinished(id: number) {
 <template>
   <section class="dashboard-card live-page"><div class="card-heading"><RouterLink class="text-action" to="/reports"><ArrowLeft :size="16" />{{ t("All reports") }}</RouterLink><button class="icon-button" :disabled="loading || actionInProgress" :aria-label="t('Reload report')" @click="load()"><RefreshCw :size="17" /></button></div><LoadingStatus v-if="loading" :label="t('Loading report…')" /><p v-else-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <template v-else-if="report"><div class="card-heading"><h1>{{ t('Report #{id}', { id: report.id }) }}</h1><span class="status-badge" :class="statusTone(report.status)">{{ t(statusLabels[report.status]) }}</span></div><p class="report-description">{{ report.description }}</p>
-      <dl class="report-detail-grid"><div v-if="report.visibility"><dt>{{ t('Report visibility') }}</dt><dd>{{ t(report.visibility === 'private' ? 'Private report' : 'Public within your site') }}</dd></div><div><dt>{{ t("Site") }}</dt><dd>{{ data.siteName(report.siteId) }}</dd></div><div><dt>{{ t("Location") }}</dt><dd>{{ report.address || t('Not shared or not provided') }}</dd></div><div><dt>{{ t("Category") }}</dt><dd>{{ t(humanize(report.category)) }}</dd></div><div><dt>{{ t("Specialty") }}</dt><dd>{{ report.specialty ? t(humanize(report.specialty)) : t('Not specified') }}</dd></div><div><dt>{{ t("Reported by") }}</dt><dd>{{ report.createdByName || t('Not shared') }}</dd></div><div><dt>{{ t("Technician") }}</dt><dd>{{ report.assignedTechnicianId == null ? t('Unassigned') : t('Technician #{id}', { id: report.assignedTechnicianId }) }}</dd></div><div><dt>{{ t("Reporter urgency") }}</dt><dd>{{ t(urgencyLabels[report.reporterUrgency]) }}</dd></div><div><dt>{{ t("Calculated urgency") }}</dt><dd>{{ report.calculatedUrgency ? t(urgencyLabels[report.calculatedUrgency]) : t('Not determined') }}</dd></div><div><dt>{{ t("People joined") }}</dt><dd>{{ report.participationCount ?? reporters.length }}</dd></div><div><dt>{{ t("AI urgency") }}</dt><dd>{{ report.aiUrgency ? t(urgencyLabels[report.aiUrgency]) : t('Not classified') }}</dd></div><div><dt>{{ t("Final urgency") }}</dt><dd>{{ report.finalUrgency ? t(urgencyLabels[report.finalUrgency]) : t('Not determined') }}</dd></div><div><dt>{{ t("Urgency reason") }}</dt><dd>{{ report.reporterReason || t('Not shared or not provided') }}</dd></div><div><dt>{{ t("Created") }}</dt><dd>{{ formatDate(report.createdAt, true) }}</dd></div><div><dt>{{ t("Updated") }}</dt><dd>{{ formatDate(report.updatedAt, true) }}</dd></div><div><dt>{{ t("Times reopened") }}</dt><dd>{{ report.reopenCount }}</dd></div></dl>
+      <dl class="report-detail-grid"><div v-if="report.visibility"><dt>{{ t('Report visibility') }}</dt><dd>{{ t(report.visibility === 'private' ? 'Private report' : 'Public within your site') }}</dd></div><div><dt>{{ t("Site") }}</dt><dd>{{ data.siteName(report.siteId) }}</dd></div><div><dt>{{ t("Location") }}</dt><dd>{{ report.address || t('Not shared or not provided') }}</dd></div><div><dt>{{ t("Category") }}</dt><dd>{{ t(humanize(report.category)) }}</dd></div><div><dt>{{ t("Specialty") }}</dt><dd>{{ report.specialty ? t(humanize(report.specialty)) : t('Not specified') }}</dd></div><div><dt>{{ t("Reported by") }}</dt><dd>{{ report.createdByName || t('Not shared') }}</dd></div><div><dt>{{ t("Technician") }}</dt><dd>{{ report.assignedTechnicianId == null ? t('Unassigned') : t('Technician #{id}', { id: report.assignedTechnicianId }) }}</dd></div><div><dt>{{ t("Reporter urgency") }}</dt><dd>{{ t(urgencyLabels[report.reporterUrgency]) }}</dd></div><div><dt>{{ t("Calculated urgency") }}</dt><dd>{{ report.calculatedUrgency ? t(urgencyLabels[report.calculatedUrgency]) : t('Not determined') }}</dd></div><div><dt>{{ t("People joined") }}</dt><dd>{{ report.participationCount ?? reporters.length }}</dd></div><div><dt>{{ t("AI urgency") }}</dt><dd>{{ report.aiUrgency ? t(urgencyLabels[report.aiUrgency]) : t('Not classified') }}</dd></div><div><dt>{{ t("AI image analysis") }}</dt><dd><template v-if="visionOverview">{{ t(visionOverview.status.replaceAll('_', ' ')) }}<template v-if="visionOverview.model"> · {{ visionOverview.model }}</template><button v-if="visionPending" type="button" class="text-action" :disabled="visionOverviewChecking" @click="refreshVisionOverview">{{ t(visionOverviewChecking ? 'Checking…' : 'Check analysis status') }}</button></template><template v-else>{{ t('No image analysis yet') }}</template></dd></div><div><dt>{{ t("Final urgency") }}</dt><dd>{{ report.finalUrgency ? t(urgencyLabels[report.finalUrgency]) : t('Not determined') }}</dd></div><div><dt>{{ t("Urgency reason") }}</dt><dd>{{ report.reporterReason || t('Not shared or not provided') }}</dd></div><div><dt>{{ t("Created") }}</dt><dd>{{ formatDate(report.createdAt, true) }}</dd></div><div><dt>{{ t("Updated") }}</dt><dd>{{ formatDate(report.updatedAt, true) }}</dd></div><div><dt>{{ t("Times reopened") }}</dt><dd>{{ report.reopenCount }}</dd></div></dl>
       <p v-if="message" class="draft-notice" role="status">{{ t(message) }}</p><p v-if="actionError" class="live-error" role="alert">{{ t(actionError) }}</p>
       <section v-if="report.policy?.canEdit || report.policy?.canDelete" class="detail-section">
         <div class="card-heading">
@@ -260,7 +310,7 @@ async function visionFinished(id: number) {
       </section>
       <div v-if="report.confirmedAt || report.reopenReason" class="detail-section"><p v-if="report.confirmedAt">{{ report.confirmedByName ? t('Confirmed {date} by {name}', { date: formatDate(report.confirmedAt, true), name: report.confirmedByName }) : t('Confirmed {date}', { date: formatDate(report.confirmedAt, true) }) }}</p><p v-if="report.reopenReason">{{ t('Reopen reason: {reason}', { reason: report.reopenReason }) }}</p></div>
       <ReportClassificationPanel :report="report" :disabled="actionInProgress" @busy="classificationBusy = $event" @saved="classified" />
-      <ReportVisionPanel :report="report" :disabled="actionInProgress" @busy="visionBusy = $event" @finished="visionFinished" />
+      <ReportVisionPanel :report="report" :disabled="actionInProgress" @busy="visionBusy = $event" @finished="visionFinished" @updated="syncVisionOverview" />
       <ReportWorkflowPanel supplementary :report="report" :disabled="actionInProgress" @busy="workflowBusy = $event" @saved="workflowSaved" />
       <ReportReviewPanel :report="report" :disabled="actionInProgress" @busy="reviewBusy = $event" @saved="reviewed" />
       <ReportWorkPanel v-model:description="resolutionDraft" :report="report" :disabled="actionInProgress" @busy="workBusy = $event" @saved="workSaved" />

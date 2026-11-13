@@ -52,7 +52,7 @@ function selectPhotos(event: Event) {
   photos.value = []; photoError.value = '';
   const selected = Array.from((event.target as HTMLInputElement).files ?? []);
   try {
-    if (selected.length > REPORT_PHOTO_LIMIT) throw new Error('Choose up to 5 photos.');
+    if (selected.length > REPORT_PHOTO_LIMIT) throw new Error('Choose up to 1 photo.');
     selected.forEach(validateReportPhoto);
     photos.value = selected;
   } catch (err) {
@@ -95,15 +95,17 @@ watch(categories, values => { if (!values.includes(category.value)) category.val
 
 async function requestLocation() {
   const siteId = data.selectedSiteId;
-  if (!siteId || requestBusy.value || requestSent.value) return;
+  if (!siteId || requestBusy.value || !requestNote.value.trim()) return;
   const version = ++suggestionVersion;
+  const note = requestNote.value.trim();
   requestError.value = '';
   requestBusy.value = true;
   try {
-    await requestSubsiteAddition(siteId, requestNote.value);
+    await requestSubsiteAddition(siteId, note);
     if (!disposed && version === suggestionVersion && data.selectedSiteId === siteId) {
       requestSent.value = true;
-      address.value = requestNote.value.trim().slice(0, 512);
+      address.value = note.slice(0, 512);
+      requestNote.value = '';
     }
   } catch (err) { if (!disposed && version === suggestionVersion && data.selectedSiteId === siteId) requestError.value = errorMessage(err); }
   finally { if (version === suggestionVersion) requestBusy.value = false; }
@@ -171,8 +173,8 @@ async function submit() {
           <label>{{ t('Report visibility') }}<select v-model="visibility" required><option value="public">{{ t('Public within your site') }}</option><option value="private">{{ t('Private report') }}</option></select></label>
           <p class="field-hint">{{ t(visibility === 'private' ? 'Private reports are restricted to the creator, attached reporters, authorized staff and admins, and the assigned technician.' : 'Other reporters at your site can browse and join this report. Your identity and exact address stay masked until they join.') }}</p>
           <label>{{ t("Why this urgency? (optional)") }}<textarea v-model="reason" rows="3" maxlength="2000" :placeholder="t('Explain how this issue affects the space.')" /></label>
-          <label>{{ t("Photos (optional)") }}<input ref="photoInput" type="file" multiple :accept="REPORT_PHOTO_TYPES.join(',')" @change="selectPhotos" /></label>
-          <p class="field-hint">{{ t('Up to {limit} photos, 5 MiB each. Attached photos can be viewed by people authorized to access the report.', { limit: REPORT_PHOTO_LIMIT }) }}</p>
+          <label>{{ t("Photo (optional)") }}<input ref="photoInput" type="file" :accept="REPORT_PHOTO_TYPES.join(',')" @change="selectPhotos" /></label>
+          <p class="field-hint">{{ t('One JPEG or PNG photo, up to 5 MiB. The photo is stored with the report and sent to AI analysis when available.') }}</p>
           <p v-if="photoError" class="live-error" role="alert">{{ t(photoError) }} {{ t('Choose again or clear the selection to continue.') }}</p>
           <ul v-if="photos.length"><li v-for="(photo, index) in photos" :key="index">{{ photo.name }}</li></ul>
           <button v-if="photos.length || photoError" type="button" class="text-action" @click="clearPhotos">{{ t("Clear photo selection") }}</button>
@@ -183,11 +185,11 @@ async function submit() {
         <h2><button type="button" :aria-expanded="showSuggestion" aria-controls="building-suggestion-fields" @click="showSuggestion ? showSuggestion = false : openSuggestion()">{{ t("Suggest a missing building") }}</button></h2>
         <p>{{ t("Suggestions are reviewed by your site administrator. The suggested name is copied into the exact-location field; choose an approved building before submitting your report.") }}</p>
         <div v-if="showSuggestion" id="building-suggestion-fields">
-        <div v-if="requestSent" role="status"><p>{{ t("Your request was sent to the site administrator.") }}</p><p>{{ t("Requested building: {name}", { name: requestNote }) }}</p><p>{{ t("Once approved, refresh the building list and select it above.") }} <button type="button" class="text-action" :disabled="locationsLoading" @click="loadLocations(data.selectedSiteId, true)">{{ t("Refresh buildings") }}</button></p></div>
-        <form v-else class="draft-form" @submit.prevent="requestLocation">
+        <div v-if="requestSent" role="status"><p>{{ t("Your request was sent to the site administrator.") }}</p><p>{{ t("You can suggest another building while earlier requests are still pending.") }}</p><p>{{ t("Once approved, refresh the building list and select it above.") }} <button type="button" class="text-action" :disabled="locationsLoading" @click="loadLocations(data.selectedSiteId, true)">{{ t("Refresh buildings") }}</button></p></div>
+        <form class="draft-form" @submit.prevent="requestLocation">
           <p v-if="requestError" class="live-error" role="alert">{{ t(requestError) }}</p>
           <label>{{ t("Describe the missing location") }}<textarea ref="suggestionInput" v-model="requestNote" required maxlength="1000" rows="2" :placeholder="t('Building name or how to find it')" /></label>
-          <button class="text-action" type="submit" :disabled="requestBusy">{{ t(requestBusy ? 'Sending…' : 'Request a new building →') }}</button>
+          <button class="text-action" type="submit" :disabled="requestBusy || !requestNote.trim()">{{ t(requestBusy ? 'Sending…' : 'Request a new building →') }}</button>
         </form>
         </div>
       </section>

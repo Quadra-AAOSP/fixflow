@@ -30,7 +30,7 @@ async function submit() {
     <section class="dashboard-card"><h2>{{ t('Suggest a building') }}</h2>
       <p>{{ site?.name || t('Your account site') }}</p>
       <form @submit.prevent="submit"><fieldset :disabled="busy || !auth.user?.siteId"><label>{{ t('Missing building details') }}<textarea v-model="note" required maxlength="1000" rows="4" /></label><p v-if="error" role="alert" class="live-error">{{ t(error) }}</p><button class="report-issue-button" type="submit" :disabled="!note.trim()">{{ t(busy ? 'Saving…' : 'Submit suggestion') }}</button></fieldset></form>
-      <p class="dialog-intro">{{ t('The current backend allows only one pending suggestion per site. Multiple pending suggestions require the backend update requested from the team.') }}</p>
+      <p class="dialog-intro">{{ t('You can submit another suggestion while earlier ones are still pending review.') }}</p>
     </section>
     <section class="dashboard-card"><h2>{{ t('My request history') }}</h2><p role="status">{{ t('Your full suggestion history is awaiting a reporter-accessible backend endpoint. Requests are saved by the service; this page cannot retrieve earlier requests yet.') }}</p></section>
     <section v-if="receipts.length" class="dashboard-card"><h2>{{ t('Submitted this visit') }}</h2><p>{{ t('These are submission receipts from this visit, not your full request history.') }}</p><ul><li v-for="item in receipts" :key="item.id"><strong>#{{ item.id }} · {{ t(item.status) }}</strong><p>{{ item.note }}</p></li></ul></section>

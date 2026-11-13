@@ -59,8 +59,11 @@ public class SubsiteService {
     }
     @Transactional public SubsiteAlertResponse requestAddition(Long siteId, SubsiteAlertRequest request, AppUserDetails actor) {
         assertCanView(siteId, actor);
-        if (alerts.existsBySite_IdAndRequestedBy_IdAndStatus(siteId, actor.getId(), Status.pending)) throw new ApiException(HttpStatus.CONFLICT.value(), "A pending subsite request already exists");
-        com.example.fixflow.domain.SubsiteRequest alert = new com.example.fixflow.domain.SubsiteRequest(); alert.setSite(site(siteId)); alert.setRequestedBy(user(actor.getId())); alert.setNote(request.note()); return SubsiteAlertResponse.from(alerts.save(alert));
+        com.example.fixflow.domain.SubsiteRequest alert = new com.example.fixflow.domain.SubsiteRequest();
+        alert.setSite(site(siteId));
+        alert.setRequestedBy(user(actor.getId()));
+        alert.setNote(request.note());
+        return SubsiteAlertResponse.from(alerts.save(alert));
     }
     @Transactional(readOnly = true) public List<SubsiteAlertResponse> pending(Long siteId, AppUserDetails actor) { assertCanManage(siteId, actor); return alerts.findBySite_IdAndStatusOrderByCreatedAtAsc(siteId, Status.pending).stream().map(SubsiteAlertResponse::from).toList(); }
     @Transactional public SubsiteAlertResponse resolve(Long siteId, Long requestId, AppUserDetails actor) { assertCanManage(siteId, actor); com.example.fixflow.domain.SubsiteRequest alert = alerts.findById(requestId).filter(item -> item.getSite().getId().equals(siteId)).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Subsite request not found")); alert.setStatus(Status.resolved); alert.setResolvedAt(Instant.now()); return SubsiteAlertResponse.from(alert); }
