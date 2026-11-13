@@ -53,9 +53,7 @@ public class SecurityConfig {
 				.addFilterBefore(traceIdFilter,
 						org.springframework.security.web.context.SecurityContextHolderFilter.class)
 				.addFilterAfter(sessionExpiryFilter, com.example.fixflow.web.TraceIdFilter.class)
-                .csrf(csrf -> csrf.csrfTokenRepository(csrfTokens)
-                        .ignoringRequestMatchers(org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults()
-                                .matcher(HttpMethod.POST, "/api/shop/payments/webhook")))
+                .csrf(csrf -> csrf.csrfTokenRepository(csrfTokens))
 				.cors(Customizer.withDefaults())
                 .headers(headers -> headers
                         .addHeaderWriter(new org.springframework.security.web.header.writers.StaticHeadersWriter(
@@ -72,8 +70,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/site-applications", "/api/site-applications/status", "/api/site-applications/information", "/api/site-applications/setup").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/policy", "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/sites", "/api/technician-terms/current").permitAll()
+						.requestMatchers(HttpMethod.GET, "/agreements/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/shop/catalog").permitAll()
-						.requestMatchers(HttpMethod.POST, "/api/shop/payments/webhook").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
 						.requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
 						.requestMatchers("/api/shop/**").hasAnyRole("TECHNICIAN", "STAFF", "ADMIN", "SUPER_ADMIN", "SHOP_MANAGER")

@@ -40,10 +40,9 @@ $temporary = @{
     DB_PASSWORD=[Guid]::NewGuid().ToString('N'); MYSQL_ROOT_PASSWORD=[Guid]::NewGuid().ToString('N')
     MINIO_ACCESS_KEY='isolated-test-access'; MINIO_SECRET_KEY=[Guid]::NewGuid().ToString('N')
     MINIO_BUCKET='isolated-test-photos'; MINIO_ROOT_USER=''; MINIO_ROOT_PASSWORD=''
-    FIXFLOW_SUPER_ADMIN_EMAIL='docker-check@example.test'; FIXFLOW_SUPER_ADMIN_PASSWORD=[Guid]::NewGuid().ToString('N')
     BACKEND_PORT=(Free-Port).ToString(); MYSQL_HOST_PORT=(Free-Port).ToString(); MINIO_HOST_PORT=(Free-Port).ToString()
     BACKEND_BIND_ADDRESS='127.0.0.1'; MINIO_BIND_ADDRESS='127.0.0.1'; SESSION_COOKIE_SECURE='false'
-    SEED_DEMO_DATA='false'; OPENROUTER_API_KEY=''; OPENROUTER_VISION_ENABLED='false'; OPENROUTER_RANKING_ENABLED='false'
+    SEED_DEMO_DATA='true'; OPENROUTER_API_KEY=''; OPENROUTER_VISION_ENABLED='false'; OPENROUTER_RANKING_ENABLED='false'
     CORS_ALLOWED_ORIGIN_PATTERNS='http://localhost:5173'; WEBSOCKET_ALLOWED_ORIGINS='http://localhost:5173'
     MINIO_IMAGE='minio/minio:RELEASE.2025-09-07T16-13-09Z'; BACKEND_IMAGE='fixflow-backend:local'
     PRODUCTION_CORS_ORIGINS='https://frontend.example.test'
@@ -59,7 +58,6 @@ foreach ($key in $temporary.Keys) {
 try {
     $local = Compose @('config', '--format', 'json') | ConvertFrom-Json
     if ($local.services.backend.environment.DB_HOST -ne 'mysql' -or
-            $local.services.backend.environment.SEED_DEMO_DATA -ne 'false' -or
             $local.services.PSObject.Properties.Name -contains 'rabbitmq') { throw 'Local Compose contract mismatch.' }
     if ($local.services.minio.build -or
             [string]$local.services.minio.image -notmatch 'minio') {
@@ -86,9 +84,9 @@ try {
         $session = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
         $csrf = Invoke-RestMethod "$base/api/auth/csrf" -WebSession $session
         $headers = @{}; $headers[$csrf.headerName] = $csrf.token
-        $body = @{email=$temporary.FIXFLOW_SUPER_ADMIN_EMAIL; password=$temporary.FIXFLOW_SUPER_ADMIN_PASSWORD} | ConvertTo-Json
+        $body = @{email='admin@fixflow.test'; password='admin@fixflow.test'} | ConvertTo-Json
         $null = Invoke-RestMethod "$base/api/auth/login" -Method Post -ContentType 'application/json' -Body $body -Headers $headers -WebSession $session
-        Write-Host 'Containerized backend readiness and CSRF-protected bootstrap login passed.'
+        Write-Host 'Containerized backend readiness and CSRF-protected demo login passed.'
     }
     $null = Sql 'CREATE TABLE docker_smoke (id INT PRIMARY KEY); INSERT INTO docker_smoke VALUES (73);'
     $null = Compose @('up', '-d', '--no-build', '--pull', 'never', '--force-recreate', '--wait', '--wait-timeout', '180', 'mysql')

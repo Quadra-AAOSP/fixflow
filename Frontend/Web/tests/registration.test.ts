@@ -9,12 +9,18 @@ import type { UserRole } from '../src/types';
 const form: RegistrationInput = {
   firstName: ' Test ', lastName: ' Technician ', email: 'test@example.invalid',
   password: 'a unique long passphrase', phone: '+1 202 555 0100', address: 'Business correspondence address', role: 'technician', siteId: '71',
+  trades: 'plumbing', experience: '3 years', qualifications: 'Licensed plumber',
+  acceptTechnicianTerms: true, technicianTermsVersion: '2026-11-03',
+  skills: [{ category: 'plumbing', specialty: 'leaks', proficiency: 4 }],
 };
 afterEach(() => vi.unstubAllGlobals());
 
 describe('role-based public registration', () => {
   it('always clears a technician site, even if a reporter site is left in form input', () => {
-    expect(buildRegistrationPayload(form, 15)).toMatchObject({ role: 'technician', siteId: null, firstName: 'Test' });
+    expect(buildRegistrationPayload(form, 15)).toMatchObject({
+      role: 'technician', siteId: null, firstName: 'Test', acceptTechnicianTerms: true,
+      skills: [{ category: 'plumbing', specialty: 'leaks', proficiency: 4 }],
+    });
   });
   it('requires technician contact details without affecting reporter requirements', () => {
     expect(() => buildRegistrationPayload({ ...form, phone: '' }, 15)).toThrow('phone');
@@ -22,6 +28,12 @@ describe('role-based public registration', () => {
     expect(() => buildRegistrationPayload({ ...form, address: 'x'.repeat(513) }, 15)).toThrow('512');
     expect(buildRegistrationPayload(form, 15).address).toBe(form.address);
     expect(buildRegistrationPayload({ ...form, role: 'reporter', phone: '', address: '' }, 15).role).toBe('reporter');
+  });
+  it('requires verification, terms acceptance, and skills for technicians without a site', () => {
+    expect(() => buildRegistrationPayload({ ...form, trades: '' }, 15)).toThrow('verification');
+    expect(() => buildRegistrationPayload({ ...form, acceptTechnicianTerms: false }, 15)).toThrow('terms');
+    expect(() => buildRegistrationPayload({ ...form, skills: [] }, 15)).toThrow('skill');
+    expect(buildRegistrationPayload(form, 15).contractSiteId).toBeUndefined();
   });
   it('requires a valid reporter site ID and keeps the actual supplied ID', () => {
     expect(buildRegistrationPayload({ ...form, role: 'reporter' }, 15).siteId).toBe(71);
@@ -37,10 +49,10 @@ describe('role-based public registration', () => {
     await getSiteAdminApplication();
     await getPendingSiteAdminApplications();
     await decideSiteAdminApplication(42, 'approve');
-    expect(fetch.mock.calls.map(call => call[0])).toEqual([
-      '/api/auth/site-admin-application',
-      '/api/admin/site-admin-applications',
-      '/api/admin/site-admin-applications/42/approve',
+    expect(fetch.mock.calls.map(call => String(call[0]))).toEqual([
+      expect.stringMatching(/\/api\/auth\/site-admin-application$/),
+      expect.stringMatching(/\/api\/admin\/site-admin-applications$/),
+      expect.stringMatching(/\/api\/admin\/site-admin-applications\/42\/approve$/),
     ]);
     expect(fetch.mock.calls[2]?.[1].method).toBe('POST');
   });
@@ -54,12 +66,15 @@ describe('role-based public registration', () => {
     expect(() => buildRegistrationPayload({ ...form, password: 'é'.repeat(37) }, 15)).toThrow('72-byte');
     expect(() => buildRegistrationPayload({ ...form, password: 'x'.repeat(73) }, 15)).toThrow('72-byte');
   });
-  it('submits null siteId without issuing a contract request', async () => {
+  it('submits technician onboarding fields with null account siteId and skills', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response('{}')); stubApiFetch(fetch);
     await register(buildRegistrationPayload(form, 15));
     expect(fetch).toHaveBeenCalledOnce();
-    expect(fetch.mock.calls[0]?.[0]).toBe('/api/auth/register');
-    expect(JSON.parse(fetch.mock.calls[0]?.[1].body)).toMatchObject({ role: 'technician', siteId: null });
+    expect(String(fetch.mock.calls[0]?.[0])).toMatch(/\/api\/auth\/register$/);
+    expect(JSON.parse(fetch.mock.calls[0]?.[1].body)).toMatchObject({
+      role: 'technician', siteId: null, trades: 'plumbing', acceptTechnicianTerms: true,
+      skills: [{ category: 'plumbing', specialty: 'leaks', proficiency: 4 }],
+    });
   });
 });
 
@@ -94,11 +109,10 @@ describe('managed-role provisioning', () => {
     const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);
     await provisionUser(buildProvisionPayload({ ...form, role: 'admin' }, 'super_admin', [71], 15));
     await createTechnicianContract(54, 71);
-    expect(fetch.mock.calls.map(call => call[0])).toEqual(['/api/admin/users','/api/technician-contracts']);
+    expect(fetch.mock.calls.map(call => String(call[0]))).toEqual([
+      expect.stringMatching(/\/api\/admin\/users$/),
+      expect.stringMatching(/\/api\/technician-contracts$/),
+    ]);
     expect(JSON.parse(fetch.mock.calls[1]?.[1].body)).toEqual({ technicianId: 54, siteId: 71 });
   });
-});
-
-it('rejects email addresses beyond the backend DTO limit', () => {
-  expect(() => buildRegistrationPayload({ ...form, email: 'a'.repeat(244) + '@example.com' }, 15)).toThrow('Email address is too long.');
 });

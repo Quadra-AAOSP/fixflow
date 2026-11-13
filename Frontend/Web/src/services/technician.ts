@@ -1,18 +1,9 @@
 import { AI_REQUEST_TIMEOUT_MS, request } from './api';
-import type { TechnicianInvitation, RankingMode, TechnicianAvailability, TechnicianInvitationInbox, TechnicianInvitationsSent, TechnicianRanking, TechnicianSummary, TechnicianTermsStatus } from '@/types/technician';
+import type { RankingMode, TechnicianAvailability, TechnicianRanking, TechnicianSummary, TechnicianTermsStatus } from '@/types/technician';
 
 export const getTechnicianAvailability = () => request<TechnicianAvailability>('/api/technicians/me/availability');
 export function setTechnicianAvailability(status: TechnicianAvailability['status']) {
   return request<TechnicianAvailability>('/api/technicians/me/availability', { method: 'PUT', body: JSON.stringify({ status }) });
-}
-
-export function getTechnicianInvitations(page = 0) {
-  return request<TechnicianInvitationInbox>(`/api/technician-invitations?page=${page}`);
-}
-export function sendTechnicianInvitations(reportId: number, reason: string, page = 0) {
-  const message = reason.trim();
-  if (!message || message.length > 1000) throw new Error('Enter an invitation reason of 1–1,000 characters.');
-  return request<TechnicianInvitationsSent>(`/api/reports/${reportId}/technician-invitations?page=${page}`, { method: 'POST', body: JSON.stringify({ reason: message }) });
 }
 
 export const listTechnicians = () => request<TechnicianSummary[]>('/api/technicians');
@@ -45,5 +36,3 @@ export function getTechnicianTermsFor(technicianId: number): Promise<TechnicianT
   if (!Number.isSafeInteger(technicianId) || technicianId <= 0) throw new Error('Choose a valid technician.');
   return request(`/api/technician-terms/${technicianId}`);
 }
-
-export function getTechnicianInvitation(id: number) { return request<TechnicianInvitation>(`/api/technician-invitations/${id}`); }

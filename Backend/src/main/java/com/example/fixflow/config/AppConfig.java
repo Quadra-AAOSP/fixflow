@@ -5,14 +5,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.example.fixflow.bootstrap.BootstrapProperties;
-
 import io.minio.MinioClient;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 
 @Configuration
-@EnableConfigurationProperties({ BootstrapProperties.class, ShopProperties.class, MinioProperties.class })
+@EnableConfigurationProperties({ ShopProperties.class, MinioProperties.class })
 public class AppConfig {
 
 	@Bean

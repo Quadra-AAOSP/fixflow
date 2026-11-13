@@ -92,9 +92,6 @@ export const endpoints = {
     /** GET — poll processing status. */
     visionJob: (reportId: number | string, jobId: string) =>
       `/api/reports/${reportId}/vision/${jobId}`,
-    /** POST — invite eligible technicians to a report. */
-    technicianInvitations: (id: number | string) =>
-      `/api/reports/${id}/technician-invitations`,
     /** POST — ranked candidates and active-case counts. */
     technicianRanking: (id: number | string) =>
       `/api/reports/${id}/technician-ranking`,
@@ -118,14 +115,11 @@ export const endpoints = {
   },
 
   technicianTerms: {
+    current: '/api/technician-terms/current',
     me: '/api/technician-terms/me',
     byTechnician: (technicianId: number | string) =>
       `/api/technician-terms/${technicianId}`,
     accept: '/api/technician-terms/accept',
-  },
-
-  technicianInvitations: {
-    list: '/api/technician-invitations',
   },
 
   technicians: {

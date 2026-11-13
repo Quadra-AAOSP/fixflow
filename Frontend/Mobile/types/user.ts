@@ -81,7 +81,18 @@ export type RegisterPayload = {
   siteType?: 'school' | 'hostel' | 'hotel';
   siteAddress?: string;
   siteDescription?: string;
+  // Technician onboarding at registration.
+  trades?: string;
+  experience?: string;
+  qualifications?: string;
+  acceptTechnicianTerms?: boolean;
+  technicianTermsVersion?: string;
+  skills?: { category: string; specialty?: string | null; proficiency: number }[];
+  contractSiteId?: number;
+  contractNote?: string;
 };
+
+export type RegisterSkill = NonNullable<RegisterPayload['skills']>[number];
 
 /**
  * Mirrors backend `ProvisionUserRequest`. Staff accounts are created by an

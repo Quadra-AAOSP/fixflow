@@ -73,7 +73,7 @@ Fixflow/
 | `shop_products` | Shop catalogue (string ids, price in minor units, stock) |
 | `shop_orders` | Customer orders with idempotency + shipping snapshot |
 | `shop_order_items` | Order line snapshots |
-| `shop_payments` | Hosted checkout session (`stripe` or local `dev`) |
+| `shop_payments` | Simulated checkout session (`dev` provider) |
 
 **Status flow:**  
 `open` → `routed` → `assigned` → `in_progress` → `resolved_pending_confirmation` → `confirmed` / `reopened` (+ `escalated` when marketplace has no techs)
@@ -147,8 +147,7 @@ Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `S
 
 - Public catalogue: `GET /api/shop/catalog` (no login).
 - Checkout / orders require a signed-in session; basket stays in the browser until checkout.
-- Without `STRIPE_SECRET_KEY`, payment uses the local **dev** provider (order is marked paid immediately after create).
-- With Stripe keys in `Backend/.env`, checkout opens Stripe Checkout; configure `STRIPE_WEBHOOK_SECRET` for `POST /api/shop/payments/webhook`.
+- Checkout uses a simulated **dev** payment provider; complete an order with `POST /api/shop/payments/dev/complete/{publicId}`.
 - Admin product CRUD: `/api/admin/shop/products` (`ADMIN` / `SUPER_ADMIN`).
 
 ### 5. Run mobile (Expo)

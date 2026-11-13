@@ -25,18 +25,11 @@ export {
   decideTechnicianContractRequest,
   getTechnicianTerms,
   getTechnicianTermsFor,
-  inviteTechniciansToReport,
   listTechnicianContractRequests as getTechnicianContractRequests,
   listTechnicianContracts as getTechnicianContracts,
-  listTechnicianInvitations as getTechnicianInvitations,
   rankTechniciansForReport,
 } from './technician';
 export { listTechnicianContracts } from './technician';
-
-/**
- * Alias used by screens written against the older name.
- */
-export { listTechnicianInvitations } from './technician';
 
 /** Alias kept for screens that import the singular ranking name. */
 export { rankTechniciansForReport as rankTechnicianForReport } from './technician';

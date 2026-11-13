@@ -14,18 +14,18 @@ function account(role: User['role'], siteId: number | null = 12) {
 }
 
 describe('report technician route menu', () => {
-  it('puts contracted assignment first and includes both other routes for the site admin', () => {
-    expect(reportTechnicianRoutes(report, account('admin'))).toEqual(['contracted', 'invite', 'marketplace']);
+  it('puts contracted assignment first and includes marketplace for the site admin', () => {
+    expect(reportTechnicianRoutes(report, account('admin'))).toEqual(['contracted', 'marketplace']);
   });
 
-  it('preserves staff assignment and super-admin invitations without adding marketplace publication', () => {
+  it('preserves staff assignment without marketplace publication for super-admin alone', () => {
     expect(reportTechnicianRoutes(report, account('staff'))).toEqual(['contracted']);
-    expect(reportTechnicianRoutes(report, account('super_admin', null))).toEqual(['contracted', 'invite']);
+    expect(reportTechnicianRoutes(report, account('super_admin', null))).toEqual(['contracted']);
   });
 
   it('omits marketplace publication once a technician has been assigned', () => {
     expect(reportTechnicianRoutes({ ...report, status: 'assigned', assignedTechnicianId: 34 }, account('admin')))
-      .toEqual(['contracted', 'invite']);
+      .toEqual(['contracted']);
   });
 
   it('omits routes for closed reports and users without routing access', () => {

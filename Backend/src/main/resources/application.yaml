@@ -75,14 +75,11 @@ fixflow:
   reporting:
     require-site-setup: ${REPORTING_REQUIRE_SITE_SETUP:true}
   technician-terms:
-    version: ${TECHNICIAN_TERMS_VERSION:}
-    document-url: ${TECHNICIAN_TERMS_DOCUMENT_URL:}
-    required: ${TECHNICIAN_TERMS_REQUIRED:false}
+    version: ${TECHNICIAN_TERMS_VERSION:2026-11-03}
+    document-url: ${TECHNICIAN_TERMS_DOCUMENT_URL:http://localhost:8080/agreements/technician/2026-11-03.html}
+    required: ${TECHNICIAN_TERMS_REQUIRED:true}
   session:
     absolute-timeout: ${SESSION_ABSOLUTE_TIMEOUT:12h}
-  bootstrap:
-    super-admin-email: ${FIXFLOW_SUPER_ADMIN_EMAIL:admin@fixflow.local}
-    super-admin-password: ${FIXFLOW_SUPER_ADMIN_PASSWORD:changeme}
   urgency:
     medium-reporters: ${REPORT_URGENCY_MEDIUM_REPORTERS:3}
     high-reporters: ${REPORT_URGENCY_HIGH_REPORTERS:5}
@@ -101,8 +98,6 @@ fixflow:
     flat-shipping-minor: ${SHOP_FLAT_SHIPPING_MINOR:500}
     checkout-success-url: ${SHOP_CHECKOUT_SUCCESS_URL:http://localhost:5173/shop}
     checkout-cancel-url: ${SHOP_CHECKOUT_CANCEL_URL:http://localhost:5173/shop}
-    stripe-secret-key: ${STRIPE_SECRET_KEY:}
-    stripe-webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 
 openrouter:
   ranking:

@@ -1,6 +1,6 @@
 import type { Report, User } from '@/types';
 
-export type TechnicianRoute = 'contracted' | 'invite' | 'marketplace';
+export type TechnicianRoute = 'contracted' | 'marketplace';
 
 type ReportRouting = Pick<Report, 'status' | 'siteId' | 'assignedTechnicianId'>
   & { policy: Pick<Report['policy'], 'canAssign'> };
@@ -14,7 +14,6 @@ export function reportTechnicianRoutes(
   const siteAdmin = user.role === 'admin' && user.siteId != null && user.siteId === report.siteId;
   const routes: TechnicianRoute[] = [];
   if (report.policy.canAssign) routes.push('contracted');
-  if (siteAdmin || user.role === 'super_admin') routes.push('invite');
   if (siteAdmin && report.assignedTechnicianId === null
     && ['open', 'routed', 'reopened', 'escalated'].includes(report.status)) routes.push('marketplace');
   return routes;

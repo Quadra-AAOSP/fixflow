@@ -1,41 +1,31 @@
 package com.example.fixflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-
-import javax.sql.DataSource;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-import com.example.fixflow.bootstrap.BootstrapProperties;
-import com.example.fixflow.bootstrap.DataSeeder;
-import com.example.fixflow.repository.ShopProductRepository;
-import com.example.fixflow.repository.SiteRepository;
-import com.example.fixflow.repository.SiteRuleRepository;
-import com.example.fixflow.repository.SubsiteRepository;
-import com.example.fixflow.repository.UserRepository;
+import com.example.fixflow.config.DemoDataLoader;
 
 class SeederModeTest {
 
 	private final ApplicationContextRunner context = new ApplicationContextRunner()
-			.withUserConfiguration(DataSeeder.class)
-			.withBean(SiteRuleRepository.class, () -> mock(SiteRuleRepository.class))
-			.withBean(ShopProductRepository.class, () -> mock(ShopProductRepository.class))
-			.withBean(UserRepository.class, () -> mock(UserRepository.class))
-			.withBean(SiteRepository.class, () -> mock(SiteRepository.class))
-			.withBean(SubsiteRepository.class, () -> mock(SubsiteRepository.class))
-			.withBean(PasswordEncoder.class, () -> mock(PasswordEncoder.class))
-			.withBean(BootstrapProperties.class, () -> new BootstrapProperties("", ""))
-			.withBean(DataSource.class, () -> mock(DataSource.class));
+			.withUserConfiguration(DemoDataLoader.class)
+			.withBean(javax.sql.DataSource.class, () -> {
+				DriverManagerDataSource dataSource = new DriverManagerDataSource();
+				dataSource.setDriverClassName("org.h2.Driver");
+				dataSource.setUrl("jdbc:h2:mem:demo-loader-mode;MODE=MySQL;DB_CLOSE_DELAY=-1");
+				dataSource.setUsername("sa");
+				dataSource.setPassword("");
+				return dataSource;
+			});
 
 	@Test
-	void alwaysRegistersSingleSeeder() {
-		context.run(app -> assertThat(app).hasSingleBean(DataSeeder.class));
+	void registersDemoLoaderOnlyWhenDemoSeedEnabled() {
 		context.withPropertyValues("fixflow.seed.demo-enabled=false")
-				.run(app -> assertThat(app).hasSingleBean(DataSeeder.class));
+				.run(app -> assertThat(app).doesNotHaveBean(DemoDataLoader.class));
 		context.withPropertyValues("fixflow.seed.demo-enabled=true")
-				.run(app -> assertThat(app).hasSingleBean(DataSeeder.class));
+				.run(app -> assertThat(app).hasSingleBean(DemoDataLoader.class));
 	}
 }

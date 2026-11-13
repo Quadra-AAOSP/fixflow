@@ -19,10 +19,12 @@ import org.springframework.web.context.WebApplicationContext;
 
 import com.example.fixflow.domain.ContractStatus;
 import com.example.fixflow.domain.Site;
+import com.example.fixflow.domain.SiteRule;
 import com.example.fixflow.domain.SiteType;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.SiteRepository;
+import com.example.fixflow.repository.SiteRuleRepository;
 import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.security.AppUserDetails;
 
@@ -34,6 +36,9 @@ class SiteApiIntegrationTest {
 
 	@Autowired
 	private SiteRepository siteRepository;
+
+	@Autowired
+	private SiteRuleRepository siteRuleRepository;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -78,6 +83,15 @@ class SiteApiIntegrationTest {
 		reporter.setRole(UserRole.reporter);
 		reporter.setSite(existing);
 		reporter = userRepository.save(reporter);
+
+		if (!siteRuleRepository.existsBySiteTypeAndCategory(SiteType.school, "plumbing")) {
+			SiteRule rule = new SiteRule();
+			rule.setSiteType(SiteType.school);
+			rule.setCategory("plumbing");
+			rule.setUrgencyWeight(40);
+			rule.setSortOrder(1);
+			siteRuleRepository.save(rule);
+		}
 	}
 
 	@Test

@@ -12,12 +12,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "sites")
+@Table(name = "sites", uniqueConstraints = @UniqueConstraint(name = "uq_sites_name", columnNames = "name"))
 @Getter
 @Setter
 @NoArgsConstructor

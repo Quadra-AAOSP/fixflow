@@ -9,7 +9,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import com.example.fixflow.ai.OpenRouterAi;
 import com.example.fixflow.ai.AIProviderException;
 import com.example.fixflow.service.TechnicianRankingService;
-import com.example.fixflow.repository.TechnicianRankingAuditRepository;
+import com.example.fixflow.audit.TechnicianRankingAuditRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.domain.AvailabilityStatus;
 import java.util.List;

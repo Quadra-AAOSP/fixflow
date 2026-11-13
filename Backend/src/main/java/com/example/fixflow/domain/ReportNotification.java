@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
 public class ReportNotification {
-    public enum Type { report_edited, report_deleted, work_completed, site_invitation }
+    public enum Type { report_edited, report_deleted, work_completed }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

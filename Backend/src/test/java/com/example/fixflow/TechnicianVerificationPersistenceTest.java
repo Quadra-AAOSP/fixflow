@@ -1,6 +1,7 @@
 package com.example.fixflow;
 import static org.junit.jupiter.api.Assertions.*;
 import com.example.fixflow.domain.*;
+import com.example.fixflow.audit.*;
 import com.example.fixflow.repository.*;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.web.TechnicianVerificationController;

@@ -60,13 +60,11 @@ class ApiRateLimitFilterTest {
         assertThat(request(filter, "POST", "/api/reports", "peer").getStatus()).isEqualTo(200);
     }
 
-    @Test void boundedStateFailsClosedThenRecoversAndDoesNotBlockLogoutReadsOrWebhook() throws Exception {
+    @Test void boundedStateFailsClosedThenRecoversAndDoesNotBlockLogoutOrReads() throws Exception {
         var filter = filter(1);
         request(filter, "POST", "/api/auth/login", "one");
         assertThat(request(filter, "POST", "/api/auth/login", "two").getStatus()).isEqualTo(429);
-        for (String path : List.of("/api/auth/logout", "/api/shop/payments/webhook")) {
-            assertThat(request(filter, "POST", path, "two").getStatus()).isEqualTo(200);
-        }
+        assertThat(request(filter, "POST", "/api/auth/logout", "two").getStatus()).isEqualTo(200);
         assertThat(request(filter, "GET", "/api/reports", "two").getStatus()).isEqualTo(200);
         clock.set(Duration.ofMinutes(1).toNanos());
         assertThat(request(filter, "POST", "/api/auth/login", "two").getStatus()).isEqualTo(200);

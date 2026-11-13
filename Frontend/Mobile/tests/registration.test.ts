@@ -123,9 +123,21 @@ describe('buildRegistrationPayload', () => {
     expect(payload.address).toBe('5 Main Street');
   });
 
-  it('returns a null siteId for technicians', () => {
-    const payload = buildRegistrationPayload(input({ role: 'technician', siteId: '12' }));
+  it('returns a null siteId for technicians and requires skills plus terms', () => {
+    const payload = buildRegistrationPayload(input({
+      role: 'technician',
+      siteId: '12',
+      phone: '+15551234567',
+      address: 'Workshop',
+      trades: 'plumbing',
+      experience: '3 years',
+      qualifications: 'Licensed',
+      acceptTechnicianTerms: true,
+      technicianTermsVersion: '2026-11-03',
+      skills: [{ category: 'plumbing', proficiency: 4 }],
+    }));
     expect(payload.siteId).toBeNull();
+    expect(payload.skills).toEqual([{ category: 'plumbing', specialty: null, proficiency: 4 }]);
   });
 
   it('returns a null siteId when a reporter skips the site', () => {

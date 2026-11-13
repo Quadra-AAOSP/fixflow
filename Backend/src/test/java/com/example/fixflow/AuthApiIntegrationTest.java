@@ -129,6 +129,37 @@ class AuthApiIntegrationTest {
 	}
 
 	@Test
+	void registerTechnicianSubmitsVerificationTermsAndSkillsWithoutSite() throws Exception {
+		String email = "tech" + System.nanoTime() + "@example.com";
+		String body = """
+				{
+				  "email": "%s",
+				  "password": "password12345678",
+				  "firstName": "Tech",
+				  "lastName": "Nician",
+				  "phone": "1234567890",
+				  "address": "Workshop 1",
+				  "role": "technician",
+				  "siteId": null,
+				  "trades": "plumbing",
+				  "experience": "Five years residential and campus work",
+				  "qualifications": "City plumbing certificate",
+				  "acceptTechnicianTerms": true,
+				  "technicianTermsVersion": "test-v1",
+				  "skills": [{"category":"plumbing","specialty":"leaks","proficiency":4}]
+				}
+				""".formatted(email);
+
+		mockMvc.perform(post("/api/auth/register")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.email").value(email))
+				.andExpect(jsonPath("$.role").value("technician"))
+				.andExpect(jsonPath("$.siteId").isEmpty());
+	}
+
+	@Test
 	void publicAdminRegistrationIsRejected() throws Exception {
 		String email = "badadmin" + System.nanoTime() + "@example.com";
 		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)

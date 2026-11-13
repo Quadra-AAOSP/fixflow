@@ -57,7 +57,6 @@ import {
 import { useCurrentSite } from '@/stores/site';
 import { getPhotoSignedUrl, protectedPhotoPath, readProtectedPhoto } from '@/services/photos';
 import {
-  inviteTechniciansToReport,
   listTechnicians,
   rankTechniciansForReport,
 } from '@/services/technicians';
@@ -67,7 +66,6 @@ import type {
   ReportHistoryItem,
   ReportPhoto,
   ReportReporter,
-  TechnicianInvitationsSent,
   TechnicianRanking,
   TechnicianSummary,
   Urgency,
@@ -127,10 +125,6 @@ export default function ReportDetailScreen() {
   const [directory, setDirectory] = useState<TechnicianSummary[]>([]);
   const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [selectedTechnicianId, setSelectedTechnicianId] = useState<number | null>(null);
-  const [inviteReason, setInviteReason] = useState('');
-  const [inviting, setInviting] = useState(false);
-  const [inviteSent, setInviteSent] = useState<TechnicianInvitationsSent | null>(null);
-  const [inviteError, setInviteError] = useState<string | null>(null);
   const [routingChoice, setRoutingChoice] = useState<{ reportId: number; route: TechnicianRoute } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [signedName, setSignedName] = useState('');
@@ -346,12 +340,6 @@ export default function ReportDetailScreen() {
     ? routingChoice.route
     : routingOptions[0];
 
-  useEffect(() => {
-    setInviteSent(null);
-    setInviteReason('');
-    setInviteError(null);
-  }, [reportId]);
-
   /**
    * Admins/super admins rank through the backend (STANDARD or AI/OpenRouter);
    * staff fall back to the directory filters the web uses. Ranking is only
@@ -489,40 +477,7 @@ export default function ReportDetailScreen() {
     [directory, t],
   );
 
-  async function onInviteTechnicians() {
-    if (technicianRoute !== 'invite' || inviting || (inviteSent && !inviteSent.hasNext)) return;
-    const reason = inviteReason.trim();
-    if (reason.length === 0) {
-      setInviteError(t('reports.detail.inviteReasonRequired'));
-      return;
-    }
-    if (reason.length > 1000) {
-      setInviteError(t('reports.detail.inviteReasonTooLong'));
-      return;
-    }
-    setInviting(true);
-    setInviteError(null);
-    try {
-      const result = await inviteTechniciansToReport(
-        reportId,
-        reason,
-        inviteSent ? inviteSent.page + 1 : 0,
-      );
-      setInviteSent(result);
-    } catch (err) {
-      setInviteError(
-        toErrorMessage(err, { fallback: t('reports.detail.inviteError') }),
-      );
-    } finally {
-      setInviting(false);
-    }
-  }
 
-  function resetInvitePass() {
-    setInviteSent(null);
-    setInviteReason('');
-    setInviteError(null);
-  }
 
   async function onJoin() {
     setActionError(null);
@@ -1252,7 +1207,7 @@ export default function ReportDetailScreen() {
                 const route = routingOptions.find(option => option === value);
                 if (route) setRoutingChoice({ reportId, route });
               }}
-              disabled={routingOptions.length === 1 || assigning || inviting}
+              disabled={routingOptions.length === 1 || assigning}
             />
             {technicianRoute === 'contracted' ? (
               <View>
@@ -1446,91 +1401,6 @@ export default function ReportDetailScreen() {
                   >
                     <RefreshCw color={dashboardColors.subtitle} size={15} />
                   </Pressable>
-                </View>
-              </View>
-            ) : null}
-            {technicianRoute === 'invite' ? (
-              <View>
-                <View className="mb-2 flex-row items-center gap-2">
-                  <UserPlus color={dashboardColors.teal} size={18} />
-                  <Text
-                    className="text-[15px] font-semibold text-ink"
-                    style={{ letterSpacing: -0.3 }}
-                  >
-                    {t('reports.detail.inviteTitle')}
-                  </Text>
-                </View>
-                <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-                  {t('reports.detail.inviteBody')}
-                </Text>
-                <TextField
-                  label={t('reports.detail.inviteReasonLabel')}
-                  value={inviteReason}
-                  onChangeText={(text) => {
-                    setInviteReason(text);
-                    if (inviteError) setInviteError(null);
-                  }}
-                  placeholder={t('reports.detail.inviteReasonPlaceholder')}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                  editable={!inviting}
-                  maxLength={1000}
-                />
-                {inviteError ? (
-                  <Text className="mb-2 text-[10px] leading-[1.7] text-tone-danger">
-                    {inviteError}
-                  </Text>
-                ) : null}
-                {inviteSent ? (
-                  <View className="mb-3">
-                    <Text
-                      className="text-[11px] font-medium"
-                      style={{ color: dashboardColors.statMintDeep }}
-                    >
-                      {t('reports.detail.inviteCreated', {
-                        count: inviteSent.created,
-                        page: inviteSent.page + 1,
-                      })}
-                    </Text>
-                    <Text className="mt-0.5 text-[10px] leading-[1.7] text-dashboard-caption">
-                      {inviteSent.hasNext
-                        ? t('reports.detail.inviteMoreBatches')
-                        : t('reports.detail.inviteNoMoreBatches')}
-                    </Text>
-                  </View>
-                ) : null}
-                <View className="flex-row items-center gap-2">
-                  <Button
-                    label={
-                      inviting
-                        ? t('reports.detail.inviteSending')
-                        : inviteSent?.hasNext
-                          ? t('reports.detail.inviteNextBatch')
-                          : t('reports.detail.inviteSend')
-                    }
-                    variant="secondary"
-                    onPress={onInviteTechnicians}
-                    loading={inviting}
-                    disabled={
-                      inviting || (inviteSent !== null && !inviteSent.hasNext)
-                    }
-                    className="flex-1"
-                  />
-                  {inviteSent ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t('reports.detail.inviteNewPass')}
-                      disabled={inviting}
-                      onPress={resetInvitePass}
-                      className="h-11 items-center justify-center rounded-md px-3 active:opacity-70"
-                      style={{ opacity: inviting ? 0.4 : 1 }}
-                    >
-                      <Text className="text-[11px] font-semibold text-dashboard-subtitle">
-                        {t('reports.detail.inviteNewPass')}
-                      </Text>
-                    </Pressable>
-                  ) : null}
                 </View>
               </View>
             ) : null}

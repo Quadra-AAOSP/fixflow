@@ -231,9 +231,15 @@ class ApiSecurityMatrixIntegrationTest {
         mvc.perform(post("/api/reports").with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON).content(creation(Long.MAX_VALUE))).andExpect(status().isBadRequest());
         mvc.perform(post("/api/reports").with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON).content(creation(null)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.subsiteId").isEmpty());
-        String registration = "{\"email\":\"tech-" + System.nanoTime() + "@example.com\",\"password\":\"password12345678\",\"firstName\":\"Tech\",\"lastName\":\"Test\",\"role\":\"technician\",\"phone\":\"123456789\",\"address\":\"Test address\",\"siteId\":";
-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(registration + own.getId() + "}")).andExpect(status().isBadRequest());
-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(registration + "null}"))
+        String email = "tech-" + System.nanoTime() + "@example.com";
+        String base = "{\"email\":\"" + email + "\",\"password\":\"password12345678\",\"firstName\":\"Tech\",\"lastName\":\"Test\","
+                + "\"role\":\"technician\",\"phone\":\"123456789\",\"address\":\"Test address\","
+                + "\"trades\":\"plumbing\",\"experience\":\"3 years\",\"qualifications\":\"Licensed\","
+                + "\"acceptTechnicianTerms\":true,\"technicianTermsVersion\":\"test-v1\","
+                + "\"skills\":[{\"category\":\"plumbing\",\"proficiency\":4}],\"siteId\":";
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(base + own.getId() + "}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(base + "null}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.siteId").isEmpty());
     }
 

@@ -98,7 +98,8 @@ class ShopApiIntegrationTest {
 		reporter.setPasswordHash(passwordEncoder.encode("password123"));
 		reporter.setFirstName("Shop");
 		reporter.setLastName("Buyer");
-		reporter.setRole(UserRole.reporter);
+		// Shop routes require a staff-side role (not reporter).
+		reporter.setRole(UserRole.staff);
 		reporter.setSite(site);
 		reporter = userRepository.save(reporter);
 

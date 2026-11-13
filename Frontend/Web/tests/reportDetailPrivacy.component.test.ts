@@ -47,7 +47,7 @@ async function render() {
   wrapper = mount(ReportDetailView, { global: { plugins: [router], stubs: {
     ReportPhotosPanel: true, ReportVisionPanel: true, ReportClassificationPanel: true,
     ReportWorkflowPanel: true,
-    ReportReviewPanel: true, TechnicianAssignmentPanel: true, TechnicianInvitationSender: true,
+    ReportReviewPanel: true, TechnicianAssignmentPanel: true,
     MarketplacePublishPanel: { template: '<div><input aria-label="Draft summary" /></div>' },
   } } });
   await flushPromises(); return router;
@@ -62,7 +62,6 @@ it('shows the selected technician route and preserves the mounted panels when sw
   const assignment = wrapper.get('technician-assignment-panel-stub');
   expect(assignment.attributes('style') ?? '').not.toContain('display: none');
   expect(select.findAll('option').map(option => option.attributes('value'))).toEqual(['contracted', 'marketplace']);
-  expect(wrapper.find('technician-invitation-sender-stub').exists()).toBe(false);
   await select.setValue('marketplace');
   expect(wrapper.get('[aria-label="Draft summary"]').exists()).toBe(true);
   await wrapper.get('[aria-label="Draft summary"]').setValue('Retained draft');

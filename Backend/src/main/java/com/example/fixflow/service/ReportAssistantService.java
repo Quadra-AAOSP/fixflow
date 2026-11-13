@@ -19,11 +19,11 @@ import com.example.fixflow.ai.ChatMessage;
 import com.example.fixflow.ai.OpenRouterAi;
 import com.example.fixflow.domain.Report;
 import com.example.fixflow.domain.ReportVisibility;
-import com.example.fixflow.domain.StatusHistory;
+import com.example.fixflow.audit.StatusHistory;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.ReportReporterRepository;
 import com.example.fixflow.repository.ReportRepository;
-import com.example.fixflow.repository.StatusHistoryRepository;
+import com.example.fixflow.audit.StatusHistoryRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.web.ApiException;
 

@@ -209,8 +209,8 @@
     "registerTechnician": {
       "kicker": "技师注册",
       "title": "创建您的技师账户",
-      "description": "独立注册，站点合同可选。",
-      "independentNote": "您可以从没有签订合同的站点开始，保持独立身份，之后再洽谈站点合同。",
+      "description": "一次完成资质提交、条款签署与站点合同申请。",
+      "independentNote": "账户本身不绑定站点。注册会提交待审的平台核验，并向所选站点发送合同申请。",
       "firstName": "法定名",
       "firstNamePlaceholder": "Alexander",
       "lastName": "法定姓",
@@ -223,10 +223,21 @@
       "phonePlaceholder": "+65 …",
       "address": "营业或通讯地址",
       "addressPlaceholder": "街道、城市、邮编",
-      "qualificationNotice": "注册将创建账户，但不会验证您的身份或资质。在为站点工作之前，请与站点管理员确认资质、执照、保险及背景调查。",
-      "submit": "创建账户并添加技能 →",
+      "trades": "工种",
+      "tradesPlaceholder": "水管、电气…",
+      "experience": "经验",
+      "experiencePlaceholder": "从业年限与工作类型",
+      "qualifications": "资质",
+      "qualificationsPlaceholder": "证书、执照、培训",
+      "contractSite": "合同申请站点",
+      "contractNote": "合同备注（可选）",
+      "contractNotePlaceholder": "可工作时间、偏好楼栋等",
+      "acceptTermsPrefix": "我已阅读并接受",
+      "acceptTermsLink": "技师参与协议",
+      "qualificationNotice": "超级管理员仍需审核平台核验，站点管理员仍需批准合同并完成站点审查后，您才能接单。",
+      "submit": "创建技师账户 →",
       "accountReadyTitle": "您的技师账户已就绪",
-      "accountReadyBody": "接下来：在个人资料 → 技能中添加您的工种和专长。",
+      "accountReadyBody": "核验与合同申请正在等待审核。登录后可查看进度。",
       "continueSignIn": "继续登录 →",
       "changeRole": "更换角色",
       "errors": {
@@ -303,12 +314,30 @@
     "reportIssue": "报修",
     "reviewQueue": "查看待办队列",
     "statLabels": {
-      "open": { "label": "待处理", "note": "待处理、已路由、已重开、已升级" },
-      "progress": { "label": "进行中", "note": "已分配、处理中" },
-      "resolved": { "label": "已解决", "note": "待确认或已确认" },
-      "urgent": { "label": "紧急", "note": "高或紧急优先级，处理中" },
-      "unassigned": { "label": "未分配", "note": "进行中，尚无技师接单" },
-      "confirmation": { "label": "待确认", "note": "已解决，等待确认" }
+      "open": {
+        "label": "待处理",
+        "note": "待处理、已路由、已重开、已升级"
+      },
+      "progress": {
+        "label": "进行中",
+        "note": "已分配、处理中"
+      },
+      "resolved": {
+        "label": "已解决",
+        "note": "待确认或已确认"
+      },
+      "urgent": {
+        "label": "紧急",
+        "note": "高或紧急优先级，处理中"
+      },
+      "unassigned": {
+        "label": "未分配",
+        "note": "进行中，尚无技师接单"
+      },
+      "confirmation": {
+        "label": "待确认",
+        "note": "已解决，等待确认"
+      }
     },
     "sync": {
       "refreshing": "正在刷新…",
@@ -332,10 +361,22 @@
       "reportCount": "{count} 条报修",
       "allCaughtUp": "全部处理完毕",
       "allCaughtUpHint": "没有紧急、已升级或等待技师处理的事项。",
-      "urgent": { "label": "紧急报修", "hint": "高或紧急优先级，处理中" },
-      "escalated": { "label": "已升级", "hint": "已超出站点预期的服务窗口" },
-      "unassigned": { "label": "等待技师", "hint": "尚未有人接手这些报修" },
-      "awaiting": { "label": "待确认", "hint": "已解决，等待报修人确认" },
+      "urgent": {
+        "label": "紧急报修",
+        "hint": "高或紧急优先级，处理中"
+      },
+      "escalated": {
+        "label": "已升级",
+        "hint": "已超出站点预期的服务窗口"
+      },
+      "unassigned": {
+        "label": "等待技师",
+        "hint": "尚未有人接手这些报修"
+      },
+      "awaiting": {
+        "label": "待确认",
+        "hint": "已解决，等待报修人确认"
+      },
       "itemA11y": "{count} {label}"
     },
     "maintenanceOverview": {
@@ -372,12 +413,30 @@
     },
     "quickActions": {
       "header": "快捷操作",
-      "createReport": { "title": "新建报修", "subtitle": "登记新问题" },
-      "siteSetup": { "title": "站点设置", "subtitle": "楼栋与就绪检查" },
-      "teamAccess": { "title": "团队权限", "subtitle": "开通账户" },
-      "applications": { "title": "申请审核", "subtitle": "站点管理员申请" },
-      "browseReports": { "title": "浏览报修", "subtitle": "搜索与筛选" },
-      "yourSites": { "title": "我的站点", "subtitle": "查看站点信息" }
+      "createReport": {
+        "title": "新建报修",
+        "subtitle": "登记新问题"
+      },
+      "siteSetup": {
+        "title": "站点设置",
+        "subtitle": "楼栋与就绪检查"
+      },
+      "teamAccess": {
+        "title": "团队权限",
+        "subtitle": "开通账户"
+      },
+      "applications": {
+        "title": "申请审核",
+        "subtitle": "站点管理员申请"
+      },
+      "browseReports": {
+        "title": "浏览报修",
+        "subtitle": "搜索与筛选"
+      },
+      "yourSites": {
+        "title": "我的站点",
+        "subtitle": "查看站点信息"
+      }
     },
     "emptyHome": {
       "title": "{site} 尚无报修",
@@ -632,7 +691,6 @@
         "title": "寻找技术人员",
         "label": "技术人员安排方式",
         "contracted": "指派已签约技术人员",
-        "invite": "邀请技术人员申请场地合同",
         "marketplace": "发布到工作市场",
         "marketplaceBody": "发布公开的工作简介，供已通过审核的独立技术人员申请。您可以在工作市场查看申请并发出工作邀约。",
         "openMarketplace": "前往工作市场"
@@ -661,20 +719,6 @@
       "assignSave": "保存分配",
       "assignReassign": "重新分配",
       "assignSaved": "技师分配已保存。",
-      "inviteTitle": "邀请技师",
-      "inviteBody": "邀请尚未与此场地签约且技能匹配的技术人员。他们可以从收件箱申请场地合同。批准后，您可以将报修指派给他们。",
-      "inviteReasonLabel": "邀请原因",
-      "inviteReasonPlaceholder": "说明为什么需要这些技师。",
-      "inviteSend": "发送邀请",
-      "inviteSending": "正在发送…",
-      "inviteNextBatch": "发送下一批",
-      "inviteNewPass": "重新开始",
-      "inviteCreated": "已发送 {count} 个邀请（第 {page} 批）。",
-      "inviteMoreBatches": "仍有候选技师，可在准备好后发送下一批。",
-      "inviteNoMoreBatches": "所有候选批次均已发送邀请。",
-      "inviteError": "无法发送邀请。",
-      "inviteReasonRequired": "请填写邀请原因。",
-      "inviteReasonTooLong": "邀请原因请控制在 1000 个字符以内。",
       "youAreJoined": "您是该报修的报修人。",
       "leaveButton": "退出报修",
       "leaving": "正在退出…",
@@ -1477,21 +1521,6 @@
         "couldNotAccept": "无法接受条款。"
       }
     },
-    "invitations": {
-      "title": "场地邀请",
-      "intro": "邀请会按站点和类别发送。如需承接该站点的工单，请申请该站点的合同。",
-      "loading": "正在加载邀请…",
-      "createdAt": "创建于 {date}",
-      "siteFallback": "站点 #{id}",
-      "requestContract": "申请该站点的合同",
-      "previous": "上一页",
-      "page": "第 {page} 页",
-      "next": "下一页",
-      "noInvitations": "暂无邀请。",
-      "errors": {
-        "couldNotLoad": "无法加载邀请。"
-      }
-    },
     "contractRequests": {
       "back": "返回",
       "kicker": "技术员",
@@ -1751,8 +1780,21 @@
     "showAll": "显示全部日期",
     "showFewer": "显示较少日期"
   },
-  "shopNotices": { "title": "商城动态", "placed": "新订单 {id} 等待处理。", "shipped": "订单 {id} 已发货，收到后请确认收货。", "loading": "正在加载商城动态...", "empty": "暂无商城动态。", "error": "无法加载商城动态。", "reports": "报修动态" },
-  "orderReceipt": { "name": "您的姓名", "received": "我已收到此订单", "submit": "确认收货", "error": "无法确认收货，请重试。" },
+  "shopNotices": {
+    "title": "商城动态",
+    "placed": "新订单 {id} 等待处理。",
+    "shipped": "订单 {id} 已发货，收到后请确认收货。",
+    "loading": "正在加载商城动态...",
+    "empty": "暂无商城动态。",
+    "error": "无法加载商城动态。",
+    "reports": "报修动态"
+  },
+  "orderReceipt": {
+    "name": "您的姓名",
+    "received": "我已收到此订单",
+    "submit": "确认收货",
+    "error": "无法确认收货，请重试。"
+  },
   "orderManagement": {
     "refresh": "刷新",
     "title": "商城订单",

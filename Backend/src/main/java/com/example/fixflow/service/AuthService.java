@@ -14,15 +14,26 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
+
 import com.example.fixflow.domain.Site;
+import com.example.fixflow.domain.TechnicianContractApplication;
+import com.example.fixflow.domain.TechnicianSkill;
+import com.example.fixflow.domain.TechnicianVerification;
+import com.example.fixflow.audit.TechnicianVerificationAudit;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.dto.JoinableSiteResponse;
 import com.example.fixflow.dto.LoginRequest;
 import com.example.fixflow.dto.ProvisionUserRequest;
 import com.example.fixflow.dto.RegisterRequest;
+import com.example.fixflow.dto.RegisterSkillRequest;
 import com.example.fixflow.dto.UserResponse;
 import com.example.fixflow.repository.SiteRepository;
+import com.example.fixflow.repository.TechnicianContractApplicationRepository;
+import com.example.fixflow.repository.TechnicianSkillRepository;
+import com.example.fixflow.audit.TechnicianVerificationAuditRepository;
+import com.example.fixflow.repository.TechnicianVerificationRepository;
 import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.web.ApiException;
@@ -40,7 +51,12 @@ public class AuthService {
 	private final AuthenticationManager authenticationManager;
 	private final com.example.fixflow.repository.SubsiteRepository subsites;
 	private final SiteAdminApplicationService adminApplications;
-    private final org.springframework.context.ApplicationEventPublisher events;
+	private final TechnicianTermsService technicianTerms;
+	private final TechnicianVerificationRepository verifications;
+	private final TechnicianVerificationAuditRepository verificationAudits;
+	private final TechnicianContractApplicationRepository contractApplications;
+	private final TechnicianSkillRepository skills;
+	private final org.springframework.context.ApplicationEventPublisher events;
 
 	public AuthService(
 			UserRepository userRepository,
@@ -49,7 +65,12 @@ public class AuthService {
 			AuthenticationManager authenticationManager,
 			com.example.fixflow.repository.SubsiteRepository subsites,
 			SiteAdminApplicationService adminApplications,
-            org.springframework.context.ApplicationEventPublisher events
+			TechnicianTermsService technicianTerms,
+			TechnicianVerificationRepository verifications,
+			TechnicianVerificationAuditRepository verificationAudits,
+			TechnicianContractApplicationRepository contractApplications,
+			TechnicianSkillRepository skills,
+			org.springframework.context.ApplicationEventPublisher events
 	) {
 		this.userRepository = userRepository;
 		this.siteRepository = siteRepository;
@@ -57,12 +78,17 @@ public class AuthService {
 		this.authenticationManager = authenticationManager;
 		this.subsites = subsites;
 		this.adminApplications = adminApplications;
-        this.events = events;
+		this.technicianTerms = technicianTerms;
+		this.verifications = verifications;
+		this.verificationAudits = verificationAudits;
+		this.contractApplications = contractApplications;
+		this.skills = skills;
+		this.events = events;
 	}
 
 	@Transactional
 	public UserResponse register(RegisterRequest request) {
-        AccountPolicy.validateRegistration(request);
+		AccountPolicy.validateRegistration(request);
 		if (request.role() != UserRole.reporter && request.role() != UserRole.technician) {
 			throw new ApiException(HttpStatus.BAD_REQUEST.value(),
 					"Self-registration is only allowed for reporters or technicians; request a site for administrator access");
@@ -108,6 +134,9 @@ public class AuthService {
 				effectiveSiteId
 		);
 		if (request.role() == UserRole.admin) adminApplications.submit(registered);
+		if (request.role() == UserRole.technician) {
+			completeTechnicianRegistration(registered, request);
+		}
 		return response(registered);
 	}
 
@@ -165,9 +194,9 @@ public class AuthService {
 		context.setAuthentication(authentication);
 		SecurityContextHolder.setContext(context);
 		HttpSession session = httpRequest.getSession(true);
-        String previousSessionId = session.getId();
+		String previousSessionId = session.getId();
 		httpRequest.changeSessionId();
-        events.publishEvent(new com.example.fixflow.security.SessionEnded(previousSessionId));
+		events.publishEvent(new com.example.fixflow.security.SessionEnded(previousSessionId));
 		session.setAttribute(com.example.fixflow.security.SessionExpiryFilter.AUTHENTICATED_AT, java.time.Instant.now());
 		session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
 
@@ -181,9 +210,9 @@ public class AuthService {
 		SecurityContextHolder.clearContext();
 		HttpSession session = request.getSession(false);
 		if (session != null) {
-            String sessionId = session.getId();
+			String sessionId = session.getId();
 			session.invalidate();
-            events.publishEvent(new com.example.fixflow.security.SessionEnded(sessionId));
+			events.publishEvent(new com.example.fixflow.security.SessionEnded(sessionId));
 		}
 	}
 
@@ -192,6 +221,59 @@ public class AuthService {
 		User user = userRepository.findById(principal.getId())
 				.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED.value(), "User not found"));
 		return response(user);
+	}
+
+	private void completeTechnicianRegistration(User technician, RegisterRequest request) {
+		TechnicianVerification verification = new TechnicianVerification();
+		verification.setTechnicianId(technician.getId());
+		verification.setEmail(request.email().trim().toLowerCase(Locale.ROOT));
+		verification.setPhone(request.phone().trim());
+		verification.setTrades(request.trades().trim());
+		verification.setExperience(request.experience().trim());
+		verification.setQualifications(request.qualifications().trim());
+		verification.setStatus("pending");
+		verification.setIdentityChecked(false);
+		verification.setEmailChecked(false);
+		verification.setPhoneChecked(false);
+		verification.setTradeChecked(false);
+		verifications.saveAndFlush(verification);
+
+		TechnicianVerificationAudit audit = new TechnicianVerificationAudit();
+		audit.setTechnicianId(technician.getId());
+		audit.setActorId(technician.getId());
+		audit.setStatus(verification.getStatus());
+		try {
+			audit.setSnapshot(new com.fasterxml.jackson.databind.ObjectMapper()
+					.findAndRegisterModules().writeValueAsString(verification));
+		} catch (Exception ex) {
+			throw new IllegalStateException("Could not record verification audit", ex);
+		}
+		verificationAudits.save(audit);
+
+		technicianTerms.recordAcceptance(technician, request.technicianTermsVersion().trim());
+
+		for (RegisterSkillRequest input : request.skills()) {
+			TechnicianSkill skill = new TechnicianSkill();
+			skill.setTechnician(technician);
+			skill.setCategory(input.category().trim().toLowerCase(Locale.ROOT));
+			skill.setSpecialty(input.specialty() == null || input.specialty().isBlank()
+					? null
+					: input.specialty().trim().toLowerCase(Locale.ROOT));
+			skill.setProficiency(input.proficiency() == null ? 3 : input.proficiency());
+			skills.save(skill);
+		}
+		skills.flush();
+
+		if (request.contractSiteId() != null) {
+			Site contractSite = siteRepository.findById(request.contractSiteId())
+					.orElseThrow(() -> new ApiException(404, "Contract site not found"));
+			TechnicianContractApplication application = new TechnicianContractApplication();
+			application.setTechnician(technician);
+			application.setSite(contractSite);
+			application.setNote(request.contractNote() == null || request.contractNote().isBlank()
+					? null : request.contractNote().trim());
+			contractApplications.saveAndFlush(application);
+		}
 	}
 
 	private UserResponse response(User user) {
@@ -219,7 +301,7 @@ public class AuthService {
 			Long siteId
 	) {
 		String normalizedEmail = email.trim().toLowerCase();
-        AccountPolicy.validatePassword(password);
+		AccountPolicy.validatePassword(password);
 		if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
 			throw new ApiException(HttpStatus.CONFLICT.value(), "Email is already registered");
 		}

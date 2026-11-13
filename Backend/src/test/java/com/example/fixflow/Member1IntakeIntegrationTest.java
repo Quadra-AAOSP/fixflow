@@ -32,7 +32,7 @@ import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.ReportRepository;
 import com.example.fixflow.repository.SiteRepository;
-import com.example.fixflow.repository.StatusHistoryRepository;
+import com.example.fixflow.audit.StatusHistoryRepository;
 import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.jayway.jsonpath.JsonPath;

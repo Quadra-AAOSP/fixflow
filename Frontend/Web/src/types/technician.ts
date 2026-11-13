@@ -30,9 +30,4 @@ export type TechnicianRanking = {
   reportId: number; requestedMode: RankingMode; methodUsed: RankingMode; fallbackReason: string | null;
   candidates: { technicianId: number; proficiency: number; specialtyMatch: boolean; activeCases: number; score: number }[];
 };
-export type TechnicianInvitation = {
-  id: number; siteId: number; category: string; specialty: string | null; reason: string; createdAt: string;
-};
-export type TechnicianInvitationInbox = { items: TechnicianInvitation[]; page: number; hasNext: boolean };
-export type TechnicianInvitationsSent = { created: number; page: number; hasNext: boolean };
 export type TechnicianAvailability = { technicianId: number; status: 'available' | 'unavailable'; updatedAt: string | null };

@@ -6,7 +6,6 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.fixflow.config.ShopProperties;
 import com.example.fixflow.domain.ShopOrder;
 import com.example.fixflow.domain.ShopOrderItem;
 import com.example.fixflow.domain.ShopOrderStatus;
@@ -43,8 +42,7 @@ public class ShopOrderService {
 			ShopCatalogService shopCatalogService,
 			ShopOrderRepository shopOrderRepository,
 			ShopProductRepository shopProductRepository,
-			ShopProperties shopProperties,
-			List<PaymentProvider> paymentProviders,
+			PaymentProvider paymentProvider,
 			EntityManager entityManager,
 			com.example.fixflow.repository.ShopNotificationRepository notices,
 			com.example.fixflow.repository.UserRepository users
@@ -52,7 +50,7 @@ public class ShopOrderService {
 		this.shopCatalogService = shopCatalogService;
 		this.shopOrderRepository = shopOrderRepository;
 		this.shopProductRepository = shopProductRepository;
-		this.paymentProvider = selectProvider(paymentProviders, shopProperties);
+		this.paymentProvider = paymentProvider;
 		this.entityManager = entityManager;
 		this.notices = notices;
 		this.users = users;
@@ -225,14 +223,6 @@ public class ShopOrderService {
 		String checkoutUrl = order.getPayment() != null ? order.getPayment().getCheckoutUrl() : null;
 		String provider = order.getPayment() != null ? order.getPayment().getProvider().name() : null;
 		return new ShopCreateOrderResponse(order.getPublicId(), order.getTotalMinor(), checkoutUrl, provider);
-	}
-
-	private static PaymentProvider selectProvider(List<PaymentProvider> providers, ShopProperties properties) {
-		ShopPaymentProvider wanted = properties.stripeEnabled() ? ShopPaymentProvider.stripe : ShopPaymentProvider.dev;
-		return providers.stream()
-				.filter(p -> p.type() == wanted)
-				.findFirst()
-				.orElseThrow(() -> new IllegalStateException("No payment provider for " + wanted));
 	}
 
 	private static void requireBuyer(AppUserDetails principal) {

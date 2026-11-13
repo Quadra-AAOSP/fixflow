@@ -1,9 +1,10 @@
 export const TECHNICIAN_AGREEMENT_VERSION = '2026-11-03';
+export const TECHNICIAN_AGREEMENT_PATH = `/agreements/technician/${TECHNICIAN_AGREEMENT_VERSION}.html`;
 // Team-approved web document. Runtime acceptance uses the backend-configured version.
 export const technicianAgreementSections = [
   {
     "title": "Participation and site contracts",
-    "body": "Technicians may register without contracted sites. A request expresses interest only; site approval and a recorded contract are required before contracted access is granted. Registration does not guarantee assignments or income."
+    "body": "Technician registration submits verification details, structured skills, and records acceptance of this agreement. You may request a site contract after signup. Site approval, a recorded contract, and site vetting are still required before contracted work access is granted. Registration does not guarantee assignments or income."
   },
   {
     "title": "Identity and qualifications",

@@ -69,9 +69,26 @@ export type AccountDetails = {
   address?: string;
 };
 
+export type RegisterSkill = {
+  category: string;
+  specialty?: string | null;
+  proficiency: number;
+};
+
 export type RegisterPayload = AccountDetails & (
   | { role: 'reporter'; siteId: number }
-  | { role: 'technician'; siteId: null }
+  | {
+      role: 'technician';
+      siteId: null;
+      trades: string;
+      experience: string;
+      qualifications: string;
+      acceptTechnicianTerms: true;
+      technicianTermsVersion: string;
+      skills: RegisterSkill[];
+      contractSiteId?: number;
+      contractNote?: string;
+    }
   | { role: 'admin'; siteId: number }
 );
 

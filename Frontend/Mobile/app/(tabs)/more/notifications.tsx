@@ -67,9 +67,9 @@ function NotificationFeeds() {
           <StateView variant="empty" title={t('more.notifications.emptyTitle')} />
         ) : null}
         renderItem={({ item }) => (
-          <Pressable disabled={item.type !== 'work_completed' && item.type !== 'site_invitation'} onPress={() => item.type === 'site_invitation' ? router.push({ pathname: '/technician/invitations', params: { invitationId: String(item.invitationId ?? '') } }) : router.push(`/reports/${item.reportId}`)} accessibilityRole="button"><Card>
+          <Pressable disabled={item.type !== 'work_completed' || item.reportId == null} onPress={() => router.push(`/reports/${item.reportId}`)} accessibilityRole="button"><Card>
             <Text className="text-sm font-semibold text-ink">
-              {item.type === 'site_invitation' ? t('technician.invitations.title') : item.type === 'work_completed' ? t('more.notifications.workCompleted', { id: item.reportId }) : t(item.type === 'report_edited' ? 'more.notifications.edited' : 'more.notifications.archived', { id: item.reportId })}
+              {item.type === 'work_completed' ? t('more.notifications.workCompleted', { id: item.reportId }) : t(item.type === 'report_edited' ? 'more.notifications.edited' : 'more.notifications.archived', { id: item.reportId })}
             </Text>
             <Text className="mt-1 text-xs text-subtitle">{formatDate(item.createdAt, true)}</Text>
           </Card></Pressable>

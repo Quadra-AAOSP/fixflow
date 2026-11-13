@@ -209,8 +209,8 @@
     "registerTechnician": {
       "kicker": "TECHNICIAN SIGN-UP",
       "title": "Create your technician account",
-      "description": "Register independently. A site contract is optional.",
-      "independentNote": "Start with no contracted sites. You can remain independent and arrange site contracts later.",
+      "description": "Submit verification, accept terms, and request a site contract in one step.",
+      "independentNote": "Your account is not tied to a site yet. Registration files a pending verification and a contract request for admin approval.",
       "firstName": "Legal first name",
       "firstNamePlaceholder": "Alexander",
       "lastName": "Legal last name",
@@ -223,10 +223,21 @@
       "phonePlaceholder": "+65 …",
       "address": "Business or correspondence address",
       "addressPlaceholder": "Street, city, postcode",
-      "qualificationNotice": "Registration creates an account; it does not verify your identity or qualifications. Before site work, arrange qualification, licence, insurance, and reference checks with the site administrator.",
-      "submit": "Create account & add trade →",
+      "trades": "Trades",
+      "tradesPlaceholder": "Plumbing, electrical…",
+      "experience": "Experience",
+      "experiencePlaceholder": "Years and types of work",
+      "qualifications": "Qualifications",
+      "qualificationsPlaceholder": "Certificates, licences, training",
+      "contractSite": "Site for contract request",
+      "contractNote": "Contract note (optional)",
+      "contractNotePlaceholder": "Availability, preferred buildings…",
+      "acceptTermsPrefix": "I have read and accept the",
+      "acceptTermsLink": "technician participation agreement",
+      "qualificationNotice": "Super admins still review platform verification, and site admins still approve your contract and complete site vetting before you can take jobs.",
+      "submit": "Create technician account →",
       "accountReadyTitle": "Your technician account is ready",
-      "accountReadyBody": "Next: add your trade and specialty under Profile → Trade.",
+      "accountReadyBody": "Verification and your contract request are pending review. You can track status after you sign in.",
       "continueSignIn": "Continue to sign in →",
       "changeRole": "Change role",
       "errors": {
@@ -303,12 +314,30 @@
     "reportIssue": "Report an issue",
     "reviewQueue": "Review the queue",
     "statLabels": {
-      "open": { "label": "Open reports", "note": "Open, routed, reopened, escalated" },
-      "progress": { "label": "In progress", "note": "Assigned and in progress" },
-      "resolved": { "label": "Resolved", "note": "Awaiting confirmation or confirmed" },
-      "urgent": { "label": "Urgent", "note": "Active high or critical urgency" },
-      "unassigned": { "label": "Unassigned", "note": "Active, no technician yet" },
-      "confirmation": { "label": "To confirm", "note": "Resolved, awaiting confirmation" }
+      "open": {
+        "label": "Open reports",
+        "note": "Open, routed, reopened, escalated"
+      },
+      "progress": {
+        "label": "In progress",
+        "note": "Assigned and in progress"
+      },
+      "resolved": {
+        "label": "Resolved",
+        "note": "Awaiting confirmation or confirmed"
+      },
+      "urgent": {
+        "label": "Urgent",
+        "note": "Active high or critical urgency"
+      },
+      "unassigned": {
+        "label": "Unassigned",
+        "note": "Active, no technician yet"
+      },
+      "confirmation": {
+        "label": "To confirm",
+        "note": "Resolved, awaiting confirmation"
+      }
     },
     "sync": {
       "refreshing": "Refreshing…",
@@ -332,10 +361,22 @@
       "reportCount": "{count} report{plural}",
       "allCaughtUp": "You're all caught up",
       "allCaughtUpHint": "Nothing urgent, escalated, or waiting for a technician.",
-      "urgent": { "label": "Urgent reports", "hint": "High or critical urgency, still active" },
-      "escalated": { "label": "Escalated", "hint": "Past the service window the site expects" },
-      "unassigned": { "label": "Waiting for a technician", "hint": "Nobody has picked these up yet" },
-      "awaiting": { "label": "Awaiting confirmation", "hint": "Resolved and waiting on the reporter" },
+      "urgent": {
+        "label": "Urgent reports",
+        "hint": "High or critical urgency, still active"
+      },
+      "escalated": {
+        "label": "Escalated",
+        "hint": "Past the service window the site expects"
+      },
+      "unassigned": {
+        "label": "Waiting for a technician",
+        "hint": "Nobody has picked these up yet"
+      },
+      "awaiting": {
+        "label": "Awaiting confirmation",
+        "hint": "Resolved and waiting on the reporter"
+      },
       "itemA11y": "{count} {label}"
     },
     "maintenanceOverview": {
@@ -372,12 +413,30 @@
     },
     "quickActions": {
       "header": "Quick actions",
-      "createReport": { "title": "Create report", "subtitle": "Log a new issue" },
-      "siteSetup": { "title": "Site setup", "subtitle": "Buildings & readiness" },
-      "teamAccess": { "title": "Team access", "subtitle": "Provision accounts" },
-      "applications": { "title": "Applications", "subtitle": "Site-admin requests" },
-      "browseReports": { "title": "Browse reports", "subtitle": "Search and filter" },
-      "yourSites": { "title": "Your sites", "subtitle": "View site information" }
+      "createReport": {
+        "title": "Create report",
+        "subtitle": "Log a new issue"
+      },
+      "siteSetup": {
+        "title": "Site setup",
+        "subtitle": "Buildings & readiness"
+      },
+      "teamAccess": {
+        "title": "Team access",
+        "subtitle": "Provision accounts"
+      },
+      "applications": {
+        "title": "Applications",
+        "subtitle": "Site-admin requests"
+      },
+      "browseReports": {
+        "title": "Browse reports",
+        "subtitle": "Search and filter"
+      },
+      "yourSites": {
+        "title": "Your sites",
+        "subtitle": "View site information"
+      }
     },
     "emptyHome": {
       "title": "No reports yet at {site}",
@@ -632,7 +691,6 @@
         "title": "Find a technician",
         "label": "Technician route",
         "contracted": "Assign a contracted technician",
-        "invite": "Invite technicians to request a site contract",
         "marketplace": "Publish to the job marketplace",
         "marketplaceBody": "Publish a public job summary so verified independent technicians can apply. Review applications and send a job offer in the marketplace.",
         "openMarketplace": "Continue to the marketplace"
@@ -661,20 +719,6 @@
       "assignSave": "Save assignment",
       "assignReassign": "Reassign",
       "assignSaved": "Technician assignment saved.",
-      "inviteTitle": "Invite technicians",
-      "inviteBody": "Invite matching technicians who do not yet have a contract with this site. They can request a site contract from their inbox. After you approve it, you can assign them to the report.",
-      "inviteReasonLabel": "Reason for the invitation",
-      "inviteReasonPlaceholder": "Explain why these technicians are needed.",
-      "inviteSend": "Send invitations",
-      "inviteSending": "Sending…",
-      "inviteNextBatch": "Send next batch",
-      "inviteNewPass": "New pass",
-      "inviteCreated": "Sent {count} invitations (batch {page}).",
-      "inviteMoreBatches": "More candidates are available. Send the next batch when ready.",
-      "inviteNoMoreBatches": "All candidate batches have been invited.",
-      "inviteError": "Could not send invitations.",
-      "inviteReasonRequired": "Enter a reason for the invitation.",
-      "inviteReasonTooLong": "Keep the reason under 1000 characters.",
       "youAreJoined": "You are a reporter on this report.",
       "leaveButton": "Leave report",
       "leaving": "Leaving…",
@@ -1477,21 +1521,6 @@
         "couldNotAccept": "Could not accept the terms."
       }
     },
-    "invitations": {
-      "title": "Site invitations",
-      "intro": "Invitations are sent for a site and category. Request a contract for the site if you want to take on its jobs.",
-      "loading": "Loading invitations…",
-      "createdAt": "Created {date}",
-      "siteFallback": "Site #{id}",
-      "requestContract": "Request a contract for this site",
-      "previous": "Previous",
-      "page": "Page {page}",
-      "next": "Next",
-      "noInvitations": "No invitations yet.",
-      "errors": {
-        "couldNotLoad": "Could not load invitations."
-      }
-    },
     "contractRequests": {
       "back": "Back",
       "kicker": "TECHNICIAN",
@@ -1751,8 +1780,21 @@
     "showAll": "Show all days",
     "showFewer": "Show fewer days"
   },
-  "shopNotices": { "title": "Shop updates", "placed": "New order {id} is ready to manage.", "shipped": "Order {id} has shipped. Confirm receipt when it arrives.", "loading": "Loading shop updates...", "empty": "No shop updates yet.", "error": "Could not load shop updates.", "reports": "Report updates" },
-  "orderReceipt": { "name": "Your name", "received": "I received this order", "submit": "Confirm delivery", "error": "Could not confirm delivery. Please try again." },
+  "shopNotices": {
+    "title": "Shop updates",
+    "placed": "New order {id} is ready to manage.",
+    "shipped": "Order {id} has shipped. Confirm receipt when it arrives.",
+    "loading": "Loading shop updates...",
+    "empty": "No shop updates yet.",
+    "error": "Could not load shop updates.",
+    "reports": "Report updates"
+  },
+  "orderReceipt": {
+    "name": "Your name",
+    "received": "I received this order",
+    "submit": "Confirm delivery",
+    "error": "Could not confirm delivery. Please try again."
+  },
   "orderManagement": {
     "refresh": "Refresh",
     "title": "Shop orders",
@@ -1784,4 +1826,3 @@
     }
   }
 }
-

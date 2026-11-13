@@ -8,11 +8,6 @@ public record ShopProperties(
 		int minorUnitDigits,
 		int flatShippingMinor,
 		String checkoutSuccessUrl,
-		String checkoutCancelUrl,
-		String stripeSecretKey,
-		String stripeWebhookSecret
+		String checkoutCancelUrl
 ) {
-	public boolean stripeEnabled() {
-		return stripeSecretKey != null && !stripeSecretKey.isBlank();
-	}
 }

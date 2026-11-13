@@ -1,6 +1,9 @@
-package com.example.fixflow.domain;
+package com.example.fixflow.audit;
 
 import java.time.Instant;
+
+import com.example.fixflow.domain.Report;
+import com.example.fixflow.domain.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

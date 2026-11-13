@@ -20,10 +20,6 @@ export default function TechnicianLayout() {
         name="open-jobs"
         options={{ title: 'Open Jobs', headerShown: false }}
       />
-      <Stack.Screen
-        name="invitations"
-        options={{ title: 'Invitations' }}
-      />
     </Stack>
   );
 }

@@ -54,7 +54,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         } else if (method.equals("POST") && path.matches("/api/reports/[0-9]+/(classify|technician-ranking|vision)")) {
             scope = "ai"; limit = ai;
         } else if (path.startsWith("/api/") && !java.util.Set.of("GET", "HEAD", "OPTIONS").contains(method)
-                && !path.equals("/api/auth/logout") && !path.equals("/api/shop/payments/webhook")) {
+                && !path.equals("/api/auth/logout")) {
             scope = "writes"; limit = writes;
         } else {
             chain.doFilter(request, response); return;

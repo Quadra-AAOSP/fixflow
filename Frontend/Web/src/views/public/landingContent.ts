@@ -46,11 +46,11 @@ export const audiences = {
     action: 'Join as a technician',
     to: '/register',
     steps: [
-      ['Introduce your skills', 'Create your account and add your trades, experience, and qualifications.'],
-      ['Find the right work', 'Explore the job marketplace and review site contract opportunities.'],
+      ['Introduce your skills', 'Create your account with verification details, structured skills, and terms acceptance. Request a site contract after signup.'],
+      ['Request a site contract', 'Pick a site during registration; admins approve the contract and complete vetting.'],
       ['Follow through on the fix', 'Open assigned work, record your progress, and share the resolution.'],
     ],
-    note: 'A technician account starts independently. Site work may require verification, an approved contract, and current terms acceptance.',
+    note: 'Registration submits platform verification, records terms acceptance, and files a site contract request. Jobs still wait on admin approval and site vetting.',
   },
 } as const;
 

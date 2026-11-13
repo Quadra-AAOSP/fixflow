@@ -1,6 +1,7 @@
 package com.example.fixflow;
 
 import com.example.fixflow.domain.*;
+import com.example.fixflow.audit.*;
 import com.example.fixflow.repository.*;
 import com.example.fixflow.security.AppUserDetails;
 import org.junit.jupiter.api.Test;

@@ -55,30 +55,6 @@ export type TechnicianRanking = {
   candidates: TechnicianRankingCandidate[];
 };
 
-/** One invitation in the technician inbox (`TechnicianInvitationService.Invitation`). */
-export type TechnicianInvitation = {
-  id: number;
-  siteId: number;
-  category: string;
-  specialty: string | null;
-  reason: string;
-  createdAt: string;
-};
-
-/** `GET /api/technician-invitations` — paged inbox envelope. */
-export type TechnicianInvitationInbox = {
-  items: TechnicianInvitation[];
-  page: number;
-  hasNext: boolean;
-};
-
-/** `POST /api/reports/{id}/technician-invitations` result. */
-export type TechnicianInvitationsSent = {
-  created: number;
-  page: number;
-  hasNext: boolean;
-};
-
 /** Eligible site technician pool member (`TechnicianPoolMemberResponse`). */
 export type TechnicianPoolMember = {
   technicianId: number;

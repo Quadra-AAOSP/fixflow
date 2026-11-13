@@ -11,3 +11,48 @@ CREATE TABLE IF NOT EXISTS status_history (
     note CLOB,
     created_at TIMESTAMP NOT NULL
 );
+
+-- Reference data mirrored from schema.sql (H2 tests skip MySQL schema.sql).
+INSERT IGNORE INTO site_rules (site_type, category, urgency_weight, sort_order) VALUES
+    ('school', 'plumbing', 40, 1),
+    ('school', 'electrical', 50, 2),
+    ('school', 'hvac', 35, 3),
+    ('school', 'carpentry', 20, 4),
+    ('school', 'cleaning', 10, 5),
+    ('school', 'general', 15, 6),
+    ('hostel', 'plumbing', 40, 1),
+    ('hostel', 'electrical', 50, 2),
+    ('hostel', 'hvac', 35, 3),
+    ('hostel', 'carpentry', 20, 4),
+    ('hostel', 'cleaning', 10, 5),
+    ('hostel', 'general', 15, 6),
+    ('hotel', 'plumbing', 40, 1),
+    ('hotel', 'electrical', 50, 2),
+    ('hotel', 'hvac', 35, 3),
+    ('hotel', 'carpentry', 20, 4),
+    ('hotel', 'cleaning', 10, 5),
+    ('hotel', 'general', 15, 6);
+
+INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_url, price_minor, stock, active, created_at, updated_at) VALUES
+    ('cordless-drill-18v', '18V Cordless Drill', 'Compact cordless drill for everyday mounting and light woodwork around shared spaces.', 'Power tools', 'FixFlow Basics', 'https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=800', 8990, 25, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('multi-bit-set', '40-Piece Bit Set', 'Mixed screwdriver and drill bits for common fixtures, furniture, and fittings.', 'Hand tools', 'FixFlow Basics', 'https://images.pexels.com/photos/30413428/pexels-photo-30413428.jpeg?auto=compress&cs=tinysrgb&w=800', 2490, 40, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('adjustable-wrench', 'Adjustable Wrench 250mm', 'Steel adjustable wrench for plumbing valves and general fastener work.', 'Hand tools', NULL, NULL, 1890, 30, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('led-work-light', 'Rechargeable LED Work Light', 'Portable light for corridors, plant rooms, and after-hours repairs.', 'Lighting', 'BrightPath', NULL, 3290, 18, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('cable-ties-pack', 'Cable Tie Assortment (200)', 'Mixed lengths for tidy cable runs and temporary securing of fixtures.', 'Electrical', NULL, NULL, 990, 60, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('silicone-sealant', 'Neutral Silicone Sealant', 'Bathroom and kitchen sealing for joints, splashbacks, and fittings.', 'Consumables', 'SealPro', NULL, 1290, 45, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('safety-gloves', 'Cut-Resistant Work Gloves', 'Pair of protective gloves sized for maintenance crews and DIY reporters.', 'Safety', 'GuardHand', NULL, 1590, 50, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('toolbox-small', 'Compact Toolbox', 'Organiser case for bits, fasteners, and small hand tools on site visits.', 'Storage', 'FixFlow Basics', NULL, 4590, 12, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00');
+
+INSERT IGNORE INTO sites (name, type, contract_status, address, created_at, updated_at) VALUES
+    ('CNU School', 'school', 'contracted', 'CNU main campus', TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('CNU Hostel', 'hostel', 'contracted', 'CNU student residence', TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('CNU Hotel', 'hotel', 'contracted', 'CNU hospitality building', TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00');
+
+INSERT INTO subsites (site_id, label, name, created_at)
+SELECT s.id, 'MAIN', 'Main building', TIMESTAMP '2026-01-15 10:00:00'
+FROM sites s
+WHERE s.name IN ('CNU School', 'CNU Hostel', 'CNU Hotel')
+  AND NOT EXISTS (
+      SELECT 1 FROM subsites ss
+      WHERE ss.site_id = s.id AND ss.label = 'MAIN' AND ss.archived_at IS NULL
+  );

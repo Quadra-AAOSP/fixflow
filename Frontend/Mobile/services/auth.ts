@@ -15,6 +15,16 @@ export function listJoinableSites(): Promise<JoinableSite[]> {
   return api.get<JoinableSite[]>(endpoints.auth.sites);
 }
 
+export type CurrentTechnicianTerms = {
+  currentVersion: string | null;
+  documentUrl: string | null;
+};
+
+/** Public current technician terms (needed before sign-in). */
+export function getCurrentTechnicianTerms(): Promise<CurrentTechnicianTerms> {
+  return api.get<CurrentTechnicianTerms>(endpoints.technicianTerms.current);
+}
+
 export function login(payload: LoginPayload): Promise<User> {
   return api.post<User>(endpoints.auth.login, payload);
 }

@@ -3,15 +3,14 @@ FixFlow demo SQL dump
 
 File: fixflow-demo.sql
 
-Loads a disposable MySQL database named fixflow_demo with schema + reference
-data + demo accounts/reports/shop sample. Built by concatenating:
+Loads a disposable MySQL database named fixflow_demo with schema + demo
+accounts/reports/shop sample. Built by concatenating:
 
   src/main/resources/db/schema.sql
-  src/main/resources/db/reference-data.sql
   src/main/resources/db/demo-data.sql
 
-Enable in-app seeding instead with SEED_DEMO_DATA=true (loads reference-data.sql
-and demo-data.sql via SqlDataSeeder; still requires schema.sql on startup).
+Enable in-app seeding instead with SEED_DEMO_DATA=true (loads demo-data.sql via
+SqlDataSeeder; still requires schema.sql on startup).
 
 
 Demo accounts (70 total @fixflow.test)
@@ -66,7 +65,7 @@ Sample demo content
 - Reports across open/routed/assigned/in_progress/resolved/confirmed/reopened/
   escalated, including multi-joiner reports for urgency tests
 - Marketplace listing + applications
-- Technician invitation + report notifications
+- Report notifications (e.g. work completed)
 - One paid shop order (items + succeeded payment, fulfillment_status=ordered)
   for shopmanager@fixflow.test fulfillment demos
 

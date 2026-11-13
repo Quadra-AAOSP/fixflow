@@ -1,5 +1,6 @@
 package com.example.fixflow.web;
 import com.example.fixflow.domain.*;
+import com.example.fixflow.audit.*;
 import com.example.fixflow.repository.*;
 import com.example.fixflow.security.AppUserDetails;
 import jakarta.validation.Valid;

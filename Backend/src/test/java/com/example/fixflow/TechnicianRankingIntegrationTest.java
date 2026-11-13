@@ -29,7 +29,6 @@ class TechnicianRankingIntegrationTest {
     @Autowired ReportRepository reports;
     @Autowired TechnicianContractRepository contracts;
     @Autowired TechnicianSkillRepository skills;
-    @Autowired TechnicianInvitationRepository invitations;
     @Autowired TechnicianAvailabilityRepository availability;
     MockMvc mvc;
     Site site, other;
@@ -98,33 +97,5 @@ class TechnicianRankingIntegrationTest {
         contract(outsider, site);
         mvc.perform(post(path).with(user(new AppUserDetails(admin))).contentType(MediaType.APPLICATION_JSON).content("{\"technicianId\":" + outsider.getId() + "}"))
                 .andExpect(status().isOk());
-    }
-    @Test void invitationsArePrivateIdempotentAndNeverCreateContractsOrAssignments() throws Exception {
-        String path = "/api/reports/" + report.getId() + "/technician-invitations";
-        mvc.perform(post(path).with(user(new AppUserDetails(reporter))).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Please request a site contract\"}"))
-                .andExpect(status().isForbidden());
-        for (int expected : new int[]{1, 0}) {
-            mvc.perform(post(path).with(user(new AppUserDetails(admin))).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Please request a site contract\"}"))
-                    .andExpect(status().isOk()).andExpect(jsonPath("$.created").value(expected));
-        }
-        mvc.perform(get("/api/technician-invitations").with(user(new AppUserDetails(outsider))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].siteId").value(site.getId()))
-                .andExpect(jsonPath("$.items[0].reportId").doesNotExist());
-        mvc.perform(get("/api/technician-invitations").with(user(new AppUserDetails(technician))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
-        long invitationId = invitations.findByReport_IdAndTechnician_Id(report.getId(), outsider.getId()).orElseThrow().getId();
-        mvc.perform(get("/api/notifications").with(user(new AppUserDetails(outsider))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].type").value("site_invitation"))
-                .andExpect(jsonPath("$.content[0].invitationId").value(invitationId));
-        mvc.perform(get("/api/technician-invitations/" + invitationId).with(user(new AppUserDetails(outsider))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(invitationId));
-        mvc.perform(get("/api/technician-invitations/" + invitationId).with(user(new AppUserDetails(technician))))
-                .andExpect(status().isNotFound());
-        mvc.perform(get("/api/technician-invitations/" + invitationId).with(user(new AppUserDetails(reporter))))
-                .andExpect(status().isForbidden());
-        assertThat(contracts.existsByTechnician_IdAndSite_Id(outsider.getId(), site.getId())).isFalse();
-        assertThat(reports.findById(report.getId()).orElseThrow().getAssignedTechnician()).isNull();
     }
 }

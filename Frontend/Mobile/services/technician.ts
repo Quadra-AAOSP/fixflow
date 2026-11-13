@@ -8,9 +8,6 @@ import type {
   TechnicianContractPayload,
   TechnicianContractRequest,
   TechnicianContractRequestPayload,
-  TechnicianInvitation,
-  TechnicianInvitationInbox,
-  TechnicianInvitationsSent,
   TechnicianRanking,
   TechnicianSkill,
   TechnicianSkillPayload,
@@ -121,30 +118,6 @@ export function acceptTechnicianTerms(
   });
 }
 
-/** The signed-in technician's paged invitation inbox. */
-export function listTechnicianInvitations(
-  page = 0,
-): Promise<TechnicianInvitationInbox> {
-  return api.get<TechnicianInvitationInbox>(
-    `${endpoints.technicianInvitations.list}?page=${page}`,
-  );
-}
-
-/**
- * Admins invite matching technicians who do not yet have a contract with the
- * report's site. Each call processes the next backend batch.
- */
-export function inviteTechniciansToReport(
-  reportId: number,
-  reason: string,
-  page = 0,
-): Promise<TechnicianInvitationsSent> {
-  return api.post<TechnicianInvitationsSent>(
-    `${endpoints.reports.technicianInvitations(reportId)}?page=${page}`,
-    { reason },
-  );
-}
-
 /** Ranked assignment candidates (`STANDARD`, or OpenRouter-backed `AI`). */
 export function rankTechniciansForReport(
   reportId: number,
@@ -177,5 +150,3 @@ export function updateMyAvailability(
     { status: available ? 'available' : 'unavailable' },
   );
 }
-
-export function getTechnicianInvitation(id: number): Promise<TechnicianInvitation> { return api.get<TechnicianInvitation>(`/api/technician-invitations/${id}`); }

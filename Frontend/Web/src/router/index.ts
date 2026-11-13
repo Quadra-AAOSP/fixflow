@@ -47,7 +47,6 @@ const routes: RouteRecordRaw[] = [
     { path: 'technician/marketplace', name: 'technician-marketplace', meta: { roles: ['technician'] }, component: () => import('@/views/app/TechnicianMarketplaceView.vue') },
     { path: 'building-suggestions', name: 'building-suggestions', meta: { roles: ['reporter'] }, component: () => import('@/views/app/BuildingSuggestionsView.vue') },
     { path: 'marketplace', name: 'marketplace', meta: { roles: [...workspaceRoles.marketplace] }, component: () => import('@/views/app/MarketplaceView.vue') },
-    { path: 'technician/invitations', name: 'technician-invitations', meta: { roles: ['technician'] }, redirect: '/contracts' },
     { path: 'site-rules', name: 'site-rules', meta: { roles: [...workspaceRoles.team] }, props: { initialTab: 'rules' }, component: () => import('@/views/app/TeamWorkspaceView.vue') },
     { path: 'team-access', name: 'team-access', meta: { roles: ['admin', 'super_admin'] }, props: { initialTab: 'accounts' }, component: () => import('@/views/app/TeamWorkspaceView.vue') },
     { path: 'contracts', name: 'contracts', meta: { roles: ['technician', 'admin', 'super_admin'] }, props: { initialTab: 'contracts' }, component: () => import('@/views/app/TeamWorkspaceView.vue') },

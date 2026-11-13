@@ -59,16 +59,31 @@ public class TechnicianTermsService {
     @Transactional
     public Status accept(String requestedVersion, AppUserDetails actor) {
         if (actor.getRole() != UserRole.technician) throw new ApiException(403, "Only technicians can accept technician terms");
-        if (version.isEmpty() || documentUrl.isEmpty()) throw new ApiException(503, "Approved technician terms are not configured");
-        if (!version.equals(requestedVersion)) throw new ApiException(409, "Terms version changed; review and accept the current version");
         var technician = users.findById(actor.getId()).orElseThrow(() -> new ApiException(401, "User not found"));
         if (technician.getRole() != UserRole.technician) throw new ApiException(403, "Only technicians can accept technician terms");
-        if (!acceptances.existsByTechnician_IdAndTermsVersion(actor.getId(), version)) {
+        recordAcceptance(technician, requestedVersion);
+        return status(actor.getId(), actor);
+    }
+
+    /** Records acceptance for a newly registered technician (no session principal yet). */
+    @Transactional
+    public void recordAcceptance(com.example.fixflow.domain.User technician, String requestedVersion) {
+        if (version.isEmpty() || documentUrl.isEmpty()) {
+            throw new ApiException(503, "Approved technician terms are not configured");
+        }
+        if (!version.equals(requestedVersion)) {
+            throw new ApiException(409, "Terms version changed; review and accept the current version");
+        }
+        if (technician.getRole() != UserRole.technician) {
+            throw new ApiException(403, "Only technicians can accept technician terms");
+        }
+        if (!acceptances.existsByTechnician_IdAndTermsVersion(technician.getId(), version)) {
             TechnicianTermsAcceptance acceptance = new TechnicianTermsAcceptance();
-            acceptance.setTechnician(technician); acceptance.setTermsVersion(version); acceptance.setDocumentUrl(documentUrl);
+            acceptance.setTechnician(technician);
+            acceptance.setTermsVersion(version);
+            acceptance.setDocumentUrl(documentUrl);
             acceptances.saveAndFlush(acceptance);
         }
-        return status(actor.getId(), actor);
     }
 
     @Transactional(readOnly = true)

@@ -47,11 +47,7 @@ export function cancelOrder(publicId: string): Promise<ShopOrder> {
   return api.post<ShopOrder>(endpoints.shop.cancel(publicId));
 }
 
-/**
- * Dev-only payment settlement. The provider webhook is the production path;
- * this endpoint exists so the checkout flow can be completed end-to-end in
- * development without a real payment provider.
- */
+/** Simulated payment settlement for local demo checkout. */
 export function completeDevPayment(publicId: string): Promise<ShopOrder> {
   return api.post<ShopOrder>(endpoints.shop.devCompletePayment(publicId));
 }

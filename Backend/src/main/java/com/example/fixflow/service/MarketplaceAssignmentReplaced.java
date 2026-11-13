@@ -1,10 +1,10 @@
 package com.example.fixflow.service;
 
 import com.example.fixflow.domain.MarketplaceApplication;
-import com.example.fixflow.domain.MarketplaceAudit;
+import com.example.fixflow.audit.MarketplaceAudit;
 import com.example.fixflow.domain.MarketplaceListing;
 import com.example.fixflow.repository.MarketplaceApplicationRepository;
-import com.example.fixflow.repository.MarketplaceAuditRepository;
+import com.example.fixflow.audit.MarketplaceAuditRepository;
 import com.example.fixflow.repository.MarketplaceListingRepository;
 import java.time.Instant;
 import java.util.List;
