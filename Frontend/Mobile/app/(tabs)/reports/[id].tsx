@@ -758,7 +758,7 @@ export default function ReportDetailScreen() {
   // Report creator, joined participants, and staff/admin/super_admin may
   // confirm or reopen. Technicians, shop managers, and non-participant
   // reporters cannot — the server enforces this as 403.
-  const canConfirmReopen = report.policy.participant || report.policy.canAssign;
+  const canConfirmReopen = report.policy.participant || report.policy.canAssign || report.createdByUserId === user?.id;
 
   const awaitingConfirmation = report.status === 'resolved_pending_confirmation';
   const reopenable =
