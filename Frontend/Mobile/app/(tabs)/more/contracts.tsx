@@ -44,10 +44,12 @@ import {
   decideTechnicianContractRequest,
 } from '@/services/technician';
 import { listSites } from '@/services/sites';
+import { listTechnicians } from '@/services/technicians';
 import type {
   Site,
   TechnicianContract,
   TechnicianContractRequest,
+  TechnicianSummary,
 } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
 
@@ -77,6 +79,9 @@ export default function ContractsScreen() {
   const [sites, setSites] = useState<Site[]>([]);
   const [requests, setRequests] = useState<TechnicianContractRequest[]>([]);
   const [contracts, setContracts] = useState<TechnicianContract[]>([]);
+  // Directory of technicians so the admin sees *who* applied or is contracted
+  // instead of a bare account id.
+  const [technicians, setTechnicians] = useState<TechnicianSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,14 +90,18 @@ export default function ContractsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [sites, requests, contracts] = await Promise.all([
+      const [sites, requests, contracts, technicians] = await Promise.all([
         listSites(),
         listTechnicianContractRequests(),
         listTechnicianContracts(),
+        // The directory endpoint is admin-facing; technicians already know
+        // themselves, so skip it for them to avoid a needless 403.
+        isAdmin ? listTechnicians() : Promise.resolve([]),
       ]);
       setSites(sites);
       setRequests(requests);
       setContracts(contracts);
+      setTechnicians(technicians);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : t('more.contracts.errors.couldNotLoad'),
@@ -100,7 +109,7 @@ export default function ContractsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [isAdmin, t]);
 
   useEffect(() => {
     void loadData();
@@ -113,6 +122,20 @@ export default function ContractsScreen() {
       sites.find((site) => site.id === siteId)?.name ??
       t('more.contracts.unknownSite'),
     [sites, t],
+  );
+
+  // Payloads carry only `technicianId`; resolve the display name from the
+  // directory so the site admin knows who they are approving.
+  const technicianNameFor = useCallback(
+    (technicianId: number) => {
+      const found = technicians.find((technician) => technician.id === technicianId);
+      if (!found) {
+        return t('more.contracts.technicianFallback', { id: technicianId });
+      }
+      const name = [found.firstName, found.lastName].filter(Boolean).join(' ');
+      return name || found.email;
+    },
+    [technicians, t],
   );
 
   const handleDecideRequest = useCallback(
@@ -220,10 +243,8 @@ export default function ContractsScreen() {
             <StateView variant="loading" title={t('more.contracts.loading')} />
           ) : null}
 
-          {isTechnician ? (
-            <TechnicianView userId={user.id} t={t} />
-          ) : null}
-          {isAdmin ? <AdminView t={t} /> : null}
+          {isTechnician ? <TechnicianView t={t} /> : null}
+          {isAdmin ? <AdminView t={t} technicians={technicians} /> : null}
 
           {isTechnician || isAdmin ? (
             <>
@@ -256,6 +277,13 @@ export default function ContractsScreen() {
                           <Text className="text-[12.5px] font-semibold text-ink">
                             {siteNameFor(contract.siteId)}
                           </Text>
+                          {isAdmin ? (
+                            <Text className="mt-0.5 text-[10.5px] text-dashboard-subtitle">
+                              {t('more.contracts.technicianName', {
+                                name: technicianNameFor(contract.technicianId),
+                              })}
+                            </Text>
+                          ) : null}
                           <Text className="mt-0.5 text-[10px] text-dashboard-caption">
                             {t('more.contracts.sinceDate', {
                               date: formatDate(contract.createdAt, true),
@@ -306,6 +334,11 @@ export default function ContractsScreen() {
                             <Text className="text-[12.5px] font-semibold text-ink">
                               {siteNameFor(request.siteId)}
                             </Text>
+                            {isAdmin ? (
+                              <Text className="mt-0.5 text-[10.5px] font-medium text-dashboard-subtitle">
+                                {technicianNameFor(request.technicianId)}
+                              </Text>
+                            ) : null}
                             <View className="mt-0.5 flex-row items-center gap-1">
                               <Clock
                                 color={dashboardColors.statMintDeep}
@@ -401,7 +434,7 @@ export default function ContractsScreen() {
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
-function TechnicianView({ userId, t }: { userId: number; t: TranslateFn }) {
+function TechnicianView({ t }: { t: TranslateFn }) {
   const router = useRouter();
   return (
     <>
@@ -465,8 +498,6 @@ function TechnicianView({ userId, t }: { userId: number; t: TranslateFn }) {
             </Text>
             <Text className="mt-1 text-[11px] leading-[1.7] text-dashboard-subtitle">
               {t('more.contracts.requestBodyPrefix')}
-              <Text className="font-semibold text-ink">{userId}</Text>
-              {t('more.contracts.requestBodySuffix')}
             </Text>
             <View
               className="mt-2 rounded-lg px-2.5 py-2"
@@ -491,7 +522,13 @@ function TechnicianView({ userId, t }: { userId: number; t: TranslateFn }) {
   );
 }
 
-function AdminView({ t }: { t: TranslateFn }) {
+function AdminView({
+  t,
+  technicians,
+}: {
+  t: TranslateFn;
+  technicians: TechnicianSummary[];
+}) {
   const [sites, setSites] = useState<Site[] | null>(null);
   const [loadingSites, setLoadingSites] = useState(false);
   const [sitesError, setSitesError] = useState<string | null>(null);
@@ -536,6 +573,19 @@ function AdminView({ t }: { t: TranslateFn }) {
   const siteOptions = useMemo(
     () => (sites ?? []).map((site) => ({ value: String(site.id), label: site.name })),
     [sites],
+  );
+
+  // Prefer picking a technician by name; the raw-ID field is only a fallback
+  // when the directory comes back empty.
+  const technicianOptions = useMemo(
+    () =>
+      technicians.map((technician) => ({
+        value: String(technician.id),
+        label:
+          [technician.firstName, technician.lastName].filter(Boolean).join(' ') ||
+          technician.email,
+      })),
+    [technicians],
   );
 
   async function onSubmit() {
@@ -643,15 +693,24 @@ function AdminView({ t }: { t: TranslateFn }) {
         options={siteOptions}
       />
 
-      <TextField
-        label={t('more.contracts.technicianIdLabel')}
-        value={technicianIdText}
-        onChangeText={setTechnicianIdText}
-        placeholder={t('more.contracts.technicianIdPlaceholder')}
-        keyboardType="number-pad"
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
+      {technicianOptions.length > 0 ? (
+        <Picker
+          label={t('more.contracts.technicianLabel')}
+          value={technicianIdText.length > 0 ? technicianIdText : null}
+          onChange={setTechnicianIdText}
+          options={technicianOptions}
+        />
+      ) : (
+        <TextField
+          label={t('more.contracts.technicianIdLabel')}
+          value={technicianIdText}
+          onChangeText={setTechnicianIdText}
+          placeholder={t('more.contracts.technicianIdPlaceholder')}
+          keyboardType="number-pad"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      )}
 
       <Pressable
         onPress={() => setConsent(!consent)}

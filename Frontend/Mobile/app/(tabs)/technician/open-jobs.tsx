@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { ArrowRight, Briefcase, ClipboardList, Search } from 'lucide-react-native';
+import { ArrowRight, Briefcase, ChevronDown, ChevronUp, ClipboardList, Search } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
@@ -30,6 +30,11 @@ const URGENCY_RANK: Record<Urgency, number> = {
   low: 3,
 };
 
+/** FlatList row union: a site header or one of its jobs. */
+type Row =
+  | { kind: 'header'; siteId: number; name: string; count: number }
+  | { kind: 'job'; report: Report };
+
 /**
  * Technician "Open jobs" board. Every unassigned, still-actionable report at
  * one of the technician's contract sites is listed here; picking one up calls
@@ -56,6 +61,9 @@ export default function OpenJobsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [claimingId, setClaimingId] = useState<number | null>(null);
+  // Site groups start expanded; the chevron collapses a site's jobs so a
+  // technician with many contract sites can scan the board.
+  const [collapsedSites, setCollapsedSites] = useState<Record<number, boolean>>({});
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -158,11 +166,39 @@ export default function OpenJobsScreen() {
   const siteName = (id: number | null) =>
     id === null ? '' : siteNames[id] ?? t('openJobs.fallbackSite', { id });
 
+  // Jobs are grouped by contract site with a collapsible header, so the board
+  // reads as "these are the sites I work, here is what is open at each".
+  const groups = Array.from(
+    (jobs ?? []).reduce((map, job) => {
+      const key = job.siteId ?? -1;
+      const list = map.get(key) ?? [];
+      list.push(job);
+      map.set(key, list);
+      return map;
+    }, new Map<number, Report[]>()),
+    ([siteId, items]) => ({
+      siteId,
+      name: siteId === -1
+        ? t('openJobs.fallbackSite', { id: 0 })
+        : siteName(siteId) || t('openJobs.fallbackSite', { id: siteId }),
+      jobs: items,
+    }),
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
+  const rows: Row[] = groups.flatMap((group) => [
+    { kind: 'header' as const, siteId: group.siteId, name: group.name, count: group.jobs.length },
+    ...(collapsedSites[group.siteId]
+      ? []
+      : group.jobs.map((report) => ({ kind: 'job' as const, report }))),
+  ]);
+
   return (
     <Screen>
       <FlatList
-        data={jobs ?? []}
-        keyExtractor={(item) => String(item.id)}
+        data={rows}
+        keyExtractor={(item) =>
+          item.kind === 'job' ? `job-${item.report.id}` : `site-${item.siteId}`
+        }
         className="flex-1"
         contentContainerClassName="grow px-5 pb-10 pt-4"
         // Keep note-field taps working while the keyboard is open — without
@@ -207,9 +243,23 @@ export default function OpenJobsScreen() {
               </View>
             </View>
 
-            <Text className="mb-3 text-[12px] leading-[1.7] text-dashboard-subtitle">
+            <Text className="mb-2 text-[12px] leading-[1.7] text-dashboard-subtitle">
               {t('openJobs.subtitle')}
             </Text>
+            {/* Direct route to the site-technician application so a technician
+                without contracts can ask to join a site's contractor pool. */}
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => router.push('/technician/contract-requests')}
+              className="mb-3 flex-row items-center gap-1 self-start active:opacity-70"
+            >
+              <Text
+                className="text-[12px] font-semibold"
+                style={{ color: palette.primary }}
+              >
+                {t('openJobs.applyLink')}
+              </Text>
+            </Pressable>
           </View>
         }
         ListEmptyComponent={
@@ -231,8 +281,8 @@ export default function OpenJobsScreen() {
               icon={ClipboardList}
               title={t('openJobs.noContractsTitle')}
               description={t('openJobs.noContractsDesc')}
-              actionLabel={t('openJobs.manageContracts')}
-              onAction={() => router.push('/more/contracts')}
+              actionLabel={t('openJobs.applyAction')}
+              onAction={() => router.push('/technician/contract-requests')}
             />
           ) : (
             <StateView
@@ -243,15 +293,49 @@ export default function OpenJobsScreen() {
             />
           )
         }
-        renderItem={({ item }) => (
-          <JobCard
-            report={item}
-            siteName={siteName(item.siteId)}
-            claiming={claimingId === item.id}
-            disabled={claimingId !== null}
-            onClaim={() => onClaim(item.id)}
-          />
-        )}
+        renderItem={({ item }) =>
+          item.kind === 'header' ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: !collapsedSites[item.siteId] }}
+              onPress={() =>
+                setCollapsedSites((previous) => ({
+                  ...previous,
+                  [item.siteId]: !previous[item.siteId],
+                }))
+              }
+              className="mt-1 flex-row items-center justify-between rounded-lg border border-dashboard-card-line bg-dashboard-card-bg px-3 py-2 active:opacity-80"
+            >
+              <View className="flex-1 flex-row items-center gap-2">
+                <Text
+                  className="text-[13px] font-semibold text-ink"
+                  numberOfLines={1}
+                >
+                  {item.name}
+                </Text>
+                <Text className="text-[11px] text-dashboard-subtitle">
+                  {t('openJobs.siteCount', {
+                    count: item.count,
+                    plural: item.count === 1 ? '' : 's',
+                  })}
+                </Text>
+              </View>
+              {collapsedSites[item.siteId] ? (
+                <ChevronDown color={palette.ink} size={18} />
+              ) : (
+                <ChevronUp color={palette.ink} size={18} />
+              )}
+            </Pressable>
+          ) : (
+            <JobCard
+              report={item.report}
+              siteName={siteName(item.report.siteId)}
+              claiming={claimingId === item.report.id}
+              disabled={claimingId !== null}
+              onClaim={() => onClaim(item.report.id)}
+            />
+          )
+        }
         ListFooterComponent={
           <MarketplaceSection
             listings={listings}
