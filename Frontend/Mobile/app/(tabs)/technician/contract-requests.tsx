@@ -13,7 +13,6 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
 import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -63,16 +62,26 @@ export default function TechnicianContractRequestsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [contractsResult, requestsResult, sitesResult] = await Promise.all([
+      // Settle independently: a missing site directory (older backend) must not
+      // hide the contracts and applications that did load.
+      const [contractsResult, requestsResult, sitesResult] = await Promise.allSettled([
         listTechnicianContracts(),
         listTechnicianContractRequests(),
         // The whole site directory, so the technician can apply anywhere —
         // `/api/sites` only returns their own account site.
         listApplicableSites(),
       ]);
-      setContracts(contractsResult);
-      setRequests(requestsResult);
-      setSites(sitesResult);
+      if (contractsResult.status === 'fulfilled') setContracts(contractsResult.value);
+      if (requestsResult.status === 'fulfilled') setRequests(requestsResult.value);
+      if (sitesResult.status === 'fulfilled') setSites(sitesResult.value);
+      const failed = sitesResult.status === 'rejected' ? sitesResult.reason : null;
+      if (failed) {
+        setError(
+          failed instanceof ApiError
+            ? failed.message
+            : t('technician.contractRequests.errors.couldNotLoad'),
+        );
+      }
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -351,16 +360,50 @@ export default function TechnicianContractRequestsScreen() {
               </Text>
             ) : (
               <>
-                <Picker
-                  label={t('technician.contractRequests.newSite')}
-                  value={siteId !== null ? String(siteId) : null}
-                  onChange={(value) => setSiteId(value ? Number(value) : null)}
-                  options={availableSites.map((site) => ({
-                    value: String(site.id),
-                    label: site.name,
-                  }))}
-                  placeholder={t('technician.contractRequests.chooseSite')}
-                />
+                <Text className="mb-2 text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+                  {t('technician.contractRequests.chooseSite')}
+                </Text>
+                {/* A visible list (not a hidden dropdown) so the technician can
+                    compare sites and see which one they are applying to. */}
+                {availableSites.map((site) => {
+                  const selected = siteId === site.id;
+                  const details = [site.type, site.address]
+                    .filter(Boolean)
+                    .join(' · ');
+                  return (
+                    <Pressable
+                      key={site.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      onPress={() => setSiteId(site.id)}
+                      className="mb-2 flex-row items-center justify-between rounded-[10px] border px-3 py-2.5 active:opacity-80"
+                      style={{
+                        borderColor: selected
+                          ? dashboardColors.teal
+                          : dashboardColors.cardLine,
+                      }}
+                    >
+                      <View className="flex-1 pr-3">
+                        <Text className="text-[13px] font-semibold text-ink">
+                          {site.name}
+                        </Text>
+                        {details ? (
+                          <Text
+                            className="mt-0.5 text-[10.5px] uppercase tracking-[0.4px] text-dashboard-subtitle"
+                            numberOfLines={2}
+                          >
+                            {details}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {selected ? (
+                        <CheckCircle2 color={dashboardColors.teal} size={18} />
+                      ) : (
+                        <View className="h-[18px] w-[18px] rounded-full border border-dashboard-card-line" />
+                      )}
+                    </Pressable>
+                  );
+                })}
                 <Button
                   className="mt-3"
                   variant="cta"

@@ -1,5 +1,6 @@
-import { AI_REQUEST_OPTIONS, api } from '@/lib/apiClient';
+import { AI_REQUEST_OPTIONS, ApiError, api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
+import { listSites } from './sites';
 import type {
   ContractDecisionPayload,
   RankingMode,
@@ -76,8 +77,17 @@ export function createTechnicianContractRequest(
  * the caller's account site, which would hide the very sites they want to
  * apply to.
  */
-export function listApplicableSites(): Promise<Site[]> {
-  return api.get<Site[]>(endpoints.contractRequests.sites);
+export async function listApplicableSites(): Promise<Site[]> {
+  try {
+    return await api.get<Site[]>(endpoints.contractRequests.sites);
+  } catch (err) {
+    // Older backends do not have the directory endpoint yet; fall back to the
+    // scoped list rather than breaking the whole application screen.
+    if (err instanceof ApiError && err.status === 404) {
+      return listSites();
+    }
+    throw err;
+  }
 }
 
 /**
