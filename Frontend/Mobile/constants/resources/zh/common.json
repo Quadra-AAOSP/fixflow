@@ -1839,6 +1839,7 @@
       "chooseSite": "选择站点",
       "tickHint": "勾选站点后，该站点管理员可以看到您并给您分配工作；未勾选的站点无法分配工作给您。",
       "contractedTag": "已签约",
+      "tapToLeave": "点击可退出该站点",
       "leaveTitle": "离开该站点？",
       "leaveBody": "取消勾选 {site} 会移除您的合同，该站点管理员将看不到您，也无法给您分配工作。",
       "leaveConfirm": "离开站点",

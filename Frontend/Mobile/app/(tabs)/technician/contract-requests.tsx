@@ -9,7 +9,7 @@ import {
   Send,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
@@ -57,6 +57,10 @@ export default function TechnicianContractRequestsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
+  const [confirmLeave, setConfirmLeave] = useState<{
+    siteId: number;
+    contractId: number;
+  } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
@@ -136,18 +140,7 @@ export default function TechnicianContractRequestsScreen() {
     if (state === 'contracted') {
       const contract = contracts.find((item) => item.siteId === id);
       if (!contract) return;
-      Alert.alert(
-        t('technician.contractRequests.leaveTitle'),
-        t('technician.contractRequests.leaveBody', { site: siteNameFor(id) }),
-        [
-          { text: t('technician.contractRequests.leaveCancel'), style: 'cancel' },
-          {
-            text: t('technician.contractRequests.leaveConfirm'),
-            style: 'destructive',
-            onPress: () => void leave(id, contract.id),
-          },
-        ],
-      );
+      setConfirmLeave({ siteId: id, contractId: contract.id });
       return;
     }
     setSelectedSiteIds((previous) =>
@@ -164,6 +157,7 @@ export default function TechnicianContractRequestsScreen() {
     setNotice(null);
     try {
       await revokeOwnContract(contractId);
+      setConfirmLeave(null);
       setNotice(t('technician.contractRequests.left', { site: siteNameFor(siteId) }));
       await load();
     } catch (err) {
@@ -450,57 +444,90 @@ export default function TechnicianContractRequestsScreen() {
                           ? t('technician.contractRequests.statusRejected')
                           : null;
                   return (
-                    <Pressable
-                      key={site.id}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked, disabled: locked }}
-                      disabled={locked}
-                      onPress={() => toggleSite(site.id)}
-                      className={`mb-2 flex-row items-start gap-3 rounded-[10px] border px-3 py-2.5 ${
-                        locked ? 'opacity-70' : 'active:opacity-80'
-                      }`}
-                      style={{
-                        borderColor: checked
-                          ? dashboardColors.teal
-                          : dashboardColors.cardLine,
-                      }}
-                    >
-                      <View
-                        className="mt-[1px] h-[20px] w-[20px] items-center justify-center rounded-[4px] border"
+                    <View key={site.id}>
+                      <Pressable
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked, disabled: locked }}
+                        disabled={locked}
+                        onPress={() => toggleSite(site.id)}
+                        className={`mb-2 flex-row items-start gap-3 rounded-[10px] border px-3 py-2.5 ${
+                          locked ? 'opacity-70' : 'active:opacity-80'
+                        }`}
                         style={{
                           borderColor: checked
                             ? dashboardColors.teal
                             : dashboardColors.cardLine,
-                          backgroundColor: checked
-                            ? dashboardColors.teal
-                            : 'transparent',
                         }}
                       >
-                        {checked ? (
-                          <Check color="#FFFFFF" size={14} strokeWidth={3} />
-                        ) : null}
-                      </View>
-                      <View className="flex-1">
-                        <View className="flex-row items-center justify-between gap-2">
-                          <Text className="flex-1 text-[13px] font-semibold text-ink">
-                            {site.name}
-                          </Text>
-                          {tag ? (
-                            <Text className="text-[9.5px] font-semibold uppercase tracking-[0.6px] text-dashboard-caption">
-                              {tag}
+                        <View
+                          className="mt-[1px] h-[20px] w-[20px] items-center justify-center rounded-[4px] border"
+                          style={{
+                            borderColor: checked
+                              ? dashboardColors.teal
+                              : dashboardColors.cardLine,
+                            backgroundColor: checked
+                              ? dashboardColors.teal
+                              : 'transparent',
+                          }}
+                        >
+                          {checked ? (
+                            <Check color="#FFFFFF" size={14} strokeWidth={3} />
+                          ) : null}
+                        </View>
+                        <View className="flex-1">
+                          <View className="flex-row items-center justify-between gap-2">
+                            <Text className="flex-1 text-[13px] font-semibold text-ink">
+                              {site.name}
+                            </Text>
+                            {tag ? (
+                              <Text className="text-[9.5px] font-semibold uppercase tracking-[0.6px] text-dashboard-caption">
+                                {tag}
+                              </Text>
+                            ) : null}
+                          </View>
+                          {details ? (
+                            <Text
+                              className="mt-0.5 text-[10.5px] uppercase tracking-[0.4px] text-dashboard-subtitle"
+                              numberOfLines={2}
+                            >
+                              {details}
+                            </Text>
+                          ) : null}
+                          {state === 'contracted' ? (
+                            <Text className="mt-1 text-[10px] text-dashboard-caption">
+                              {t('technician.contractRequests.tapToLeave')}
                             </Text>
                           ) : null}
                         </View>
-                        {details ? (
-                          <Text
-                            className="mt-0.5 text-[10.5px] uppercase tracking-[0.4px] text-dashboard-subtitle"
-                            numberOfLines={2}
-                          >
-                            {details}
+                      </Pressable>
+                      {/* Inline confirm instead of Alert: Alert is a no-op on
+                          Expo web, which made unticking look broken. */}
+                      {confirmLeave?.siteId === site.id ? (
+                        <View className="mb-2 rounded-[10px] border border-dashboard-card-line p-3">
+                          <Text className="text-[11.5px] leading-[1.6] text-ink">
+                            {t('technician.contractRequests.leaveBody', {
+                              site: site.name,
+                            })}
                           </Text>
-                        ) : null}
-                      </View>
-                    </Pressable>
+                          <View className="mt-2 flex-row gap-2">
+                            <Button
+                              className="flex-1"
+                              variant="secondary"
+                              label={t('technician.contractRequests.leaveCancel')}
+                              onPress={() => setConfirmLeave(null)}
+                            />
+                            <Button
+                              className="flex-1"
+                              label={t('technician.contractRequests.leaveConfirm')}
+                              loading={submitting}
+                              onPress={() =>
+                                void leave(site.id, confirmLeave.contractId)
+                              }
+                            />
+                          </View>
+                        </View>
+                      ) : null}
+                    </View>
                   );
                 })}
                 <Button

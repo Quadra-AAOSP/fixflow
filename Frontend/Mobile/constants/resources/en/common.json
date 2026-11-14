@@ -1838,6 +1838,7 @@
       "chooseSite": "Choose a site",
       "tickHint": "Tick a site to let its administrator see you and assign jobs to you. Unticked sites cannot assign you work.",
       "contractedTag": "Contracted",
+      "tapToLeave": "Tap to leave this site",
       "leaveTitle": "Leave this site?",
       "leaveBody": "Unticking {site} removes your contract. Its administrator will no longer see you or be able to assign you work.",
       "leaveConfirm": "Leave site",
