@@ -21,7 +21,7 @@ public class SiteVettingService {
   if (!"verified".equals(v.getStatus())) throw new ApiException(409,"Platform verification is "+v.getStatus()+", not verified");
   if (!v.isIdentityChecked() || !v.isEmailChecked() || !v.isPhoneChecked() || !v.isTradeChecked()) throw new ApiException(409,"Platform verification is missing the identity, email, phone or trade check");
   if (v.getTrades()==null || v.getTrades().isBlank()) throw new ApiException(409,"Platform verification has no trades recorded");
-  if (!current(reviews.findFirstBySiteIdAndTechnicianIdOrderByIdDesc(siteId,technicianId).orElse(null))) throw new ApiException(409,"No current site vetting approval for this site");
+  if (!current(reviews.findFirstBySiteIdAndTechnicianIdOrderByIdDesc(siteId,technicianId).orElse(null))) throw new ApiException(409,"No current site vetting approval for " + sites.findById(siteId).map(Site::getName).orElse("this site"));
  }
  private void authorize(Long siteId, Long technicianId, AppUserDetails actor, boolean write) {
   boolean admin=actor.getRole()==UserRole.super_admin || (actor.getRole()==UserRole.admin && siteId.equals(actor.getSiteId()));
