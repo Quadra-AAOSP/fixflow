@@ -44,6 +44,8 @@ class ReportWebSocketIntegrationTest {
     @Autowired ReportRepository reports;
     @Autowired TechnicianContractRepository contracts;
     @Autowired ReportReporterRepository reporters;
+    @Autowired com.example.fixflow.repository.TechnicianVerificationRepository verifications;
+    @Autowired com.example.fixflow.repository.SiteTechnicianVettingRepository vettings;
     @Autowired PasswordEncoder encoder;
     @Autowired ReportService service;
     @Autowired PlatformTransactionManager transactions;
@@ -65,7 +67,21 @@ class ReportWebSocketIntegrationTest {
         admin = account(UserRole.admin, site); owner = account(UserRole.reporter, site);
         technician = account(UserRole.technician, null);
         contract(technician);
+        qualify(technician);
         report = report(site, owner);
+    }
+    /** Assignment requires a verified platform record and a current site vetting approval. */
+    private void qualify(User technician) {
+        var record = new com.example.fixflow.domain.TechnicianVerification();
+        record.setTechnicianId(technician.getId()); record.setStatus("verified"); record.setTrades("Plumbing");
+        record.setIdentityChecked(true); record.setEmailChecked(true); record.setPhoneChecked(true); record.setTradeChecked(true);
+        verifications.save(record);
+        var vetting = new com.example.fixflow.domain.SiteTechnicianVetting();
+        vetting.setSiteId(site.getId()); vetting.setTechnicianId(technician.getId()); vetting.setStatus("approved");
+        vetting.setReviewedBy(admin.getId()); vetting.setReviewedAt(java.time.Instant.now());
+        vetting.setExpiresAt(java.time.Instant.now().plusSeconds(86_400));
+        vetting.setIdentityChecked(true); vetting.setReferencesChecked(true); vetting.setQualificationsChecked(true);
+        vettings.save(vetting);
     }
     @AfterEach void cleanup() { connections.forEach(c -> c.socket.abort()); }
     private void contract(User technician) {
@@ -262,6 +278,7 @@ class ReportWebSocketIntegrationTest {
         Connection observer = connect(admin); subscribe(observer, reportDestination(report));
         User replacement = account(UserRole.technician, null);
         contract(replacement);
+        qualify(replacement);
         service.assign(report.getId(), new AssignTechnicianRequest(replacement.getId()), new AppUserDetails(admin));
         var reassigned = next(observer).path("event");
         assertThat(reassigned.path("eventType").asText()).isEqualTo(ReportDomainEvent.REASSIGNMENT);
