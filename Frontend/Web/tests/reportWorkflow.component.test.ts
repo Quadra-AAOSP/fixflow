@@ -6,12 +6,12 @@ import ReportWorkflowPanel from '../src/components/ReportWorkflowPanel.vue';
 import { useAuthStore } from '../src/stores/auth';
 import * as api from '../src/services/reportWorkflow';
 import { report } from './fixtures';
-vi.mock('../src/services/reportWorkflow', () => ({ startReport: vi.fn(), resolveReport: vi.fn(), escalateReport: vi.fn(), overrideReportUrgency: vi.fn(), listWorkflowHistory: vi.fn(), listWorkflowResolutions: vi.fn(), listWorkflowRatings: vi.fn(), listWorkflowLinks: vi.fn(), rateReportResolution: vi.fn(), linkReports: vi.fn() }));
+vi.mock('../src/services/reportWorkflow', () => ({ startReport: vi.fn(), resolveReport: vi.fn(), escalateReport: vi.fn(), overrideReportUrgency: vi.fn(), listWorkflowHistory: vi.fn(), listWorkflowResolutions: vi.fn(), listWorkflowRatings: vi.fn(), rateReportResolution: vi.fn() }));
 let wrapper: VueWrapper;
 beforeEach(() => {
   setActivePinia(createPinia()); vi.resetAllMocks();
   useAuthStore().user = { id: 54, role: 'technician', siteId: null, firstName: 'Test', lastName: 'Tech', email: 'test@example.invalid', phone: null, address: null };
-  vi.mocked(api.listWorkflowHistory).mockResolvedValue([]); vi.mocked(api.listWorkflowResolutions).mockResolvedValue([]); vi.mocked(api.listWorkflowRatings).mockResolvedValue([]); vi.mocked(api.listWorkflowLinks).mockResolvedValue([]);
+  vi.mocked(api.listWorkflowHistory).mockResolvedValue([]); vi.mocked(api.listWorkflowResolutions).mockResolvedValue([]); vi.mocked(api.listWorkflowRatings).mockResolvedValue([]);
 });
 afterEach(() => wrapper?.unmount());
 const render = async (value = report({ status: 'assigned', assignedTechnicianId: 54 })) => {
@@ -37,11 +37,13 @@ it('submits technician resolution details and leaves status unchanged on conflic
   expect(wrapper.emitted('saved')).toBeUndefined();
   expect(form.get<HTMLTextAreaElement>('textarea').element.value).toBe('Replaced the damaged pipe.');
 });
-it('offers operator urgency/link controls but does not expose technician-only actions', async () => {
+it('offers operator urgency controls but does not expose technician-only actions', async () => {
   useAuthStore().user!.role = 'admin'; useAuthStore().user!.siteId = 7;
   vi.mocked(api.overrideReportUrgency).mockResolvedValue(report({ finalUrgency: 'critical' }));
   await render();
-  expect(wrapper.text()).toContain('Link another report'); expect(wrapper.text()).not.toContain('Start work');
+  expect(wrapper.text()).toContain('Override final urgency');
+  expect(wrapper.text()).not.toContain('Link another report');
+  expect(wrapper.text()).not.toContain('Start work');
   const form = wrapper.findAll('form').find(form => form.text().includes('Save urgency override'))!;
   await form.get('select').setValue('critical'); await form.get('textarea').setValue('Flooding across corridor'); await form.trigger('submit'); await flushPromises();
   expect(api.overrideReportUrgency).toHaveBeenCalledWith(1, 'critical', 'Flooding across corridor');

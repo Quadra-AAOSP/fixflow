@@ -16,6 +16,7 @@ export type MarketplaceApplication = {
 };
 
 export type MarketplaceListing = {
+  applications?: MarketplaceApplication[];
   id: number;
   summary: string;
   broadLocation: string;

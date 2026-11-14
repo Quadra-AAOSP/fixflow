@@ -28,7 +28,7 @@ export default function MarketplaceScreen() {
   const { reportId } = useLocalSearchParams<{ reportId?: string }>();
   const paramReportId = Number(reportId);
   const paramSource = Number.isSafeInteger(paramReportId) && paramReportId > 0 ? paramReportId : undefined;
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const isTechnician = user?.role === 'technician';
   const [source, setSource] = useState<number | undefined>(paramSource);
   const [publishableReports, setPublishableReports] = useState<Report[] | null>(null);
@@ -42,8 +42,6 @@ export default function MarketplaceScreen() {
   const [draft, setDraft] = useState(emptyDraft);
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const [notes, setNotes] = useState<Record<number, string>>({});
-  const [reviewJob, setReviewJob] = useState<number>();
-  const [applications, setApplications] = useState<MarketplaceApplication[]>([]);
   const [candidate, setCandidate] = useState<number>();
   const [closingJob, setClosingJob] = useState<number>();
   const [cancellingJob, setCancellingJob] = useState<number>();
@@ -120,7 +118,6 @@ export default function MarketplaceScreen() {
     if (isAdmin && user?.siteId != null) {
       setPublishableReports(await loadPublishableReports());
     }
-    if (reviewJob !== undefined) setApplications(await listJobApplications(reviewJob));
     if (isTechnician) {
       const [record, terms] = await Promise.all([ownVerification(), getTechnicianTerms()]);
       setVerification(record.status);
@@ -136,12 +133,13 @@ export default function MarketplaceScreen() {
     });
   }
 
-  function review(jobId: number) {
+  function refreshApplicants(jobId: number) {
     void run(async () => {
       const result = await listJobApplications(jobId);
       setCandidate(undefined);
-      setReviewJob(jobId);
-      setApplications(result);
+      setJobs(current => current.map(job =>
+        job.id === jobId ? { ...job, applications: result } : job,
+      ));
     });
   }
 
@@ -269,7 +267,10 @@ export default function MarketplaceScreen() {
                 {job.status === 'open' ? <Text>{t('marketplace.listingDeadline', { date: new Date(job.expiresAt).toLocaleString() })}</Text> : null}
                 {accessibleReportId !== null ? <Action label={t('marketplace.openReport')} onPress={() => openReport(accessibleReportId)} /> : null}
                 {isAdmin ? <>
-                  <Action label={t('marketplace.applicants')} disabled={busy} onPress={() => review(job.id)} />
+                  <Text className="my-2 font-semibold text-ink">
+                    {t('marketplace.applicantCount', { count: (job.applications ?? []).length })}
+                  </Text>
+                  <Action label={t('marketplace.refreshApplicants')} disabled={busy} onPress={() => refreshApplicants(job.id)} />
                   {openStates.includes(job.status) ? <Action
                     label={t(closingJob === job.id ? 'marketplace.confirmClose' : 'marketplace.close')}
                     disabled={busy} onPress={() => {
@@ -287,34 +288,32 @@ export default function MarketplaceScreen() {
                     <Action label={t('marketplace.keepAssignment')} disabled={busy} onPress={() => setCancellingJob(undefined)} />
                   </View> : <Action label={t('marketplace.cancelAssignment')} disabled={busy}
                     onPress={() => { setCancellingJob(job.id); setCancellationReason(''); }} /> : null}
-                  {reviewJob === job.id ? <>
-                    {applications.length === 0 ? <Text>{t('marketplace.noApplicants')}</Text> : null}
-                    {applications.map(application => (
-                      <View key={application.id} className="my-2 border-t border-dashboard-card-line pt-3">
-                        <Text className="font-bold text-ink">{application.technicianName} · {t(`marketplace.states.${application.status}`)}</Text>
-                        <Text className="text-ink">{application.note}</Text>
-                        {user?.siteId ? <SiteVetting siteId={user.siteId} technicianId={application.technicianId} admin /> : null}
-                        <Text className="text-ink">{t('marketplace.workload', {
-                          active: application.activeCases, completed: application.completedJobs,
-                          cancellations: application.cancellations,
-                          rating: application.averageRating?.toFixed(1) ?? t('marketplace.noRating'),
-                        })}</Text>
-                        {application.reviewedTrades ? <Text className="text-ink">{t('marketplace.reviewedTrades', { value: application.reviewedTrades })}</Text> : null}
-                        {application.reviewedQualifications ? <Text className="text-ink">{t('marketplace.reviewedQualifications', { value: application.reviewedQualifications })}</Text> : null}
-                        {job.status === 'open' && application.status === 'pending' ? <>
-                          {candidate === application.id ? <Text className="my-2 text-ink">{t('marketplace.safety')}</Text> : null}
-                          <Action label={t(candidate === application.id ? 'marketplace.confirmSelect' : 'marketplace.select')}
-                            disabled={busy} onPress={() => {
-                              if (candidate !== application.id) setCandidate(application.id);
-                              else mutate(async () => {
-                                await actOnJobApplication(job.id, application.id, 'select');
-                                setCandidate(undefined);
-                              }, 'marketplace.selected');
-                            }} />
-                        </> : null}
-                      </View>
-                    ))}
-                  </> : null}
+                  {(job.applications ?? []).length === 0 ? <Text>{t('marketplace.noApplicants')}</Text> : null}
+                  {(job.applications ?? []).map(application => (
+                    <View key={application.id} className="my-2 border-t border-dashboard-card-line pt-3">
+                      <Text className="font-bold text-ink">{application.technicianName} · {t(`marketplace.states.${application.status}`)}</Text>
+                      <Text className="text-ink">{application.note}</Text>
+                      {user?.siteId ? <SiteVetting siteId={user.siteId} technicianId={application.technicianId} admin /> : null}
+                      <Text className="text-ink">{t('marketplace.workload', {
+                        active: application.activeCases, completed: application.completedJobs,
+                        cancellations: application.cancellations,
+                        rating: application.averageRating?.toFixed(1) ?? t('marketplace.noRating'),
+                      })}</Text>
+                      {application.reviewedTrades ? <Text className="text-ink">{t('marketplace.reviewedTrades', { value: application.reviewedTrades })}</Text> : null}
+                      {application.reviewedQualifications ? <Text className="text-ink">{t('marketplace.reviewedQualifications', { value: application.reviewedQualifications })}</Text> : null}
+                      {job.status === 'open' && application.status === 'pending' ? <>
+                        {candidate === application.id ? <Text className="my-2 text-ink">{t('marketplace.safety')}</Text> : null}
+                        <Action label={t(candidate === application.id ? 'marketplace.confirmSelect' : 'marketplace.select')}
+                          disabled={busy} onPress={() => {
+                            if (candidate !== application.id) setCandidate(application.id);
+                            else mutate(async () => {
+                              await actOnJobApplication(job.id, application.id, 'select');
+                              setCandidate(undefined);
+                            }, 'marketplace.selected');
+                          }} />
+                      </> : null}
+                    </View>
+                  ))}
                 </> : <>
                   {!own && job.status === 'open' ? <>
                     <Field label={t('marketplace.note')} value={note} maxLength={1000} multiline

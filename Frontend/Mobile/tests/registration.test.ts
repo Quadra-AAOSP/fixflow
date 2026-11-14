@@ -134,10 +134,10 @@ describe('buildRegistrationPayload', () => {
       qualifications: 'Licensed',
       acceptTechnicianTerms: true,
       technicianTermsVersion: '2026-11-03',
-      skills: [{ category: 'plumbing', proficiency: 4 }],
+      skills: [{ category: 'plumbing' }],
     }));
     expect(payload.siteId).toBeNull();
-    expect(payload.skills).toEqual([{ category: 'plumbing', specialty: null, proficiency: 4 }]);
+    expect(payload.skills).toEqual([{ category: 'plumbing', specialty: null }]);
   });
 
   it('returns a null siteId when a reporter skips the site', () => {

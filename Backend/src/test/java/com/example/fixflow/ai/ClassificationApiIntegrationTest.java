@@ -56,7 +56,8 @@ class ClassificationApiIntegrationTest {
                 .category("electrical").specialty("wiring").urgency("high").build());
         mvc.perform(post(endpoint()).with(user(new AppUserDetails(actor))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.aiReport.category").value("electrical"))
-                .andExpect(jsonPath("$.aiUrgency").value("high"));
+                .andExpect(jsonPath("$.aiUrgency").value("high"))
+                .andExpect(jsonPath("$.aiReport.failed").value(false));
         Report stored = reports.findById(report.getId()).orElseThrow();
         assertThat(stored.getAiCategory()).isEqualTo("electrical"); assertThat(stored.getAiSpecialty()).isEqualTo("wiring");
         assertThat(stored.getAiUrgency()).isEqualTo(Urgency.high);
@@ -85,9 +86,11 @@ class ClassificationApiIntegrationTest {
         when(provider.classifyText(any())).thenReturn(null);
         mvc.perform(post(endpoint()).with(user(new AppUserDetails(admin))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.aiReport.category").value("general"))
-                .andExpect(jsonPath("$.aiUrgency").isEmpty());
+                .andExpect(jsonPath("$.aiUrgency").isEmpty())
+                .andExpect(jsonPath("$.aiReport.failed").value(true));
         Report stored = reports.findById(report.getId()).orElseThrow();
         assertThat(stored.getAiCategory()).isEqualTo("general"); assertThat(stored.getAiUrgency()).isNull();
+        assertThat(stored.getAiUrgencyReason()).isNotBlank();
         assertThat(stored.getReporterUrgency()).isEqualTo(Urgency.critical);
     }
     @Test void submissionDoesNotCallAiAndManualProviderFailuresPersistFallback() throws Exception {
@@ -102,8 +105,10 @@ class ClassificationApiIntegrationTest {
 
         when(provider.classifyText(any())).thenThrow(new AIProviderException("timeout", AIProviderException.AIErrorType.TIMEOUT));
         mvc.perform(post(endpoint()).with(user(new AppUserDetails(admin))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.aiReport.category").value("general"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.aiReport.category").value("general"))
+                .andExpect(jsonPath("$.aiReport.failed").value(true));
         assertThat(reports.findById(report.getId()).orElseThrow().getAiCategory()).isEqualTo("general");
         assertThat(reports.findById(report.getId()).orElseThrow().getCategory()).isEqualTo("plumbing");
+        assertThat(reports.findById(report.getId()).orElseThrow().getAiUrgencyReason()).isNotBlank();
     }
 }

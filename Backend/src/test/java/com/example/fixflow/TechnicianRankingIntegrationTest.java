@@ -53,7 +53,7 @@ class TechnicianRankingIntegrationTest {
         r.setCategory("plumbing"); r.setReporterUrgency(Urgency.low); return reports.save(r);
     }
     void contract(User u, Site scope) { TechnicianContract c = new TechnicianContract(); c.setTechnician(u); c.setSite(scope); contracts.save(c); }
-    void skill(User u) { TechnicianSkill s = new TechnicianSkill(); s.setTechnician(u); s.setCategory("plumbing"); s.setProficiency(4); skills.save(s); }
+    void skill(User u) { TechnicianSkill s = new TechnicianSkill(); s.setTechnician(u); s.setCategory("plumbing"); s.setProficiency(java.math.BigDecimal.valueOf(4)); skills.save(s); }
     void available(User u) { TechnicianAvailability a = new TechnicianAvailability(); a.setTechnician(u); a.setStatus(AvailabilityStatus.available); availability.save(a); }
     String ranking() { return "/api/reports/" + report.getId() + "/technician-ranking"; }
     @Test void ranksOnlyAvailableContractedSkilledTechniciansAndDoesNotLeakForeignWorkload() throws Exception {

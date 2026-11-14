@@ -78,7 +78,7 @@ onMounted(load);
       <p>
         Review organization authority and the proposed administrator before
         approval. The applicant and proposed administrator may be different
-        people.
+        people. Each card already shows the full application on file.
       </p>
     </header>
     <p v-if="error" role="alert" class="live-error">{{ error }} <button type="button" :disabled="busy || loading" @click="load">Retry</button></p>
@@ -87,12 +87,18 @@ onMounted(load);
     <div class="application-review-layout">
       <aside class="decision-context">
         <label
-          >Decision reason or requested information<textarea
+          >Decision note<textarea
             v-model="reason"
             maxlength="2000"
             rows="6"
+            placeholder="Required for every decision. For corrections, say what must change."
           />
         </label>
+        <p class="decision-hint">
+          Application details are already submitted. Use
+          <strong>Ask for corrections</strong> only when something in that
+          application must be clarified or fixed before you can approve.
+        </p>
       </aside>
       <div class="application-queue">
         <article
@@ -104,6 +110,7 @@ onMounted(load);
             <h2>{{ item.siteName }}</h2>
             <span class="status-badge">{{ item.status }}</span>
           </header>
+          <p class="application-on-file">Application already on file</p>
           <dl class="application-facts">
             <div>
               <dt>Organization</dt>
@@ -130,7 +137,9 @@ onMounted(load);
               </dd>
             </div>
           </dl>
-          <p v-if="item.message">{{ item.message }}</p>
+          <p v-if="item.message" class="prior-note">
+            Prior decision note: {{ item.message }}
+          </p>
           <footer class="application-actions">
             <template v-if="item.status === 'pending'">
               <button
@@ -147,7 +156,7 @@ onMounted(load);
                 :disabled="busy || loading || !reason.trim()"
                 @click="decide(item.id, 'request_information')"
               >
-                Request information #{{ item.id }}
+                Ask for corrections #{{ item.id }}
               </button>
               <button
                 type="button"
@@ -216,6 +225,28 @@ label {
   gap: 12px;
   font-size: 14px;
   font-weight: 650;
+}
+.decision-hint {
+  margin-top: 14px;
+  color: #52677b;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+.application-on-file {
+  margin: 14px 0 0;
+  color: #006f65;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.prior-note {
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f5f9f7;
+  color: #334155;
 }
 textarea {
   min-width: 0;

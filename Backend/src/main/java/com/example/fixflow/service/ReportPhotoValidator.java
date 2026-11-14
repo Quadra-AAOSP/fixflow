@@ -15,11 +15,12 @@ public class ReportPhotoValidator {
 	public static final int MAX_PHOTOS = 1;
 	public static final long MAX_BYTES = 5L * 1024 * 1024;
 
-	/** JPEG/PNG only — the attached photo is also sent to vision analysis. */
+	/** JPEG/PNG/WebP — the attached photo is also sent to vision analysis. */
 	private static final Set<String> ALLOWED_TYPES = Set.of(
 			"image/jpeg",
 			"image/jpg",
-			"image/png"
+			"image/png",
+			"image/webp"
 	);
 
 	public void validateBatch(List<MultipartFile> files, int existingCount) {
@@ -46,7 +47,7 @@ public class ReportPhotoValidator {
 		}
 		String contentType = normalizeContentType(file.getContentType());
 		if (!ALLOWED_TYPES.contains(contentType)) {
-			throw new ApiException(422, "Photo must be jpeg or png");
+			throw new ApiException(422, "Photo must be jpeg, png, or webp");
 		}
 	}
 
@@ -63,6 +64,7 @@ public class ReportPhotoValidator {
 		return switch (normalizeContentType(contentType)) {
 			case "image/jpeg", "image/jpg" -> "jpg";
 			case "image/png" -> "png";
+			case "image/webp" -> "webp";
 			default -> "bin";
 		};
 	}

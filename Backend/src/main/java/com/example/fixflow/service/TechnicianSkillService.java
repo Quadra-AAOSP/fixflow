@@ -57,7 +57,7 @@ public class TechnicianSkillService {
 		skill.setSpecialty(request.specialty() == null || request.specialty().isBlank()
 				? null
 				: request.specialty().trim().toLowerCase());
-		skill.setProficiency(request.proficiency() == null ? 3 : request.proficiency());
+		skill.setProficiency(TechnicianSkill.STARTING_PROFICIENCY);
 		return TechnicianSkillResponse.from(technicianSkillRepository.save(skill));
 	}
 

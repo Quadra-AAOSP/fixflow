@@ -67,7 +67,7 @@ public class ReportVisionService {
      * already pending; other validation errors still propagate.
      */
     public void enqueueAttachedPhoto(Long reportId, MultipartFile image, AppUserDetails actor) {
-        if (image == null || image.isEmpty() || provider.getIfAvailable() == null) {
+        if (image == null || image.isEmpty() || openRouter.getIfAvailable() == null) {
             return;
         }
         try {
@@ -117,7 +117,8 @@ public class ReportVisionService {
                 if (report == null) {
                     job.setStatus("stale"); job.setImageData(null); return null;
                 }
-                return ClassificationRequest.builder().imageData(job.getImageData()).mimeType("image/png")
+                return ClassificationRequest.builder().imageData(job.getImageData())
+                        .mimeType(mimeForImage(job.getImageData()))
                         .description(job.getDescription()).siteType(report.getSite().getType().name())
                         .allowedCategories(rules.findBySiteTypeOrderBySortOrderAsc(report.getSite().getType())
                                 .stream().map(SiteRule::getCategory).toList()).build();
@@ -173,27 +174,49 @@ public class ReportVisionService {
 
     private byte[] sanitize(MultipartFile image) {
         if (image == null || image.isEmpty() || image.getSize() > 5 * 1024 * 1024) {
-            throw new ApiException(400, "Provide one JPEG or PNG image up to 5 MiB");
+            throw new ApiException(400, "Provide one JPEG, PNG, or WebP image up to 5 MiB");
         }
-        try (var stream = ImageIO.createImageInputStream(new ByteArrayInputStream(image.getBytes()))) {
-            var readers = ImageIO.getImageReaders(stream);
-            if (!readers.hasNext()) throw new IllegalArgumentException();
-            var reader = readers.next();
-            try {
-                reader.setInput(stream);
-                String format = reader.getFormatName();
-                if (!format.equalsIgnoreCase("png") && !format.equalsIgnoreCase("jpeg")) throw new IllegalArgumentException();
-                int width = reader.getWidth(0), height = reader.getHeight(0);
-                if (width < 1 || height < 1 || width > 4096 || height > 4096 || (long) width * height > 16_000_000) {
-                    throw new IllegalArgumentException();
-                }
-                var output = new ByteArrayOutputStream();
-                ImageIO.write(reader.read(0), "png", output);
-                if (output.size() > 5 * 1024 * 1024) throw new IllegalArgumentException();
-                return output.toByteArray();
-            } finally { reader.dispose(); }
+        try {
+            byte[] bytes = image.getBytes();
+            // JDK ImageIO has no WebP reader; pass through after magic-byte check.
+            if (isWebp(bytes)) return bytes;
+            try (var stream = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+                var readers = ImageIO.getImageReaders(stream);
+                if (!readers.hasNext()) throw new IllegalArgumentException();
+                var reader = readers.next();
+                try {
+                    reader.setInput(stream);
+                    String format = reader.getFormatName();
+                    if (!format.equalsIgnoreCase("png") && !format.equalsIgnoreCase("jpeg")) throw new IllegalArgumentException();
+                    int width = reader.getWidth(0), height = reader.getHeight(0);
+                    if (width < 1 || height < 1 || width > 4096 || height > 4096 || (long) width * height > 16_000_000) {
+                        throw new IllegalArgumentException();
+                    }
+                    var output = new ByteArrayOutputStream();
+                    ImageIO.write(reader.read(0), "png", output);
+                    if (output.size() > 5 * 1024 * 1024) throw new IllegalArgumentException();
+                    return output.toByteArray();
+                } finally { reader.dispose(); }
+            }
+        } catch (ApiException ex) {
+            throw ex;
         } catch (Exception invalid) {
-            throw new ApiException(400, "Invalid or oversized JPEG/PNG image");
+            throw new ApiException(400, "Invalid or oversized JPEG/PNG/WebP image");
         }
+    }
+
+    private static boolean isWebp(byte[] bytes) {
+        return bytes != null && bytes.length >= 12
+                && bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
+                && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P';
+    }
+
+    private static String mimeForImage(byte[] bytes) {
+        if (isWebp(bytes)) return "image/webp";
+        if (bytes != null && bytes.length >= 3
+                && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8 && (bytes[2] & 0xFF) == 0xFF) {
+            return "image/jpeg";
+        }
+        return "image/png";
     }
 }

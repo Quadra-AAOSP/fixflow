@@ -29,16 +29,19 @@ public class ReportWorkflowService {
     private final SiteVettingService vetting;
     private final ReportService reportService;
     private final ApplicationEventPublisher events;
+    private final TechnicianProficiencyService proficiency;
 
     public ReportWorkflowService(ReportRepository reports, UserRepository users,
             TechnicianContractRepository contracts, ReportReporterRepository participants,
             StatusHistoryRepository history, ReportResolutionRepository resolutions,
             ReportRatingRepository ratings, ReportLinkRepository links, TechnicianTermsService terms,
-            ReportService reportService, ApplicationEventPublisher events, ReportNotificationRepository notifications, SiteVettingService vetting) {
+            ReportService reportService, ApplicationEventPublisher events, ReportNotificationRepository notifications, SiteVettingService vetting,
+            TechnicianProficiencyService proficiency) {
         this.vetting=vetting;
         this.reports=reports; this.users=users; this.contracts=contracts; this.participants=participants;
         this.history=history; this.resolutions=resolutions; this.ratings=ratings; this.links=links;
         this.terms=terms; this.reportService=reportService; this.events=events; this.notifications=notifications;
+        this.proficiency=proficiency;
     }
 
     public ReportResponse claim(Long id, AppUserDetails actor) {
@@ -141,6 +144,9 @@ public class ReportWorkflowService {
         if(ratings.existsByResolution_IdAndRatedBy_Id(resolutionId,actor.getId())) conflict("Resolution already rated by this user");
         ReportRating rating=new ReportRating(); rating.setResolution(resolution); rating.setRatedBy(actor(actor));
         rating.setScore(score); rating.setFeedback(feedback==null?null:feedback.trim()); ratings.saveAndFlush(rating);
+        if (actor.getRole() == UserRole.reporter) {
+            proficiency.recalculateAfterRating(rating);
+        }
         return rating(rating,actor);
     }
     @Transactional(readOnly=true)

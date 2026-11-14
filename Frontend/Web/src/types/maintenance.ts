@@ -25,7 +25,7 @@ export interface Report {
   id: number; siteId: number | null; subsiteId: number | null; createdByUserId: number | null; createdByName: string | null;
   description: string; address: string | null; category: string; specialty: string | null;
   aiUrgency: Urgency | null; reporterUrgency: Urgency; reporterReason: string | null; finalUrgency: Urgency | null; calculatedUrgency?: Urgency | null; participationCount?: number;
-  status: ReportStatus; assignedTechnicianId: number | null; editable: boolean; reopenCount: number;
+  status: ReportStatus; assignedTechnicianId: number | null; agreedAmountMinor?: number | null; agreedCurrency?: string | null; editable: boolean; reopenCount: number;
   createdAt: string; updatedAt: string;
   policy?: {
     statusGroup: string; effectiveUrgency: Urgency; urgent: boolean;
@@ -37,7 +37,7 @@ export interface Report {
   confirmedByUserId?: number | null;
   confirmedByName?: string | null;
   confirmedAt?: string | null;
-  aiReport?: { urgency: Urgency | null; category: string | null; specialty: string | null; description: string | null; urgencyReason: string | null };
+  aiReport?: { urgency: Urgency | null; category: string | null; specialty: string | null; description: string | null; urgencyReason: string | null; failed?: boolean };
   visionJob?: ReportVisionJob | null;
 }
 export interface ReportPhoto {

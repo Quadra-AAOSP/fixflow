@@ -14,6 +14,7 @@ describe('report image analysis contract', () => {
   it('does not submit an image without consent or an unsupported file', () => {
     const file = new File(['image'], 'issue.png', { type: 'image/png' });
     expect(() => enqueueReportVision(91, file, false)).toThrow('consent');
-    expect(() => enqueueReportVision(91, new File(['image'], 'issue.webp', { type: 'image/webp' }), true)).toThrow('JPEG or PNG');
+    expect(() => enqueueReportVision(91, new File(['image'], 'issue.svg', { type: 'image/svg+xml' }), true)).toThrow('JPEG, PNG, or WebP');
+    expect(() => enqueueReportVision(91, new File(['image'], 'issue.webp', { type: 'image/webp' }), true)).not.toThrow();
   });
 });

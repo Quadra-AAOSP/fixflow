@@ -42,37 +42,56 @@ public class MarketplaceService {
     private final ReportRatingRepository ratings;
 
     public record ListingView(Long id, String summary, String broadLocation, String timing,
-            String category, String specialty, Urgency urgency, MarketplaceListing.Status status,
-            Instant expiresAt, Long reportId, ApplicationView myApplication, boolean canCancelAssignment) { }
+            String category, String specialty, long amountMinor, String currency, Urgency urgency,
+            MarketplaceListing.Status status, Instant expiresAt, Long reportId, ApplicationView myApplication,
+            boolean canCancelAssignment, List<ApplicationView> applications) { }
 
     public record ApplicationView(Long id, Long technicianId, String technicianName, String note,
-            MarketplaceApplication.Status status, Instant offerExpiresAt, long activeCases, long completedJobs,
-            Double averageRating, String reviewedTrades, String reviewedQualifications, long cancellations) { }
+            Long proposedAmountMinor, MarketplaceApplication.Status status, Instant offerExpiresAt,
+            long activeCases, long completedJobs, Double averageRating, String reviewedTrades,
+            String reviewedQualifications, long cancellations) { }
 
     @Transactional(readOnly = true)
     public List<ListingView> list(AppUserDetails actor) {
         Instant now = Instant.now();
+        if (actor.getRole() == UserRole.super_admin) {
+            return adminListingViews(listings.findAllWithReportOrderByIdDesc(), now);
+        }
         if (actor.getRole() == UserRole.admin) {
-            return listings.findByReport_Site_IdOrderByIdDesc(adminSiteId(actor)).stream()
-                    .map(listing -> listingView(listing, null, true, now)).toList();
+            return adminListingViews(listings.findByReport_Site_IdOrderByIdDesc(adminSiteId(actor)), now);
         }
         requireTechnician(actor);
+        List<TechnicianSkill> mySkills = skills.findByTechnician_IdInOrderByIdAsc(List.of(actor.getId()));
         return listings.findForTechnician(actor.getId()).stream().flatMap(listing -> {
             var mine = applications.findByListing_IdAndTechnician_Id(listing.getId(), actor.getId()).orElse(null);
-            // Every open listing is visible; eligibility (verification, terms,
-            // skills) is enforced when applying so the app can explain the block
-            // instead of showing an empty marketplace.
+            // Open jobs are limited to the technician's trade skills. Own
+            // applications stay visible so offer/accept history is not lost.
+            // Verification and terms remain enforced when applying.
             if (mine == null && listingStatus(listing, now) != MarketplaceListing.Status.open) {
                 return java.util.stream.Stream.empty();
             }
-            return java.util.stream.Stream.of(listingView(listing, mine, false, now));
+            if (mine == null && !matchesListing(listing, mySkills)) {
+                return java.util.stream.Stream.empty();
+            }
+            return java.util.stream.Stream.of(listingView(listing, mine, false, now, List.of()));
         }).toList();
     }
 
-    public ListingView publish(Long reportId, String summary, String broadLocation, String timing, AppUserDetails actor) {
+    private List<ListingView> adminListingViews(List<MarketplaceListing> values, Instant now) {
+        if (values.isEmpty()) return List.of();
+        var byListing = applications.findDetailedByListingIdIn(values.stream().map(MarketplaceListing::getId).toList())
+                .stream().collect(java.util.stream.Collectors.groupingBy(application -> application.getListing().getId()));
+        return values.stream().map(listing -> listingView(listing, null, true, now,
+                byListing.getOrDefault(listing.getId(), List.of()).stream()
+                        .map(application -> applicationView(application, true, now)).toList())).toList();
+    }
+
+    public ListingView publish(Long reportId, String summary, String broadLocation, String timing, long amountMinor,
+            String currency, AppUserDetails actor) {
         Report report = lockReport(reportId);
         requireAdmin(report, actor);
         requireAvailable(report);
+        if (amountMinor <= 0) throw new ApiException(400, "Amount must be greater than zero");
         Instant now = Instant.now();
         for (MarketplaceListing existing : listings.findByReport_IdAndStatusIn(reportId, LIVE)) {
             reconcile(existing, now);
@@ -85,10 +104,12 @@ public class MarketplaceService {
         listing.setTiming(timing.trim());
         listing.setCategory(report.getCategory());
         listing.setSpecialty(report.getSpecialty());
+        listing.setAmountMinor(amountMinor);
+        listing.setCurrency(currency == null || currency.isBlank() ? "USD" : currency.trim().toUpperCase());
         listing.setExpiresAt(now.plus(LISTING_DURATION));
         listings.save(listing);
         audit(listing, null, actor.getId(), "published", now);
-        return listingView(listing, null, true, now);
+        return listingView(listing, null, true, now, List.of());
     }
 
     public ListingView close(Long id, AppUserDetails actor) {
@@ -98,7 +119,7 @@ public class MarketplaceService {
         reconcile(listing, now);
         if (listing.getStatus() == MarketplaceListing.Status.assigned) throw conflict("An awarded listing cannot be closed");
         if (LIVE.contains(listing.getStatus())) finish(listing, MarketplaceListing.Status.closed, actor.getId(), now);
-        return listingView(listing, null, true, now);
+        return adminListingView(listing, now);
     }
 
     public ListingView cancelAssignment(Long id, String reason, AppUserDetails actor) {
@@ -115,7 +136,12 @@ public class MarketplaceService {
         listing.setStatus(MarketplaceListing.Status.closed);
         award.setStatus(MarketplaceApplication.Status.cancelled);
         audit(listing, award, actor.getId(), "assignment_cancelled", Instant.now());
-        return listingView(listing, null, true, Instant.now());
+        return adminListingView(listing, Instant.now());
+    }
+
+    private ListingView adminListingView(MarketplaceListing listing, Instant now) {
+        return listingView(listing, null, true, now, applications.findDetailedByListingId(listing.getId()).stream()
+                .map(application -> applicationView(application, true, now)).toList());
     }
 
     @Transactional(readOnly = true)
@@ -123,11 +149,11 @@ public class MarketplaceService {
         MarketplaceListing listing = foundListing(id);
         requireAdmin(listing.getReport(), actor);
         Instant now = Instant.now();
-        return applications.findByListing_IdOrderByIdAsc(id).stream()
+        return applications.findDetailedByListingId(id).stream()
                 .map(application -> applicationView(application, true, now)).toList();
     }
 
-    public ApplicationView apply(Long id, String note, AppUserDetails actor) {
+    public ApplicationView apply(Long id, String note, Long proposedAmountMinor, AppUserDetails actor) {
         requireTechnician(actor);
         MarketplaceListing listing = lockedListing(id);
         Instant now = Instant.now();
@@ -137,12 +163,38 @@ public class MarketplaceService {
         if (applications.findByListing_IdAndTechnician_Id(id, actor.getId()).isPresent()) {
             throw conflict("You already applied for this listing");
         }
+        if (proposedAmountMinor != null && proposedAmountMinor <= 0) {
+            throw new ApiException(400, "Proposed amount must be greater than zero");
+        }
         MarketplaceApplication application = new MarketplaceApplication();
         application.setListing(listing);
         application.setTechnician(technician);
         application.setNote(note.trim());
+        application.setProposedAmountMinor(proposedAmountMinor);
         applications.save(application);
         audit(listing, application, actor.getId(), "applied", now);
+        return applicationView(application, false, now);
+    }
+
+    public ApplicationView counter(Long id, Long applicationId, long amountMinor, String note, AppUserDetails actor) {
+        requireTechnician(actor);
+        MarketplaceListing listing = lockedListing(id);
+        MarketplaceApplication application = ownApplication(id, applicationId, actor);
+        Instant now = Instant.now();
+        reconcile(listing, now);
+        if (application.getStatus() != MarketplaceApplication.Status.offered
+                && application.getStatus() != MarketplaceApplication.Status.pending) {
+            throw conflict("Only pending or offered applications can be negotiated");
+        }
+        if (amountMinor <= 0) throw new ApiException(400, "Counter amount must be greater than zero");
+        application.setProposedAmountMinor(amountMinor);
+        if (note != null && !note.isBlank()) application.setNote(note.trim());
+        if (application.getStatus() == MarketplaceApplication.Status.offered) {
+            listing.setStatus(MarketplaceListing.Status.open);
+            application.setStatus(MarketplaceApplication.Status.pending);
+            application.setOfferExpiresAt(null);
+        }
+        audit(listing, application, actor.getId(), "countered", now);
         return applicationView(application, false, now);
     }
 
@@ -178,6 +230,11 @@ public class MarketplaceService {
         Report report = listing.getReport();
         vetting.requireEligible(actor.getId(), report.getSite().getId());
         requireAvailable(report);
+        long agreed = application.getProposedAmountMinor() != null
+                ? application.getProposedAmountMinor()
+                : listing.getAmountMinor();
+        report.setAgreedAmountMinor(agreed);
+        report.setAgreedCurrency(listing.getCurrency());
         workflow.activateMarketplaceAssignment(report, technician, actor);
         listing.setStatus(MarketplaceListing.Status.assigned);
         application.setStatus(MarketplaceApplication.Status.accepted);
@@ -260,16 +317,19 @@ public class MarketplaceService {
                 .findFirst().orElse(null);
     }
 
-    private ListingView listingView(MarketplaceListing listing, MarketplaceApplication mine, boolean admin, Instant now) {
+    private ListingView listingView(MarketplaceListing listing, MarketplaceApplication mine, boolean admin, Instant now,
+            List<ApplicationView> applications) {
         Report report = listing.getReport();
         boolean awarded = mine != null && mine.getStatus() == MarketplaceApplication.Status.accepted
                 && report.getAssignedTechnician() != null
                 && report.getAssignedTechnician().getId().equals(mine.getTechnician().getId());
         return new ListingView(listing.getId(), listing.getSummary(), listing.getBroadLocation(), listing.getTiming(),
                 listing.getCategory(), admin || awarded ? listing.getSpecialty() : null,
+                listing.getAmountMinor(), listing.getCurrency(),
                 report.getEffectiveUrgency(), listingStatus(listing, now),
                 listing.getExpiresAt(), admin || awarded ? report.getId() : null,
-                mine == null ? null : applicationView(mine, false, now), admin && canCancelAssignment(listing));
+                mine == null ? null : applicationView(mine, false, now), admin && canCancelAssignment(listing),
+                applications);
     }
 
     private boolean canCancelAssignment(MarketplaceListing listing) {
@@ -294,7 +354,7 @@ public class MarketplaceService {
         }
         var evidence = admin ? verifications.findById(id).orElse(null) : null;
         return new ApplicationView(application.getId(), id, technician.getFirstName() + " " + technician.getLastName(),
-                application.getNote(), status, application.getOfferExpiresAt(),
+                application.getNote(), application.getProposedAmountMinor(), status, application.getOfferExpiresAt(),
                 admin ? reports.countByAssignedTechnician_IdAndStatusIn(id, ACTIVE) : 0,
                 admin ? reports.countByAssignedTechnician_IdAndStatus(id, ReportStatus.confirmed) : 0,
                 admin ? ratings.averageConfirmedScore(id, ReportStatus.confirmed) : null,
@@ -322,9 +382,22 @@ public class MarketplaceService {
     }
 
     private boolean matches(Report report, List<TechnicianSkill> technicianSkills) {
-        return technicianSkills.isEmpty() || technicianSkills.stream().anyMatch(skill ->
-                skill.getCategory().equalsIgnoreCase(report.getCategory())
-                        && (report.getSpecialty() == null || report.getSpecialty().equalsIgnoreCase(skill.getSpecialty())));
+        return matchesTrade(report.getCategory(), report.getSpecialty(), technicianSkills);
+    }
+
+    private boolean matchesListing(MarketplaceListing listing, List<TechnicianSkill> technicianSkills) {
+        return matchesTrade(listing.getCategory(), listing.getSpecialty(), technicianSkills);
+    }
+
+    /** Category must match; specialty must match when the job specifies one. */
+    private boolean matchesTrade(String category, String specialty, List<TechnicianSkill> technicianSkills) {
+        if (technicianSkills.isEmpty() || category == null || category.isBlank()) {
+            return false;
+        }
+        boolean requireSpecialty = specialty != null && !specialty.isBlank();
+        return technicianSkills.stream().anyMatch(skill ->
+                skill.getCategory().equalsIgnoreCase(category)
+                        && (!requireSpecialty || specialty.equalsIgnoreCase(skill.getSpecialty())));
     }
 
     private MarketplaceListing lockedListing(Long id) {
@@ -368,6 +441,7 @@ public class MarketplaceService {
     }
 
     private void requireAdmin(Report report, AppUserDetails actor) {
+        if (actor.getRole() == UserRole.super_admin) return;
         if (!report.getSite().getId().equals(adminSiteId(actor))) {
             throw denied("Only the report site's administrator can manage this listing");
         }

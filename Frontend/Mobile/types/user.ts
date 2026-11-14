@@ -87,7 +87,7 @@ export type RegisterPayload = {
   qualifications?: string;
   acceptTechnicianTerms?: boolean;
   technicianTermsVersion?: string;
-  skills?: { category: string; specialty?: string | null; proficiency: number }[];
+  skills?: { category: string; specialty?: string | null }[];
   contractSiteId?: number;
   contractNote?: string;
 };

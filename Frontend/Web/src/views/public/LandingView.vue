@@ -162,6 +162,7 @@ watch(() => route.hash, async () => { await nextTick(); scrollToHash(); });
             <summary>{{ t('Can I register as a site administrator?') }}</summary>
             <p>{{ t('Site administration access is reviewed. Use Request a site to tell us about your organisation and proposed administrator.') }}</p>
             <RouterLink class="landing-text-link" to="/request-site">{{ t('Request a site') }}<ArrowRight :size="16" /></RouterLink>
+            <RouterLink class="landing-text-link" to="/site-application">{{ t('Track an application') }}<ArrowRight :size="16" /></RouterLink>
           </details>
           <details>
             <summary>{{ t('Do technicians need to join a site first?') }}</summary>
@@ -190,6 +191,7 @@ watch(() => route.hash, async () => { await nextTick(); scrollToHash(); });
       <nav :aria-label="t('Useful links')">
         <RouterLink to="/access-policy">{{ t('Access requirements') }}</RouterLink>
         <RouterLink to="/request-site">{{ t('Request a site') }}</RouterLink>
+        <RouterLink to="/site-application">{{ t('Track an application') }}</RouterLink>
         <RouterLink :to="signInTarget">{{ t('Sign in') }}</RouterLink>
       </nav>
       <small>© {{ new Date().getFullYear() }} FixFlow</small>

@@ -24,6 +24,8 @@ public class MarketplaceApplication {
     private User technician;
     @Column(nullable = false, length = 1000)
     private String note;
+    @Column(name = "proposed_amount_minor")
+    private Long proposedAmountMinor;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private Status status = Status.pending;

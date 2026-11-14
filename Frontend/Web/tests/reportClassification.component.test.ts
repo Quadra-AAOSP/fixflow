@@ -49,6 +49,20 @@ describe('separate AI assessment', () => {
     wrapper = mount(ReportClassificationPanel, { props: { report: report() } });
     expect(wrapper.find('button').exists()).toBe(false);
   });
+  it('shows an explicit failure state when AI urgency classification failed', () => {
+    wrapper = mount(ReportClassificationPanel, { props: { report: report({
+      aiUrgency: null,
+      aiReport: {
+        urgency: null, category: 'general', specialty: null, description: null,
+        urgencyReason: 'Invalid or unavailable AI classification', failed: true,
+      },
+    }) } });
+    expect(wrapper.text()).toContain('AI classification failed');
+    expect(wrapper.text()).toContain('AI urgency classification failed. Staff should review this report.');
+    expect(wrapper.text()).toContain('Classification failure reason');
+    expect(wrapper.text()).toContain('Invalid or unavailable AI classification');
+    expect(wrapper.text()).not.toContain('Not classified');
+  });
 });
 
 it('translates assessment labels while preserving returned AI narrative verbatim', () => {

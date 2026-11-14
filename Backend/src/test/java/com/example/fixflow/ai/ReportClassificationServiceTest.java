@@ -1,6 +1,7 @@
 package com.example.fixflow.ai;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -88,6 +89,7 @@ class ReportClassificationServiceTest {
         assertEquals("general", report.getAiCategory());
         assertNull(report.getAiSpecialty());
         assertNull(report.getAiUrgency());
+        assertNotNull(report.getAiUrgencyReason());
         assertEquals(Urgency.medium, report.getReporterUrgency());
     }
 

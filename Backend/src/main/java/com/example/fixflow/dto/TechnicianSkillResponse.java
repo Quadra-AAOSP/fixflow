@@ -1,5 +1,7 @@
 package com.example.fixflow.dto;
 
+import java.math.BigDecimal;
+
 import com.example.fixflow.domain.TechnicianSkill;
 
 public record TechnicianSkillResponse(
@@ -7,7 +9,7 @@ public record TechnicianSkillResponse(
 		Long technicianId,
 		String category,
 		String specialty,
-		int proficiency
+		BigDecimal proficiency
 ) {
 	public static TechnicianSkillResponse from(TechnicianSkill skill) {
 		return new TechnicianSkillResponse(

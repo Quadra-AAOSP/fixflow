@@ -227,7 +227,7 @@ async function remove() {
           </ul>
           <p v-else>{{ t("No reporting categories are configured.") }}</p>
           <RouterLink v-if="canManage" to="/site-rules" class="text-action"
-            >{{ t("Manage site rules") }} →</RouterLink
+            >{{ t("Manage site category") }} →</RouterLink
           >
         </section>
         <section

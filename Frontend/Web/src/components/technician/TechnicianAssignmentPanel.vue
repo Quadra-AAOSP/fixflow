@@ -4,7 +4,7 @@ import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { listTechnicians, rankTechnicians } from '@/services/technician';
-import { assignTechnician } from '@/services/maintenance';
+import { createJobOffer } from '@/services/jobOffers';
 import { ApiError, errorMessage } from '@/services/api';
 import type { Report } from '@/types/maintenance';
 import type { RankingMode, TechnicianRanking, TechnicianSummary } from '@/types/technician';
@@ -20,20 +20,25 @@ const directory = ref<TechnicianSummary[]>([]);
 const ranking = ref<TechnicianRanking | null>(null);
 const mode = ref<RankingMode>('STANDARD');
 const selectedId = ref<number | null>(null);
+const offerAmount = ref('');
 const loading = ref(false);
 const saving = ref(false);
 const error = ref('');
 const directoryError = ref('');
+const offerSent = ref(false);
 const candidates = computed(() => {
-  if (manager.value) return ranking.value?.candidates.map(item => ({ ...item, activeCases: item.activeCases as number | null })) ?? [];
-  return directory.value.filter(item => item.availabilityStatus === 'available' &&
-    item.contracts.some(contract => contract.siteId === props.report.siteId)).flatMap(item => {
-    const skills = item.skills.filter(skill => skill.proficiency >= 1 && skill.proficiency <= 5 && skill.category.toLowerCase() === props.report.category.toLowerCase() &&
-      (!props.report.specialty || skill.specialty?.toLowerCase() === props.report.specialty.toLowerCase()));
-    if (!skills.length) return [];
-    return [{ technicianId: item.id, proficiency: Math.max(...skills.map(skill => skill.proficiency)),
-      specialtyMatch: !!props.report.specialty, activeCases: null }];
-  });
+  const currentId = props.report.assignedTechnicianId;
+  const rows = manager.value
+    ? ranking.value?.candidates.map(item => ({ ...item, activeCases: item.activeCases as number | null })) ?? []
+    : directory.value.filter(item => item.availabilityStatus === 'available' &&
+      item.contracts.some(contract => contract.siteId === props.report.siteId)).flatMap(item => {
+      const skills = item.skills.filter(skill => skill.proficiency >= 1 && skill.proficiency <= 5 && skill.category.toLowerCase() === props.report.category.toLowerCase() &&
+        (!props.report.specialty || skill.specialty?.toLowerCase() === props.report.specialty.toLowerCase()));
+      if (!skills.length) return [];
+      return [{ technicianId: item.id, proficiency: Math.max(...skills.map(skill => skill.proficiency)),
+        specialtyMatch: !!props.report.specialty, activeCases: null }];
+    });
+  return rows.filter(item => item.technicianId !== currentId);
 });
 const technicianName = (id: number) => {
   const item = directory.value.find(person => person.id === id);
@@ -43,7 +48,8 @@ let generation = 0;
 onBeforeUnmount(() => { generation++; });
 async function load() {
   const current = ++generation;
-  directory.value = []; ranking.value = null; selectedId.value = null; error.value = ''; directoryError.value = '';
+  directory.value = []; ranking.value = null; selectedId.value = null; offerAmount.value = ''; offerSent.value = false;
+  error.value = ''; directoryError.value = '';
   loading.value = false;
   if (!allowed.value) return;
   loading.value = true;
@@ -58,12 +64,21 @@ async function load() {
 watch([() => props.report.id, () => props.report.siteId, () => props.report.category, () => props.report.specialty, () => allowed.value, () => user.value?.id, () => user.value?.role], load, { immediate: true });
 async function assign() {
   const id = selectedId.value;
-  if (!allowed.value || loading.value || saving.value || props.disabled || !candidates.value.some(item => item.technicianId === id)) return;
+  const amountMinor = Math.round(Number(offerAmount.value) * 100);
+  if (!allowed.value || loading.value || saving.value || props.disabled || !candidates.value.some(item => item.technicianId === id)
+    || !Number.isFinite(amountMinor) || amountMinor <= 0) return;
   const current = generation;
-  saving.value = true; emit('busy', true); error.value = '';
+  saving.value = true; emit('busy', true); error.value = ''; offerSent.value = false;
   try {
-    const saved = await assignTechnician(props.report.id, id!);
-    if (current === generation) { emit('saved', saved); await load(); }
+    await createJobOffer(props.report.id, {
+      technicianId: id!,
+      amountMinor,
+      currency: 'USD',
+    });
+    if (current === generation) {
+      offerSent.value = true;
+      await load();
+    }
   } catch (err) {
     if (current !== generation) return;
     const message = errorMessage(err);
@@ -84,12 +99,15 @@ async function assign() {
     <p v-if="ranking?.fallbackReason" class="draft-notice" role="status">{{ t(ranking.fallbackReason) }}</p>
     <p v-if="!manager" class="dialog-intro">{{ t("Available technicians with a contract and matching trade are shown. The service checks current terms when you assign. Ranking and workload counts require administrator access.") }}</p>
     <p v-if="error" class="live-error" role="alert">{{ t(error) }}</p><p v-if="directoryError" class="live-error" role="alert">{{ t('Directory: {error}', { error: t(directoryError) }) }}</p>
+    <p v-if="offerSent" class="draft-notice" role="status">{{ t('Paid offer sent. Assignment activates after the technician accepts.') }}</p>
     <LoadingStatus v-if="loading" :label="t('Loading contracted candidates…')" />
     <p v-else-if="!error && !directoryError && !candidates.length">{{ t("No matching available contracted technicians were returned. Refresh after a contract, skill, availability, or terms update.") }}</p>
     <form v-else-if="candidates.length" @submit.prevent="assign"><fieldset :disabled="loading || saving || disabled" class="candidate-options">
       <legend class="sr-only">{{ t("Choose a technician") }}</legend>
       <label v-for="item in candidates" :key="item.technicianId" class="candidate-option"><input v-model="selectedId" type="radio" name="technician" :value="item.technicianId" required /><span><strong>{{ technicianName(item.technicianId) }}</strong><small>{{ t('Account #{id} · Proficiency {level}/5', { id: item.technicianId, level: item.proficiency }) }}<template v-if="item.specialtyMatch"> · {{ t('Specialty match') }}</template><template v-if="item.activeCases !== null"> · {{ t('{count} active cases at this site', { count: item.activeCases }) }}</template></small></span></label>
-      <button type="submit" class="report-issue-button" :disabled="selectedId === null">{{ t(saving ? 'Saving assignment…' : 'Save assignment') }}</button>
+      <label>{{ t('Pay amount') }}<input v-model="offerAmount" type="number" min="0.01" step="0.01" required /></label>
+      <p class="dialog-intro">{{ t('The technician must accept this paid offer before the assignment becomes active.') }}</p>
+      <button type="submit" class="report-issue-button" :disabled="selectedId === null">{{ t(saving ? 'Saving offer…' : 'Send paid offer') }}</button>
     </fieldset></form>
   </section>
 </template>

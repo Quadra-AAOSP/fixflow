@@ -73,6 +73,8 @@ public class ReportService {
 	private final boolean requireSiteSetup;
 	@org.springframework.beans.factory.annotation.Autowired
 	private SiteVettingService vetting;
+	@org.springframework.beans.factory.annotation.Autowired
+	private com.example.fixflow.audit.ReportReassignmentRepository reassignments;
 	@org.springframework.beans.factory.annotation.Value("${fixflow.urgency.medium-reporters:3}")
 	private int mediumReporters;
 	@org.springframework.beans.factory.annotation.Value("${fixflow.urgency.high-reporters:5}")
@@ -511,11 +513,27 @@ public class ReportService {
         vetting.requireEligible(technician.getId(), report.getSite().getId());
         events.publishEvent(new MarketplaceAssignmentReplaced(report.getId(), actor.getId()));
         ReportStatus previousStatus = report.getStatus();
-        Long previousAssignee = report.getAssignedTechnician() == null ? null : report.getAssignedTechnician().getId();
+        User previousAssigneeUser = report.getAssignedTechnician();
+        Long previousAssignee = previousAssigneeUser == null ? null : previousAssigneeUser.getId();
 		report.setAssignedTechnician(technician);
 		report.setStatus(ReportStatus.assigned);
         reportRepository.save(report);
-        appendStatusHistory(report, previousStatus, ReportStatus.assigned, loadUser(actor.getId()), "Technician assigned");
+        User actorUser = loadUser(actor.getId());
+        String historyNote;
+        if (previousAssigneeUser != null && !java.util.Objects.equals(previousAssignee, technician.getId())) {
+            historyNote = "Reassigned from " + displayName(previousAssigneeUser)
+                    + " to " + displayName(technician);
+            com.example.fixflow.audit.ReportReassignment trail = new com.example.fixflow.audit.ReportReassignment();
+            trail.setReport(report);
+            trail.setFromTechnician(previousAssigneeUser);
+            trail.setToTechnician(technician);
+            trail.setReassignedBy(actorUser);
+            trail.setReason(historyNote);
+            reassignments.save(trail);
+        } else {
+            historyNote = "Technician assigned: " + displayName(technician);
+        }
+        appendStatusHistory(report, previousStatus, ReportStatus.assigned, actorUser, historyNote);
         if (!java.util.Objects.equals(previousAssignee, technician.getId())) {
             events.publishEvent(com.example.fixflow.realtime.ReportDomainEvent.of(
                     previousAssignee == null ? com.example.fixflow.realtime.ReportDomainEvent.ASSIGNMENT
@@ -711,6 +729,13 @@ public class ReportService {
 		history.setChangedBy(changedBy);
 		history.setNote(note);
 		statusHistoryRepository.save(history);
+	}
+
+	private static String displayName(User user) {
+		String first = user.getFirstName() == null ? "" : user.getFirstName().trim();
+		String last = user.getLastName() == null ? "" : user.getLastName().trim();
+		String name = (first + " " + last).trim();
+		return name.isEmpty() ? ("#" + user.getId()) : name;
 	}
 
 	private void assertCanManagePhotos(AppUserDetails actor, Report report) {

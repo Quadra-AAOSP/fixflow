@@ -1,7 +1,9 @@
 package com.example.fixflow.service;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import com.example.fixflow.domain.*;
 import com.example.fixflow.audit.*;
@@ -12,7 +14,7 @@ import com.example.fixflow.web.ApiException;
 @Service
 public class TechnicianRankingService {
     public enum Mode { STANDARD, AI }
-    public record Candidate(Long technicianId, int proficiency, boolean specialtyMatch,
+    public record Candidate(Long technicianId, double proficiency, boolean specialtyMatch,
             long activeCases, double score) { }
     public record Result(Long reportId, Mode requestedMode, Mode methodUsed, String fallbackReason,
             List<Candidate> candidates) { }
@@ -57,7 +59,6 @@ public class TechnicianRankingService {
                         inputs.add(new com.example.fixflow.ai.OpenRouterAi.RankCandidate(
                                 i, c.proficiency(), c.specialtyMatch(), c.activeCases()));
                     }
-                    // Normal API calls have no database transaction held during this network operation.
                     order = ai.rank(initial.category(), initial.specialty(), inputs);
                 } catch (Exception failure) { fallback = "AI provider failed; deterministic ranking used"; }
                 Snapshot current = transactions.execute(status -> eligible(reportId, actor));
@@ -94,18 +95,22 @@ public class TechnicianRankingService {
         if (actor.getRole() != UserRole.super_admin && !siteId.equals(actor.getSiteId())) {
             throw new ApiException(403, "Cannot rank technicians for another site");
         }
+        Long currentAssignee = report.getAssignedTechnician() == null ? null : report.getAssignedTechnician().getId();
         List<Candidate> candidates = new java.util.ArrayList<>();
         for (TechnicianContract contract : contracts.findBySite_Id(siteId)) {
             User technician = contract.getTechnician();
+            if (Objects.equals(technician.getId(), currentAssignee)) continue;
             if (technician.getRole() != UserRole.technician || !availability.findById(technician.getId())
                     .map(a -> a.getStatus() == AvailabilityStatus.available).orElse(false)) continue;
-            try { terms.requireAcceptance(technician.getId()); }
-            catch (ApiException e) { if (e.getStatus() == 409) continue; throw e; }
+            if (!terms.permitsWork(technician.getId())) continue;
             var matching = skills.findByTechnician_IdAndCategoryIgnoreCase(technician.getId(), report.getCategory())
-                    .stream().filter(s -> s.getProficiency() >= 1 && s.getProficiency() <= 5)
+                    .stream().filter(s -> s.getProficiency() != null
+                            && s.getProficiency().compareTo(BigDecimal.ONE) >= 0
+                            && s.getProficiency().compareTo(new BigDecimal("5.0")) <= 0)
                     .filter(s -> report.getSpecialty() == null || report.getSpecialty().isBlank()
                             || report.getSpecialty().equalsIgnoreCase(s.getSpecialty())).toList();
-            int proficiency = matching.stream().mapToInt(TechnicianSkill::getProficiency).max().orElse(0);
+            double proficiency = matching.stream().map(TechnicianSkill::getProficiency)
+                    .mapToDouble(BigDecimal::doubleValue).max().orElse(0);
             if (proficiency == 0) continue;
             boolean specialtyMatch = report.getSpecialty() != null && !report.getSpecialty().isBlank();
             long active = reports.countByAssignedTechnician_IdAndSite_IdAndStatusIn(technician.getId(), siteId, ACTIVE);

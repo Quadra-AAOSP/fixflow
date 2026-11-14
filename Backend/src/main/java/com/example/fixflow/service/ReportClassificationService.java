@@ -105,7 +105,9 @@ public class ReportClassificationService {
         report.setAiSpecialty(null);
         report.setAiUrgency(null);
         report.setAiDescription(null);
-        report.setAiUrgencyReason(null);
+        // Persist the failure reason so clients can show "AI classification failed"
+        // instead of "Not classified" (null urgency alone is ambiguous).
+        report.setAiUrgencyReason(truncate(reason, 2000));
         log.warn("Report {} requires staff AI-classification review: {}", report.getId(), reason);
     }
 

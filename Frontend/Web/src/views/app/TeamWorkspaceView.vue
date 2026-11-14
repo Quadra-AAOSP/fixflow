@@ -17,7 +17,7 @@ const panels = {
 const tabs = computed(() => [
   { id: 'accounts', label: 'Accounts' },
   { id: 'contracts', label: 'Contracts' },
-  { id: 'rules', label: 'Site rules' },
+  { id: 'rules', label: 'Site category' },
   ...(user.value?.role === 'super_admin' ? [{ id: 'technicians', label: 'Technicians' }, { id: 'applications', label: 'Site applications' }] : []),
 ]);
 const active = computed(() => {

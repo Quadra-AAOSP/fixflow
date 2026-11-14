@@ -90,6 +90,9 @@ async function onSubmit() {
     <p class="mt-6 text-center text-sm text-muted dark:text-muted-dark">
       <RouterLink to="/request-site">Request a site and administrator access</RouterLink>
     </p>
+    <p class="mt-2 text-center text-sm text-muted dark:text-muted-dark">
+      <RouterLink to="/site-application">Track a site application</RouterLink>
+    </p>
     <p class="mt-6 text-center text-sm text-muted dark:text-muted-dark">
       {{ t("New around here?") }}
       <RouterLink

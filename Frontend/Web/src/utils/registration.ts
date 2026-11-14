@@ -32,7 +32,7 @@ export function positiveId(value: string) {
 }
 
 function normalizeSkills(skills: RegisterSkill[] | undefined): RegisterSkill[] {
-  if (!skills?.length) throw new Error('Add at least one skill with a category and proficiency.');
+  if (!skills?.length) throw new Error('Add at least one skill with a category.');
   if (skills.length > 20) throw new Error('At most 20 skills can be registered.');
   const seen = new Set<string>();
   return skills.map((skill, index) => {
@@ -41,14 +41,10 @@ function normalizeSkills(skills: RegisterSkill[] | undefined): RegisterSkill[] {
       throw new Error(`Skill ${index + 1}: choose a valid category.`);
     }
     const specialty = skill.specialty?.trim() ? skill.specialty.trim().toLowerCase() : null;
-    const proficiency = Number(skill.proficiency);
-    if (!Number.isInteger(proficiency) || proficiency < 1 || proficiency > 5) {
-      throw new Error(`Skill ${index + 1}: choose proficiency from 1 to 5.`);
-    }
     const key = `${category}\0${specialty ?? ''}`;
     if (seen.has(key)) throw new Error('Duplicate skill category/specialty pairs are not allowed.');
     seen.add(key);
-    return { category, specialty, proficiency };
+    return { category, specialty };
   });
 }
 

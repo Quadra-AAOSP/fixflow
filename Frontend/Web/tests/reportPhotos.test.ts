@@ -30,7 +30,8 @@ describe('authorized report photo contract', () => {
   it('rejects empty, oversized, and unsupported uploads before a request', () => {
     expect(() => validateReportPhoto(new File([], 'empty.png', { type: 'image/png' }))).toThrow('non-empty');
     expect(() => validateReportPhoto(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'large.png', { type: 'image/png' }))).toThrow('5 MiB');
-    expect(() => validateReportPhoto(new File(['text'], 'file.svg', { type: 'image/svg+xml' }))).toThrow('JPEG');
+    expect(() => validateReportPhoto(new File(['text'], 'file.svg', { type: 'image/svg+xml' }))).toThrow('JPEG, PNG, or WebP');
+    expect(() => validateReportPhoto(new File(['photo'], 'issue.webp', { type: 'image/webp' }))).not.toThrow();
   });
   it('refreshes temporary URLs and deletes using the authorized report and photo IDs', async () => {
     const fetch = vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))); stubApiFetch(fetch);

@@ -11,6 +11,9 @@ import org.springframework.data.repository.query.Param;
 public interface MarketplaceListingRepository extends JpaRepository<MarketplaceListing, Long> {
     @Query("select l from MarketplaceListing l join fetch l.report r where r.site.id = :siteId order by l.id desc")
     List<MarketplaceListing> findByReport_Site_IdOrderByIdDesc(@Param("siteId") Long siteId);
+
+    @Query("select l from MarketplaceListing l join fetch l.report order by l.id desc")
+    List<MarketplaceListing> findAllWithReportOrderByIdDesc();
     List<MarketplaceListing> findByReport_IdAndStatusIn(Long reportId, Collection<MarketplaceListing.Status> statuses);
 
     @Query("""

@@ -259,7 +259,7 @@ public class AuthService {
 			skill.setSpecialty(input.specialty() == null || input.specialty().isBlank()
 					? null
 					: input.specialty().trim().toLowerCase(Locale.ROOT));
-			skill.setProficiency(input.proficiency() == null ? 3 : input.proficiency());
+			skill.setProficiency(TechnicianSkill.STARTING_PROFICIENCY);
 			skills.save(skill);
 		}
 		skills.flush();

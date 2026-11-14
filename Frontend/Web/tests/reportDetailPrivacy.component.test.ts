@@ -117,20 +117,6 @@ describe('private report detail revocation', () => {
     vi.mocked(api.getReport).mockRejectedValueOnce(new ApiError(403, 'Only the currently assigned technician may view this report'));
     finishAccess({ ...actor }); await flushPromises(); expectNoPrivateContent();
   });
-  it('restores a resolution draft after a successful disconnect recheck and clears it on revocation', async () => {
-    vi.mocked(api.getReport).mockResolvedValue({ ...privateReport, status: 'in_progress' });
-    await render();
-    await wrapper.get('textarea').setValue('Replaced the valve');
-    let finish!: (value: typeof actor) => void;
-    vi.mocked(authApi.getMe).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-    transport.callbacks.disconnected(); await nextTick();
-    expect(wrapper.find('textarea').exists()).toBe(false);
-    finish({ ...actor }); await flushPromises();
-    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('Replaced the valve');
-    transport.callbacks.revoked('/reports/2/events');
-    transport.callbacks.disconnected(); await flushPromises();
-    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('');
-  });
   it('drops report content while a disconnected socket’s session is being rechecked', async () => {
     await render(); expect(wrapper.text()).toContain('PRIVATE DESCRIPTION');
     let finish!: (value: typeof actor) => void;

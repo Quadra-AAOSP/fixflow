@@ -59,7 +59,7 @@ public final class AccountPolicy {
 
 	private static void validateSkills(List<RegisterSkillRequest> skills) {
 		if (skills == null || skills.isEmpty()) {
-			throw new ApiException(400, "Add at least one structured skill (category and proficiency).");
+			throw new ApiException(400, "Add at least one structured skill (category).");
 		}
 		if (skills.size() > 20) {
 			throw new ApiException(400, "At most 20 skills can be registered.");
@@ -79,10 +79,6 @@ public final class AccountPolicy {
 			String key = category + "\0" + specialty;
 			if (!seen.add(key)) {
 				throw new ApiException(400, "Duplicate skill category/specialty pairs are not allowed.");
-			}
-			int proficiency = skill.proficiency() == null ? 3 : skill.proficiency();
-			if (proficiency < 1 || proficiency > 5) {
-				throw new ApiException(400, "Skill proficiency must be between 1 and 5.");
 			}
 		}
 	}

@@ -3,7 +3,11 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { beforeEach, expect, it, vi } from 'vitest';
 import SiteApplicationView from '../src/views/auth/SiteApplicationView.vue';
 const state = vi.hoisted(() => ({ route: { name: 'site-application-status' }, request: vi.fn() }));
-vi.mock('vue-router', () => ({ useRoute: () => state.route, RouterLink: { template: '<a><slot /></a>' } }));
+vi.mock('vue-router', () => ({
+  useRoute: () => state.route,
+  useRouter: () => ({ push: vi.fn(() => Promise.resolve()) }),
+  RouterLink: { template: '<a><slot /></a>' },
+}));
 vi.mock('../src/services/api', () => ({ request: state.request, errorMessage: (e: Error) => e.message }));
 beforeEach(() => { vi.clearAllMocks(); state.route.name = 'site-application-status'; });
 it('explains tracking and preserves the token after a failed request while preventing duplicate submits', async () => {
@@ -41,4 +45,20 @@ it('presents correction requests in plain language while retaining the correctio
   expect(wrapper.text()).not.toContain('information_requested');
   expect(wrapper.text()).toContain('Confirm the site address.');
   expect(wrapper.text()).toContain('Submit requested information');
+});
+
+it('surfaces a primary status check after the tracking token is issued', async () => {
+  state.route.name = 'request-site';
+  state.request.mockResolvedValue({ trackingToken: 'issued-token-once' });
+  const wrapper = mount(SiteApplicationView);
+  for (const input of wrapper.findAll('input')) {
+    const el = input.element as HTMLInputElement;
+    if (el.type === 'email') await input.setValue('applicant@example.com');
+    else if (el.type !== 'password') await input.setValue('Sample value');
+  }
+  await wrapper.get('form').trigger('submit');
+  await flushPromises();
+  expect((wrapper.get('.issued-token input').element as HTMLInputElement).value).toBe('issued-token-once');
+  expect(wrapper.text()).toContain('I’ve saved my token — check status');
+  expect(wrapper.text()).toContain('Track an application');
 });

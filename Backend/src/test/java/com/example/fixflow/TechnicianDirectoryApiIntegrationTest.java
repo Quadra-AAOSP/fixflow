@@ -87,7 +87,7 @@ class TechnicianDirectoryApiIntegrationTest {
 		skill.setTechnician(technician);
 		skill.setCategory("Plumbing");
 		skill.setSpecialty("Pipe repair");
-		skill.setProficiency(4);
+		skill.setProficiency(java.math.BigDecimal.valueOf(4));
 		technicianSkillRepository.save(skill);
 
 		TechnicianContract contract = new TechnicianContract();

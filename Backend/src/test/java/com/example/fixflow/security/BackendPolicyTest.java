@@ -37,7 +37,7 @@ class BackendPolicyTest {
 				"password12345678", "Test", "Tech", "123456789", "Test address", UserRole.technician, null,
 				null, null, null, null,
 				"plumbing", "3 years", "Licensed", true, "test-v1",
-				List.of(new RegisterSkillRequest("plumbing", null, 4)), null, null));
+				List.of(new RegisterSkillRequest("plumbing", null)), null, null));
 	}
 
 	@Test

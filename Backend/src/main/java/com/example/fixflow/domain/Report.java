@@ -100,6 +100,12 @@ public class Report {
 	@JoinColumn(name = "assigned_technician_id")
 	private User assignedTechnician;
 
+	@Column(name = "agreed_amount_minor")
+	private Long agreedAmountMinor;
+
+	@Column(name = "agreed_currency", length = 8)
+	private String agreedCurrency;
+
 	@Column(nullable = false)
 	private boolean editable = true;
 

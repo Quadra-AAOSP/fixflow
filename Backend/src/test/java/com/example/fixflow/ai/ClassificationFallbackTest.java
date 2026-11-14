@@ -53,6 +53,7 @@ class ClassificationFallbackTest {
         assertThat(report.getAiCategory()).isEqualTo(general ? "general" : null);
         assertThat(report.getSpecialty()).isEqualTo("old specialty");
         assertThat(report.getAiSpecialty()).isNull(); assertThat(report.getAiUrgency()).isNull();
+        assertThat(report.getAiUrgencyReason()).isNotBlank();
         assertThat(report.getReporterUrgency()).isEqualTo(Urgency.critical);
         assertThat(report.getReporterReason()).isEqualTo("Reporter explanation");
     }

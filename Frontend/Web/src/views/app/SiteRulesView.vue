@@ -161,7 +161,7 @@ onMounted(load);
     <header class="operation-header">
       <div>
         <span class="rules-eyebrow">{{ t("REPORTING CONFIGURATION") }}</span>
-        <h1>{{ t("Site rules") }}</h1>
+        <h1>{{ t("Site category") }}</h1>
         <p>
           {{
             t(

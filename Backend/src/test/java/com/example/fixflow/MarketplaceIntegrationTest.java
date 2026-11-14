@@ -40,6 +40,7 @@ class MarketplaceIntegrationTest {
     @Autowired ReportReporterRepository participants;
     @Autowired MarketplaceApplicationRepository applications;
     @Autowired TechnicianVerificationRepository verification;
+    @Autowired TechnicianSkillRepository skills;
     @Autowired TechnicianContractRepository contracts;
     @Autowired ReportResolutionRepository resolutions;
     @Autowired ReportPhotoRepository photos;
@@ -75,11 +76,13 @@ class MarketplaceIntegrationTest {
         mvc.perform(get(LISTINGS)).andExpect(status().isUnauthorized());
         postJson(LISTINGS, foreign, publication()).andExpect(status().isForbidden());
         String listing = LISTINGS + "/" + publish();
-        // Open listings are visible to every technician; applying is what
-        // requires verification, accepted terms and a matching skill.
-        mvc.perform(get(LISTINGS).with(as(other))).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        // Open listings are limited to technicians whose skills match the job
+        // trade. Applying still requires verification and accepted terms.
+        mvc.perform(get(LISTINGS).with(as(other))).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
         mvc.perform(get(LISTINGS).with(as(technician))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].summary").value("Repair fixture"))
+                .andExpect(jsonPath("$[0].category").value("plumbing"))
                 .andExpect(jsonPath("$[0].reportId").doesNotExist())
                 .andExpect(jsonPath("$[0].specialty").doesNotExist())
                 .andExpect(jsonPath("$[0].address").doesNotExist())
@@ -263,7 +266,7 @@ class MarketplaceIntegrationTest {
 
     private String publication() {
         return """
-                {"reportId":%d,"summary":"Repair fixture","broadLocation":"North district","timing":"Tomorrow"}
+                {"reportId":%d,"summary":"Repair fixture","broadLocation":"North district","timing":"Tomorrow","amountMinor":15000,"currency":"USD"}
                 """.formatted(report.getId());
     }
 
@@ -307,6 +310,12 @@ class MarketplaceIntegrationTest {
         record.setPhoneChecked(true);
         record.setTradeChecked(true);
         verification.save(record);
+        TechnicianSkill skill = new TechnicianSkill();
+        skill.setTechnician(account);
+        skill.setCategory("plumbing");
+        skill.setSpecialty("Confidential specialty sentinel");
+        skill.setProficiency(java.math.BigDecimal.valueOf(4));
+        skills.save(skill);
         return account;
     }
 }

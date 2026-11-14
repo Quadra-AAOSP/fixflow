@@ -1,5 +1,7 @@
 package com.example.fixflow.domain;
 
+import java.math.BigDecimal;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -27,6 +29,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class TechnicianSkill {
 
+	public static final BigDecimal STARTING_PROFICIENCY = new BigDecimal("2.5");
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -41,6 +45,7 @@ public class TechnicianSkill {
 	@Column(length = 128)
 	private String specialty;
 
-	@Column(nullable = false)
-	private int proficiency = 3;
+	/** Platform-managed score from 1.0–5.0; technicians cannot override it. */
+	@Column(nullable = false, precision = 3, scale = 1)
+	private BigDecimal proficiency = STARTING_PROFICIENCY;
 }

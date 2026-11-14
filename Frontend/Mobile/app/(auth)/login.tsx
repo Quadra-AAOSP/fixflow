@@ -122,6 +122,20 @@ export default function LoginScreen() {
         </Text>
       </Pressable>
 
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={t('auth.login.trackSiteApplication')}
+        onPress={() => router.push('/(auth)/track-site')}
+        className="min-h-[44px] items-center justify-center active:opacity-70"
+      >
+        <Text
+          className="text-center text-[13px] text-coral-link"
+          style={{ fontFamily: fontFamilies.bodySemiBold }}
+        >
+          {t('auth.login.trackSiteApplication')}
+        </Text>
+      </Pressable>
+
       {/* Super admin gate — tiny footer row with a shield icon. Intentionally
           subtle so non-super-admins never reach it unless they know it's
           there. Routes to the dedicated locked-email screen. */}

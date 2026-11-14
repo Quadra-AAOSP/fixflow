@@ -1,0 +1,38 @@
+/* Report detail page layout — chrome uses shared ff-* tokens from dashboard.css */
+
+.report-detail-page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.rd-status {
+  display: grid;
+  gap: 8px;
+}
+
+.rd-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.rd-main,
+.rd-support {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.rd-photos,
+.rd-assistant,
+.rd-workflow {
+  padding: 0 24px 22px;
+}
+
+@media (max-width: 1050px) {
+  .rd-columns {
+    grid-template-columns: 1fr;
+  }
+}

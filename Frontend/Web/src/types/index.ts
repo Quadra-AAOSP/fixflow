@@ -72,7 +72,6 @@ export type AccountDetails = {
 export type RegisterSkill = {
   category: string;
   specialty?: string | null;
-  proficiency: number;
 };
 
 export type RegisterPayload = AccountDetails & (

@@ -23,7 +23,7 @@ public final class OpenRouterAi {
 
 	private static final Logger log = LoggerFactory.getLogger(OpenRouterAi.class);
 
-	public record RankCandidate(int slot, int proficiency, boolean specialtyMatch, long activeCases) {
+	public record RankCandidate(int slot, double proficiency, boolean specialtyMatch, long activeCases) {
 	}
 
 	private final OpenRouterClient client;

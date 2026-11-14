@@ -28,6 +28,10 @@ public class MarketplaceListing {
     private String category;
     @Column(length = 128)
     private String specialty;
+    @Column(name = "amount_minor", nullable = false)
+    private long amountMinor;
+    @Column(nullable = false, length = 8)
+    private String currency = "USD";
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private Status status = Status.open;

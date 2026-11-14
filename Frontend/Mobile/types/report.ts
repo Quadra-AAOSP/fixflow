@@ -59,6 +59,8 @@ export type AiReport = {
   category: string | null;
   specialty: string | null;
   urgencyReason: string | null;
+  /** True when classification ran but produced no usable AI urgency. */
+  failed?: boolean;
 };
 
 /** Background vision-processing job state. */

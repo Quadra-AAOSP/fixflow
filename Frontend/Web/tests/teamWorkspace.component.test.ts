@@ -17,7 +17,7 @@ async function render(path: string) { const router = createRouter({ history: cre
 it('reuses contract and account panels in one role-scoped window', async () => {
  const { router, wrapper } = await render('/team');
  expect(wrapper.text()).toContain('Existing accounts panel');
- expect(wrapper.findAll('nav a').map(x => x.text())).toEqual(['Accounts', 'Contracts', 'Site rules']);
+ expect(wrapper.findAll('nav a').map(x => x.text())).toEqual(['Accounts', 'Contracts', 'Site category']);
  await router.push('/team?tab=contracts'); await flushPromises(); expect(wrapper.text()).toContain('Existing contracts panel'); expect(wrapper.text()).not.toContain('Existing accounts panel');
  wrapper.unmount();
 });

@@ -11,7 +11,7 @@ const form: RegistrationInput = {
   password: 'a unique long passphrase', phone: '+1 202 555 0100', address: 'Business correspondence address', role: 'technician', siteId: '71',
   trades: 'plumbing', experience: '3 years', qualifications: 'Licensed plumber',
   acceptTechnicianTerms: true, technicianTermsVersion: '2026-11-03',
-  skills: [{ category: 'plumbing', specialty: 'leaks', proficiency: 4 }],
+  skills: [{ category: 'plumbing', specialty: 'leaks' }],
 };
 afterEach(() => vi.unstubAllGlobals());
 
@@ -19,7 +19,7 @@ describe('role-based public registration', () => {
   it('always clears a technician site, even if a reporter site is left in form input', () => {
     expect(buildRegistrationPayload(form, 15)).toMatchObject({
       role: 'technician', siteId: null, firstName: 'Test', acceptTechnicianTerms: true,
-      skills: [{ category: 'plumbing', specialty: 'leaks', proficiency: 4 }],
+      skills: [{ category: 'plumbing', specialty: 'leaks' }],
     });
   });
   it('requires technician contact details without affecting reporter requirements', () => {
@@ -73,7 +73,7 @@ describe('role-based public registration', () => {
     expect(String(fetch.mock.calls[0]?.[0])).toMatch(/\/api\/auth\/register$/);
     expect(JSON.parse(fetch.mock.calls[0]?.[1].body)).toMatchObject({
       role: 'technician', siteId: null, trades: 'plumbing', acceptTechnicianTerms: true,
-      skills: [{ category: 'plumbing', specialty: 'leaks', proficiency: 4 }],
+      skills: [{ category: 'plumbing', specialty: 'leaks' }],
     });
   });
 });

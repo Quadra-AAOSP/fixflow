@@ -17,7 +17,7 @@ public record TechnicianSummaryResponse(
 			Long id,
 			String category,
 			String specialty,
-			int proficiency
+			double proficiency
 	) {
 	}
 

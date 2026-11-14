@@ -104,7 +104,7 @@ public class TechnicianDirectoryService {
 								skill.getId(),
 								skill.getCategory(),
 								skill.getSpecialty(),
-								skill.getProficiency()))
+								skill.getProficiency() == null ? 2.5 : skill.getProficiency().doubleValue()))
 						.toList(),
 				contracts.stream()
 						.map(contract -> new TechnicianSummaryResponse.Contract(

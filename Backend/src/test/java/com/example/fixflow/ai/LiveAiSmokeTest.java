@@ -191,7 +191,7 @@ class LiveAiSmokeTest {
             var skill = new TechnicianSkill();
             skill.setTechnician(technician);
             skill.setCategory("plumbing");
-            skill.setProficiency(4);
+            skill.setProficiency(java.math.BigDecimal.valueOf(4));
             skills.save(skill);
             var available = new TechnicianAvailability();
             available.setTechnician(technician);

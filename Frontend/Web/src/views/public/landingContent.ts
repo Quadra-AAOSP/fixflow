@@ -35,7 +35,7 @@ export const audiences = {
       ['Make every location clear', 'Set up labelled buildings and review suggestions for missing places.'],
       ['Coordinate the next fix', 'Review incoming reports, manage site contracts, and assign eligible technicians.'],
     ],
-    note: 'Site administrator access requires approval. Submitting a site request does not create an approved site or administrator account.',
+    note: 'Site administrator access requires approval. After you apply, save the tracking token and use Track an application to check status. Submitting a request does not create an approved site or administrator account.',
   },
   technicians: {
     icon: Wrench,

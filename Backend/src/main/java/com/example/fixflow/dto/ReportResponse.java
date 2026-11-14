@@ -26,6 +26,8 @@ public record ReportResponse(
 		int participationCount,
 		ReportStatus status,
 		Long assignedTechnicianId,
+		Long agreedAmountMinor,
+		String agreedCurrency,
 		boolean editable,
 		int reopenCount,
 		String reopenReason,
@@ -41,7 +43,8 @@ public record ReportResponse(
         AiReport aiReport,
         VisionJob visionJob
 ) {
-    public record AiReport(Urgency urgency, String category, String specialty, String description, String urgencyReason) { }
+    public record AiReport(Urgency urgency, String category, String specialty, String description, String urgencyReason,
+            boolean failed) { }
     public record VisionJob(String jobId, Long reportId, String status, String model) { }
 	public static ReportResponse from(Report report, ReportPolicy policy) {
         return from(report, policy, List.of(), false, null);
@@ -94,6 +97,8 @@ public record ReportResponse(
 				report.getParticipationCount(),
 				report.getStatus(),
 				report.getAssignedTechnician() != null ? report.getAssignedTechnician().getId() : null,
+				includeSensitive ? report.getAgreedAmountMinor() : null,
+				includeSensitive ? report.getAgreedCurrency() : null,
 				report.isEditable(),
 				report.getReopenCount(),
 				includeSensitive ? report.getReopenReason() : null,
@@ -109,7 +114,8 @@ public record ReportResponse(
                 new AiReport(report.getAiUrgency(), includeAiDetails ? report.getAiCategory() : null,
                         includeAiDetails ? report.getAiSpecialty() : null,
                         includeAiDetails ? report.getAiDescription() : null,
-                        includeAiDetails ? report.getAiUrgencyReason() : null),
+                        includeAiDetails ? report.getAiUrgencyReason() : null,
+                        report.getAiUrgency() == null && report.getAiUrgencyReason() != null),
                 visionJob
 		);
 	}

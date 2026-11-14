@@ -2,8 +2,8 @@ import { request } from './api';
 import type { ReportVisionJob } from '@/types/maintenance';
 
 export function validateVisionImage(image: File) {
-  if (!image.size || image.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/jpg', 'image/png'].includes(image.type.toLowerCase())) {
-    throw new Error('Choose one non-empty JPEG or PNG image up to 5 MiB.');
+  if (!image.size || image.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(image.type.toLowerCase())) {
+    throw new Error('Choose one non-empty JPEG, PNG, or WebP image up to 5 MiB.');
   }
 }
 export function enqueueReportVision(reportId: number, image: File, consent: boolean) {

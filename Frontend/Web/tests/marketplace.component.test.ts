@@ -51,15 +51,14 @@ it('publishes only the fields written for the public listing and requires a priv
   wrapper.unmount();
 });
 
-it('requires the site admin to confirm qualifications and access before selecting an applicant', async () => {
+it('shows applicants on the listing for site admins and requires confirmation before selecting', async () => {
   signIn('admin');
-  vi.mocked(marketplace.listMarketplaceJobs).mockResolvedValue([listing]);
-  vi.mocked(marketplace.listMarketplaceApplicants).mockResolvedValue([applicant]);
+  vi.mocked(marketplace.listMarketplaceJobs).mockResolvedValue([{ ...listing, applications: [applicant] }]);
   vi.mocked(marketplace.actOnMarketplaceApplication).mockResolvedValue({ ...applicant, status: 'offered' });
   const wrapper = mount(MarketplaceView, { global });
   await flushPromises();
-  await wrapper.findAll('button').find(button => button.text() === 'Review applicants')!.trigger('click');
-  await flushPromises();
+  expect(wrapper.text()).toContain('Test Technician');
+  expect(wrapper.text()).toContain('1 applicants');
   const offer = wrapper.findAll('button').find(button => button.text() === 'Send offer')!;
   expect(offer.attributes('disabled')).toBeDefined();
   await wrapper.find('input[type=checkbox]').setValue(true);

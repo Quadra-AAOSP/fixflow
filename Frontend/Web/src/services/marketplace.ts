@@ -6,6 +6,7 @@ export interface MarketplaceApplication {
   technicianId: number;
   technicianName: string;
   note: string;
+  proposedAmountMinor: number | null;
   status: 'pending' | 'offered' | 'accepted' | 'declined' | 'withdrawn' | 'rejected' | 'expired' | 'cancelled';
   offerExpiresAt: string | null;
   activeCases: number | null;
@@ -24,11 +25,15 @@ export interface MarketplaceListing {
   timing: string;
   category: string;
   specialty: string | null;
+  amountMinor: number;
+  currency: string;
   urgency: Urgency | null;
   status: 'open' | 'offered' | 'assigned' | 'closed' | 'expired';
   canCancelAssignment: boolean;
   expiresAt: string;
   myApplication: MarketplaceApplication | null;
+  /** Present for site/super admins — applicants for this listing. */
+  applications?: MarketplaceApplication[];
 }
 
 export interface MarketplaceDraft {
@@ -36,6 +41,8 @@ export interface MarketplaceDraft {
   summary: string;
   broadLocation: string;
   timing: string;
+  amountMinor: number;
+  currency?: string;
 }
 
 const listings = '/api/marketplace/listings';

@@ -95,4 +95,16 @@ public interface ReportRepository extends JpaRepository<Report, Long>, org.sprin
 			where r.id in :ids
 			""")
 	List<Report> findDetailedByIdIn(@Param("ids") List<Long> ids);
+
+	@Query("""
+			select r from Report r
+			join fetch r.site
+			join fetch r.createdBy
+			left join fetch r.assignedTechnician
+			left join fetch r.subsite
+			left join fetch r.confirmedBy
+			where r.assignedTechnician.id = :technicianId
+			order by r.updatedAt desc
+			""")
+	List<Report> findDetailedByAssignedTechnicianId(@Param("technicianId") Long technicianId);
 }

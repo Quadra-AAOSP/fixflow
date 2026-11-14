@@ -42,7 +42,7 @@ export default function RegisterTechnicianScreen() {
     acceptTechnicianTerms: false,
   });
   const [skills, setSkills] = useState<RegisterSkill[]>([
-    { category: 'plumbing', specialty: '', proficiency: 3 },
+    { category: 'plumbing', specialty: '' },
   ]);
   const [termsVersion, setTermsVersion] = useState<string | null>(null);
   const [termsUrl, setTermsUrl] = useState<string | null>(null);
@@ -261,21 +261,9 @@ export default function RegisterTechnicianScreen() {
             value={skill.specialty ?? ''}
             onChangeText={(v) => setSkills((rows) => rows.map((row, i) => (i === index ? { ...row, specialty: v } : row)))}
           />
-          <Text className="text-[10px] text-auth-body">Proficiency</Text>
-          <View className="mb-1 flex-row gap-2">
-            {[1, 2, 3, 4, 5].map((level) => {
-              const selected = skill.proficiency === level;
-              return (
-                <Pressable
-                  key={level}
-                  onPress={() => setSkills((rows) => rows.map((row, i) => (i === index ? { ...row, proficiency: level } : row)))}
-                  className={`h-8 w-8 items-center justify-center rounded-lg border ${selected ? 'border-coral-link bg-white' : 'border-auth-line'}`}
-                >
-                  <Text className="text-[12px] text-auth-ink">{level}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <Text className="mb-2 text-[10px] leading-[16px] text-auth-body">
+            Proficiency starts at 2.5 and updates from reporter ratings after completed work.
+          </Text>
           {skills.length > 1 ? (
             <Pressable onPress={() => setSkills((rows) => rows.filter((_, i) => i !== index))}>
               <Text className="text-[11px] text-coral-link">Remove skill</Text>
@@ -286,7 +274,7 @@ export default function RegisterTechnicianScreen() {
       {skills.length < 20 ? (
         <Pressable
           className="mb-3"
-          onPress={() => setSkills((rows) => [...rows, { category: 'general', specialty: '', proficiency: 3 }])}
+          onPress={() => setSkills((rows) => [...rows, { category: 'general', specialty: '' }])}
         >
           <Text className="text-[11px] text-coral-link">Add another skill</Text>
         </Pressable>

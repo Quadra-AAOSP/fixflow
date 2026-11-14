@@ -87,11 +87,12 @@ function extFromUri(uri: string): string {
 
 function mimeForUri(uri: string, fallback?: string): string {
   const candidate = (fallback ?? '').toLowerCase();
-  if (candidate === 'image/png' || candidate === 'image/jpeg' || candidate === 'image/jpg') {
+  if (candidate === 'image/png' || candidate === 'image/jpeg' || candidate === 'image/jpg' || candidate === 'image/webp') {
     return candidate === 'image/jpg' ? 'image/jpeg' : candidate;
   }
   const ext = extFromUri(uri);
   if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
   return 'image/jpeg';
 }
 

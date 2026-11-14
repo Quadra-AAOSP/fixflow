@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS technician_skills (
     technician_id  BIGINT UNSIGNED NOT NULL,
     category       VARCHAR(128)    NOT NULL,
     specialty      VARCHAR(128)    NULL,
-    proficiency    TINYINT UNSIGNED NOT NULL DEFAULT 3,
+    proficiency    DECIMAL(3,1)    NOT NULL DEFAULT 2.5,
     PRIMARY KEY (id),
     UNIQUE KEY uq_tech_skill (technician_id, category, specialty),
     KEY idx_tech_skills_category (category),
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS technician_skills (
         FOREIGN KEY (technician_id) REFERENCES users (id)
         ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT chk_tech_skills_proficiency
-        CHECK (proficiency BETWEEN 1 AND 5)
+        CHECK (proficiency BETWEEN 1.0 AND 5.0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS subsites (
@@ -198,6 +198,8 @@ CREATE TABLE IF NOT EXISTS reports (
                                 'escalated'
                             )               NOT NULL DEFAULT 'open',
     assigned_technician_id  BIGINT UNSIGNED NULL,
+    agreed_amount_minor     BIGINT          NULL,
+    agreed_currency         VARCHAR(8)      NULL,
     editable                TINYINT(1)      NOT NULL DEFAULT 1,
     archived_at             TIMESTAMP(6)    NULL,
     visibility              VARCHAR(16)     NOT NULL DEFAULT 'public',
@@ -613,6 +615,8 @@ CREATE TABLE IF NOT EXISTS marketplace_listings (
     timing VARCHAR(160) NOT NULL,
     category VARCHAR(128) NOT NULL,
     specialty VARCHAR(128) NULL,
+    amount_minor BIGINT NOT NULL DEFAULT 0,
+    currency VARCHAR(8) NOT NULL DEFAULT 'USD',
     status VARCHAR(16) NOT NULL,
     expires_at TIMESTAMP(6) NOT NULL,
     PRIMARY KEY (id),
@@ -627,6 +631,7 @@ CREATE TABLE IF NOT EXISTS marketplace_applications (
     listing_id BIGINT UNSIGNED NOT NULL,
     technician_id BIGINT UNSIGNED NOT NULL,
     note VARCHAR(1000) NOT NULL,
+    proposed_amount_minor BIGINT NULL,
     status VARCHAR(16) NOT NULL,
     offer_expires_at TIMESTAMP(6) NULL,
     PRIMARY KEY (id),
@@ -635,6 +640,32 @@ CREATE TABLE IF NOT EXISTS marketplace_applications (
         FOREIGN KEY (listing_id) REFERENCES marketplace_listings (id) ON DELETE CASCADE,
     CONSTRAINT fk_marketplace_application_technician
         FOREIGN KEY (technician_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS job_offers (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    report_id BIGINT UNSIGNED NOT NULL,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    marketplace_listing_id BIGINT UNSIGNED NULL,
+    amount_minor BIGINT NOT NULL,
+    currency VARCHAR(8) NOT NULL DEFAULT 'USD',
+    counter_amount_minor BIGINT NULL,
+    status VARCHAR(16) NOT NULL,
+    note VARCHAR(1000) NULL,
+    created_by_user_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    KEY idx_job_offers_report (report_id),
+    KEY idx_job_offers_technician (technician_id),
+    CONSTRAINT fk_job_offers_report
+        FOREIGN KEY (report_id) REFERENCES reports (id) ON DELETE CASCADE,
+    CONSTRAINT fk_job_offers_technician
+        FOREIGN KEY (technician_id) REFERENCES users (id),
+    CONSTRAINT fk_job_offers_listing
+        FOREIGN KEY (marketplace_listing_id) REFERENCES marketplace_listings (id) ON DELETE SET NULL,
+    CONSTRAINT fk_job_offers_created_by
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS marketplace_audit (

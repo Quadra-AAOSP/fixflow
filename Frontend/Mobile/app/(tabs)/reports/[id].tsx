@@ -419,13 +419,16 @@ export default function ReportDetailScreen() {
 
   const assignmentCandidates = useMemo<AssignmentCandidate[]>(() => {
     if (!report) return [];
+    const currentId = report.assignedTechnicianId;
     if (isReportManager) {
-      const ranked = (ranking?.candidates ?? []).map((candidate) => ({
-        technicianId: candidate.technicianId,
-        proficiency: candidate.proficiency,
-        specialtyMatch: candidate.specialtyMatch,
-        activeCases: candidate.activeCases,
-      }));
+      const ranked = (ranking?.candidates ?? [])
+        .filter((candidate) => candidate.technicianId !== currentId)
+        .map((candidate) => ({
+          technicianId: candidate.technicianId,
+          proficiency: candidate.proficiency,
+          specialtyMatch: candidate.specialtyMatch,
+          activeCases: candidate.activeCases,
+        }));
       // Ranking silently drops technicians who are unavailable, lack a
       // matching skill, or have no contract. Surface the contracted ones that
       // were dropped so an admin can still assign them manually.
@@ -434,7 +437,7 @@ export default function ReportDetailScreen() {
         person.contracts.some((contract) => contract.siteId === report.siteId),
       );
       const dropped = contracted
-        .filter((person) => !rankedIds.has(person.id))
+        .filter((person) => person.id !== currentId && !rankedIds.has(person.id))
         .map((person): AssignmentCandidate => {
           const category = report.category.toLowerCase();
           const specialty = report.specialty?.toLowerCase() ?? null;
@@ -464,6 +467,7 @@ export default function ReportDetailScreen() {
     return directory
       .filter(
         (person) =>
+          person.id !== currentId &&
           person.availabilityStatus === 'available' &&
           person.contracts.some((contract) => contract.siteId === report.siteId),
       )
@@ -851,6 +855,11 @@ export default function ReportDetailScreen() {
                 {aiError}
               </Text>
             )}
+            {report.aiReport?.failed && !aiError ? (
+              <Text className="mt-2 text-[10px] text-tone-danger" accessibilityRole="text">
+                {t('reports.detail.aiAssessment.failed')}
+              </Text>
+            ) : null}
             {visionJob?.reportId === reportId ? (
               <Text className="mt-2 text-[12px] text-dashboard-subtitle">
                 {t('reports.detail.vision.progress', {
@@ -862,7 +871,14 @@ export default function ReportDetailScreen() {
             {report.aiReport ? (
               <View className="mt-2">
                 <Text className="text-[12px] text-dashboard-subtitle">
-                  {t('reports.detail.aiAssessment.urgency')}: {report.aiReport.urgency ? urgencyLabels[report.aiReport.urgency] : '—'}
+                  {t('reports.detail.aiAssessment.urgency')}:{' '}
+                  {report.aiReport.urgency
+                    ? urgencyLabels[report.aiReport.urgency]
+                    : t(
+                        report.aiReport.failed
+                          ? 'reports.detail.definition.classificationFailed'
+                          : 'reports.detail.definition.notClassified',
+                      )}
                 </Text>
                 {report.aiReport.description && (
                   <Text className="mt-1 text-[12px] text-ink">
@@ -871,7 +887,12 @@ export default function ReportDetailScreen() {
                 )}
                 {report.aiReport.urgencyReason && (
                   <Text className="mt-1 text-[11px] text-dashboard-caption">
-                    {t('reports.detail.definition.urgencyReason')}: {report.aiReport.urgencyReason}
+                    {t(
+                      report.aiReport.failed
+                        ? 'reports.detail.aiAssessment.failureReason'
+                        : 'reports.detail.definition.urgencyReason',
+                    )}
+                    : {report.aiReport.urgencyReason}
                   </Text>
                 )}
               </View>
@@ -1054,7 +1075,13 @@ export default function ReportDetailScreen() {
           <DefinitionRow
             label={t('reports.detail.definition.aiUrgency')}
             value={
-              report.aiUrgency ? t(urgencyLabels[report.aiUrgency]) : t('reports.detail.definition.notClassified')
+              report.aiUrgency
+                ? t(urgencyLabels[report.aiUrgency])
+                : t(
+                    report.aiReport?.failed
+                      ? 'reports.detail.definition.classificationFailed'
+                      : 'reports.detail.definition.notClassified',
+                  )
             }
           />
           <DefinitionRow

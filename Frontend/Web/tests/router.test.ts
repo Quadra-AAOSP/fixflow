@@ -49,7 +49,7 @@ describe('actual application route guards', () => {
     await router.push('/team-access');
     expect(router.currentRoute.value.name).toBe('team-access');
   });
-  it.each(['admin', 'technician'] as const)('allows %s to open the job marketplace', async role => {
+  it.each(['admin', 'super_admin', 'technician'] as const)('allows %s to open the job marketplace', async role => {
     await signIn(role);
     const router = createAppRouter(createMemoryHistory());
     await router.push('/marketplace');

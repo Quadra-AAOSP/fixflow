@@ -12,14 +12,13 @@ import {
   closeMarketplaceJob,
   listMarketplaceApplicants,
   listMarketplaceJobs,
-  type MarketplaceApplication,
   type MarketplaceListing,
 } from "@/services/marketplace";
 import { formatDate, humanize, urgencyLabels } from "@/utils/maintenance";
 
 const { t } = useLocale();
 const { user } = useAuth();
-const admin = computed(() => user.value?.role === "admin");
+const admin = computed(() => user.value?.role === "admin" || user.value?.role === "super_admin");
 const listings = ref<MarketplaceListing[]>([]);
 const search = ref("");
 const aiQuery = ref("");
@@ -70,18 +69,20 @@ const matchingListings = computed(() =>
         .includes(search.value.trim().toLocaleLowerCase()),
   ),
 );
-const applicants = ref<MarketplaceApplication[]>([]);
-const selectedListing = ref<number | null>(null);
 const notes = ref<Record<number, string>>({});
 const safetyConfirmed = ref<Record<number, boolean>>({});
 const loading = ref(false);
-const loadingApplicants = ref(false);
+const refreshingApplicants = ref<number | null>(null);
 const busy = ref(false);
 const error = ref("");
-const applicantError = ref("");
+const applicantErrors = ref<Record<number, string>>({});
 let revision = 0;
 let listingRequest: AbortController | undefined;
 let applicantRequest: AbortController | undefined;
+
+function listingApplicants(listing: MarketplaceListing) {
+  return listing.applications ?? [];
+}
 
 async function load() {
   listingRequest?.abort();
@@ -99,22 +100,27 @@ async function load() {
   }
 }
 
-async function openApplicants(listingId: number) {
+async function refreshApplicants(listingId: number) {
   applicantRequest?.abort();
   const request = new AbortController();
   applicantRequest = request;
-  selectedListing.value = listingId;
-  applicants.value = [];
-  safetyConfirmed.value = {};
-  applicantError.value = "";
-  loadingApplicants.value = true;
+  refreshingApplicants.value = listingId;
+  applicantErrors.value = { ...applicantErrors.value, [listingId]: "" };
   try {
     const result = await listMarketplaceApplicants(listingId, request.signal);
-    if (!request.signal.aborted) applicants.value = result;
+    if (request.signal.aborted) return;
+    listings.value = listings.value.map(listing =>
+      listing.id === listingId ? { ...listing, applications: result } : listing,
+    );
   } catch (err) {
-    if (!request.signal.aborted) applicantError.value = errorMessage(err);
+    if (!request.signal.aborted) {
+      applicantErrors.value = {
+        ...applicantErrors.value,
+        [listingId]: errorMessage(err),
+      };
+    }
   } finally {
-    if (!request.signal.aborted) loadingApplicants.value = false;
+    if (!request.signal.aborted) refreshingApplicants.value = null;
   }
 }
 
@@ -128,12 +134,6 @@ async function save(change: () => Promise<unknown>, listingId: number) {
     if (current !== revision) return;
     delete notes.value[listingId];
     await load();
-    if (
-      current === revision &&
-      selectedListing.value === listingId &&
-      admin.value
-    )
-      await openApplicants(listingId);
   } catch (err) {
     if (current === revision) error.value = errorMessage(err);
   } finally {
@@ -178,10 +178,8 @@ watch(
     aiMessage.value = "";
     aiQuery.value = "";
     applicantRequest?.abort();
-    selectedListing.value = null;
-    applicants.value = [];
-    applicantError.value = "";
-    loadingApplicants.value = false;
+    refreshingApplicants.value = null;
+    applicantErrors.value = {};
     safetyConfirmed.value = {};
     notes.value = {};
     busy.value = false;
@@ -317,13 +315,20 @@ onBeforeUnmount(() => {
 
         <template v-if="admin">
           <div class="marketplace-actions">
+            <p class="marketplace-applicant-count">
+              {{
+                t("{count} applicants", {
+                  count: listingApplicants(listing).length,
+                })
+              }}
+            </p>
             <button
               class="text-action"
               type="button"
-              :disabled="busy || loadingApplicants"
-              @click="openApplicants(listing.id)"
+              :disabled="busy || refreshingApplicants === listing.id"
+              @click="refreshApplicants(listing.id)"
             >
-              {{ t("Review applicants") }}
+              {{ t("Refresh applicants") }}
             </button>
             <button
               v-if="['open', 'offered'].includes(listing.status)"
@@ -365,105 +370,105 @@ onBeforeUnmount(() => {
               </fieldset>
             </form>
           </details>
-          <template v-if="selectedListing === listing.id">
-            <LoadingStatus
-              v-if="loadingApplicants"
-              :label="t('Loading applicants…')"
+          <LoadingStatus
+            v-if="refreshingApplicants === listing.id"
+            :label="t('Loading applicants…')"
+          />
+          <p
+            v-else-if="applicantErrors[listing.id]"
+            class="live-error"
+            role="alert"
+          >
+            {{ t(applicantErrors[listing.id]) }}
+          </p>
+          <p v-else-if="!listingApplicants(listing).length">
+            {{ t("No applications yet.") }}
+          </p>
+          <section
+            v-for="applicant in listingApplicants(listing)"
+            :key="applicant.id"
+            class="detail-section marketplace-applicant"
+          >
+            <h3>
+              {{ applicant.technicianName }} ·
+              {{ t(humanize(applicant.status)) }}
+            </h3>
+            <p class="marketplace-note">{{ applicant.note }}</p>
+            <SiteVettingPanel
+              v-if="user?.siteId"
+              :site-id="user.siteId"
+              :technicians="[applicant.technicianId]"
+              :initial-technician-id="applicant.technicianId"
             />
-            <p v-else-if="applicantError" class="live-error" role="alert">
-              {{ t(applicantError) }}
-            </p>
-            <p v-else-if="!applicants.length">
-              {{ t("No applications yet.") }}
-            </p>
-            <section
-              v-for="applicant in applicants"
-              :key="applicant.id"
-              class="detail-section"
-            >
-              <h3>
-                {{ applicant.technicianName }} ·
-                {{ t(humanize(applicant.status)) }}
-              </h3>
-              <p class="marketplace-note">{{ applicant.note }}</p>
-              <SiteVettingPanel
-                v-if="user?.siteId"
-                :site-id="user.siteId"
-                :technicians="[applicant.technicianId]"
-                :initial-technician-id="applicant.technicianId"
-              />
-              <dl class="report-detail-grid">
-                <div>
-                  <dt>{{ t("Active cases") }}</dt>
-                  <dd>{{ applicant.activeCases ?? t("Not available") }}</dd>
-                </div>
-                <div>
-                  <dt>{{ t("Completed jobs") }}</dt>
-                  <dd>{{ applicant.completedJobs ?? t("Not available") }}</dd>
-                </div>
-                <div v-if="applicant.cancellations != null">
-                  <dt>{{ t("Cancelled jobs") }}</dt>
-                  <dd>{{ applicant.cancellations }}</dd>
-                </div>
-                <div>
-                  <dt>{{ t("Average rating") }}</dt>
-                  <dd>
-                    {{
-                      applicant.averageRating == null
-                        ? t("No ratings yet")
-                        : applicant.averageRating.toFixed(1)
-                    }}
-                  </dd>
-                </div>
-                <div v-if="applicant.reviewedTrades">
-                  <dt>{{ t("Reviewed trades") }}</dt>
-                  <dd class="marketplace-note">
-                    {{ applicant.reviewedTrades }}
-                  </dd>
-                </div>
-                <div v-if="applicant.reviewedQualifications">
-                  <dt>{{ t("Reviewed qualifications") }}</dt>
-                  <dd class="marketplace-note">
-                    {{ applicant.reviewedQualifications }}
-                  </dd>
-                </div>
-              </dl>
-              <p v-if="applicant.offerExpiresAt">
-                {{
-                  t("Offer expires {date}", {
-                    date: formatDate(applicant.offerExpiresAt, true),
-                  })
-                }}
-              </p>
-              <div
-                v-if="
-                  listing.status === 'open' && applicant.status === 'pending'
-                "
-                class="marketplace-actions"
-              >
-                <label
-                  ><input
-                    v-model="safetyConfirmed[applicant.id]"
-                    type="checkbox"
-                    :disabled="busy"
-                  />
-                  {{
-                    t(
-                      "I checked the qualifications for this job and approved the required site access.",
-                    )
-                  }}</label
-                >
-                <button
-                  class="report-issue-button"
-                  type="button"
-                  :disabled="busy || loading || !safetyConfirmed[applicant.id]"
-                  @click="act(listing.id, applicant.id, 'select')"
-                >
-                  {{ t("Send offer") }}
-                </button>
+            <dl class="report-detail-grid">
+              <div>
+                <dt>{{ t("Active cases") }}</dt>
+                <dd>{{ applicant.activeCases ?? t("Not available") }}</dd>
               </div>
-            </section>
-          </template>
+              <div>
+                <dt>{{ t("Completed jobs") }}</dt>
+                <dd>{{ applicant.completedJobs ?? t("Not available") }}</dd>
+              </div>
+              <div v-if="applicant.cancellations != null">
+                <dt>{{ t("Cancelled jobs") }}</dt>
+                <dd>{{ applicant.cancellations }}</dd>
+              </div>
+              <div>
+                <dt>{{ t("Average rating") }}</dt>
+                <dd>
+                  {{
+                    applicant.averageRating == null
+                      ? t("No ratings yet")
+                      : applicant.averageRating.toFixed(1)
+                  }}
+                </dd>
+              </div>
+              <div v-if="applicant.reviewedTrades">
+                <dt>{{ t("Reviewed trades") }}</dt>
+                <dd class="marketplace-note">
+                  {{ applicant.reviewedTrades }}
+                </dd>
+              </div>
+              <div v-if="applicant.reviewedQualifications">
+                <dt>{{ t("Reviewed qualifications") }}</dt>
+                <dd class="marketplace-note">
+                  {{ applicant.reviewedQualifications }}
+                </dd>
+              </div>
+            </dl>
+            <p v-if="applicant.offerExpiresAt">
+              {{
+                t("Offer expires {date}", {
+                  date: formatDate(applicant.offerExpiresAt, true),
+                })
+              }}
+            </p>
+            <div
+              v-if="listing.status === 'open' && applicant.status === 'pending'"
+              class="marketplace-actions"
+            >
+              <label
+                ><input
+                  v-model="safetyConfirmed[applicant.id]"
+                  type="checkbox"
+                  :disabled="busy"
+                />
+                {{
+                  t(
+                    "I checked the qualifications for this job and approved the required site access.",
+                  )
+                }}</label
+              >
+              <button
+                class="report-issue-button"
+                type="button"
+                :disabled="busy || loading || !safetyConfirmed[applicant.id]"
+                @click="act(listing.id, applicant.id, 'select')"
+              >
+                {{ t("Send offer") }}
+              </button>
+            </div>
+          </section>
         </template>
         <template v-else-if="listing.myApplication">
           <p>
@@ -624,6 +629,16 @@ onBeforeUnmount(() => {
 .marketplace-note {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.marketplace-applicant-count {
+  margin: 0;
+  font-weight: 650;
+  color: #335;
+}
+.marketplace-applicant {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e8eeeb;
 }
 @media (max-width: 700px) {
   .marketplace-job {
