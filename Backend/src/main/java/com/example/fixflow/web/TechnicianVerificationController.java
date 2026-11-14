@@ -62,6 +62,7 @@ public class TechnicianVerificationController {
   boolean reopening=List.of("suspended","rejected").contains(value.getStatus()) && body.status().equals("pending");
   if(!reviewing&&!suspending&&!reopening) throw new ApiException(409,"Invalid verification transition");
   if(body.status().equals("verified")&&!(body.identityChecked()&&body.emailChecked()&&body.phoneChecked()&&body.tradeChecked())) throw new ApiException(400,"Record every manual review check before approval");
+  if(body.status().equals("verified")&&(value.getTrades()==null||value.getTrades().isBlank())) throw new ApiException(400,"Add the technician's trades before approval");
   if(body.status().equals("verified")) terms.requireAcceptance(id);
   value.setStatus(body.status());value.setReason(body.reason().trim());value.setReviewedBy(actor.getId());
   value.setIdentityChecked(body.identityChecked());value.setEmailChecked(body.emailChecked());value.setPhoneChecked(body.phoneChecked());value.setTradeChecked(body.tradeChecked());

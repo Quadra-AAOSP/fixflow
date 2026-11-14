@@ -43,7 +43,11 @@ public class MarketplaceService {
 
     public record ListingView(Long id, String summary, String broadLocation, String timing,
             String category, String specialty, Urgency urgency, MarketplaceListing.Status status,
-            Instant expiresAt, Long reportId, ApplicationView myApplication, boolean canCancelAssignment) { }
+            Instant expiresAt, Long reportId, ApplicationView myApplication, boolean canCancelAssignment,
+            /** Admin-only: the technician holding the current offer or the assignment. */
+            String assignedTechnicianName,
+            /** Admin-only: the site the job belongs to, so the vetting record can be filed here. */
+            Long siteId) { }
 
     public record ApplicationView(Long id, Long technicianId, String technicianName, String note,
             MarketplaceApplication.Status status, Instant offerExpiresAt, long activeCases, long completedJobs,
@@ -267,11 +271,27 @@ public class MarketplaceService {
         boolean awarded = mine != null && mine.getStatus() == MarketplaceApplication.Status.accepted
                 && report.getAssignedTechnician() != null
                 && report.getAssignedTechnician().getId().equals(mine.getTechnician().getId());
+        var effectiveStatus = listingStatus(listing, now);
+        // Site admins get the name of whoever holds the current offer or the
+        // assignment, so the listing card can show the work owner without
+        // opening the applicants sheet.
+        String workOwner = null;
+        if (admin) {
+            if (effectiveStatus == MarketplaceListing.Status.offered) {
+                MarketplaceApplication offer = currentOffer(listing);
+                workOwner = offer == null ? null
+                        : offer.getTechnician().getFirstName() + " " + offer.getTechnician().getLastName();
+            } else if (report.getAssignedTechnician() != null) {
+                User assigned = report.getAssignedTechnician();
+                workOwner = assigned.getFirstName() + " " + assigned.getLastName();
+            }
+        }
         return new ListingView(listing.getId(), listing.getSummary(), listing.getBroadLocation(), listing.getTiming(),
                 listing.getCategory(), admin || awarded ? listing.getSpecialty() : null,
-                report.getEffectiveUrgency(), listingStatus(listing, now),
+                report.getEffectiveUrgency(), effectiveStatus,
                 listing.getExpiresAt(), admin || awarded ? report.getId() : null,
-                mine == null ? null : applicationView(mine, false, now), admin && canCancelAssignment(listing));
+                mine == null ? null : applicationView(mine, false, now), admin && canCancelAssignment(listing),
+                workOwner, admin || awarded ? report.getSite().getId() : null);
     }
 
     private boolean canCancelAssignment(MarketplaceListing listing) {
@@ -307,8 +327,17 @@ public class MarketplaceService {
     private User requireEligible(MarketplaceListing listing, Long id) {
         User technician = users.findById(id).filter(user -> user.getRole() == UserRole.technician)
                 .orElseThrow(() -> denied("Only technicians can apply"));
-        if (verifications.findForMarketplace(id).filter(this::manualChecks).isEmpty()) {
-            throw denied("Current manual technician verification is required");
+        var verification = verifications.findForMarketplace(id).orElse(null);
+        if (verification == null) throw denied("Technician has not submitted platform verification");
+        if (!"verified".equals(verification.getStatus())) {
+            throw denied("Platform verification is " + verification.getStatus() + ", not verified");
+        }
+        if (!verification.isIdentityChecked() || !verification.isEmailChecked()
+                || !verification.isPhoneChecked() || !verification.isTradeChecked()) {
+            throw denied("Platform verification is missing the identity, email, phone or trade check");
+        }
+        if (verification.getTrades() == null || verification.getTrades().isBlank()) {
+            throw denied("Platform verification has no trades recorded");
         }
         terms.requireAcceptance(id);
         if (!matches(listing.getReport(), skills.findByTechnician_IdInOrderByIdAsc(List.of(id)))) {

@@ -21,7 +21,7 @@ class MarketplaceSearchServiceTest {
         var provider = mock(ChatProvider.class);
         var user = new User(); user.setId(7L); user.setRole(UserRole.technician);
         var actor = new AppUserDetails(user); // no site or contract
-        var job = new MarketplaceService.ListingView(1L, "Fix pipe", "North", "Today", "plumbing", "pipe", Urgency.high, MarketplaceListing.Status.open, Instant.now(), null, null, false);
+        var job = new MarketplaceService.ListingView(1L, "Fix pipe", "North", "Today", "plumbing", "pipe", Urgency.high, MarketplaceListing.Status.open, Instant.now(), null, null, false, null, null);
         when(market.list(actor)).thenReturn(List.of(job));
         when(assistant.tryAcquireRateLimit(7L)).thenReturn(true);
         when(providers.getIfAvailable()).thenReturn(provider);

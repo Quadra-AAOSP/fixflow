@@ -25,6 +25,10 @@ export type MarketplaceListing = {
   urgency: string;
   status: 'open' | 'offered' | 'assigned' | 'closed' | 'expired';
   canCancelAssignment: boolean;
+  /** Admin-only: the technician holding the current offer or the assignment. */
+  assignedTechnicianName: string | null;
+  /** Admin-only: the site the job belongs to. */
+  siteId: number | null;
   expiresAt: string;
   reportId: number | null;
   myApplication: MarketplaceApplication | null;
