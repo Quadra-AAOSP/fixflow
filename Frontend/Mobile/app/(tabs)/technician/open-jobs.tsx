@@ -68,9 +68,23 @@ export default function OpenJobsScreen() {
       setSiteNames(
         Object.fromEntries(contracts.map((contract) => [contract.siteId, contract.siteName])),
       );
-      const pages = await Promise.all(siteIds.map((siteId) => listReports({ siteId })));
+      const pages = await Promise.all(
+        siteIds.map((siteId) =>
+          listReports({ siteId }).catch((err) => {
+            // Skip a site whose records we cannot read instead of failing the
+            // whole board — one stale contract must not hide every other job.
+            if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+              return null;
+            }
+            throw err;
+          }),
+        ),
+      );
       const merged = new Map<number, Report>();
-      for (const report of pages.flat()) merged.set(report.id, report);
+      for (const page of pages) {
+        if (!page) continue;
+        for (const report of page) merged.set(report.id, report);
+      }
       const open = Array.from(merged.values())
         .filter(isClaimable)
         .sort(

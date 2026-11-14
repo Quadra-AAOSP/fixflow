@@ -61,6 +61,7 @@ export default function WorkspaceScreen() {
   // Contract-site names for the open jobs preview (technicians usually have no
   // account site, so names cannot be resolved from the site directory alone).
   const [siteNames, setSiteNames] = useState<Record<number, string>>({});
+  const [contractSiteCount, setContractSiteCount] = useState<number | null>(null);
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const { showToast } = useToast();
 
@@ -71,6 +72,7 @@ export default function WorkspaceScreen() {
       // Technicians usually have no account site, so their work comes from the
       // sites they hold contracts with. Fan out across those sites and merge.
       const contracts = await listTechnicianContracts();
+      setContractSiteCount(contracts.length);
       setSiteNames(
         Object.fromEntries(contracts.map((contract) => [contract.siteId, contract.siteName])),
       );
@@ -81,10 +83,22 @@ export default function WorkspaceScreen() {
         ]),
       );
       const pages = await Promise.all(
-        siteIds.map((siteId) => listReports({ siteId })),
+        siteIds.map((siteId) =>
+          listReports({ siteId }).catch((err) => {
+            // An account site the technician is not contracted to answers 403;
+            // that must not blank the whole workspace.
+            if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+              return null;
+            }
+            throw err;
+          }),
+        ),
       );
       const merged = new Map<number, Report>();
-      for (const report of pages.flat()) merged.set(report.id, report);
+      for (const page of pages) {
+        if (!page) continue;
+        for (const report of page) merged.set(report.id, report);
+      }
       setReports(Array.from(merged.values()));
     } catch (err) {
       setError(
@@ -256,7 +270,9 @@ export default function WorkspaceScreen() {
                 {reports === null
                   ? t('workspace.openJobsLoading')
                   : openJobs.length === 0
-                    ? t('workspace.openJobsEmpty')
+                    ? contractSiteCount === 0
+                      ? t('openJobs.noContractsDesc')
+                      : t('workspace.openJobsEmpty')
                     : t('workspace.openJobsSummary', {
                         count: openJobs.length,
                         plural: openJobs.length === 1 ? '' : 's',
