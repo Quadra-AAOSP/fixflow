@@ -165,8 +165,8 @@ public class ReportVisionService {
         if (actor.getRole() == UserRole.super_admin) return;
         if ((actor.getRole() == UserRole.admin || actor.getRole() == UserRole.staff)
                 && report.getSite().getId().equals(actor.getSiteId())) return;
-        if (actor.getRole() == UserRole.reporter && report.getCreatedBy().getId().equals(actor.getId())
-                && report.getSite().getId().equals(actor.getSiteId())) return;
+        if (actor.getRole() == UserRole.reporter && report.getCreatedBy() != null
+                && report.getCreatedBy().getId().equals(actor.getId())) return;
         throw new ApiException(403, "Not allowed to process this report image");
     }
 
