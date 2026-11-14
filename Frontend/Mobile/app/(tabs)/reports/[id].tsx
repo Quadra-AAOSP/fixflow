@@ -1726,12 +1726,20 @@ export default function ReportDetailScreen() {
         animationType="fade"
         onRequestClose={() => setPreviewPhoto(null)}
       >
-        <Pressable
-          onPress={() => setPreviewPhoto(null)}
+        <View
           className="flex-1 items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.9)' }}
         >
+          {/* Backdrop is a sibling so web does not nest <button> in <button>. */}
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('components.modalSheet.close')}
+            onPress={() => setPreviewPhoto(null)}
+            className="absolute inset-0"
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('components.modalSheet.close')}
             onPress={() => setPreviewPhoto(null)}
             className="absolute right-4 top-4 z-10 h-9 w-9 items-center justify-center rounded-full"
             style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
@@ -1745,7 +1753,7 @@ export default function ReportDetailScreen() {
               style={{ resizeMode: 'contain', aspectRatio: 1 }}
             />
           ) : null}
-        </Pressable>
+        </View>
       </Modal>
     </Screen>
   );
