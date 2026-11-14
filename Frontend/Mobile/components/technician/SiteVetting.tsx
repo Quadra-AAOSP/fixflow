@@ -3,6 +3,7 @@ import { Check, Square } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { api } from '@/lib/apiClient';
+import { Button } from '@/components/ui/Button';
 
 type Status = { status: string; review: { expiresAt: string | null } | null };
 /** Expiry defaults a year out so recording an approval is one tap once the checks are ticked. */
@@ -31,5 +32,5 @@ function SiteVettingForm({ siteId, technicianId, admin }: { siteId: number; tech
  <Text className="text-dashboard-subtitle">Do not enter identity numbers or document links.</Text>{toggle('Identity checked', identity, setIdentity)}{toggle('Work history and references checked', references, setReferences)}{toggle('Qualifications checked', qualifications, setQualifications)}{date('Review expires', expiry, setExpiry)}
  <Text className="text-ink">Licence applicable?</Text><View className="flex-row gap-4">{toggle('Yes', licence === true, () => setLicence(true))}{toggle('No', licence === false, () => setLicence(false))}</View>{licence ? <>{toggle('Licence checked', licenceChecked, setLicenceChecked)}{date('Licence expires', licenceExpiry, setLicenceExpiry)}</> : null}
  <Text className="text-ink">Insurance applicable?</Text><View className="flex-row gap-4">{toggle('Yes', insurance === true, () => setInsurance(true))}{toggle('No', insurance === false, () => setInsurance(false))}</View>{insurance ? <>{toggle('Insurance checked', insuranceChecked, setInsuranceChecked)}{date('Insurance expires', insuranceExpiry, setInsuranceExpiry)}</> : null}
- <View className="flex-row gap-4"><Pressable disabled={busy} onPress={() => void save('approved')}><Text className="font-bold text-ink">Record approval</Text></Pressable><Pressable disabled={busy} onPress={() => void save('revoked')}><Text className="font-bold text-tone-danger">Revoke approval</Text></Pressable></View></> : null}</View>;
+ <View className="mt-4 flex-row gap-3"><Button className="flex-1" label="Record approval" loading={busy} onPress={() => void save('approved')} /><Button className="flex-1" variant="secondary" label="Revoke approval" disabled={busy} onPress={() => void save('revoked')} /></View></> : null}</View>;
 }
