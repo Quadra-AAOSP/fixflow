@@ -77,6 +77,7 @@ public class TechnicianContractService {
 		terms.requireAcceptance(technician.getId());
 		contract.setTechnician(technician);
 		contract.setSite(site);
+		ContractFees.applySnapshot(contract, site);
 		return TechnicianContractResponse.from(technicianContractRepository.save(contract));
 	}
 

@@ -43,10 +43,10 @@ INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_
     ('safety-gloves', 'Cut-Resistant Work Gloves', 'Pair of protective gloves sized for maintenance crews and DIY reporters.', 'Safety', 'GuardHand', NULL, 1590, 50, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
     ('toolbox-small', 'Compact Toolbox', 'Organiser case for bits, fasteners, and small hand tools on site visits.', 'Storage', 'FixFlow Basics', NULL, 4590, 12, TRUE, TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00');
 
-INSERT IGNORE INTO sites (name, type, contract_status, address, created_at, updated_at) VALUES
-    ('CNU School', 'school', 'contracted', 'CNU main campus', TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
-    ('CNU Hostel', 'hostel', 'contracted', 'CNU student residence', TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
-    ('CNU Hotel', 'hotel', 'contracted', 'CNU hospitality building', TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00');
+INSERT IGNORE INTO sites (name, type, contract_status, address, contract_flat_fee_minor, contract_fee_currency, created_at, updated_at) VALUES
+    ('CNU School', 'school', 'contracted', 'CNU main campus', 50000, 'USD', TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('CNU Hostel', 'hostel', 'contracted', 'CNU student residence', 50000, 'USD', TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00'),
+    ('CNU Hotel', 'hotel', 'contracted', 'CNU hospitality building', 50000, 'USD', TIMESTAMP '2026-01-15 10:00:00', TIMESTAMP '2026-01-15 10:00:00');
 
 INSERT INTO subsites (site_id, label, name, created_at)
 SELECT s.id, 'MAIN', 'Main building', TIMESTAMP '2026-01-15 10:00:00'

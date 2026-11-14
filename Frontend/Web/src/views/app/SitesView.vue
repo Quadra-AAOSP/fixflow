@@ -40,7 +40,16 @@ const form = reactive({
   address: "",
   description: "",
   imageUrl: "",
+  contractFlatFee: "",
+  contractFeeCurrency: "USD",
 });
+function formatFee(minor: number | null | undefined, currency = "USD") {
+  if (minor == null) return t("Not set");
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: currency || "USD",
+  }).format(minor / 100);
+}
 const canCreate = computed(
   () =>
     user.value?.capabilities?.createSite ?? user.value?.role === "super_admin",
@@ -66,6 +75,11 @@ function edit(site?: Site) {
     address: site?.address ?? "",
     description: site?.description ?? "",
     imageUrl: site?.imageUrl ?? "",
+    contractFlatFee:
+      site?.contractFlatFeeMinor == null
+        ? ""
+        : (site.contractFlatFeeMinor / 100).toFixed(2),
+    contractFeeCurrency: site?.contractFeeCurrency ?? "USD",
   });
   editor.value?.showModal();
 }
@@ -80,6 +94,21 @@ async function save() {
     error.value = "Use an HTTP or HTTPS image URL.";
     return;
   }
+  const feeMajor = form.contractFlatFee.trim();
+  let contractFlatFeeMinor: number | null = null;
+  if (feeMajor) {
+    const parsed = Number(feeMajor);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      error.value = "Enter a valid non-negative contract flat fee.";
+      return;
+    }
+    contractFlatFeeMinor = Math.round(parsed * 100);
+  }
+  const currency = form.contractFeeCurrency.trim().toUpperCase() || "USD";
+  if (currency.length < 3 || currency.length > 8) {
+    error.value = "Use a currency code between 3 and 8 characters.";
+    return;
+  }
   const payload: SitePayload = {
     name: form.name.trim(),
     type: form.type,
@@ -87,6 +116,8 @@ async function save() {
     address: form.address.trim() || null,
     description: form.description.trim() || null,
     imageUrl: form.imageUrl.trim() || null,
+    contractFlatFeeMinor,
+    contractFeeCurrency: currency,
   };
   busy.value = true;
   try {
@@ -160,6 +191,13 @@ async function save() {
               t("Technician pool: {status} · Site ID: {id}", {
                 status: t(site.contractStatus === "contracted" ? "Site-contracted technicians" : "Open technician pool"),
                 id: site.id,
+              })
+            }}
+          </p>
+          <p v-if="canEdit" class="site-record-meta">
+            {{
+              t("Contract flat fee: {fee}", {
+                fee: formatFee(site.contractFlatFeeMinor, site.contractFeeCurrency),
               })
             }}
           </p>
@@ -279,6 +317,25 @@ async function save() {
           >{{ t("Image URL (optional)")
           }}<input v-model="form.imageUrl" type="url" maxlength="1024"
         /></label>
+        <div class="form-two-columns">
+          <label
+            >{{ t("Contract flat fee")
+            }}<input
+              v-model="form.contractFlatFee"
+              type="number"
+              min="0"
+              step="0.01"
+              inputmode="decimal"
+              :placeholder="t('Required before signing technicians')"
+          /></label>
+          <label
+            >{{ t("Fee currency")
+            }}<input
+              v-model="form.contractFeeCurrency"
+              maxlength="8"
+              required
+          /></label>
+        </div>
         <button class="report-issue-button" type="submit" :disabled="busy">
           {{ t(busy ? "Saving…" : "Save site") }}
         </button>

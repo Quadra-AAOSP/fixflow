@@ -8,6 +8,8 @@ public record TechnicianContractResponse(
 		Long id,
 		Long technicianId,
 		Long siteId,
+		long flatFeeMinor,
+		String feeCurrency,
 		Instant createdAt,
 		String siteName
 ) {
@@ -16,6 +18,8 @@ public record TechnicianContractResponse(
 				contract.getId(),
 				contract.getTechnician().getId(),
 				contract.getSite().getId(),
+				contract.getFlatFeeMinor(),
+				contract.getFeeCurrency() == null ? "USD" : contract.getFeeCurrency(),
 				contract.getCreatedAt(),
 				contract.getSite().getName()
 		);

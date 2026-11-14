@@ -71,6 +71,8 @@ class Member1IntakeIntegrationTest {
 		site.setName("Member1 Site " + System.nanoTime());
 		site.setType(SiteType.school);
 		site.setContractStatus(ContractStatus.contracted);
+		site.setContractFlatFeeMinor(50000L);
+		site.setContractFeeCurrency("USD");
 		site = siteRepository.save(site);
 		reporter = createUser("m1-reporter", UserRole.reporter, site);
 		admin = createUser("m1-admin", UserRole.admin, site);
@@ -167,7 +169,9 @@ class Member1IntakeIntegrationTest {
 				.content(base + "{\"canJoin\":true}}") .with(user(new AppUserDetails(other))))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.content[0].id").value(publicId.longValue()));
 		var contract = new com.example.fixflow.domain.TechnicianContract();
-		contract.setSite(site); contract.setTechnician(technician); contracts.saveAndFlush(contract);
+		contract.setSite(site); contract.setTechnician(technician);
+		contract.setFlatFeeMinor(50000L); contract.setFeeCurrency("USD");
+		contracts.saveAndFlush(contract);
 		mockMvc.perform(post("/api/reports/search").contentType(MediaType.APPLICATION_JSON)
 				.content(base + "{}}") .with(user(new AppUserDetails(technician))))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.content[0].id").value(publicId.longValue()));

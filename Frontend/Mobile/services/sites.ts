@@ -32,6 +32,8 @@ export type SitePayload = {
   address?: string;
   description?: string;
   imageUrl?: string;
+  contractFlatFeeMinor?: number | null;
+  contractFeeCurrency?: string;
 };
 
 export function createSite(payload: SitePayload): Promise<Site> {

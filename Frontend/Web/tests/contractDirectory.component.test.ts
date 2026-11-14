@@ -13,7 +13,7 @@ import { site } from './fixtures';
 vi.mock('vue-router', () => ({ useRoute: () => ({ query: {} }) }));
 vi.mock('../src/services/access', () => ({ deleteTechnicianContract: vi.fn(), listSiteContracts: vi.fn(), createTechnicianContract: vi.fn(), listContractApplications: vi.fn(), requestTechnicianContract: vi.fn(), decideContractApplication: vi.fn() }));
 vi.mock('../src/services/technician', () => ({ getTechnicianTermsFor: vi.fn() }));
-const row = { id: 99, technicianId: 54, siteId: 7, createdAt: '2026-10-30T08:00:00Z' };
+const row = { id: 99, technicianId: 54, siteId: 7, flatFeeMinor: 50000, feeCurrency: 'USD', createdAt: '2026-10-30T08:00:00Z' };
 let wrapper: VueWrapper;
 beforeEach(() => {
   setActivePinia(createPinia()); vi.resetAllMocks(); setLocale('en');

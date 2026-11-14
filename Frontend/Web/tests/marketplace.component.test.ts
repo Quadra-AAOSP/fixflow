@@ -38,15 +38,24 @@ it('publishes only the fields written for the public listing and requires a priv
   expect(wrapper.find('textarea').element.value).toBe('');
   expect(wrapper.find('button[type=submit]').attributes('disabled')).toBeDefined();
   await wrapper.find('textarea').setValue(listing.summary);
-  await wrapper.findAll('input')[0].setValue(listing.broadLocation);
-  await wrapper.findAll('input')[1].setValue(listing.timing);
+  const inputs = wrapper.findAll('input');
+  await inputs[0].setValue(listing.broadLocation);
+  await inputs[1].setValue(listing.timing);
+  await inputs[2].setValue('125.50');
   await wrapper.setProps({ report: report({ id: 8, siteId: 7, status: 'open', assignedTechnicianId: null, description: 'Refreshed private report' }) });
   await wrapper.find('form').trigger('submit');
   expect(marketplace.publishMarketplaceJob).not.toHaveBeenCalled();
   await wrapper.find('input[type=checkbox]').setValue(true);
   await wrapper.find('form').trigger('submit');
   await flushPromises();
-  expect(marketplace.publishMarketplaceJob).toHaveBeenCalledWith({ reportId: 8, summary: listing.summary, broadLocation: listing.broadLocation, timing: listing.timing });
+  expect(marketplace.publishMarketplaceJob).toHaveBeenCalledWith({
+    reportId: 8,
+    summary: listing.summary,
+    broadLocation: listing.broadLocation,
+    timing: listing.timing,
+    amountMinor: 12550,
+    currency: 'USD',
+  });
   expect(wrapper.get('[role=status]').text()).toContain('published');
   wrapper.unmount();
 });

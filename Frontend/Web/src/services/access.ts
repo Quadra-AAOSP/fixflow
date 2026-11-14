@@ -4,7 +4,13 @@ import type { ProvisionUserPayload, User } from '@/types';
 import type { ContractApplication } from '@/types/technician';
 
 export interface TechnicianContract {
-  id: number; technicianId: number; siteId: number; createdAt: string;
+  id: number;
+  technicianId: number;
+  siteId: number;
+  flatFeeMinor: number;
+  feeCurrency: string;
+  createdAt: string;
+  siteName?: string;
 }
 export function provisionUser(payload: ProvisionUserPayload): Promise<User> {
   if (payload.role !== 'admin' && payload.role !== 'staff' && payload.role !== 'shop_manager') throw new Error('This web flow cannot provision that role.');

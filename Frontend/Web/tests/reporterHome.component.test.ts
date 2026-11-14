@@ -13,7 +13,7 @@ beforeEach(() => {
   setActivePinia(createPinia()); setLocale('en');
   useAuthStore().user = { id: 1, role: 'reporter', siteId: 7, firstName: 'Test', lastName: 'Reporter', email: 'test@example.invalid', phone: null, address: null };
   const data = useMaintenanceStore();
-  data.sites = [{ id: 7, name: 'Test site', type: 'school', contractStatus: 'uncontracted', address: null, description: null, imageUrl: null, createdAt: '', updatedAt: '' }];
+  data.sites = [{ id: 7, name: 'Test site', type: 'school', contractStatus: 'uncontracted', address: null, description: null, imageUrl: null, contractFlatFeeMinor: null, contractFeeCurrency: 'USD', createdAt: '', updatedAt: '' }];
   data.selectedSiteId = 7; data.reportsLoaded = true;
   vi.spyOn(data, 'refresh').mockResolvedValue();
 });

@@ -14,6 +14,8 @@ export type Site = {
   address: string | null;
   description: string | null;
   imageUrl: string | null;
+  contractFlatFeeMinor: number | null;
+  contractFeeCurrency: string;
   createdAt: string;
   updatedAt: string;
 };

@@ -11,5 +11,5 @@ export function report(overrides: Partial<Report> = {}): Report {
 }
 export function site(id: number): Site {
   return { id, name: `Test site ${id}`, type: 'school', contractStatus: 'contracted', address: null, description: null,
-    imageUrl: null, createdAt: '', updatedAt: '' };
+    imageUrl: null, contractFlatFeeMinor: 50000, contractFeeCurrency: 'USD', createdAt: '', updatedAt: '' };
 }

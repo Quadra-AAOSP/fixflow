@@ -21,6 +21,8 @@ export type TechnicianContractRequest = {
   note: string | null;
   decisionReason: string | null;
   decidedByUserId: number | null;
+  siteFlatFeeMinor: number | null;
+  siteFeeCurrency: string;
   createdAt: string;
   decidedAt: string | null;
 };
@@ -30,6 +32,8 @@ export type TechnicianContract = {
   id: number;
   technicianId: number;
   siteId: number;
+  flatFeeMinor: number;
+  feeCurrency: string;
   createdAt: string;
   /** Site name, so technicians (who have no account site) can label jobs. */
   siteName: string;

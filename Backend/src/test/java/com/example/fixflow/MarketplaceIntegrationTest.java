@@ -227,6 +227,8 @@ class MarketplaceIntegrationTest {
         var contract = new TechnicianContract();
         contract.setSite(report.getSite());
         contract.setTechnician(technician);
+        contract.setFlatFeeMinor(50000L);
+        contract.setFeeCurrency("USD");
         contracts.save(contract);
         postJson("/api/reports/" + report.getId() + "/assign", admin,
                 "{\"technicianId\":" + technician.getId() + "}").andExpect(status().isOk());
@@ -241,6 +243,8 @@ class MarketplaceIntegrationTest {
         var contract = new TechnicianContract();
         contract.setSite(report.getSite());
         contract.setTechnician(other);
+        contract.setFlatFeeMinor(50000L);
+        contract.setFeeCurrency("USD");
         contracts.save(contract);
         String listing = LISTINGS + "/" + publish();
         String application = listing + "/applications/" + apply(listing, technician);

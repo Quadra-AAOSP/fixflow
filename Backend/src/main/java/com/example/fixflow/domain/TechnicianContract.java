@@ -39,6 +39,13 @@ public class TechnicianContract {
 	@JoinColumn(name = "site_id", nullable = false)
 	private Site site;
 
+	/** Snapshot of the site flat fee at signing time. */
+	@Column(name = "flat_fee_minor", nullable = false)
+	private long flatFeeMinor;
+
+	@Column(name = "fee_currency", nullable = false, length = 8)
+	private String feeCurrency = "USD";
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 

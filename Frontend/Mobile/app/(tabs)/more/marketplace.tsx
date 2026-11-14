@@ -9,7 +9,7 @@ import { SearchField } from '@/components/ui/SearchField';
 import { useAuth } from '@/hooks/useAuth';
 import {
   actOnJobApplication, applyForJob, cancelJobAssignment, closeJob, listJobApplications, listJobs, publishJob, searchJobsWithAi,
-  type ListingDraft, type MarketplaceApplication, type MarketplaceListing,
+  type MarketplaceApplication, type MarketplaceListing,
 } from '@/services/marketplace';
 import { ownVerification } from '@/services/onboarding';
 import { getReport, listReportsPage } from '@/services/reports';
@@ -17,7 +17,7 @@ import { getTechnicianTerms } from '@/services/technician';
 import type { Report } from '@/types';
 import { isClaimable } from '@/utils/maintenance';
 
-const emptyDraft: ListingDraft = { summary: '', broadLocation: '', timing: '' };
+const emptyDraft = { summary: '', broadLocation: '', timing: '', amount: '' };
 const limits = { summary: 300, broadLocation: 160, timing: 160 };
 const openStates = ['open', 'offered'];
 
@@ -199,13 +199,18 @@ export default function MarketplaceScreen() {
             <View className="my-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
               <Text className="mb-2 font-bold text-ink">{t('marketplace.publishReport', { id: source })}</Text>
               <Text className="mb-3 text-ink">{t('marketplace.privacy')}</Text>
-              {(Object.keys(limits) as (keyof ListingDraft)[]).map(key => (
+              {(Object.keys(limits) as (keyof typeof limits)[]).map(key => (
                 <Field key={key} label={t(`marketplace.${key}`)} value={draft[key]} maxLength={limits[key]}
                   multiline={key === 'summary'} onChangeText={value => {
                     setDraft(previous => ({ ...previous, [key]: value }));
                     setPublishIssue('');
                   }} />
               ))}
+              <Field label={t('marketplace.payAmount')} value={draft.amount}
+                onChangeText={value => {
+                  setDraft(previous => ({ ...previous, amount: value }));
+                  setPublishIssue('');
+                }} />
               <View className="mb-2 flex-row items-center justify-between gap-3">
                 <Text className="flex-1 text-ink">{t('marketplace.confirmPrivacy')}</Text>
                 <Switch accessibilityLabel={t('marketplace.confirmPrivacy')} value={privacyConfirmed}
@@ -214,9 +219,13 @@ export default function MarketplaceScreen() {
               <Action label={t('marketplace.publish')}
                 disabled={busy}
                 onPress={() => {
-                  const missing = (Object.keys(limits) as (keyof ListingDraft)[])
+                  const amountMinor = Math.round(Number(draft.amount) * 100);
+                  const missing = (Object.keys(limits) as (keyof typeof limits)[])
                     .filter(key => !draft[key].trim())
                     .map(key => t(`marketplace.${key}`));
+                  if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
+                    missing.push(t('marketplace.payAmount'));
+                  }
                   if (missing.length > 0) {
                     setPublishIssue(t('marketplace.publishMissingFields', { fields: missing.join(', ') }));
                     return;
@@ -228,7 +237,11 @@ export default function MarketplaceScreen() {
                   setPublishIssue('');
                   mutate(async () => {
                     const created = await publishJob(source, {
-                      summary: draft.summary.trim(), broadLocation: draft.broadLocation.trim(), timing: draft.timing.trim(),
+                      summary: draft.summary.trim(),
+                      broadLocation: draft.broadLocation.trim(),
+                      timing: draft.timing.trim(),
+                      amountMinor,
+                      currency: 'USD',
                     });
                     setJobs(current => [created, ...current]);
                     setDraft(emptyDraft);

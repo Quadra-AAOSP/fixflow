@@ -64,6 +64,17 @@ export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
           id: site.id,
         })}
       </Text>
+      <Text className="mt-1 text-[11px] text-subtitle">
+        {t('components.siteCard.flatFee', {
+          fee:
+            site.contractFlatFeeMinor == null
+              ? t('components.siteCard.flatFeeNotSet')
+              : new Intl.NumberFormat(undefined, {
+                  style: 'currency',
+                  currency: site.contractFeeCurrency || 'USD',
+                }).format(site.contractFlatFeeMinor / 100),
+        })}
+      </Text>
 
       {onPress || onEdit ? (
         <View className="mt-4 flex-row items-center gap-3">

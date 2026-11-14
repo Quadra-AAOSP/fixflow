@@ -197,7 +197,8 @@ class ApiSecurityMatrixIntegrationTest {
         for (User actor : new User[]{technician, reporter, admin}) {
             mvc.perform(post("/api/technician-skills").with(user(new AppUserDetails(actor))).contentType(MediaType.APPLICATION_JSON).content(skill)).andExpect(status().isForbidden());
         }
-        TechnicianContract contract = new TechnicianContract(); contract.setTechnician(secondTechnician); contract.setSite(own); contracts.save(contract);
+        TechnicianContract contract = new TechnicianContract(); contract.setTechnician(secondTechnician); contract.setSite(own);
+        contract.setFlatFeeMinor(50000L); contract.setFeeCurrency("USD"); contracts.save(contract);
         mvc.perform(post("/api/technician-skills").with(user(new AppUserDetails(admin))).contentType(MediaType.APPLICATION_JSON).content(skill)).andExpect(status().isCreated());
         mvc.perform(post("/api/technician-skills").with(user(new AppUserDetails(otherAdmin))).contentType(MediaType.APPLICATION_JSON).content(skill)).andExpect(status().isForbidden());
     }

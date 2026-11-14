@@ -280,6 +280,14 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
   const [address, setAddress] = useState(initial?.address ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? '');
+  const [contractFlatFee, setContractFlatFee] = useState(
+    initial?.contractFlatFeeMinor == null
+      ? ''
+      : (initial.contractFlatFeeMinor / 100).toFixed(2),
+  );
+  const [contractFeeCurrency, setContractFeeCurrency] = useState(
+    initial?.contractFeeCurrency ?? 'USD',
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -293,6 +301,12 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
       setAddress(initial.address ?? '');
       setDescription(initial.description ?? '');
       setImageUrl(initial.imageUrl ?? '');
+      setContractFlatFee(
+        initial.contractFlatFeeMinor == null
+          ? ''
+          : (initial.contractFlatFeeMinor / 100).toFixed(2),
+      );
+      setContractFeeCurrency(initial.contractFeeCurrency ?? 'USD');
     } else {
       setName('');
       setType('school');
@@ -300,6 +314,8 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
       setAddress('');
       setDescription('');
       setImageUrl('');
+      setContractFlatFee('');
+      setContractFeeCurrency('USD');
     }
     setError(null);
   }, [initial, visible]);
@@ -314,6 +330,21 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
       setError(t('more.sites.errors.imageUrl'));
       return;
     }
+    const feeMajor = contractFlatFee.trim();
+    let contractFlatFeeMinor: number | null = null;
+    if (feeMajor.length > 0) {
+      const parsed = Number(feeMajor);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setError(t('more.sites.errors.flatFee'));
+        return;
+      }
+      contractFlatFeeMinor = Math.round(parsed * 100);
+    }
+    const currency = contractFeeCurrency.trim().toUpperCase() || 'USD';
+    if (currency.length < 3 || currency.length > 8) {
+      setError(t('more.sites.errors.feeCurrency'));
+      return;
+    }
     const payload: SitePayload = {
       name: name.trim(),
       type,
@@ -322,6 +353,8 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
       description:
         description.trim().length > 0 ? description.trim() : undefined,
       imageUrl: trimmedImage.length > 0 ? trimmedImage : undefined,
+      contractFlatFeeMinor,
+      contractFeeCurrency: currency,
     };
     setSubmitting(true);
     setError(null);
@@ -412,6 +445,21 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="url"
+      />
+      <TextField
+        label={t('more.sites.flatFeeLabel')}
+        value={contractFlatFee}
+        onChangeText={setContractFlatFee}
+        placeholder={t('more.sites.flatFeePlaceholder')}
+        keyboardType="decimal-pad"
+      />
+      <TextField
+        label={t('more.sites.feeCurrencyLabel')}
+        value={contractFeeCurrency}
+        onChangeText={setContractFeeCurrency}
+        placeholder="USD"
+        autoCapitalize="characters"
+        autoCorrect={false}
       />
       {error ? <Text className="text-xs text-tone-danger">{error}</Text> : null}
     </ModalSheet>

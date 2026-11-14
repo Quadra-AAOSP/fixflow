@@ -187,6 +187,8 @@ class LiveAiSmokeTest {
             var contract = new TechnicianContract();
             contract.setTechnician(technician);
             contract.setSite(site);
+            contract.setFlatFeeMinor(50000L);
+            contract.setFeeCurrency("USD");
             contracts.save(contract);
             var skill = new TechnicianSkill();
             skill.setTechnician(technician);

@@ -14,8 +14,9 @@ vi.mock('../src/services/access', () => ({ listContractApplications: vi.fn(), re
 vi.mock('../src/services/technician', () => ({ getTechnicianTerms: vi.fn(), acceptTechnicianTerms: vi.fn() }));
 const application: ContractApplication = {
   id: 93, technicianId: 54, siteId: 71, status: 'pending', note: 'Plumbing work',
-  decisionReason: null, decidedByUserId: null, createdAt: '2026-10-29T08:00:00Z', decidedAt: null,
-};
+  decisionReason: null, decidedByUserId: null, siteFlatFeeMinor: 50000, siteFeeCurrency: 'USD',
+  createdAt: '2026-10-29T08:00:00Z', decidedAt: null,
+}
 const terms: TechnicianTermsStatus = {
   technicianId: 54, currentVersion: 'v3', documentUrl: 'https://example.invalid/terms',
   enforcementRequired: true, acceptedCurrentVersion: true, acceptances: [],

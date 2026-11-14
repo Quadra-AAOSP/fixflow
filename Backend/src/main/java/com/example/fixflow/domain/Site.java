@@ -48,6 +48,13 @@ public class Site {
 	@Column(name = "image_url", length = 1024)
 	private String imageUrl;
 
+	/** Flat fee charged when a technician signs a site contract. */
+	@Column(name = "contract_flat_fee_minor")
+	private Long contractFlatFeeMinor;
+
+	@Column(name = "contract_fee_currency", nullable = false, length = 8)
+	private String contractFeeCurrency = "USD";
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
@@ -61,6 +68,9 @@ public class Site {
 		updatedAt = now;
 		if (contractStatus == null) {
 			contractStatus = ContractStatus.uncontracted;
+		}
+		if (contractFeeCurrency == null || contractFeeCurrency.isBlank()) {
+			contractFeeCurrency = "USD";
 		}
 	}
 

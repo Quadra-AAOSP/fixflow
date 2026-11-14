@@ -44,7 +44,8 @@ class OnboardingCompletionIntegrationTest {
         building = subsites.save(building);
     }
     private Site site(String name) {
-        Site s = new Site(); s.setName(name); s.setType(SiteType.school); s.setContractStatus(ContractStatus.uncontracted); return sites.save(s);
+        Site s = new Site(); s.setName(name + " " + System.nanoTime()); s.setType(SiteType.school); s.setContractStatus(ContractStatus.uncontracted);
+        s.setContractFlatFeeMinor(50000L); s.setContractFeeCurrency("USD"); return sites.save(s);
     }
     private User account(UserRole role, Site site) {
         User u = new User(); u.setEmail("onboarding-" + System.nanoTime() + "@example.com"); u.setPasswordHash("unused");

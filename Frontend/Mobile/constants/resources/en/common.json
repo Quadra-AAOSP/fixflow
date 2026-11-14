@@ -31,6 +31,8 @@
     "confirmPrivacy": "I checked that this listing contains no private details.",
     "broadLocation": "Broad location",
     "timing": "Expected timing",
+    "payAmount": "Pay amount",
+    "publishing": "Publishing…",
     "publish": "Publish job",
     "publishMissingFields": "Still needed: {fields}.",
     "publishMissingPrivacy": "Tick the privacy confirmation before publishing.",
@@ -1022,10 +1024,15 @@
       "addressLabel": "Address",
       "descriptionLabel": "Description",
       "imageUrlLabel": "Image URL",
+      "flatFeeLabel": "Contract flat fee",
+      "flatFeePlaceholder": "Required before signing technicians",
+      "feeCurrencyLabel": "Fee currency",
       "optionalPlaceholder": "Optional",
       "errors": {
         "nameRequired": "Name is required.",
         "imageUrl": "Image URL must start with http:// or https://",
+        "flatFee": "Enter a valid non-negative contract flat fee.",
+        "feeCurrency": "Use a currency code between 3 and 8 characters.",
         "couldNotSave": "Could not save the site."
       }
     },
@@ -1087,6 +1094,8 @@
       "existingTitle": "Authorized contracts",
       "existingDesc": "Contracts recorded for you or your site.",
       "existingEmpty": "No contracts recorded yet.",
+      "flatFee": "Flat fee: {fee}",
+      "flatFeeNotSet": "Not set",
       "remove": "Remove",
       "removeTitle": "Remove contract",
       "removeMessage": "Remove the contract for {site}? This cannot be undone.",
@@ -1537,6 +1546,7 @@
       "yourContracts": "Your contracts",
       "noContracts": "No active contracts yet. Request one below to join a site.",
       "createdAt": "Since {date}",
+      "flatFee": "Flat fee: {fee}",
       "active": "Active",
       "requestTitle": "Request a contract",
       "requestBody": "Pick the site you want to work with. Your request goes to that site's admin for approval.",
@@ -1605,7 +1615,9 @@
       "viewReports": "View reports →",
       "editSite": "Edit site",
       "editA11y": "Edit {name}",
-      "contract": "Contract: {contract} · Site ID: {id}"
+      "contract": "Contract: {contract} · Site ID: {id}",
+      "flatFee": "Contract flat fee: {fee}",
+      "flatFeeNotSet": "Not set"
     },
     "plantArt": {
       "a11yLabel": "Potted plants"

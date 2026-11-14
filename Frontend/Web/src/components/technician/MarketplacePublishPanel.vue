@@ -10,8 +10,17 @@ const props = defineProps<{ report: Report; disabled?: boolean }>();
 const emit = defineEmits<{ busy: [value: boolean] }>();
 const { user } = useAuth();
 const { t } = useLocale();
-const eligible = computed(() => user.value?.role === 'admin' && user.value.siteId === props.report.siteId
-  && props.report.assignedTechnicianId === null && ['open', 'routed', 'reopened', 'escalated'].includes(props.report.status));
+const eligible = computed(() => {
+  const role = user.value?.role;
+  const siteOk =
+    role === 'super_admin' ||
+    (role === 'admin' && user.value?.siteId === props.report.siteId);
+  return (
+    !!siteOk &&
+    props.report.assignedTechnicianId === null &&
+    ['open', 'routed', 'reopened', 'escalated'].includes(props.report.status)
+  );
+});
 const draft = reactive({ summary: '', broadLocation: '', timing: '', amount: '' });
 const confirmed = ref(false);
 const published = ref(false);
@@ -56,7 +65,7 @@ async function publish() {
 
 <template>
   <section v-if="eligible" class="detail-section">
-    <h2>{{ t('List this job in the marketplace') }}</h2>
+    <h2>{{ t('Publish to the job marketplace') }}</h2>
     <p class="dialog-intro">{{ t('Use a general description and broad area. Leave out names, exact addresses, building or room details, access instructions and other private information.') }}</p>
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <p v-if="published" role="status" class="draft-notice">{{ t('The job listing is published.') }}</p>

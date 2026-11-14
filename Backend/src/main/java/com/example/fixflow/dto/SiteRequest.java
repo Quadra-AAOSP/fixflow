@@ -5,6 +5,7 @@ import com.example.fixflow.domain.SiteType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 public record SiteRequest(
@@ -13,6 +14,8 @@ public record SiteRequest(
 		@NotNull ContractStatus contractStatus,
 		@Size(max = 512) String address,
 		String description,
-		@Size(max = 1024) String imageUrl
+		@Size(max = 1024) String imageUrl,
+		@PositiveOrZero Long contractFlatFeeMinor,
+		@Size(min = 3, max = 8) String contractFeeCurrency
 ) {
 }

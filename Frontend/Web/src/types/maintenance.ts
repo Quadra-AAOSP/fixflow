@@ -5,6 +5,7 @@ export type SiteType = 'school' | 'hostel' | 'hotel';
 export interface Site {
   id: number; name: string; type: SiteType; contractStatus: 'contracted' | 'uncontracted';
   address: string | null; description: string | null; imageUrl: string | null;
+  contractFlatFeeMinor: number | null; contractFeeCurrency: string;
   createdAt: string; updatedAt: string;
 }
 export interface SiteRule {
@@ -58,4 +59,4 @@ export interface ReportVisionJob {
   status: 'queued' | 'processing' | 'completed' | 'review_required' | 'stale' | 'failed';
   model: string | null;
 }
-export type SitePayload = Pick<Site, 'name' | 'type' | 'contractStatus' | 'address' | 'description' | 'imageUrl'>;
+export type SitePayload = Pick<Site, 'name' | 'type' | 'contractStatus' | 'address' | 'description' | 'imageUrl' | 'contractFlatFeeMinor' | 'contractFeeCurrency'>;

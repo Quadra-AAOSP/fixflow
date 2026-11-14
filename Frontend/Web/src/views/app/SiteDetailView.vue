@@ -170,6 +170,17 @@ async function remove() {
             <dt>{{ t("Technician pool") }}</dt>
             <dd>{{ t(site.contractStatus === "contracted" ? "Site-contracted technicians" : "Open technician pool") }}</dd>
           </div>
+          <div v-if="user?.role !== 'reporter'">
+            <dt>{{ t("Contract flat fee") }}</dt>
+            <dd>{{
+              site.contractFlatFeeMinor == null
+                ? t("Not set")
+                : new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: site.contractFeeCurrency || "USD",
+                  }).format(site.contractFlatFeeMinor / 100)
+            }}</dd>
+          </div>
         </dl>
       </header>
       <div class="site-detail-grid">

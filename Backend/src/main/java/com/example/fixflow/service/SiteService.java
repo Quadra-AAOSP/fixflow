@@ -89,6 +89,11 @@ public class SiteService {
 		site.setAddress(request.address());
 		site.setDescription(request.description());
 		site.setImageUrl(request.imageUrl());
+		site.setContractFlatFeeMinor(request.contractFlatFeeMinor());
+		String currency = request.contractFeeCurrency();
+		site.setContractFeeCurrency(
+				currency == null || currency.isBlank() ? "USD" : currency.trim().toUpperCase()
+		);
 	}
 
 	private void assertCanView(AppUserDetails actor, Site site) {

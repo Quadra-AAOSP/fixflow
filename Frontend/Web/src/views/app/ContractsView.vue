@@ -118,12 +118,16 @@ async function submit() {
       <div v-if="created" role="status" class="draft-notice">
         {{
           t(
-            "Contract #{id} created for technician #{technicianId} at {site} on {date}.",
+            "Contract #{id} created for technician #{technicianId} at {site} on {date} · flat fee {fee}.",
             {
               id: created.id,
               technicianId: created.technicianId,
               site: data.siteName(created.siteId),
               date: formatDate(created.createdAt, true),
+              fee: new Intl.NumberFormat(undefined, {
+                style: "currency",
+                currency: created.feeCurrency || "USD",
+              }).format((created.flatFeeMinor ?? 0) / 100),
             },
           )
         }}

@@ -6,7 +6,7 @@ import { requestTechnicianContract, decideContractApplication } from '../src/ser
 import { request } from '../src/services/api';
 vi.mock('../src/services/api', () => ({ request: vi.fn() }));
 beforeEach(() => vi.resetAllMocks());
-const site = { name: 'Campus', type: 'school' as const, contractStatus: 'contracted' as const, address: null, description: null, imageUrl: null };
+const site = { name: 'Campus', type: 'school' as const, contractStatus: 'contracted' as const, address: null, description: null, imageUrl: null, contractFlatFeeMinor: 50000, contractFeeCurrency: 'USD' };
 it('accepts the site DTO maximums without inventing a description cap', () => {
   expect(sitePayload({ ...site, name: 'n'.repeat(255), address: 'a'.repeat(512), imageUrl: 'https://example.invalid/' + 'x'.repeat(1000), description: 'd'.repeat(12000) }).description).toHaveLength(12000);
   expect(sitePayload({ ...site, address: ' ', description: '' })).toMatchObject({ address: null, description: null });

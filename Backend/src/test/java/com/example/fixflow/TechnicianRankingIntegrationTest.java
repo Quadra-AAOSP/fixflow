@@ -52,7 +52,14 @@ class TechnicianRankingIntegrationTest {
         Report r = new Report(); r.setSite(scope); r.setCreatedBy(creator); r.setDescription("Test");
         r.setCategory("plumbing"); r.setReporterUrgency(Urgency.low); return reports.save(r);
     }
-    void contract(User u, Site scope) { TechnicianContract c = new TechnicianContract(); c.setTechnician(u); c.setSite(scope); contracts.save(c); }
+    void contract(User u, Site scope) {
+        TechnicianContract c = new TechnicianContract();
+        c.setTechnician(u);
+        c.setSite(scope);
+        c.setFlatFeeMinor(50000L);
+        c.setFeeCurrency("USD");
+        contracts.save(c);
+    }
     void skill(User u) { TechnicianSkill s = new TechnicianSkill(); s.setTechnician(u); s.setCategory("plumbing"); s.setProficiency(java.math.BigDecimal.valueOf(4)); skills.save(s); }
     void available(User u) { TechnicianAvailability a = new TechnicianAvailability(); a.setTechnician(u); a.setStatus(AvailabilityStatus.available); availability.save(a); }
     String ranking() { return "/api/reports/" + report.getId() + "/technician-ranking"; }

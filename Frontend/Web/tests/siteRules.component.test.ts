@@ -12,7 +12,7 @@ const rule = { id: 7, siteType: 'school' as const, category: 'plumbing', urgency
 beforeEach(() => {
   setActivePinia(createPinia()); vi.resetAllMocks(); setLocale('en');
   useAuthStore().user = { id: 1, role: 'admin', siteId: 7, firstName: 'Test', lastName: 'Admin', email: 'test@example.invalid', phone: null, address: null };
-  useMaintenanceStore().sites = [{ id: 7, name: 'School', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, createdAt: '', updatedAt: '' }];
+  useMaintenanceStore().sites = [{ id: 7, name: 'School', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, contractFlatFeeMinor: 50000, contractFeeCurrency: 'USD', createdAt: '', updatedAt: '' }];
   useMaintenanceStore().selectedSiteId = 7;
   vi.spyOn(useMaintenanceStore(), 'refresh').mockResolvedValue();
   vi.mocked(api.listSiteRules).mockResolvedValue([rule]);

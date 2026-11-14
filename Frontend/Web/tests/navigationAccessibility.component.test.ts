@@ -143,7 +143,7 @@ it('keeps independent technicians away from unavailable report searches until a 
   useAuthStore().user!.role = 'technician'; useAuthStore().user!.siteId = null;
   await render(); expect(wrapper.find('form[role="search"]').exists()).toBe(false);
   const data = useMaintenanceStore();
-  data.sites = [{ id: 7, name: 'Accessible fixture', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, createdAt: '', updatedAt: '' }];
+  data.sites = [{ id: 7, name: 'Accessible fixture', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, contractFlatFeeMinor: 50000, contractFeeCurrency: 'USD', createdAt: '', updatedAt: '' }];
   data.selectedSiteId = 7; await nextTick();
   expect(wrapper.find('form[role="search"]').exists()).toBe(false);
 });

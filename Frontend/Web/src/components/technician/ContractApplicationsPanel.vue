@@ -29,6 +29,10 @@ const reasons = reactive<Record<number, string>>({});
 const terms = ref<TechnicianTermsStatus | null>(null);
 const termsPanel = ref<InstanceType<typeof TechnicianTermsPanel>>();
 const canRequest = computed(() => !!terms.value?.currentVersion && !!terms.value.documentUrl && terms.value.acceptedCurrentVersion);
+function formatFee(minor: number | null | undefined, currency = 'USD') {
+  if (minor == null) return t('Not set');
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(minor / 100);
+}
 let generation = 0;
 onBeforeUnmount(() => { generation++; });
 
@@ -102,7 +106,7 @@ async function decide(item: ContractApplication, decision: 'approve' | 'reject')
     </template>
     <section class="contract-choice">
       <div class="card-heading"><h2>{{ t(technician ? 'Your contract requests' : 'Site contract requests') }}</h2><button type="button" class="text-action" :disabled="loading || submitting || decidingId !== null" @click="load">{{ t("Refresh requests") }}</button></div>
-      <p v-if="siteAdmin" class="dialog-intro">{{ t("Only your site’s requests appear here. Approval creates the site contract after the backend checks current terms acceptance.") }}</p>
+      <p v-if="siteAdmin" class="dialog-intro">{{ t("Only your site’s requests appear here. Approval creates the site contract after the backend checks current terms acceptance. The site’s configured flat fee is snapshotted onto the contract.") }}</p>
       <p v-if="success" role="status" class="draft-notice">{{ submittedRequest ? t('Request #{id} submitted to site #{siteId}.', { id: success.id, siteId: success.siteId }) : t('Request #{id} {status}.', { id: success.id, status: t(success.status) }) }}</p>
       <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
       <LoadingStatus v-if="loading" :label="t('Loading requests…')" />
@@ -111,6 +115,7 @@ async function decide(item: ContractApplication, decision: 'approve' | 'reject')
         <li v-for="item in items" :key="item.id" class="dashboard-card">
           <div class="card-heading"><h3>{{ t('Request #{id}', { id: item.id }) }}</h3><span class="status-badge mint">{{ t(item.status) }}</span></div>
           <p>{{ t('Site #{siteId} · Technician #{technicianId}', { siteId: item.siteId, technicianId: item.technicianId }) }}</p>
+          <p>{{ t('Contract flat fee: {fee}', { fee: formatFee(item.siteFlatFeeMinor, item.siteFeeCurrency) }) }}</p>
           <p>{{ t('Submitted {date}', { date: formatDate(item.createdAt, true) }) }}</p>
           <p v-if="item.note">{{ item.note }}</p>
           <p v-if="item.decisionReason">{{ t('Decision: {reason}', { reason: item.decisionReason }) }}</p>

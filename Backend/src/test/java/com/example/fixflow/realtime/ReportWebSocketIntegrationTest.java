@@ -70,7 +70,9 @@ class ReportWebSocketIntegrationTest {
     @AfterEach void cleanup() { connections.forEach(c -> c.socket.abort()); }
     private void contract(User technician) {
         TechnicianContract contract = new TechnicianContract();
-        contract.setTechnician(technician); contract.setSite(site); contracts.save(contract);
+        contract.setTechnician(technician); contract.setSite(site);
+        contract.setFlatFeeMinor(50000L); contract.setFeeCurrency("USD");
+        contracts.save(contract);
     }
     private Site site(String name) {
         Site s = new Site(); s.setName(name); s.setType(SiteType.school);

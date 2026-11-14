@@ -115,6 +115,12 @@ watch(() => [scopeId.value, user.value?.id, props.revision], load, { immediate: 
         <li v-for="contract in contracts" :key="contract.id">
           <strong>{{ t('Contract #{id}', { id: contract.id }) }}</strong>
           <span>{{ t('Technician #{id}', { id: contract.technicianId }) }}</span>
+          <span>{{ t('Flat fee: {fee}', {
+            fee: new Intl.NumberFormat(undefined, {
+              style: 'currency',
+              currency: contract.feeCurrency || 'USD',
+            }).format((contract.flatFeeMinor ?? 0) / 100),
+          }) }}</span>
           <span>{{ t('Created {date}', { date: formatDate(contract.createdAt, true) }) }}</span>
           <button type="button" class="text-action" :disabled="actionBusy" @click="inspectTerms(contract)">{{ t('View terms status') }}</button>
           <button type="button" class="text-action" :disabled="actionBusy" @click="askRemove(contract)">{{ t('Remove relationship') }}</button>

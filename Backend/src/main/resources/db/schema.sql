@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS sites (
     address          VARCHAR(512)    NULL,
     description      TEXT            NULL,
     image_url        VARCHAR(1024)   NULL,
+    contract_flat_fee_minor BIGINT    NULL,
+    contract_fee_currency VARCHAR(8) NOT NULL DEFAULT 'USD',
     created_at       TIMESTAMP(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at       TIMESTAMP(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
@@ -76,6 +78,8 @@ CREATE TABLE IF NOT EXISTS technician_contracts (
     id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     technician_id  BIGINT UNSIGNED NOT NULL,
     site_id        BIGINT UNSIGNED NOT NULL,
+    flat_fee_minor BIGINT          NOT NULL,
+    fee_currency   VARCHAR(8)      NOT NULL DEFAULT 'USD',
     created_at     TIMESTAMP(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
     UNIQUE KEY uq_tech_contract (technician_id, site_id),
@@ -753,10 +757,10 @@ INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_
     ('safety-gloves', 'Cut-Resistant Work Gloves', 'Pair of protective gloves sized for maintenance crews and DIY reporters.', 'Safety', 'GuardHand', NULL, 1590, 50, TRUE),
     ('toolbox-small', 'Compact Toolbox', 'Organiser case for bits, fasteners, and small hand tools on site visits.', 'Storage', 'FixFlow Basics', NULL, 4590, 12, TRUE);
 
-INSERT IGNORE INTO sites (name, type, contract_status, address) VALUES
-    ('CNU School', 'school', 'contracted', 'CNU main campus'),
-    ('CNU Hostel', 'hostel', 'contracted', 'CNU student residence'),
-    ('CNU Hotel', 'hotel', 'contracted', 'CNU hospitality building');
+INSERT IGNORE INTO sites (name, type, contract_status, address, contract_flat_fee_minor, contract_fee_currency) VALUES
+    ('CNU School', 'school', 'contracted', 'CNU main campus', 50000, 'USD'),
+    ('CNU Hostel', 'hostel', 'contracted', 'CNU student residence', 50000, 'USD'),
+    ('CNU Hotel', 'hotel', 'contracted', 'CNU hospitality building', 50000, 'USD');
 
 INSERT INTO subsites (site_id, label, name)
 SELECT s.id, 'MAIN', 'Main building'

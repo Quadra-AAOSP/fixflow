@@ -2,11 +2,16 @@ import type { SitePayload } from '@/types/maintenance';
 import type { ShopCartItem } from '@/types/shop';
 
 export function sitePayload(input: SitePayload): SitePayload {
+  const currency = (input.contractFeeCurrency ?? 'USD').trim().toUpperCase() || 'USD';
   const value = { name: input.name.trim(), type: input.type, contractStatus: input.contractStatus,
     address: input.address?.trim() || null, description: input.description?.trim() || null,
-    imageUrl: input.imageUrl?.trim() || null };
+    imageUrl: input.imageUrl?.trim() || null,
+    contractFlatFeeMinor: input.contractFlatFeeMinor ?? null,
+    contractFeeCurrency: currency };
   if (!value.name || value.name.length > 255 || (value.address?.length ?? 0) > 512 || (value.imageUrl?.length ?? 0) > 1024 ||
-      !['school', 'hostel', 'hotel'].includes(value.type) || !['contracted', 'uncontracted'].includes(value.contractStatus)) {
+      !['school', 'hostel', 'hotel'].includes(value.type) || !['contracted', 'uncontracted'].includes(value.contractStatus) ||
+      currency.length < 3 || currency.length > 8 ||
+      (value.contractFlatFeeMinor != null && (!Number.isSafeInteger(value.contractFlatFeeMinor) || value.contractFlatFeeMinor < 0))) {
     throw new Error('Complete the site fields within the displayed limits.');
   }
   if (value.imageUrl) {

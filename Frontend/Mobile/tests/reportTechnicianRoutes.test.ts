@@ -18,9 +18,12 @@ describe('report technician route menu', () => {
     expect(reportTechnicianRoutes(report, account('admin'))).toEqual(['contracted', 'marketplace']);
   });
 
-  it('preserves staff assignment without marketplace publication for super-admin alone', () => {
+  it('preserves staff assignment and lets super-admin publish to the marketplace', () => {
     expect(reportTechnicianRoutes(report, account('staff'))).toEqual(['contracted']);
-    expect(reportTechnicianRoutes(report, account('super_admin', null))).toEqual(['contracted']);
+    expect(reportTechnicianRoutes(report, account('super_admin', null))).toEqual([
+      'contracted',
+      'marketplace',
+    ]);
   });
 
   it('omits marketplace publication once a technician has been assigned', () => {

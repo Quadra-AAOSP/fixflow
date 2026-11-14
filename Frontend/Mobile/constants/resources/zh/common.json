@@ -31,6 +31,8 @@
     "confirmPrivacy": "我已确认此工作信息不包含私人详情。",
     "broadLocation": "大致位置",
     "timing": "预计时间",
+    "payAmount": "报酬金额",
+    "publishing": "正在发布…",
     "publish": "发布工作",
     "publishMissingFields": "还需填写：{fields}。",
     "publishMissingPrivacy": "发布前请勾选隐私确认。",
@@ -1022,10 +1024,15 @@
       "addressLabel": "地址",
       "descriptionLabel": "描述",
       "imageUrlLabel": "图片 URL",
+      "flatFeeLabel": "合同固定费用",
+      "flatFeePlaceholder": "签约技师前必须设置",
+      "feeCurrencyLabel": "费用货币",
       "optionalPlaceholder": "可选",
       "errors": {
         "nameRequired": "名称为必填项。",
         "imageUrl": "图片 URL 必须以 http:// 或 https:// 开头",
+        "flatFee": "请输入有效的非负合同固定费用。",
+        "feeCurrency": "货币代码长度须为 3 到 8 个字符。",
         "couldNotSave": "无法保存站点。"
       }
     },
@@ -1087,6 +1094,8 @@
       "existingTitle": "已授权合同",
       "existingDesc": "为您或您的站点登记的合同。",
       "existingEmpty": "暂无已登记合同。",
+      "flatFee": "固定费用：{fee}",
+      "flatFeeNotSet": "未设置",
       "remove": "移除",
       "removeTitle": "移除合同",
       "removeMessage": "确定移除 {site} 的合同吗？此操作无法撤销。",
@@ -1537,6 +1546,7 @@
       "yourContracts": "您的合同",
       "noContracts": "暂无有效合同。在下方提交申请以加入站点。",
       "createdAt": "自 {date}",
+      "flatFee": "固定费用：{fee}",
       "active": "有效",
       "requestTitle": "申请合同",
       "requestBody": "选择你希望合作的站点，申请会提交给该站点管理员审核。",
@@ -1605,7 +1615,9 @@
       "viewReports": "查看报修 →",
       "editSite": "编辑站点",
       "editA11y": "编辑 {name}",
-      "contract": "合同：{contract} · 站点编号：{id}"
+      "contract": "合同：{contract} · 站点编号：{id}",
+      "flatFee": "合同固定费用：{fee}",
+      "flatFeeNotSet": "未设置"
     },
     "plantArt": {
       "a11yLabel": "盆栽"

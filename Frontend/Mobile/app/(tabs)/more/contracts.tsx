@@ -195,6 +195,14 @@ export default function ContractsScreen() {
                       <Text className="mt-0.5 text-[10px] text-dashboard-caption">
                         {formatDate(contract.createdAt, true)}
                       </Text>
+                      <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                        {t('more.contracts.flatFee', {
+                          fee: new Intl.NumberFormat(undefined, {
+                            style: 'currency',
+                            currency: contract.feeCurrency || 'USD',
+                          }).format((contract.flatFeeMinor ?? 0) / 100),
+                        })}
+                      </Text>
                       <SiteVetting siteId={contract.siteId} technicianId={contract.technicianId} admin={isAdmin} />
                     </View>
                     {isAdmin ? (
@@ -241,6 +249,17 @@ export default function ContractsScreen() {
                     </View>
                     <Text className="mt-0.5 text-[10px] text-dashboard-caption">
                       {formatDate(request.createdAt, true)}
+                    </Text>
+                    <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                      {t('more.contracts.flatFee', {
+                        fee:
+                          request.siteFlatFeeMinor == null
+                            ? t('more.contracts.flatFeeNotSet')
+                            : new Intl.NumberFormat(undefined, {
+                                style: 'currency',
+                                currency: request.siteFeeCurrency || 'USD',
+                              }).format(request.siteFlatFeeMinor / 100),
+                      })}
                     </Text>
                     {isAdmin && request.status === 'pending' ? (
                       <View className="mt-2 flex-row gap-2">

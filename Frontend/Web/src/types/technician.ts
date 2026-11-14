@@ -15,6 +15,8 @@ export type ContractApplication = {
   note: string | null;
   decisionReason: string | null;
   decidedByUserId: number | null;
+  siteFlatFeeMinor: number | null;
+  siteFeeCurrency: string;
   createdAt: string;
   decidedAt: string | null;
 };

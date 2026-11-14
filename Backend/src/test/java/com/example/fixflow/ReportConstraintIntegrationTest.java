@@ -26,11 +26,13 @@ import com.example.fixflow.domain.ReportStatus;
 import com.example.fixflow.domain.SiteAdminApplication;
 import com.example.fixflow.domain.Site;
 import com.example.fixflow.domain.SiteType;
+import com.example.fixflow.domain.TechnicianTermsAcceptance;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.SiteRepository;
 import com.example.fixflow.repository.ReportRepository;
 import com.example.fixflow.repository.SiteAdminApplicationRepository;
+import com.example.fixflow.repository.TechnicianTermsAcceptanceRepository;
 import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.jayway.jsonpath.JsonPath;
@@ -52,6 +54,9 @@ class ReportConstraintIntegrationTest {
 	private UserRepository userRepository;
 
 	@Autowired
+	private TechnicianTermsAcceptanceRepository termsAcceptances;
+
+	@Autowired
 	private PasswordEncoder passwordEncoder;
 
 	private MockMvc mockMvc;
@@ -71,12 +76,24 @@ class ReportConstraintIntegrationTest {
 			created.setName("School One");
 			created.setType(SiteType.school);
 			created.setContractStatus(ContractStatus.contracted);
+			created.setContractFlatFeeMinor(50000L);
+			created.setContractFeeCurrency("USD");
 			return siteRepository.save(created);
 		});
+		if (site.getContractFlatFeeMinor() == null) {
+			site.setContractFlatFeeMinor(50000L);
+			site.setContractFeeCurrency("USD");
+			site = siteRepository.save(site);
+		}
 		reporterA = createUser("reporter-a", UserRole.reporter, site);
 		reporterB = createUser("reporter-b", UserRole.reporter, site);
 		staff = createUser("staff", UserRole.staff, site);
 		technician = createUser("tech", UserRole.technician, null);
+		TechnicianTermsAcceptance acceptance = new TechnicianTermsAcceptance();
+		acceptance.setTechnician(technician);
+		acceptance.setTermsVersion("test-v1");
+		acceptance.setDocumentUrl("http://localhost:8080/agreements/technician/test-v1.html");
+		termsAcceptances.save(acceptance);
 	}
 
 	@Test
@@ -224,7 +241,9 @@ class ReportConstraintIntegrationTest {
 								{"technicianId": %d, "siteId": %d}
 								""".formatted(technician.getId(), site.getId())))
 				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.technicianId").value(technician.getId()));
+				.andExpect(jsonPath("$.technicianId").value(technician.getId()))
+				.andExpect(jsonPath("$.flatFeeMinor").value(50000))
+				.andExpect(jsonPath("$.feeCurrency").value("USD"));
 	}
 
 	@Test

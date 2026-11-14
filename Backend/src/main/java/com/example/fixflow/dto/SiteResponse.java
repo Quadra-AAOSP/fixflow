@@ -14,6 +14,8 @@ public record SiteResponse(
 		String address,
 		String description,
 		String imageUrl,
+		Long contractFlatFeeMinor,
+		String contractFeeCurrency,
 		Instant createdAt,
 		Instant updatedAt
 ) {
@@ -26,6 +28,8 @@ public record SiteResponse(
 				site.getAddress(),
 				site.getDescription(),
 				site.getImageUrl(),
+				site.getContractFlatFeeMinor(),
+				site.getContractFeeCurrency() == null ? "USD" : site.getContractFeeCurrency(),
 				site.getCreatedAt(),
 				site.getUpdatedAt()
 		);

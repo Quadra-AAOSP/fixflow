@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { ReportWorkActions } from '@/components/reports/ReportWorkActions';
 import { ReportChangeActions } from '@/components/reports/ReportChangeActions';
+import { MarketplacePublishForm } from '@/components/reports/MarketplacePublishForm';
 import { ReportTimeline } from '@/components/reports/ReportTimeline';
 import { Card } from '@/components/ui/Card';
 import { ReportAssistantChat } from '@/components/chat/ReportAssistantChat';
@@ -1251,25 +1252,12 @@ export default function ReportDetailScreen() {
           </Card>
         ) : null}
 
-        {technicianRoute ? (
+        {routingOptions.length > 0 ? (
           <Card className="mb-4">
             <Text accessibilityRole="header" className="mb-3 text-[15px] font-semibold text-ink">
               {t('reports.detail.technicianRouting.title')}
             </Text>
-            <Picker
-              label={t('reports.detail.technicianRouting.label')}
-              value={technicianRoute}
-              options={routingOptions.map(route => ({
-                value: route,
-                label: t(`reports.detail.technicianRouting.${route}`),
-              }))}
-              onChange={value => {
-                const route = routingOptions.find(option => option === value);
-                if (route) setRoutingChoice({ reportId, route });
-              }}
-              disabled={routingOptions.length === 1 || assigning}
-            />
-            {technicianRoute === 'contracted' ? (
+            {routingOptions.includes('contracted') ? (
               <View>
                 <Text
                   className="mb-1 text-[15px] font-semibold text-ink"
@@ -1464,16 +1452,8 @@ export default function ReportDetailScreen() {
                 </View>
               </View>
             ) : null}
-            {technicianRoute === 'marketplace' ? (
-              <View>
-                <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-                  {t('reports.detail.technicianRouting.marketplaceBody')}
-                </Text>
-                <Button
-                  label={t('reports.detail.technicianRouting.openMarketplace')}
-                  onPress={() => router.push({ pathname: '/more/marketplace', params: { reportId: String(report.id) } })}
-                />
-              </View>
+            {routingOptions.includes('marketplace') ? (
+              <MarketplacePublishForm report={report} disabled={assigning} />
             ) : null}
           </Card>
         ) : null}

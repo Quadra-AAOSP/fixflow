@@ -93,6 +93,8 @@ class TechnicianDirectoryApiIntegrationTest {
 		TechnicianContract contract = new TechnicianContract();
 		contract.setTechnician(technician);
 		contract.setSite(site);
+		contract.setFlatFeeMinor(50000L);
+		contract.setFeeCurrency("USD");
 		technicianContractRepository.save(contract);
 	}
 

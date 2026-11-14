@@ -45,6 +45,7 @@ class ReportWorkflowIntegrationTest {
         technician = account(UserRole.technician, null);
         VettingFixture.eligible(technician, site, admin, termsFixture, verificationFixture, vettingFixture);
         TechnicianContract contract = new TechnicianContract(); contract.setSite(site); contract.setTechnician(technician);
+        contract.setFlatFeeMinor(50000L); contract.setFeeCurrency("USD");
         contracts.save(contract);
         report = new Report(); report.setSite(site); report.setCreatedBy(reporter);
         report.setDescription("Workflow issue"); report.setCategory("plumbing"); report.setReporterUrgency(Urgency.medium);
@@ -181,7 +182,7 @@ class ReportWorkflowIntegrationTest {
     @Test void simultaneousClaimsHaveOneWinner() throws Exception {
         User other=account(UserRole.technician,null);
         TechnicianContract contract=new TechnicianContract(); contract.setSite(report.getSite());
-        contract.setTechnician(other); contracts.save(contract);
+        contract.setTechnician(other); contract.setFlatFeeMinor(50000L); contract.setFeeCurrency("USD"); contracts.save(contract);
         var ready=new java.util.concurrent.CountDownLatch(2);
         var start=new java.util.concurrent.CountDownLatch(1);
         try(var executor=java.util.concurrent.Executors.newFixedThreadPool(2)) {

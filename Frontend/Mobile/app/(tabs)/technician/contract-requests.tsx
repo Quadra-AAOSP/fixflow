@@ -225,6 +225,14 @@ export default function TechnicianContractRequestsScreen() {
                       date: formatDate(contract.createdAt),
                     })}
                   </Text>
+                  <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                    {t('technician.contractRequests.flatFee', {
+                      fee: new Intl.NumberFormat(undefined, {
+                        style: 'currency',
+                        currency: contract.feeCurrency || 'USD',
+                      }).format((contract.flatFeeMinor ?? 0) / 100),
+                    })}
+                  </Text>
                 </View>
                 <View
                   className="rounded-full px-2.5 py-1"
@@ -267,7 +275,13 @@ export default function TechnicianContractRequestsScreen() {
                   onChange={(value) => setSiteId(value ? Number(value) : null)}
                   options={availableSites.map((site) => ({
                     value: String(site.id),
-                    label: site.name,
+                    label:
+                      site.contractFlatFeeMinor == null
+                        ? site.name
+                        : `${site.name} · ${new Intl.NumberFormat(undefined, {
+                            style: 'currency',
+                            currency: site.contractFeeCurrency || 'USD',
+                          }).format(site.contractFlatFeeMinor / 100)}`,
                   }))}
                   placeholder={t('technician.contractRequests.chooseSite')}
                 />

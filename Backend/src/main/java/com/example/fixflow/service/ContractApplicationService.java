@@ -85,6 +85,7 @@ public class ContractApplicationService {
                 TechnicianContract contract = new TechnicianContract();
                 contract.setTechnician(application.getTechnician());
                 contract.setSite(application.getSite());
+                ContractFees.applySnapshot(contract, application.getSite());
                 contracts.saveAndFlush(contract);
             }
             application.setStatus(TechnicianContractApplication.Status.approved);
