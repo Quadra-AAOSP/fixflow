@@ -91,7 +91,7 @@ public class TechnicianTermsService {
      */
     @Transactional(readOnly = true)
     public boolean permitsWork(Long technicianId) {
-        if (version.isEmpty() || documentUrl.isEmpty()) return false;
+        if (version.isEmpty() || documentUrl.isEmpty()) return !required;
         return acceptances.existsByTechnician_IdAndTermsVersion(technicianId, version);
     }
 

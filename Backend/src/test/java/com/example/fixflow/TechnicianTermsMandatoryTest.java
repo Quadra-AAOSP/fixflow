@@ -12,8 +12,11 @@ class TechnicianTermsMandatoryTest {
   when(records.existsByTechnician_IdAndTermsVersion(1L,"v1")).thenReturn(true);
   assertThat(service.permitsWork(1L)).isTrue();
  }
- @Test void missingConfigurationFailsClosed() {
+ @Test void missingConfigurationIsRejectedWhenRequired() {
+  org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,() -> new TechnicianTermsService(mock(TechnicianTermsAcceptanceRepository.class),mock(UserRepository.class),mock(TechnicianContractRepository.class),mock(TechnicianContractApplicationRepository.class),"","",true));
+ }
+ @Test void unpublishedConfigurationDoesNotBlockWork() {
   var service=new TechnicianTermsService(mock(TechnicianTermsAcceptanceRepository.class),mock(UserRepository.class),mock(TechnicianContractRepository.class),mock(TechnicianContractApplicationRepository.class),"","",false);
-  assertThat(service.permitsWork(1L)).isFalse();
+  assertThat(service.permitsWork(1L)).isTrue();
  }
 }
