@@ -38,6 +38,19 @@ public class ContractApplicationService {
         this.notifier = notifier;
     }
 
+    @Transactional(readOnly = true)
+    public List<com.example.fixflow.dto.SiteResponse> availableSites(AppUserDetails actor) {
+        if (actor.getRole() != UserRole.technician) {
+            throw new ApiException(403, "Only technicians can apply to sites");
+        }
+        // Applicants need the whole directory, not just their account site:
+        // the contract is how they opt in to a site they do not belong to yet.
+        return sites.findAll().stream()
+                .sorted(java.util.Comparator.comparing(com.example.fixflow.domain.Site::getName))
+                .map(com.example.fixflow.dto.SiteResponse::from)
+                .toList();
+    }
+
     @Transactional
     public ContractApplicationResponse request(ContractApplicationRequest request, AppUserDetails actor) {
         if (actor.getRole() != UserRole.technician) throw new ApiException(403, "Only technicians can request contracts");

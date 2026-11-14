@@ -3,6 +3,7 @@ import { endpoints } from '@/lib/endpoints';
 import type {
   ContractDecisionPayload,
   RankingMode,
+  Site,
   TechnicianAvailabilityResponse,
   TechnicianContract,
   TechnicianContractPayload,
@@ -68,6 +69,15 @@ export function createTechnicianContractRequest(
     endpoints.contractRequests.create,
     payload,
   );
+}
+
+/**
+ * Every site a technician can ask to join. The generic site list is scoped to
+ * the caller's account site, which would hide the very sites they want to
+ * apply to.
+ */
+export function listApplicableSites(): Promise<Site[]> {
+  return api.get<Site[]>(endpoints.contractRequests.sites);
 }
 
 /**

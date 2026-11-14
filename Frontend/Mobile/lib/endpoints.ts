@@ -140,6 +140,8 @@ export const endpoints = {
   contractRequests: {
     list: '/api/technician-contract-requests',
     create: '/api/technician-contract-requests',
+    /** GET — every site a technician may apply to. */
+    sites: '/api/technician-contract-requests/sites',
     bySite: (siteId: number | string) =>
       `/api/technician-contract-requests?siteId=${encodeURIComponent(siteId)}`,
     decide: (id: number | string) =>

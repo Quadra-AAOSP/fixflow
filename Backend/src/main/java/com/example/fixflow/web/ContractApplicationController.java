@@ -30,6 +30,10 @@ public class ContractApplicationController {
     @GetMapping
     public List<ContractApplicationResponse> list(@RequestParam(required = false) Long siteId,
             @AuthenticationPrincipal AppUserDetails actor) { return service.list(siteId, actor); }
+    @GetMapping("/sites")
+    public List<com.example.fixflow.dto.SiteResponse> sites(@AuthenticationPrincipal AppUserDetails actor) {
+        return service.availableSites(actor);
+    }
     @PostMapping(value = "/{id}/decision", consumes = "application/json")
     public ContractApplicationResponse decide(@PathVariable Long id, @Valid @RequestBody ContractDecisionRequest request,
             @AuthenticationPrincipal AppUserDetails actor) { return service.decide(id, request, actor); }

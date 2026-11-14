@@ -20,10 +20,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import {
   createTechnicianContractRequest,
+  listApplicableSites,
+  listTechnicianContractRequests,
   listTechnicianContracts,
 } from '@/services/technicians';
-import { listSites } from '@/services/sites';
-import type { Site, TechnicianContract } from '@/types';
+import type {
+  Site,
+  TechnicianContract,
+  TechnicianContractRequest,
+} from '@/types';
 import { formatDate } from '@/utils/format';
 
 /**
@@ -45,6 +50,7 @@ export default function TechnicianContractRequestsScreen() {
   const { user } = useAuth();
 
   const [contracts, setContracts] = useState<TechnicianContract[]>([]);
+  const [requests, setRequests] = useState<TechnicianContractRequest[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,11 +63,15 @@ export default function TechnicianContractRequestsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [contractsResult, sitesResult] = await Promise.all([
+      const [contractsResult, requestsResult, sitesResult] = await Promise.all([
         listTechnicianContracts(),
-        listSites(),
+        listTechnicianContractRequests(),
+        // The whole site directory, so the technician can apply anywhere —
+        // `/api/sites` only returns their own account site.
+        listApplicableSites(),
       ]);
       setContracts(contractsResult);
+      setRequests(requestsResult);
       setSites(sitesResult);
     } catch (err) {
       setError(
@@ -78,11 +88,16 @@ export default function TechnicianContractRequestsScreen() {
     void load();
   }, [load]);
 
-  /** Sites this technician isn't already contracted to. */
-  const availableSites = useMemo(
-    () => sites.filter((site) => !contracts.some((c) => c.siteId === site.id)),
-    [sites, contracts],
-  );
+  /** Sites this technician hasn't contracted or applied to yet. */
+  const availableSites = useMemo(() => {
+    const pending = new Set(
+      requests.filter((r) => r.status === 'pending').map((r) => r.siteId),
+    );
+    return sites.filter(
+      (site) =>
+        !pending.has(site.id) && !contracts.some((c) => c.siteId === site.id),
+    );
+  }, [sites, contracts, requests]);
 
   const siteNameFor = useCallback(
     (id: number) => sites.find((site) => site.id === id)?.name ?? `#${id}`,
@@ -95,8 +110,10 @@ export default function TechnicianContractRequestsScreen() {
     setError(null);
     setNotice(null);
     try {
-      await createTechnicianContractRequest({ siteId });
+      const created = await createTechnicianContractRequest({ siteId });
       setNotice(t('technician.contractRequests.submitted', { site: siteNameFor(siteId) }));
+      // Show the application immediately and drop the site from the picker.
+      setRequests((previous) => [created, ...previous]);
       setSiteId(null);
     } catch (err) {
       setError(
@@ -244,6 +261,76 @@ export default function TechnicianContractRequestsScreen() {
             ))
           )}
         </Card>
+
+        {/* Applications waiting for a site admin */}
+        {requests.length > 0 ? (
+          <Card padded={false} className="mb-4">
+            <View className="flex-row items-center justify-between border-b border-dashboard-card-line px-4 py-3">
+              <Text className="text-[14px] font-semibold text-ink">
+                {t('technician.contractRequests.yourRequests')}
+              </Text>
+              <View
+                className="rounded-full px-2 py-[2px]"
+                style={{ backgroundColor: dashboardColors.statCitronSoft }}
+              >
+                <Text
+                  className="text-[10px] font-semibold"
+                  style={{ color: dashboardColors.statCitronDeep }}
+                >
+                  {requests.length}
+                </Text>
+              </View>
+            </View>
+            {requests.map((request) => {
+              const tone =
+                request.status === 'approved'
+                  ? {
+                      bg: dashboardColors.statMintSoft,
+                      fg: dashboardColors.statMintDeep,
+                      label: t('technician.contractRequests.statusApproved'),
+                    }
+                  : request.status === 'rejected'
+                    ? {
+                        bg: dashboardColors.statCoralSoft,
+                        fg: dashboardColors.statCoralDeep,
+                        label: t('technician.contractRequests.statusRejected'),
+                      }
+                    : {
+                        bg: dashboardColors.statCitronSoft,
+                        fg: dashboardColors.statCitronDeep,
+                        label: t('technician.contractRequests.statusPending'),
+                      };
+              return (
+                <View
+                  key={request.id}
+                  className="flex-row items-center justify-between border-b border-dashboard-card-line px-4 py-3 last:border-b-0"
+                >
+                  <View className="flex-1 pr-3">
+                    <Text className="text-[13px] font-semibold text-ink">
+                      {siteNameFor(request.siteId)}
+                    </Text>
+                    <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                      {t('technician.contractRequests.appliedAt', {
+                        date: formatDate(request.createdAt),
+                      })}
+                    </Text>
+                  </View>
+                  <View
+                    className="rounded-full px-2.5 py-1"
+                    style={{ backgroundColor: tone.bg }}
+                  >
+                    <Text
+                      className="text-[10px] font-semibold"
+                      style={{ color: tone.fg }}
+                    >
+                      {tone.label}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </Card>
+        ) : null}
 
         {/* Request a contract */}
         <Card padded={false}>

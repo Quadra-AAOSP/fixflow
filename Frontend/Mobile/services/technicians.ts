@@ -26,12 +26,14 @@ export {
   getTechnicianTerms,
   getTechnicianTermsFor,
   inviteTechniciansToReport,
+  listApplicableSites,
   listTechnicianContractRequests as getTechnicianContractRequests,
   listTechnicianContracts as getTechnicianContracts,
   listTechnicianInvitations as getTechnicianInvitations,
   rankTechniciansForReport,
 } from './technician';
 export { listTechnicianContracts } from './technician';
+export { listTechnicianContractRequests } from './technician';
 
 /**
  * Alias used by screens written against the older name.
