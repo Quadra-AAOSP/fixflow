@@ -3,11 +3,12 @@ import { useRouter } from 'expo-router';
 import {
   AlertCircle,
   ArrowLeft,
+  Check,
   CheckCircle2,
   FileText,
   Send,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -54,7 +55,7 @@ export default function TechnicianContractRequestsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [siteId, setSiteId] = useState<number | null>(null);
+  const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
@@ -97,33 +98,62 @@ export default function TechnicianContractRequestsScreen() {
     void load();
   }, [load]);
 
-  /** Sites this technician hasn't contracted or applied to yet. */
-  const availableSites = useMemo(() => {
-    const pending = new Set(
-      requests.filter((r) => r.status === 'pending').map((r) => r.siteId),
-    );
-    return sites.filter(
-      (site) =>
-        !pending.has(site.id) && !contracts.some((c) => c.siteId === site.id),
-    );
-  }, [sites, contracts, requests]);
+  /**
+   * A site is ticked when the technician wants that site's admin to know they
+   * exist and assign jobs to them. Contracted/pending sites are already ticked
+   * and locked; declined sites can be ticked again to re-apply.
+   */
+  const stateFor = useCallback(
+    (id: number): 'contracted' | 'pending' | 'declined' | 'available' => {
+      if (contracts.some((contract) => contract.siteId === id)) return 'contracted';
+      const request = requests.find((item) => item.siteId === id);
+      if (request?.status === 'pending') return 'pending';
+      if (request?.status === 'rejected') return 'declined';
+      return 'available';
+    },
+    [contracts, requests],
+  );
+
+  const isChecked = useCallback(
+    (id: number) => {
+      const state = stateFor(id);
+      return (
+        selectedSiteIds.includes(id) || state === 'contracted' || state === 'pending'
+      );
+    },
+    [selectedSiteIds, stateFor],
+  );
 
   const siteNameFor = useCallback(
     (id: number) => sites.find((site) => site.id === id)?.name ?? `#${id}`,
     [sites],
   );
 
+  function toggleSite(id: number) {
+    const state = stateFor(id);
+    if (state === 'contracted' || state === 'pending') return;
+    setSelectedSiteIds((previous) =>
+      previous.includes(id)
+        ? previous.filter((siteId) => siteId !== id)
+        : [...previous, id],
+    );
+  }
+
   async function submit() {
-    if (siteId === null || submitting) return;
+    if (selectedSiteIds.length === 0 || submitting) return;
     setSubmitting(true);
     setError(null);
     setNotice(null);
     try {
-      const created = await createTechnicianContractRequest({ siteId });
-      setNotice(t('technician.contractRequests.submitted', { site: siteNameFor(siteId) }));
-      // Show the application immediately and drop the site from the picker.
-      setRequests((previous) => [created, ...previous]);
-      setSiteId(null);
+      const created: TechnicianContractRequest[] = [];
+      for (const siteId of selectedSiteIds) {
+        created.push(await createTechnicianContractRequest({ siteId }));
+      }
+      setRequests((previous) => [...created, ...previous]);
+      setNotice(
+        t('technician.contractRequests.submittedMany', { count: created.length }),
+      );
+      setSelectedSiteIds([]);
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -354,39 +384,75 @@ export default function TechnicianContractRequestsScreen() {
               {t('technician.contractRequests.requestBody')}
             </Text>
 
-            {availableSites.length === 0 && !loading ? (
+            {!loading && sites.length === 0 ? (
               <Text className="text-[11px] leading-[1.7] text-dashboard-caption">
                 {t('technician.contractRequests.noSites')}
               </Text>
             ) : (
               <>
-                <Text className="mb-2 text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
+                <Text className="mb-1 text-[10px] font-semibold uppercase tracking-[1.2px] text-dashboard-caption">
                   {t('technician.contractRequests.chooseSite')}
                 </Text>
-                {/* A visible list (not a hidden dropdown) so the technician can
-                    compare sites and see which one they are applying to. */}
-                {availableSites.map((site) => {
-                  const selected = siteId === site.id;
+                <Text className="mb-2 text-[10.5px] leading-[1.6] text-dashboard-subtitle">
+                  {t('technician.contractRequests.tickHint')}
+                </Text>
+                {sites.map((site) => {
+                  const state = stateFor(site.id);
+                  const checked = isChecked(site.id);
+                  const locked = state === 'contracted' || state === 'pending';
                   const details = [site.type, site.address]
                     .filter(Boolean)
                     .join(' · ');
+                  const tag =
+                    state === 'contracted'
+                      ? t('technician.contractRequests.contractedTag')
+                      : state === 'pending'
+                        ? t('technician.contractRequests.statusPending')
+                        : state === 'declined'
+                          ? t('technician.contractRequests.statusRejected')
+                          : null;
                   return (
                     <Pressable
                       key={site.id}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      onPress={() => setSiteId(site.id)}
-                      className="mb-2 flex-row items-center justify-between rounded-[10px] border px-3 py-2.5 active:opacity-80"
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked, disabled: locked }}
+                      disabled={locked}
+                      onPress={() => toggleSite(site.id)}
+                      className={`mb-2 flex-row items-start gap-3 rounded-[10px] border px-3 py-2.5 ${
+                        locked ? 'opacity-70' : 'active:opacity-80'
+                      }`}
                       style={{
-                        borderColor: selected
+                        borderColor: checked
                           ? dashboardColors.teal
                           : dashboardColors.cardLine,
                       }}
                     >
-                      <View className="flex-1 pr-3">
-                        <Text className="text-[13px] font-semibold text-ink">
-                          {site.name}
-                        </Text>
+                      <View
+                        className="mt-[1px] h-[20px] w-[20px] items-center justify-center rounded-[4px] border"
+                        style={{
+                          borderColor: checked
+                            ? dashboardColors.teal
+                            : dashboardColors.cardLine,
+                          backgroundColor: checked
+                            ? dashboardColors.teal
+                            : 'transparent',
+                        }}
+                      >
+                        {checked ? (
+                          <Check color="#FFFFFF" size={14} strokeWidth={3} />
+                        ) : null}
+                      </View>
+                      <View className="flex-1">
+                        <View className="flex-row items-center justify-between gap-2">
+                          <Text className="flex-1 text-[13px] font-semibold text-ink">
+                            {site.name}
+                          </Text>
+                          {tag ? (
+                            <Text className="text-[9.5px] font-semibold uppercase tracking-[0.6px] text-dashboard-caption">
+                              {tag}
+                            </Text>
+                          ) : null}
+                        </View>
                         {details ? (
                           <Text
                             className="mt-0.5 text-[10.5px] uppercase tracking-[0.4px] text-dashboard-subtitle"
@@ -396,11 +462,6 @@ export default function TechnicianContractRequestsScreen() {
                           </Text>
                         ) : null}
                       </View>
-                      {selected ? (
-                        <CheckCircle2 color={dashboardColors.teal} size={18} />
-                      ) : (
-                        <View className="h-[18px] w-[18px] rounded-full border border-dashboard-card-line" />
-                      )}
                     </Pressable>
                   );
                 })}
@@ -409,7 +470,7 @@ export default function TechnicianContractRequestsScreen() {
                   variant="cta"
                   onPress={submit}
                   loading={submitting}
-                  disabled={siteId === null}
+                  disabled={selectedSiteIds.length === 0}
                 >
                   {t('technician.contractRequests.submit')}
                 </Button>
