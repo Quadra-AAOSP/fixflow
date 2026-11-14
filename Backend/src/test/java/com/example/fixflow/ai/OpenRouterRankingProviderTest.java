@@ -20,11 +20,14 @@ class OpenRouterRankingProviderTest {
         server.createContext("/chat", exchange -> {
             body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             byte[] response = json.writeValueAsBytes(Map.of("choices", List.of(Map.of("message", Map.of("content", result.get())))));
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, response.length); exchange.getResponseBody().write(response); exchange.close();
         });
         server.start();
         try {
-            var provider = new OpenRouterRankingProvider(json, "local-key", "http://127.0.0.1:" + server.getAddress().getPort() + "/chat", "configured-model", 2);
+            // Generous timeout: a cold Reactor Netty connection can exceed 2s when the
+            // suite runs other Spring contexts in parallel, which made this flaky.
+            var provider = new OpenRouterRankingProvider(json, "local-key", "http://127.0.0.1:" + server.getAddress().getPort() + "/chat", "configured-model", 30);
             var candidates = List.of(new TechnicianRankingProvider.Candidate(0, 5, true, 2),
                     new TechnicianRankingProvider.Candidate(1, 4, true, 0));
             assertThat(provider.rank("plumbing", "PRIVATE SPECIALTY", candidates)).containsExactly(1, 0);
