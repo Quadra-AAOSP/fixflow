@@ -27,6 +27,7 @@ export {
   getTechnicianTermsFor,
   inviteTechniciansToReport,
   listApplicableSites,
+  revokeOwnContract,
   listTechnicianContractRequests as getTechnicianContractRequests,
   listTechnicianContracts as getTechnicianContracts,
   listTechnicianInvitations as getTechnicianInvitations,

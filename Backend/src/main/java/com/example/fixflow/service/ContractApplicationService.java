@@ -57,8 +57,11 @@ public class ContractApplicationService {
         if (contracts.existsByTechnician_IdAndSite_Id(actor.getId(), request.siteId())) {
             throw new ApiException(409, "Contract already exists");
         }
-        if (applications.existsByTechnician_IdAndSite_Id(actor.getId(), request.siteId())) {
-            throw new ApiException(409, "A request already exists for this site");
+        // Only a pending request blocks re-applying: a rejected one stays in
+        // history but the technician may ask again.
+        if (applications.existsByTechnician_IdAndSite_IdAndStatus(actor.getId(), request.siteId(),
+                TechnicianContractApplication.Status.pending)) {
+            throw new ApiException(409, "A request is already pending for this site");
         }
         TechnicianContractApplication application = new TechnicianContractApplication();
         User technician = users.findById(actor.getId()).orElseThrow(() -> new ApiException(401, "User not found"));

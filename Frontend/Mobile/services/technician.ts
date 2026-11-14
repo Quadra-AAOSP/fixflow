@@ -72,6 +72,11 @@ export function createTechnicianContractRequest(
   );
 }
 
+/** Leave a site: removes the technician's own contract (unticking the site). */
+export function revokeOwnContract(contractId: number): Promise<void> {
+  return api.del<void>(`/api/technician-contracts/${contractId}`);
+}
+
 /**
  * Every site a technician can ask to join. The generic site list is scoped to
  * the caller's account site, which would hide the very sites they want to

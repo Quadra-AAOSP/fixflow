@@ -82,6 +82,15 @@ public class TechnicianContractService {
 
 	@Transactional
 	public void delete(Long id, AppUserDetails actor) {
+		// A technician can untick a site, which removes their own contract and
+		// makes them disappear from that site admin's assignment list again.
+		if (actor.getRole() == UserRole.technician) {
+			TechnicianContract own = technicianContractRepository.findDetailedById(id)
+					.filter(contract -> contract.getTechnician().getId().equals(actor.getId()))
+					.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Contract not found"));
+			technicianContractRepository.delete(own);
+			return;
+		}
 		if (actor.getRole() != UserRole.admin && actor.getRole() != UserRole.super_admin) {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Only admin or super_admin can delete contracts");
 		}

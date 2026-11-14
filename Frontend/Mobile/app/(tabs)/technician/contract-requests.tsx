@@ -9,7 +9,7 @@ import {
   Send,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
@@ -23,6 +23,7 @@ import {
   listApplicableSites,
   listTechnicianContractRequests,
   listTechnicianContracts,
+  revokeOwnContract,
 } from '@/services/technicians';
 import type {
   Site,
@@ -131,12 +132,49 @@ export default function TechnicianContractRequestsScreen() {
 
   function toggleSite(id: number) {
     const state = stateFor(id);
-    if (state === 'contracted' || state === 'pending') return;
+    if (state === 'pending') return;
+    if (state === 'contracted') {
+      const contract = contracts.find((item) => item.siteId === id);
+      if (!contract) return;
+      Alert.alert(
+        t('technician.contractRequests.leaveTitle'),
+        t('technician.contractRequests.leaveBody', { site: siteNameFor(id) }),
+        [
+          { text: t('technician.contractRequests.leaveCancel'), style: 'cancel' },
+          {
+            text: t('technician.contractRequests.leaveConfirm'),
+            style: 'destructive',
+            onPress: () => void leave(id, contract.id),
+          },
+        ],
+      );
+      return;
+    }
     setSelectedSiteIds((previous) =>
       previous.includes(id)
         ? previous.filter((siteId) => siteId !== id)
         : [...previous, id],
     );
+  }
+
+  /** Unticking a contracted site removes the technician's own contract. */
+  async function leave(siteId: number, contractId: number) {
+    setSubmitting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await revokeOwnContract(contractId);
+      setNotice(t('technician.contractRequests.left', { site: siteNameFor(siteId) }));
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : t('technician.contractRequests.errors.couldNotSubmit'),
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function submit() {
@@ -399,7 +437,7 @@ export default function TechnicianContractRequestsScreen() {
                 {sites.map((site) => {
                   const state = stateFor(site.id);
                   const checked = isChecked(site.id);
-                  const locked = state === 'contracted' || state === 'pending';
+                  const locked = state === 'pending';
                   const details = [site.type, site.address]
                     .filter(Boolean)
                     .join(' · ');
