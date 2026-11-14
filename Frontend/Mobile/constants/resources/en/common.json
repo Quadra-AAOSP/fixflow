@@ -1051,6 +1051,10 @@
       "superAdminSeparate": "Super-admin access is separate",
       "managedAccessFallback": "Managed access is controlled by the backend.",
       "viewCriteria": "View privileged-access criteria",
+      "hideCriteria": "Hide privileged-access criteria",
+      "criteriaProvisioning": "Site admins can only create staff for their own site. Super admins can also create site admins and shop managers.",
+      "criteriaPassword": "The initial password must be at least {count} characters.",
+      "criteriaSelfRegistration": "Self-registration is limited to: {roles}.",
       "dismissNote": "You can also dismiss a confirmation and the next account can be created in the same session. The initial password should be changed on first sign-in.",
       "confirmation": "{role} account created for {name} ({email}), at {site}. This account can now sign in.",
       "noSitePlatform": "no site (platform-level account)",
@@ -1060,6 +1064,7 @@
         "chooseSite": "Choose a site for the new account.",
         "nameRequired": "First and last name are required.",
         "emailRequired": "A valid work email is required.",
+        "passwordTooShort": "The initial password must be at least {count} characters.",
         "provisionFailed": "Could not provision the account right now."
       }
     },

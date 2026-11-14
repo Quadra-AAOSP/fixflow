@@ -1052,6 +1052,10 @@
       "superAdminSeparate": "超级管理员权限单独处理",
       "managedAccessFallback": "托管访问由后端控制。",
       "viewCriteria": "查看特权访问标准",
+      "hideCriteria": "隐藏特权访问标准",
+      "criteriaProvisioning": "站点管理员只能为本站点创建员工账户；超级管理员还可以创建站点管理员和商城管理员。",
+      "criteriaPassword": "初始密码至少需要 {count} 个字符。",
+      "criteriaSelfRegistration": "自助注册仅限：{roles}。",
       "dismissNote": "您也可以关闭确认提示，在同一会话中继续创建下一个账户。初始密码建议在首次登录后更改。",
       "confirmation": "已为 {name}（{email}）在 {site} 创建 {role} 账户。该账户现在可以登录。",
       "noSitePlatform": "无站点（平台级账户）",
@@ -1061,6 +1065,7 @@
         "chooseSite": "请为新账户选择站点。",
         "nameRequired": "名和姓均为必填项。",
         "emailRequired": "请输入有效的工作邮箱。",
+        "passwordTooShort": "初始密码至少需要 {count} 个字符。",
         "provisionFailed": "目前无法开通该账户。"
       }
     },

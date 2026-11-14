@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   View,
@@ -81,6 +82,7 @@ export default function TeamAccessScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [showCriteria, setShowCriteria] = useState(false);
 
   const roles = useMemo(
     () => (user ? provisionableRoles(user) : []),
@@ -151,6 +153,11 @@ export default function TeamAccessScreen() {
     ? t('more.teamAccess.noSitePlatform')
     : (sites?.find((site) => site.id === siteId)?.name ??
       t('more.teamAccess.unknownSite'));
+  // Self-registration roles are display metadata from `/api/auth/policy`;
+  // resolve them to the same labels used in the picker.
+  const selfRoles = (policy?.selfRegistrationRoles ?? [])
+    .map((value) => (roleLabels[value as UserRole] ? t(roleLabels[value as UserRole]) : value))
+    .join(', ');
 
   async function onSubmit() {
     if (role === null) {
@@ -167,6 +174,11 @@ export default function TeamAccessScreen() {
     }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       setError(t('more.teamAccess.errors.emailRequired'));
+      return;
+    }
+    const minimum = policy?.passwordMinLength ?? 8;
+    if (password.length < minimum) {
+      setError(t('more.teamAccess.errors.passwordTooShort', { count: minimum }));
       return;
     }
     const payload: ProvisionUserPayload = {
@@ -483,15 +495,51 @@ export default function TeamAccessScreen() {
             <Text className="mb-2 mt-1 text-[11px] leading-[1.75] text-dashboard-subtitle">
               {policy?.managedRoleMessage ?? t('more.teamAccess.managedAccessFallback')}
             </Text>
-            <View className="flex-row items-center gap-1 self-start">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showCriteria }}
+              onPress={() => setShowCriteria((open) => !open)}
+              hitSlop={8}
+              className="flex-row items-center gap-1 self-start active:opacity-70"
+            >
               <Text
                 className="text-[11px] font-semibold"
                 style={{ color: dashboardColors.teal }}
               >
-                {t('more.teamAccess.viewCriteria')}
+                {t(
+                  showCriteria
+                    ? 'more.teamAccess.hideCriteria'
+                    : 'more.teamAccess.viewCriteria',
+                )}
               </Text>
-              <ArrowRight color={dashboardColors.teal} size={13} />
-            </View>
+              <ArrowRight
+                color={dashboardColors.teal}
+                size={13}
+                style={{
+                  transform: [{ rotate: showCriteria ? '90deg' : '0deg' }],
+                }}
+              />
+            </Pressable>
+            {showCriteria ? (
+              <View
+                className="mt-2 gap-1.5 rounded-lg px-3 py-2.5"
+                style={{ backgroundColor: dashboardColors.pillBg }}
+              >
+                <Text className="text-[10.5px] leading-[1.6]" style={{ color: dashboardColors.subtitle }}>
+                  {`• ${t('more.teamAccess.criteriaProvisioning')}`}
+                </Text>
+                <Text className="text-[10.5px] leading-[1.6]" style={{ color: dashboardColors.subtitle }}>
+                  {`• ${t('more.teamAccess.criteriaPassword', {
+                    count: policy?.passwordMinLength ?? 8,
+                  })}`}
+                </Text>
+                {selfRoles ? (
+                  <Text className="text-[10.5px] leading-[1.6]" style={{ color: dashboardColors.subtitle }}>
+                    {`• ${t('more.teamAccess.criteriaSelfRegistration', { roles: selfRoles })}`}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
           </Card>
 
           {confirmation ? (
