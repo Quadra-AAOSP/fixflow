@@ -81,4 +81,4 @@ export async function readProtectedPhoto(reportId: number, photoId: number, sign
 export const MAX_PHOTO_SIZE_BYTES = BASE;
 
 /** Max photo count per report. */
-export const MAX_PHOTO_COUNT = 5;
+export const MAX_PHOTO_COUNT = 1;

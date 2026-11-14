@@ -44,6 +44,7 @@ import {
   classifyReport,
   confirmReport,
   getReport,
+  getLatestVisionJob,
   getVisionJobStatus,
   joinReport,
   leaveReport,
@@ -207,6 +208,18 @@ export default function ReportDetailScreen() {
       setReporters(null);
       setSelectedTechnicianId(null);
       setPhotoUrls({});
+      if (next.visionJob) {
+        setVisionJob(next.visionJob);
+      } else if (next.policy.canSeeSensitive) {
+        try {
+          const latest = await getLatestVisionJob(reportId);
+          if (revision === loadRevision.current) setVisionJob(latest);
+        } catch {
+          if (revision === loadRevision.current) setVisionJob(null);
+        }
+      } else {
+        setVisionJob(null);
+      }
 
       if (next.policy.canSeeSensitive) {
         const [photos, people] = await Promise.all([getReportPhotos(reportId), listReporters(reportId)]);
@@ -303,6 +316,13 @@ export default function ReportDetailScreen() {
       }
     }
   }, [reportId, visionJob, load, t]);
+
+  useEffect(() => {
+    if (!visionJob || visionJob.reportId !== reportId) return;
+    if (visionJob.status !== 'queued' && visionJob.status !== 'processing') return;
+    if (visionRequest.current || visionLoading) return;
+    void analyzePhotos();
+  }, [analyzePhotos, reportId, visionJob, visionLoading]);
 
   const confirmAnalyzePhotos = useCallback(() => {
     if (visionLoading) return;
@@ -803,7 +823,7 @@ export default function ReportDetailScreen() {
         ) : null}
 
         {/* AI Assessment Section */}
-        {report.aiReport && (
+        {(report.aiReport || (visionJob && visionJob.reportId === reportId)) && (
           <Card className="mb-4">
             <View className="flex-row items-center justify-between">
               <Text
@@ -831,21 +851,31 @@ export default function ReportDetailScreen() {
                 {aiError}
               </Text>
             )}
-            <View className="mt-2">
-              <Text className="text-[12px] text-dashboard-subtitle">
-                {t('reports.detail.aiAssessment.urgency')}: {report.aiReport.urgency ? urgencyLabels[report.aiReport.urgency] : '—'}
+            {visionJob?.reportId === reportId ? (
+              <Text className="mt-2 text-[12px] text-dashboard-subtitle">
+                {t('reports.detail.vision.progress', {
+                  status: humanize(visionJob.status),
+                  model: visionJob.model ?? t('reports.detail.vision.modelPending'),
+                })}
               </Text>
-              {report.aiReport.description && (
-                <Text className="mt-1 text-[12px] text-ink">
-                  {report.aiReport.description}
+            ) : null}
+            {report.aiReport ? (
+              <View className="mt-2">
+                <Text className="text-[12px] text-dashboard-subtitle">
+                  {t('reports.detail.aiAssessment.urgency')}: {report.aiReport.urgency ? urgencyLabels[report.aiReport.urgency] : '—'}
                 </Text>
-              )}
-              {report.aiReport.urgencyReason && (
-                <Text className="mt-1 text-[11px] text-dashboard-caption">
-                  {t('reports.detail.definition.urgencyReason')}: {report.aiReport.urgencyReason}
-                </Text>
-              )}
-            </View>
+                {report.aiReport.description && (
+                  <Text className="mt-1 text-[12px] text-ink">
+                    {report.aiReport.description}
+                  </Text>
+                )}
+                {report.aiReport.urgencyReason && (
+                  <Text className="mt-1 text-[11px] text-dashboard-caption">
+                    {t('reports.detail.definition.urgencyReason')}: {report.aiReport.urgencyReason}
+                  </Text>
+                )}
+              </View>
+            ) : null}
           </Card>
         )}
 
@@ -917,7 +947,10 @@ export default function ReportDetailScreen() {
               </Pressable>
               {visionJob?.reportId === reportId ? (
                 <Text className="mt-1 text-[10px] text-dashboard-caption">
-                  {humanize(visionJob.status)}
+                  {t('reports.detail.vision.progress', {
+                    status: humanize(visionJob.status),
+                    model: visionJob.model ?? t('reports.detail.vision.modelPending'),
+                  })}
                 </Text>
               ) : null}
               {visionError ? (

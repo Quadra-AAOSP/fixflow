@@ -16,7 +16,7 @@ import {
   statusTone,
   urgencyLabels,
 } from "@/utils/maintenance";
-import type { Report, ReportReporter } from "@/types/maintenance";
+import type { Report, ReportReporter, ReportVisionJob } from "@/types/maintenance";
 import type { Urgency } from "@/types";
 import ReportAssistantPanel from "@/components/ReportAssistantPanel.vue";
 import ReportPhotosPanel from "@/components/ReportPhotosPanel.vue";
@@ -27,6 +27,7 @@ import ReportReviewPanel from "@/components/ReportReviewPanel.vue";
 import ReportWorkflowPanel from "@/components/ReportWorkflowPanel.vue";
 import ReportClassificationPanel from "@/components/ReportClassificationPanel.vue";
 import ReportVisionPanel from "@/components/ReportVisionPanel.vue";
+import { getReportVisionJob } from "@/services/reportVision";
 const { t } = useLocale();
 
 const route = useRoute();
@@ -50,8 +51,63 @@ const reviewBusy = ref(false);
 const workflowBusy = ref(false);
 const classificationBusy = ref(false);
 const visionBusy = ref(false);
+const visionOverview = ref<ReportVisionJob | null>(null);
+const visionOverviewChecking = ref(false);
+let visionOverviewTimer: ReturnType<typeof setTimeout> | undefined;
 const marketplaceBusy = ref(false);
 const workBusy = ref(false);
+const visionPending = computed(
+  () =>
+    !!visionOverview.value &&
+    ["queued", "processing"].includes(visionOverview.value.status),
+);
+function stopVisionOverviewPoll() {
+  if (visionOverviewTimer) clearTimeout(visionOverviewTimer);
+  visionOverviewTimer = undefined;
+}
+function scheduleVisionOverviewPoll() {
+  stopVisionOverviewPoll();
+  if (visionPending.value) {
+    visionOverviewTimer = setTimeout(() => {
+      void refreshVisionOverview();
+    }, 3000);
+  }
+}
+async function refreshVisionOverview() {
+  const current = report.value;
+  if (!current?.visionJob?.jobId && !visionOverview.value?.jobId) return;
+  const jobId = visionOverview.value?.jobId ?? current!.visionJob!.jobId;
+  const reportId = current?.id ?? visionOverview.value?.reportId;
+  if (!reportId) return;
+  visionOverviewChecking.value = true;
+  try {
+    const latest = await getReportVisionJob(reportId, jobId);
+    if (report.value?.id === reportId) {
+      visionOverview.value = latest;
+      if (report.value) report.value = { ...report.value, visionJob: latest };
+      if (["queued", "processing"].includes(latest.status))
+        scheduleVisionOverviewPoll();
+      else {
+        stopVisionOverviewPoll();
+        if (
+          latest.status === "completed" ||
+          latest.status === "review_required"
+        ) {
+          await visionFinished(reportId);
+        }
+      }
+    }
+  } catch {
+    scheduleVisionOverviewPoll();
+  } finally {
+    visionOverviewChecking.value = false;
+  }
+}
+function syncVisionOverview(job: ReportVisionJob | null | undefined) {
+  visionOverview.value = job ?? null;
+  if (visionPending.value) scheduleVisionOverviewPoll();
+  else stopVisionOverviewPoll();
+}
 const resolutionDraft = ref("");
 const actionInProgress = computed(
   () =>
@@ -98,6 +154,7 @@ watch(
 let generation = 0;
 onBeforeUnmount(() => {
   generation++;
+  stopVisionOverviewPoll();
   realtime.setReport(null);
 });
 watch(report, (value) => realtime.setReport(value));
@@ -113,6 +170,7 @@ watch(
     actionError.value = "";
     message.value = "";
     loading.value = false;
+    syncVisionOverview(null);
     error.value =
       "Report access is being rechecked. Reload if the connection remains unavailable.";
   },
@@ -171,6 +229,7 @@ async function load(background = false) {
     if (background && report.value !== snapshot) return;
     report.value = result;
     data.upsert(result);
+    syncVisionOverview(result.visionJob);
     await loadReporters(id, version);
   } catch (err) {
     if (version !== generation) return;
@@ -183,6 +242,7 @@ async function load(background = false) {
       report.value = null;
       reporters.value = [];
       reportersLoaded.value = false;
+      syncVisionOverview(null);
       error.value = errorMessage(err);
     }
   } finally {
@@ -478,6 +538,33 @@ async function visionFinished(id: number) {
                   </dd>
                 </div>
                 <div>
+                  <dt>{{ t("AI image analysis") }}</dt>
+                  <dd>
+                    <template v-if="visionOverview">
+                      {{ t(visionOverview.status.replaceAll("_", " "))
+                      }}<template v-if="visionOverview.model">
+                        · {{ visionOverview.model }}</template
+                      >
+                      <button
+                        v-if="visionPending"
+                        type="button"
+                        class="text-action"
+                        :disabled="visionOverviewChecking"
+                        @click="refreshVisionOverview"
+                      >
+                        {{
+                          t(
+                            visionOverviewChecking
+                              ? "Checking…"
+                              : "Check analysis status",
+                          )
+                        }}
+                      </button>
+                    </template>
+                    <template v-else>{{ t("No image analysis yet") }}</template>
+                  </dd>
+                </div>
+                <div>
                   <dt>{{ t("Final urgency") }}</dt>
                   <dd>
                     {{
@@ -745,6 +832,7 @@ async function visionFinished(id: number) {
                 :disabled="actionInProgress"
                 @busy="visionBusy = $event"
                 @finished="visionFinished"
+                @updated="syncVisionOverview"
               />
             </details>
             <details class="report-disclosure"><summary>{{ t("Repair workflow") }}</summary>

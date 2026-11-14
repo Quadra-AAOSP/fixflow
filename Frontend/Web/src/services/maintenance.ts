@@ -34,7 +34,7 @@ export const deleteReport = (id: number) => request<void>(`/api/reports/${id}`, 
 export const classifyReport = (id: number) => request<Report>(`/api/reports/${id}/classify`, { method: 'POST', timeoutMs: AI_REQUEST_TIMEOUT_MS });
 export const createReport = (payload: CreateReportPayload) => request<Report>('/api/reports', { method: 'POST', body: JSON.stringify(reportIntakePayload(payload)) });
 export function createReportWithPhotos(payload: CreateReportPayload, photos: File[]) {
-  if (photos.length > REPORT_PHOTO_LIMIT) throw new Error('A report may have at most 5 photos.');
+  if (photos.length > REPORT_PHOTO_LIMIT) throw new Error('A report may have at most 1 photo.');
   photos.forEach(validateReportPhoto);
   const body = new FormData();
   for (const [key, value] of Object.entries(reportIntakePayload(payload))) {

@@ -96,6 +96,7 @@ export type Report = {
   visibility: ReportVisibility;
   photos: ReportPhoto[];
   aiReport?: AiReport;
+  visionJob?: VisionJob | null;
   createdAt: string;
   updatedAt: string;
   policy: {

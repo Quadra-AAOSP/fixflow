@@ -66,14 +66,14 @@ Fixflow/
 | `technician_availability` | Self-toggled availability |
 | `technician_skills` | Trade (`category`) + specialty + proficiency (stretch recommendation) |
 | `reports` | Tickets, dual urgency (`low`/`medium`/`high`/`critical`), category from `site_rules`, status, **current** assignee |
-| `report_photos` | Up to 5 images per report (≤5MB), MinIO keys |
+| `report_photos` | Up to 1 image per report (≤5MB), MinIO keys; sent to AI vision |
 | `report_reporters` | Manual merge (many users ↔ one report); creator is always inserted on create |
 | `report_reassignments` | Append-only history of previous technician ids on reassign |
 | `status_history` | Status transition audit trail |
 | `shop_products` | Shop catalogue (string ids, price in minor units, stock) |
 | `shop_orders` | Customer orders with idempotency + shipping snapshot |
 | `shop_order_items` | Order line snapshots |
-| `shop_payments` | Simulated checkout session (`dev` provider) |
+| `shop_payments` | Simulated local checkout (`dev` only) |
 
 **Status flow:**  
 `open` → `routed` → `assigned` → `in_progress` → `resolved_pending_confirmation` → `confirmed` / `reopened` (+ `escalated` when marketplace has no techs)
@@ -147,7 +147,7 @@ Auth screens: **Sign in** / **Register** (reporter). Session uses the backend `S
 
 - Public catalogue: `GET /api/shop/catalog` (no login).
 - Checkout / orders require a signed-in session; basket stays in the browser until checkout.
-- Checkout uses a simulated **dev** payment provider; complete an order with `POST /api/shop/payments/dev/complete/{publicId}`.
+- Shop checkout always uses the local **dev** simulation. Complete payment with `POST /api/shop/payments/dev/complete/{publicId}` (or the in-app “Simulate payment” UI).
 - Admin product CRUD: `/api/admin/shop/products` (`ADMIN` / `SUPER_ADMIN`).
 
 ### 5. Run mobile (Expo)

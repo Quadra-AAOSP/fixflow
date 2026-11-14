@@ -21,10 +21,10 @@ it('keeps another submission available after receiving a pending receipt', async
   expect(wrapper.text()).toContain('#11'); wrapper.unmount();
 });
 it('shows a backend rejection without losing the suggestion or inventing a saved receipt', async () => {
-  vi.mocked(requestSubsiteAddition).mockRejectedValue(new Error('A pending subsite request already exists'));
+  vi.mocked(requestSubsiteAddition).mockRejectedValue(new Error('Not allowed to access this site'));
   const wrapper = mount(BuildingSuggestionsView);
   await wrapper.get('textarea').setValue('Library'); await wrapper.get('form').trigger('submit'); await flushPromises();
-  expect(wrapper.get('[role="alert"]').text()).toContain('pending subsite request');
+  expect(wrapper.get('[role="alert"]').text()).toContain('Not allowed to access this site');
   expect(wrapper.get<HTMLTextAreaElement>('textarea').element.value).toBe('Library');
   expect(wrapper.text()).not.toContain('Submitted this visit'); wrapper.unmount();
 });

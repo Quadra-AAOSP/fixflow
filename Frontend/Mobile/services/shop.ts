@@ -47,7 +47,7 @@ export function cancelOrder(publicId: string): Promise<ShopOrder> {
   return api.post<ShopOrder>(endpoints.shop.cancel(publicId));
 }
 
-/** Simulated payment settlement for local demo checkout. */
+/** Simulated payment settlement for local shop checkout (no external provider). */
 export function completeDevPayment(publicId: string): Promise<ShopOrder> {
   return api.post<ShopOrder>(endpoints.shop.devCompletePayment(publicId));
 }

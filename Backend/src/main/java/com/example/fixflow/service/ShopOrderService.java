@@ -10,7 +10,6 @@ import com.example.fixflow.domain.ShopOrder;
 import com.example.fixflow.domain.ShopOrderItem;
 import com.example.fixflow.domain.ShopOrderStatus;
 import com.example.fixflow.domain.ShopPayment;
-import com.example.fixflow.domain.ShopPaymentProvider;
 import com.example.fixflow.domain.ShopPaymentStatus;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.dto.ShopCreateOrderRequest;

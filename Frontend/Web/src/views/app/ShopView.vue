@@ -254,16 +254,10 @@ async function placeOrder() {
       key: "Order {id} created.",
       values: { id: result.orderId },
     };
-    if (result.checkoutUrl) {
-      if (result.paymentProvider === "dev") {
-        simulationOrder.value = result.orderId;
-        simulationError.value = "";
-        basket.value?.close();
-        simulation.value?.showModal();
-      } else {
-        window.location.href = result.checkoutUrl;
-      }
-    }
+    simulationOrder.value = result.orderId;
+    simulationError.value = "";
+    basket.value?.close();
+    simulation.value?.showModal();
   } catch (err) {
     if (disposed || actorId !== auth.user?.id) return;
     checkoutError.value = errorMessage(err);

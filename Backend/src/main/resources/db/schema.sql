@@ -229,6 +229,45 @@ CREATE TABLE IF NOT EXISTS reports (
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ---------------------------------------------------------------------------
+-- report_photos — max 1 image per report (≤5MB); MinIO object keys; also sent to AI vision
+-- ---------------------------------------------------------------------------
+-- Preserve existing installations: CREATE TABLE IF NOT EXISTS alone does not
+-- add columns. Prepared SQL keeps this additive migration restart-safe on MySQL 8.
+SET @subsite_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'subsite_id') = 0,
+    'ALTER TABLE reports ADD COLUMN subsite_id BIGINT UNSIGNED NULL, ADD CONSTRAINT fk_reports_subsite FOREIGN KEY (subsite_id) REFERENCES subsites(id) ON DELETE RESTRICT ON UPDATE CASCADE',
+    'SELECT 1');
+PREPARE subsite_statement FROM @subsite_migration;
+EXECUTE subsite_statement;
+DEALLOCATE PREPARE subsite_statement;
+
+SET @archive_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'subsites' AND column_name = 'archived_at') = 0,
+    'ALTER TABLE subsites ADD COLUMN archived_at TIMESTAMP NULL', 'SELECT 1');
+PREPARE archive_statement FROM @archive_migration;
+EXECUTE archive_statement;
+DEALLOCATE PREPARE archive_statement;
+
+-- Existing databases gain report visibility without losing data.
+SET @visibility_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'visibility') = 0,
+    'ALTER TABLE reports ADD COLUMN visibility VARCHAR(16) NOT NULL DEFAULT ''public''', 'SELECT 1');
+PREPARE visibility_statement FROM @visibility_migration;
+EXECUTE visibility_statement;
+DEALLOCATE PREPARE visibility_statement;
+
+SET @report_archive_sql = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'archived_at') = 0,
+    'ALTER TABLE reports ADD COLUMN archived_at TIMESTAMP(6) NULL', 'SELECT 1');
+PREPARE report_archive_statement FROM @report_archive_sql;
+EXECUTE report_archive_statement;
+DEALLOCATE PREPARE report_archive_statement;
+
 CREATE TABLE IF NOT EXISTS report_notifications (
     id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     recipient_id BIGINT UNSIGNED NOT NULL,

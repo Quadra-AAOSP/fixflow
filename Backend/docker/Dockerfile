@@ -1,5 +1,10 @@
 ARG DOCKER_LIBRARY=docker.io/library
 FROM ${DOCKER_LIBRARY}/eclipse-temurin:21-jdk AS build
+
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+
 WORKDIR /build
 COPY .mvn .mvn
 COPY mvnw pom.xml ./

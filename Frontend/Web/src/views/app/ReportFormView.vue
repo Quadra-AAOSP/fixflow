@@ -83,7 +83,7 @@ function selectPhotos(event: Event) {
   const selected = Array.from((event.target as HTMLInputElement).files ?? []);
   try {
     if (selected.length > REPORT_PHOTO_LIMIT)
-      throw new Error("Choose up to 5 photos.");
+      throw new Error("Choose up to 1 photo.");
     selected.forEach(validateReportPhoto);
     photos.value = selected;
   } catch (err) {
