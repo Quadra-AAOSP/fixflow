@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Check, Camera } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Action, Field } from '@/components/ReviewControls';
+import { ReportWorkProgress, reportWorkTracked } from '@/components/reports/ReportWorkProgress';
 import { themeColors } from '@/constants/theme';
 import { toErrorMessage } from '@/lib/apiClient';
 import {
@@ -99,11 +100,16 @@ export function ReportWorkActions({ report, isAssignedTechnician, canRate, isOpe
     }
   }
 
-  if (!canStart && !canResolve && !canEscalate && !canReadResolution) return null;
+  // The tracker is status-only information (already visible on the page), so
+  // the card renders for tracked statuses even when this viewer has no
+  // actions — technician, site admin, and reporter all see the same pipeline.
+  const showProgress = reportWorkTracked(report.status);
+  if (!showProgress && !canStart && !canResolve && !canEscalate && !canReadResolution) return null;
 
   return (
     <View className="mb-4 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
       <Text className="mb-2 font-bold text-ink">{t('marketplace.work.title')}</Text>
+      {showProgress ? <ReportWorkProgress status={report.status} /> : null}
       {error ? <Text accessibilityRole="alert" className="mb-2 text-red-700">{error}</Text> : null}
       {canStart ? <Action label={t('marketplace.work.start')} disabled={busy}
         onPress={() => void run(async () => onReportChanged(await startReportWork(report.id)))} /> : null}
