@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { TextField } from '@/components/ui/TextField';
-import { dashboardColors } from '@/constants/theme';
+import { colors, dashboardColors } from '@/constants/theme';
 import { relativeTime } from '@/utils/format';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -37,17 +37,26 @@ function nextStatuses(status: string): string[] {
   return [];
 }
 
-const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  pending: { bg: 'rgb(254, 243, 199)', text: 'rgb(146, 64, 14)' },
-  verified: { bg: dashboardColors.statMintSoft, text: dashboardColors.statMintDeep },
-  rejected: { bg: 'rgb(254, 226, 226)', text: 'rgb(185, 28, 28)' },
-  suspended: { bg: 'rgb(229, 231, 235)', text: 'rgb(55, 65, 81)' },
-  unverified: { bg: 'rgb(229, 231, 235)', text: 'rgb(55, 65, 81)' },
-};
+/**
+ * Pill colours are resolved per render: the palette values are getters, so a
+ * module-level map would freeze the light tints into dark mode.
+ */
+function statusStyle(status: string): { bg: string; text: string } {
+  switch (status) {
+    case 'pending':
+      return { bg: colors.warningSoft, text: colors.warningInk };
+    case 'verified':
+      return { bg: colors.mintBg, text: colors.mintInk };
+    case 'rejected':
+      return { bg: colors.dangerSoft, text: colors.dangerInk };
+    default:
+      return { bg: colors.neutralSoft, text: colors.neutralInk };
+  }
+}
 
 function StatusPill({ status }: { status: string }) {
   const { t } = useTranslation('common');
-  const style = STATUS_STYLES[status] ?? STATUS_STYLES.unverified;
+  const style = statusStyle(status);
   return (
     <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: style.bg }}>
       <Text
@@ -75,7 +84,7 @@ function HistoryEntry({ entry, isLast }: { entry: Audit; isLast: boolean }) {
   const actorId = typeof snapshot.reviewedBy === 'string' || typeof snapshot.reviewedBy === 'number'
     ? snapshot.reviewedBy
     : null;
-  const dot = STATUS_STYLES[status]?.text ?? dashboardColors.statMintDeep;
+  const dot = status ? statusStyle(status).text : dashboardColors.statMintDeep;
   return (
     <View className="flex-row gap-3">
       <View className="items-center">

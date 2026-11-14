@@ -4,24 +4,22 @@ import { dashboardColors } from '@/constants/theme';
 
 export type PillTone = 'mint' | 'citron' | 'coral' | 'neutral';
 
-const TONES: Record<PillTone, { bg: string; fg: string }> = {
-  mint: {
-    bg: dashboardColors.statMintSoft,
-    fg: dashboardColors.statMintDeep,
-  },
-  citron: {
-    bg: dashboardColors.statCitronSoft,
-    fg: dashboardColors.statCitronDeep,
-  },
-  coral: {
-    bg: dashboardColors.statCoralSoft,
-    fg: dashboardColors.statCoralDeep,
-  },
-  neutral: {
-    bg: dashboardColors.cardLine,
-    fg: dashboardColors.teal,
-  },
-};
+/**
+ * Resolved per render: the palette values are getters, so a module-level map
+ * would bake the light-mode tints in and leave light chips on dark screens.
+ */
+function pillTone(tone: PillTone): { bg: string; fg: string } {
+  switch (tone) {
+    case 'mint':
+      return { bg: dashboardColors.statMintSoft, fg: dashboardColors.statMintDeep };
+    case 'citron':
+      return { bg: dashboardColors.statCitronSoft, fg: dashboardColors.statCitronDeep };
+    case 'coral':
+      return { bg: dashboardColors.statCoralSoft, fg: dashboardColors.statCoralDeep };
+    default:
+      return { bg: dashboardColors.cardLine, fg: dashboardColors.teal };
+  }
+}
 
 /**
  * Compact status chip used across the admin screens. `mint` reads as
@@ -37,7 +35,7 @@ export function Pill({
   tone?: PillTone;
   className?: string;
 }) {
-  const palette = TONES[tone];
+  const palette = pillTone(tone);
   return (
     <View
       className={`rounded-full px-2.5 py-1 ${className ?? ''}`}

@@ -83,6 +83,21 @@ const colorsLight = {
   citronBg: 'rgb(237, 244, 178)',
   citronInk: 'rgb(104, 133, 34)',
 
+  /*
+   * Soft status surfaces for inline styles (toasts, notice badges, review
+   * pills). Each pairs a tint with an ink that keeps AA contrast in its mode.
+   */
+  infoSoft: 'rgb(227, 242, 253)',
+  infoInk: 'rgb(21, 101, 192)',
+  successSoft: 'rgb(232, 245, 233)',
+  successInk: 'rgb(27, 94, 32)',
+  warningSoft: 'rgb(254, 243, 199)',
+  warningInk: 'rgb(146, 64, 14)',
+  dangerSoft: 'rgb(255, 235, 238)',
+  dangerInk: 'rgb(185, 28, 28)',
+  neutralSoft: 'rgb(232, 240, 238)',
+  neutralInk: 'rgb(51, 81, 77)',
+
   urgency: {
     low: 'rgb(113, 111, 104)',
     medium: 'rgb(14, 165, 233)',
@@ -118,6 +133,16 @@ const colorsDark: Partial<typeof colorsLight> = {
   mintInk: 'rgb(122, 222, 206)',
   citronBg: 'rgb(52, 58, 30)',
   citronInk: 'rgb(200, 215, 120)',
+  infoSoft: 'rgb(28, 42, 56)',
+  infoInk: 'rgb(140, 200, 255)',
+  successSoft: 'rgb(24, 44, 34)',
+  successInk: 'rgb(130, 220, 160)',
+  warningSoft: 'rgb(52, 46, 24)',
+  warningInk: 'rgb(235, 200, 130)',
+  dangerSoft: 'rgb(56, 28, 31)',
+  dangerInk: 'rgb(245, 160, 165)',
+  neutralSoft: 'rgb(36, 40, 45)',
+  neutralInk: 'rgb(180, 190, 200)',
 };
 
 /* -------------------------------------------------------------------------- */

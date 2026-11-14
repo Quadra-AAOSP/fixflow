@@ -218,6 +218,7 @@
    * listed; brand/status accents keep their light values and read fine on both.
    */
   .dark:root {
+    /* Dark scaffold. */
     --color-surface: 17 19 23;
     --color-card: 24 27 32;
     --color-ink: 231 235 240;
@@ -227,6 +228,23 @@
     --color-subtitle: 150 161 175;
     --color-caption: 133 144 158;
     --color-navy: 231 235 240;
+
+    /*
+     * Status + urgency text: the light-mode solids (deep red / amber / blue)
+     * lose too much contrast on the dark card, so lift them toward pastel.
+     * The /15 tinted backgrounds keep working because Tailwind applies the
+     * alpha at use time.
+     */
+    --color-tone-neutral: 168 176 186;
+    --color-tone-info: 130 170 255;
+    --color-tone-success: 110 220 170;
+    --color-tone-warning: 240 190 110;
+    --color-tone-danger: 245 150 155;
+
+    --color-urgency-low: 176 176 168;
+    --color-urgency-medium: 96 190 245;
+    --color-urgency-high: 245 190 90;
+    --color-urgency-critical: 250 140 140;
 
     --color-auth-bg: 24 22 20;
     --color-auth-ink: 235 231 225;

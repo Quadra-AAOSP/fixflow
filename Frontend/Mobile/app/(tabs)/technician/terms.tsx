@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { API_BASE_URL } from '@/constants/config';
-import { dashboardColors } from '@/constants/theme';
+import { colors, dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import {
@@ -147,19 +147,19 @@ export default function TechnicianTermsScreen() {
             <View
               className="mb-4 flex-row items-center gap-2.5 rounded-xl border px-3.5 py-3"
               style={{
-                borderColor: accepted ? 'rgb(198, 231, 222)' : 'rgb(238, 226, 179)',
-                backgroundColor: accepted ? dashboardColors.statMintSoft : 'rgb(253, 248, 231)',
+                borderColor: accepted ? colors.mintBg : colors.warningSoft,
+                backgroundColor: accepted ? colors.mintBg : colors.warningSoft,
               }}
             >
               <ShieldCheck
-                color={accepted ? dashboardColors.statMintDeep : dashboardColors.statCitronDeep}
+                color={accepted ? colors.mintInk : colors.warningInk}
                 size={16}
               />
               <View className="flex-1">
                 <Text
                   className="text-[12px] font-semibold"
                   style={{
-                    color: accepted ? dashboardColors.statMintDeep : 'rgb(146, 108, 14)',
+                    color: accepted ? colors.mintInk : colors.warningInk,
                   }}
                 >
                   {t(

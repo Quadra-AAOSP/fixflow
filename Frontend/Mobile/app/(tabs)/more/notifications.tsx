@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
-import { dashboardColors } from '@/constants/theme';
+import { colors, dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { listShopNotifications } from '@/services/shop';
 import type { ShopNotification } from '@/types/shop';
@@ -39,13 +39,16 @@ type NoticeMeta = {
   color: string;
 };
 
-const MINT = { tint: dashboardColors.statMintSoft, color: dashboardColors.statMintDeep };
-const AMBER = { tint: 'rgb(254, 243, 199)', color: 'rgb(146, 64, 14)' };
-const RED = { tint: 'rgb(254, 226, 226)', color: 'rgb(185, 28, 28)' };
-const SLATE = { tint: 'rgb(232, 240, 238)', color: 'rgb(51, 81, 77)' };
-
-/** Human title/body + icon + accent for every notice kind. */
+/**
+ * Accent pairs are read inside `noticeMeta` (called during render) rather
+ * than captured at module load: the palette values are getters, and eager
+ * evaluation here used to freeze the light-mode values into dark mode.
+ */
 function noticeMeta(type: NoticeType): NoticeMeta {
+  const MINT = { tint: colors.mintBg, color: colors.mintInk };
+  const AMBER = { tint: colors.warningSoft, color: colors.warningInk };
+  const RED = { tint: colors.dangerSoft, color: colors.dangerInk };
+  const SLATE = { tint: colors.neutralSoft, color: colors.neutralInk };
   switch (type) {
     case 'report_assigned':
       return { ...MINT, Icon: Wrench, titleKey: 'more.notifications.reportAssigned', bodyKey: 'more.notifications.reportAssignedBody' };

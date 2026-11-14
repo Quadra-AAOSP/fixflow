@@ -7,11 +7,15 @@ import type { ReportHistoryItem, ReportStatus } from '@/types';
 import { relativeTime } from '@/utils/format';
 import { statusGroup, statusLabels } from '@/utils/maintenance';
 
-const DOT_TONE: Record<'open' | 'progress' | 'resolved', string> = {
-  open: dashboardColors.statCoralDeep,
-  progress: dashboardColors.statMintDeep,
-  resolved: dashboardColors.statCitronDeep,
-};
+/**
+ * Read inside the component: the palette is a set of getters, so a module
+ * constant would keep the light-mode inks after the theme flips.
+ */
+function dotTone(group: 'open' | 'progress' | 'resolved'): string {
+  if (group === 'open') return dashboardColors.statCoralDeep;
+  if (group === 'progress') return dashboardColors.statMintDeep;
+  return dashboardColors.statCitronDeep;
+}
 
 /**
  * Vertical history of every status the report has reached. The backend masks
@@ -37,7 +41,7 @@ export function ReportTimeline({ items }: { items: ReportHistoryItem[] }) {
             const known = item.toStatus in statusLabels;
             const status = item.toStatus as ReportStatus;
             const dot = known
-              ? DOT_TONE[statusGroup(status)]
+              ? dotTone(statusGroup(status))
               : dashboardColors.subtitle;
             const label = known
               ? t(statusLabels[status])

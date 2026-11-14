@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { dashboardColors, themeColors } from '@/constants/theme';
+import { dashboardColors } from '@/constants/theme';
 
 /**
  * Lucide icons accept `strokeWidth` in addition to `color`/`size`. The wider
@@ -25,24 +25,23 @@ type IconComponent = ComponentType<{
  */
 export type DashboardStatTone = 'coral' | 'mint' | 'citron' | 'coral-danger';
 
-const TONE_STYLES: Record<
-  DashboardStatTone,
-  { disc: string; value: string; iconColor: string }
-> = {
+/**
+ * Class names switch through the CSS variables on their own; the icon colour
+ * is an inline prop, so it is resolved per render — a module-level map would
+ * freeze the light-mode ink into dark mode.
+ */
+const TONE_CLASSES: Record<DashboardStatTone, { disc: string; value: string }> = {
   coral: {
     disc: 'bg-dashboard-stat-coral-soft',
     value: 'text-dashboard-stat-coral-deep',
-    iconColor: dashboardColors.statCoralDeep,
   },
   mint: {
     disc: 'bg-dashboard-stat-mint-soft',
     value: 'text-dashboard-stat-mint-deep',
-    iconColor: dashboardColors.statMintDeep,
   },
   citron: {
     disc: 'bg-dashboard-stat-citron-soft',
     value: 'text-dashboard-stat-citron-deep',
-    iconColor: dashboardColors.statCitronDeep,
   },
   'coral-danger': {
     // The web uses the same coral tile for Open and Urgent — they differ
@@ -51,9 +50,14 @@ const TONE_STYLES: Record<
     // dashboard stylesheet).
     disc: 'bg-dashboard-stat-coral-soft',
     value: 'text-dashboard-stat-coral-deep',
-    iconColor: dashboardColors.statCoralDeep,
   },
 };
+
+function toneIconColor(tone: DashboardStatTone): string {
+  return tone === 'mint' ? dashboardColors.statMintDeep : tone === 'citron'
+    ? dashboardColors.statCitronDeep
+    : dashboardColors.statCoralDeep;
+}
 
 type StatCardProps = {
   label: string;
@@ -80,8 +84,8 @@ export function StatCard({
   disabled,
   className,
 }: StatCardProps) {
-  const palette = themeColors();
-  const styles = TONE_STYLES[tone];
+  const styles = TONE_CLASSES[tone];
+  const iconColor = toneIconColor(tone);
 
   const body = (
     <View
@@ -97,7 +101,7 @@ export function StatCard({
       <View
         className={`h-12 w-12 items-center justify-center rounded-full ${styles.disc}`}
       >
-        <Icon color={styles.iconColor} size={26} strokeWidth={1.7} />
+        <Icon color={iconColor} size={26} strokeWidth={1.7} />
       </View>
       <View className="flex-1">
         <Text
