@@ -128,6 +128,17 @@ export const endpoints = {
     myAvailability: '/api/technicians/me/availability',
   },
 
+  jobOffers: {
+    mine: '/api/technicians/me/job-offers',
+    forReport: (reportId: number | string) => `/api/reports/${reportId}/job-offers`,
+    accept: (reportId: number | string, offerId: number | string) =>
+      `/api/reports/${reportId}/job-offers/${offerId}/accept`,
+    reject: (reportId: number | string, offerId: number | string) =>
+      `/api/reports/${reportId}/job-offers/${offerId}/reject`,
+    counter: (reportId: number | string, offerId: number | string) =>
+      `/api/reports/${reportId}/job-offers/${offerId}/counter`,
+  },
+
   contractRequests: {
     list: '/api/technician-contract-requests',
     create: '/api/technician-contract-requests',

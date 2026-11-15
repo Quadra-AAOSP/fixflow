@@ -20,6 +20,10 @@ export default function TechnicianLayout() {
         name="open-jobs"
         options={{ title: 'Open Jobs', headerShown: false }}
       />
+      <Stack.Screen
+        name="job-offers"
+        options={{ title: 'Job offers' }}
+      />
     </Stack>
   );
 }

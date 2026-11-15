@@ -89,6 +89,9 @@ export type Report = {
   participationCount?: number;
   status: ReportStatus;
   assignedTechnicianId: number | null;
+  /** Present after a contracted job offer is accepted. */
+  agreedAmountMinor?: number | null;
+  agreedCurrency?: string | null;
   editable: boolean;
   reopenCount: number;
   confirmedByUserId: number | null;

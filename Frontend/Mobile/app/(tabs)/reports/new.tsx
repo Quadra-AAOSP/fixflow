@@ -60,6 +60,7 @@ import type {
 import { useCurrentSite } from '@/stores/site';
 import { humanize } from '@/utils/format';
 import { urgencyLabels } from '@/utils/maintenance';
+import { extFromUri, mimeForUri } from '@/utils/photoMime';
 
 type PickedPhoto = {
   uri: string;
@@ -79,22 +80,6 @@ const VISIBILITY_OPTIONS: SegmentedOption<ReportVisibility>[] = [
   { value: 'public', label: 'Public' },
   { value: 'private', label: 'Private' },
 ];
-
-function extFromUri(uri: string): string {
-  const match = uri.split('?')[0].match(/\.([a-zA-Z0-9]+)$/);
-  return match ? match[1].toLowerCase() : 'jpg';
-}
-
-function mimeForUri(uri: string, fallback?: string): string {
-  const candidate = (fallback ?? '').toLowerCase();
-  if (candidate === 'image/png' || candidate === 'image/jpeg' || candidate === 'image/jpg' || candidate === 'image/webp') {
-    return candidate === 'image/jpg' ? 'image/jpeg' : candidate;
-  }
-  const ext = extFromUri(uri);
-  if (ext === 'png') return 'image/png';
-  if (ext === 'webp') return 'image/webp';
-  return 'image/jpeg';
-}
 
 export default function NewReportScreen() {
   const { t } = useTranslation('common');
@@ -289,10 +274,15 @@ export default function NewReportScreen() {
         );
         continue;
       }
+      const mimeType = mimeForUri(asset.uri, asset.mimeType);
+      if (!mimeType) {
+        showToast(t('reports.new.photos.unsupportedType'), 'error');
+        continue;
+      }
       accepted.push({
         uri: asset.uri,
         fileName: asset.fileName ?? `photo.${extFromUri(asset.uri)}`,
-        mimeType: mimeForUri(asset.uri, asset.mimeType),
+        mimeType,
         fileSize: asset.fileSize ?? 0,
       });
     }

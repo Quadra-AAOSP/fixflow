@@ -5,6 +5,7 @@ import {
   Briefcase,
   Building2,
   FileText,
+  Handshake,
   NotepadText,
   ShieldCheck,
   ShoppingBag,
@@ -18,6 +19,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 import { Screen } from '@/components/ui/Screen';
 import { roleLabels, canManageShop, canProvision } from '@/constants/access';
+import {
+  isMoreMenuItemVisible,
+  type MoreMenuItemKey,
+} from '@/constants/moreMenuVisibility';
 import { dashboardColors } from '@/constants/theme';
 import type { UserRole } from '@/types';
 
@@ -36,95 +41,14 @@ type MenuItem = {
   onPress: () => void;
 };
 
-/**
- * Every item that ever appears in the More menu, keyed by a stable slug.
- * The per-role visibility tables below decide which keys to include — no
- * scattered role-ifs in the render path, so future additions can't leak.
- */
-type ItemKey =
-  | 'openJobs'
-  | 'myVerification' | 'siteApplications' | 'verificationReviews' | 'marketplace'
-  | 'myAdminApplication'
-  | 'siteSetup'
-  | 'siteRules'
-  | 'sites'
-  | 'teamAccess'
-  | 'technicians'
-  | 'adminApplications'
-  | 'contractsTechnician'
-  | 'contractsAdmin'
-  | 'shopManagement'
-  | 'shopCustomer' | 'shopOrders';
-
-/** Which roles may see which item keys. Matches backend source of truth:
- *
- *  Backend SecurityConfig:
- *    /api/admin/**       → ADMIN, SUPER_ADMIN only
- *    /api/admin/shop/**  → SUPER_ADMIN, SHOP_MANAGER only
- *    /api/sites/**       → authenticated, scoped by actor's siteId
- *
- *  Backend SiteService:
- *    createSite          → assertSuperAdmin   (super_admin ONLY)
- *    editSite            → assertCanManage    (admin at that site OR super_admin)
- *    deleteSite          → assertSuperAdmin   (super_admin ONLY)
- *
- *  Backend UserCapabilities.forRole():
- *    createSite          → super_admin only
- *    editSite            → admin + super_admin
- *    assignTechnician    → admin + super_admin + staff
- *
- *  Anything that needs both a role match AND a capability flag (e.g. user
- *  has an admin application pending) also has an ItemGuard below. */
-const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
-  openJobs: ['technician'],
-  myVerification: ['technician'],
-  marketplace: ['admin', 'technician'],
-  siteApplications: ['super_admin'],
-  verificationReviews: ['super_admin'],
-
-  // A reporter who applied to be site admin may track the status — guard
-  // below requires user.adminApplication !== null.
-  myAdminApplication: ['reporter'],
-
-  // SiteSetup = CREATE site → super_admin only (SiteService.create asserts super_admin).
-  siteSetup: ['super_admin'],
-  // Sites = edit / manage existing sites → admin (theirs) + super_admin (all).
-  sites: ['admin', 'super_admin'],
-  siteRules: ['admin', 'super_admin'],
-
-  // TeamAccess = provision users via /api/admin/users → admin + super_admin.
-  // Admin can only provision staff at their own site (backend enforces scope).
-  // Super_admin can provision staff/admin/shop_manager/super_admin anywhere.
-  teamAccess: ['admin', 'super_admin'],
-
-  // Technicians directory — staff views their site's technicians, admin +
-  // super_admin view the full directory. staff manages contracts at site level.
-  technicians: ['staff', 'admin', 'super_admin'],
-
-  // Approve pending site admins — super_admin exclusive.
-  adminApplications: ['super_admin'],
-
-  contractsTechnician: ['technician'],
-  // Site-level contract management — staff can assign technicians at their site too.
-  contractsAdmin: ['staff', 'admin', 'super_admin'],
-
-  // /api/admin/shop/** → SUPER_ADMIN, SHOP_MANAGER only.
-  shopManagement: ['super_admin', 'shop_manager'],
-  shopOrders: ['super_admin', 'shop_manager'],
-
-  // Everyone can browse and buy from the shop.
-  shopCustomer: ['technician', 'staff', 'admin', 'super_admin'],
-};
-
-function itemVisible(key: ItemKey, role: UserRole, guards: ItemGuards): boolean {
-  if (!ROLE_VISIBILITY[key].includes(role)) return false;
-  const guard = guards[key];
-  if (guard === undefined) return true;
-  return guard();
-}
+type ItemKey = MoreMenuItemKey;
 
 /** Item-specific capability checks beyond role membership. */
 type ItemGuards = Partial<Record<ItemKey, () => boolean>>;
+
+function itemVisible(key: ItemKey, role: UserRole, guards: ItemGuards): boolean {
+  return isMoreMenuItemVisible(key, role, guards[key]);
+}
 
 export default function MoreScreen() {
   const { t } = useTranslation('common');
@@ -152,6 +76,12 @@ export default function MoreScreen() {
       titleKey: 'more.menu.openJobsTitle',
       subtitleKey: 'more.menu.openJobsSubtitle',
       onPress: () => router.push('/technician/open-jobs'),
+    },
+    jobOffers: {
+      icon: Handshake,
+      titleKey: 'jobOffers.title',
+      subtitleKey: 'jobOffers.menuSubtitle',
+      onPress: () => router.push('/technician/job-offers'),
     },
     myVerification: { icon: ShieldCheck, titleKey: 'review.myVerification', subtitleKey: null, onPress: () => router.push('/more/my-verification') },
     marketplace: { icon: Briefcase, titleKey: 'marketplace.title', subtitleKey: null, onPress: () => router.push('/more/marketplace') },
@@ -223,7 +153,7 @@ export default function MoreScreen() {
 
   // Group keys into their sections, then filter each by itemVisible.
   // Each section drops out entirely when it has zero visible items.
-  const workspaceKeys: ItemKey[] = ['openJobs', 'contractsTechnician', 'myVerification', 'marketplace'];
+  const workspaceKeys: ItemKey[] = ['openJobs', 'jobOffers', 'contractsTechnician', 'myVerification', 'marketplace'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
     'siteSetup',

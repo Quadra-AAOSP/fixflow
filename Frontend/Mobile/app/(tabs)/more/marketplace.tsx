@@ -276,6 +276,16 @@ export default function MarketplaceScreen() {
                 <Text className="mb-2 text-lg font-bold text-ink">{job.summary}</Text>
                 <Text className="text-ink">{job.broadLocation} · {job.timing}</Text>
                 <Text className="text-ink">{[job.category, job.specialty, job.urgency].filter(Boolean).join(' · ')}</Text>
+                {job.amountMinor > 0 ? (
+                  <Text className="text-ink">
+                    {t('marketplace.listingPay', {
+                      amount: (job.amountMinor / 100).toLocaleString(undefined, {
+                        style: 'currency',
+                        currency: job.currency || 'USD',
+                      }),
+                    })}
+                  </Text>
+                ) : null}
                 <Text className="text-ink">{t(`marketplace.states.${job.status}`)}</Text>
                 {job.status === 'open' ? <Text>{t('marketplace.listingDeadline', { date: new Date(job.expiresAt).toLocaleString() })}</Text> : null}
                 {accessibleReportId !== null ? <Action label={t('marketplace.openReport')} onPress={() => openReport(accessibleReportId)} /> : null}
@@ -306,6 +316,16 @@ export default function MarketplaceScreen() {
                     <View key={application.id} className="my-2 border-t border-dashboard-card-line pt-3">
                       <Text className="font-bold text-ink">{application.technicianName} · {t(`marketplace.states.${application.status}`)}</Text>
                       <Text className="text-ink">{application.note}</Text>
+                      {application.proposedAmountMinor != null && application.proposedAmountMinor > 0 ? (
+                        <Text className="text-ink">
+                          {t('marketplace.proposedPay', {
+                            amount: (application.proposedAmountMinor / 100).toLocaleString(undefined, {
+                              style: 'currency',
+                              currency: job.currency || 'USD',
+                            }),
+                          })}
+                        </Text>
+                      ) : null}
                       {user?.siteId ? <SiteVetting siteId={user.siteId} technicianId={application.technicianId} admin /> : null}
                       <Text className="text-ink">{t('marketplace.workload', {
                         active: application.activeCases, completed: application.completedJobs,

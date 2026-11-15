@@ -14,7 +14,8 @@ function account(role: User['role'], siteId: number | null = 12) {
 }
 
 describe('report technician route menu', () => {
-  it('puts contracted assignment first and includes marketplace for the site admin', () => {
+  it('puts contracted job offers first and includes marketplace for the site admin', () => {
+    // Contracted routing opens the paid job-offer UI (createJobOffer), not instant assign.
     expect(reportTechnicianRoutes(report, account('admin'))).toEqual(['contracted', 'marketplace']);
   });
 

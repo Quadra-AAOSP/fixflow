@@ -86,4 +86,16 @@ describe('i18n catalogs', () => {
     expect(enKeys.size).toBeGreaterThan(900);
     expect(zhKeys.size).toBeGreaterThan(900);
   });
+
+  it('labels site category and contracted job-offer copy', () => {
+    expect(en['more.menu.siteRulesTitle']).toBe('Site category');
+    expect(zh['more.menu.siteRulesTitle']).toBe('场地类别');
+    expect(en['reports.new.photos.unsupportedType']).toContain('WebP');
+    expect(en['reports.detail.definition.agreedAmount']).toBeTruthy();
+    expect(en['marketplace.listingPay']).toContain('{amount}');
+    expect(en['marketplace.proposedPay']).toContain('{amount}');
+    expect(en['jobOffers.title']).toBeTruthy();
+  });
 });
+
+

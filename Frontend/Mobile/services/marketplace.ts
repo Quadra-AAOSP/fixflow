@@ -5,6 +5,7 @@ export type MarketplaceApplication = {
   technicianId: number;
   technicianName: string;
   note: string;
+  proposedAmountMinor?: number | null;
   status: 'pending' | 'offered' | 'accepted' | 'declined' | 'withdrawn' | 'rejected' | 'expired' | 'cancelled';
   offerExpiresAt: string | null;
   activeCases: number;

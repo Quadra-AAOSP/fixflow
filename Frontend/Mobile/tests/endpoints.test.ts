@@ -118,4 +118,12 @@ describe('endpoint registry', () => {
     expect(endpoints.reports.photos.delete).toBe('/api/reports/{id}/photos/{photoId}');
     expect(endpoints.reports.photos.getUrl).toBe('/api/reports/{id}/photos/{photoId}');
   });
+
+  it('wires contracted paid job-offer endpoints', () => {
+    expect(endpoints.jobOffers.mine).toBe('/api/technicians/me/job-offers');
+    expect(endpoints.jobOffers.forReport(9)).toBe('/api/reports/9/job-offers');
+    expect(endpoints.jobOffers.accept(9, 1)).toBe('/api/reports/9/job-offers/1/accept');
+    expect(endpoints.jobOffers.reject(9, 1)).toBe('/api/reports/9/job-offers/1/reject');
+    expect(endpoints.jobOffers.counter(9, 1)).toBe('/api/reports/9/job-offers/1/counter');
+  });
 });

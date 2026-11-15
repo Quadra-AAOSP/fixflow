@@ -248,6 +248,19 @@ export default function WorkspaceScreen() {
             </Text>
             <ArrowRight color={dashboardColors.teal} size={13} />
           </Pressable>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push('/technician/job-offers')}
+            className="mt-2 flex-row items-center gap-1 self-start active:opacity-70"
+          >
+            <Text
+              className="text-[11px] font-semibold"
+              style={{ color: dashboardColors.teal }}
+            >
+              {t('workspace.viewJobOffers')}
+            </Text>
+            <ArrowRight color={dashboardColors.teal} size={13} />
+          </Pressable>
         </Card>
 
         {/* Assigned work — mirrors the web's bottom `.dashboard-card`. */}

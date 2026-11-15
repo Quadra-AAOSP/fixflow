@@ -41,7 +41,6 @@ import { canTriggerManualAIClassification } from '@/constants/access';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError, toErrorMessage } from '@/lib/apiClient';
 import {
-  assignTechnician,
   classifyReport,
   confirmReport,
   getReport,
@@ -56,6 +55,7 @@ import {
   triggerVisionProcessing,
   getReportPhotos,
 } from '@/services/reports';
+import { createJobOffer, listJobOffers, type JobOffer } from '@/services/jobOffers';
 import { useCurrentSite } from '@/stores/site';
 import { getPhotoSignedUrl, protectedPhotoPath, readProtectedPhoto } from '@/services/photos';
 import {
@@ -74,6 +74,7 @@ import type {
   VisionJob,
 } from '@/types';
 import { formatDate, humanize } from '@/utils/format';
+import { parseOfferAmountMinor } from '@/utils/jobOfferAmount';
 import { urgencyLabels } from '@/utils/maintenance';
 import { reportTechnicianRoutes, type TechnicianRoute } from '@/utils/reportTechnicianRoutes';
 
@@ -119,6 +120,9 @@ export default function ReportDetailScreen() {
   const [overrideReason, setOverrideReason] = useState('');
   const [overriding, setOverriding] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [offerAmount, setOfferAmount] = useState('');
+  const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
+  const [offersLoading, setOffersLoading] = useState(false);
   const [ranking, setRanking] = useState<TechnicianRanking | null>(null);
   const [rankingMode, setRankingMode] = useState<RankingMode>('STANDARD');
   const [rankingLoading, setRankingLoading] = useState(false);
@@ -406,6 +410,7 @@ export default function ReportDetailScreen() {
   useEffect(() => {
     if (!report || technicianRoute !== 'contracted') return;
     void loadCandidates(rankingMode);
+    void loadJobOffers();
     return () => { candidateRequest.current++; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -571,6 +576,18 @@ export default function ReportDetailScreen() {
     }
   }
 
+  async function loadJobOffers() {
+    if (!Number.isFinite(reportId)) return;
+    setOffersLoading(true);
+    try {
+      setJobOffers(await listJobOffers(reportId));
+    } catch {
+      setJobOffers([]);
+    } finally {
+      setOffersLoading(false);
+    }
+  }
+
   async function onAssign() {
     setActionError(null);
     setActionMessage(null);
@@ -582,20 +599,32 @@ export default function ReportDetailScreen() {
       setActionError(t('reports.detail.assignSelectFirst'));
       return;
     }
+    const amountMinor = parseOfferAmountMinor(offerAmount);
+    if (amountMinor == null) {
+      setActionError(t('reports.detail.offerAmountRequired'));
+      return;
+    }
 
     setAssigning(true);
     try {
-      const updated = await assignTechnician(reportId, {
+      await createJobOffer(reportId, {
         technicianId: selectedTechnicianId,
+        amountMinor,
+        currency: 'USD',
       });
-      setReport(updated);
       setSelectedTechnicianId(null);
-      setActionMessage(t('reports.detail.assignSaved'));
+      setOfferAmount('');
+      setActionMessage(t('reports.detail.offerSent'));
+      await loadJobOffers();
       void loadCandidates(rankingMode);
     } catch (err) {
       setActionError(
-        toErrorMessage(err, { fallback: t('reports.detail.couldNotAssign') }),
+        toErrorMessage(err, { fallback: t('reports.detail.couldNotOffer') }),
       );
+      if (err instanceof ApiError && err.status === 409) {
+        void loadCandidates(rankingMode);
+        void loadJobOffers();
+      }
     } finally {
       setAssigning(false);
     }
@@ -1057,6 +1086,15 @@ export default function ReportDetailScreen() {
                 : t('reports.detail.definition.assigned')
             }
           />
+          {report.agreedAmountMinor != null && report.agreedAmountMinor > 0 ? (
+            <DefinitionRow
+              label={t('reports.detail.definition.agreedAmount')}
+              value={(report.agreedAmountMinor / 100).toLocaleString(undefined, {
+                style: 'currency',
+                currency: report.agreedCurrency || 'USD',
+              })}
+            />
+          ) : null}
           <DefinitionRow
             label={t('reports.detail.definition.reporterUrgency')}
             value={t(urgencyLabels[report.reporterUrgency])}
@@ -1268,8 +1306,43 @@ export default function ReportDetailScreen() {
                     : t('reports.detail.assignTitleAssign')}
                 </Text>
                 <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-                  {t('reports.detail.assignBody')}
+                  {t('reports.detail.offerBody')}
                 </Text>
+                {offersLoading ? (
+                  <Text className="mb-2 text-[11px] text-dashboard-subtitle">
+                    {t('reports.detail.offersLoading')}
+                  </Text>
+                ) : null}
+                {jobOffers.length > 0 ? (
+                  <View className="mb-3 overflow-hidden rounded-md border border-dashboard-card-line">
+                    {jobOffers.map((offer, index) => (
+                      <View
+                        key={offer.id}
+                        className={`px-3 py-2 ${
+                          index > 0 ? 'border-t border-dashboard-card-line' : ''
+                        }`}
+                      >
+                        <Text className="text-[12px] font-medium text-ink">
+                          {offer.technicianName} · {t(`reports.detail.offerStatus.${offer.status}`, {
+                            defaultValue: humanize(offer.status),
+                          })}
+                        </Text>
+                        <Text className="mt-0.5 text-[10px] text-dashboard-caption">
+                          {(offer.amountMinor / 100).toLocaleString(undefined, {
+                            style: 'currency',
+                            currency: offer.currency || 'USD',
+                          })}
+                          {offer.counterAmountMinor != null
+                            ? ` → ${(offer.counterAmountMinor / 100).toLocaleString(undefined, {
+                                style: 'currency',
+                                currency: offer.currency || 'USD',
+                              })}`
+                            : ''}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
                 {isReportManager ? (
                   <View className="mb-3">
                     <Text className="mb-1 text-[10px] font-semibold uppercase tracking-[1px] text-dashboard-caption">
@@ -1424,17 +1497,27 @@ export default function ReportDetailScreen() {
                     )}
                   </Text>
                 ) : null}
+                {assignmentCandidates.length > 0 ? (
+                  <TextField
+                    label={t('reports.detail.offerAmount')}
+                    value={offerAmount}
+                    onChangeText={setOfferAmount}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    className="mb-3"
+                  />
+                ) : null}
                 <View className="flex-row items-center gap-2">
                   <Button
-                    label={
-                      report.assignedTechnicianId !== null
-                        ? t('reports.detail.assignReassign')
-                        : t('reports.detail.assignSave')
-                    }
+                    label={t('reports.detail.offerSend')}
                     variant="secondary"
                     onPress={onAssign}
                     loading={assigning}
-                    disabled={selectedTechnicianId === null || rankingLoading}
+                    disabled={
+                      selectedTechnicianId === null ||
+                      rankingLoading ||
+                      !offerAmount.trim()
+                    }
                     className="flex-1"
                   />
                   <Pressable
@@ -1443,6 +1526,7 @@ export default function ReportDetailScreen() {
                     disabled={rankingLoading}
                     onPress={() => {
                       void loadCandidates(rankingMode);
+                      void loadJobOffers();
                     }}
                     className="h-11 w-11 items-center justify-center rounded-md active:opacity-70"
                     style={{ opacity: rankingLoading ? 0.4 : 1 }}
