@@ -20,6 +20,7 @@ import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.dto.JoinableSiteResponse;
 import com.example.fixflow.dto.LoginRequest;
 import com.example.fixflow.dto.ProvisionUserRequest;
+import com.example.fixflow.dto.ProfileUpdateRequest;
 import com.example.fixflow.dto.RegisterRequest;
 import com.example.fixflow.dto.UserResponse;
 import com.example.fixflow.repository.SiteRepository;
@@ -192,6 +193,21 @@ public class AuthService {
 		User user = userRepository.findById(principal.getId())
 				.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED.value(), "User not found"));
 		return response(user);
+	}
+
+	@Transactional
+	public UserResponse updateProfile(ProfileUpdateRequest request, AppUserDetails principal) {
+		User user = userRepository.findById(principal.getId())
+				.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED.value(), "User not found"));
+		user.setFirstName(request.firstName().trim());
+		user.setLastName(request.lastName().trim());
+		user.setPhone(blankToNull(request.phone()));
+		user.setAddress(blankToNull(request.address()));
+		return response(userRepository.save(user));
+	}
+
+	private static String blankToNull(String value) {
+		return value == null || value.isBlank() ? null : value.trim();
 	}
 
 	private UserResponse response(User user) {

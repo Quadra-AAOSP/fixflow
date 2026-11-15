@@ -104,13 +104,15 @@ fixflow:
     checkout-success-url: ${SHOP_CHECKOUT_SUCCESS_URL:http://localhost:5173/shop}
     checkout-cancel-url: ${SHOP_CHECKOUT_CANCEL_URL:http://localhost:5173/shop}
 
+# openrouter/free must not be used as a default: it auto-routes to reasoning-only
+# models that return message content as null, which the providers reject as empty.
 openrouter:
   ranking:
     enabled: ${OPENROUTER_RANKING_ENABLED:false}
-    model: ${OPENROUTER_RANKING_MODEL:${OPENROUTER_MODEL:openrouter/free}}
+    model: ${OPENROUTER_RANKING_MODEL:${OPENROUTER_MODEL:particle-ai/particle-1:free}}
     timeout-seconds: ${OPENROUTER_RANKING_TIMEOUT_SECONDS:15}
   chat:
-    model: ${OPENROUTER_CHAT_MODEL:openrouter/free}
+    model: ${OPENROUTER_CHAT_MODEL:particle-ai/particle-1:free}
     timeout-seconds: ${OPENROUTER_CHAT_TIMEOUT_SECONDS:120}
     temperature: ${OPENROUTER_CHAT_TEMPERATURE:0.4}
     max-tokens: ${OPENROUTER_CHAT_MAX_TOKENS:700}
@@ -119,7 +121,7 @@ openrouter:
     model: ${OPENROUTER_VISION_MODEL:nvidia/nemotron-3.5-super-vl:free}
     fallback-model: ${OPENROUTER_VISION_FALLBACK_MODEL:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free}
   api-key: ${OPENROUTER_API_KEY:}
-  model: ${OPENROUTER_MODEL:openrouter/free}
+  model: ${OPENROUTER_MODEL:particle-ai/particle-1:free}
   base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1/chat/completions}
   timeout-seconds: ${OPENROUTER_TIMEOUT_SECONDS:30}
   max-retries: ${OPENROUTER_MAX_RETRIES:2}

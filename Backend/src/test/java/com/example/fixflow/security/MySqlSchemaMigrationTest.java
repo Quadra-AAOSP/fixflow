@@ -28,9 +28,15 @@ class MySqlSchemaMigrationTest {
                 statement.execute("ALTER TABLE reports DROP FOREIGN KEY fk_reports_subsite");
                 statement.execute("ALTER TABLE reports DROP COLUMN subsite_id");
                 statement.execute("ALTER TABLE subsites DROP COLUMN archived_at");
+                statement.execute("ALTER TABLE users DROP COLUMN profile_photo_object_key");
+                statement.execute("ALTER TABLE users DROP COLUMN profile_photo_content_type");
             }
             ScriptUtils.executeSqlScript(connection, resource);
             ScriptUtils.executeSqlScript(connection, resource);
+            try (var statement = connection.createStatement(); var rows = statement.executeQuery(
+                    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name IN ('profile_photo_object_key','profile_photo_content_type')")) {
+                assertThat(rows.next()).isTrue(); assertThat(rows.getInt(1)).isEqualTo(2);
+            }
             try (var statement = connection.createStatement(); var rows = statement.executeQuery(
                     "SELECT description,subsite_id,reporter_urgency FROM reports WHERE id=1")) {
                 assertThat(rows.next()).isTrue(); assertThat(rows.getString("description")).isEqualTo("Preserve this report");

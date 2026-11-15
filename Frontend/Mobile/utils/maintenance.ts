@@ -222,3 +222,58 @@ export function weeklyChart(
     };
   });
 }
+
+export type DayBucket = {
+  date: Date;
+  /** Short label: day-of-month number (e.g. "1", "15"). */
+  label: string;
+  /** `[open, progress, resolved]`, matching `StatusGroup` order. */
+  values: [number, number, number];
+};
+
+/**
+ * Day-by-day buckets for the current calendar month (or any month expressed
+ * as a `year`/`month` pair, where `month` is 0-indexed).
+ */
+export function monthlyChart(
+  reports: Report[],
+  year: number,
+  month: number,
+): DayBucket[] {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const start = new Date(year, month, i + 1);
+    const end = new Date(year, month, i + 2);
+
+    const inDay = reports.filter((report) => {
+      const created = new Date(report.createdAt);
+      return created >= start && created < end;
+    });
+    const counts = summarize(inDay);
+
+    return {
+      date: start,
+      label: String(i + 1),
+      values: [counts.open, counts.progress, counts.resolved] as [
+        number,
+        number,
+        number,
+      ],
+    };
+  });
+}
+
+/**
+ * Returns the ISO date string (YYYY-MM-DD) for the first day of the
+ * N-month window ending today, used as the `from` filter.
+ */
+export function monthsAgoIso(months: number, now = new Date()): string {
+  const d = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+/** Today's date as an ISO date string (YYYY-MM-DD). */
+export function todayIso(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}

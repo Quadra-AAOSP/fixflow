@@ -444,6 +444,44 @@
       "retry": "重试"
     }
   },
+  "superAdminDashboard": {
+    "kicker": "平台运营",
+    "title": "平台总览",
+    "subtitle": "跨站点查看服务状态、审核事项和待处理工作。",
+    "loading": "正在加载平台数据…",
+    "loadFailed": "无法加载平台数据。",
+    "retry": "重试",
+    "refresh": "刷新平台总览",
+    "deniedTitle": "仅限平台管理员",
+    "deniedDescription": "此总览仅供超级管理员使用。",
+    "metrics": {
+      "sites": "站点",
+      "contracted": "{count} 个已签约",
+      "adminApplications": "管理员审核",
+      "technicianChecks": "技师审核",
+      "awaitingReview": "等待审核"
+    },
+    "actions": {
+      "reports": "全平台报修",
+      "sites": "管理站点",
+      "team": "团队权限",
+      "analytics": "数据分析"
+    },
+    "unattendedKicker": "服务监督",
+    "unattendedTitle": "尚未分配的报修",
+    "unattendedSubtitle": "各站点仍未分配技师的处理中问题。",
+    "viewQueue": "打开监督队列",
+    "noUnattended": "目前没有等待处理的未分配报修。",
+    "openReport": "打开报修 {id}",
+    "reportMeta": "报修 #{id} · {site}",
+    "unknownSite": "未知站点",
+    "moreUnattended": "监督队列中还有更多报修。",
+    "sitesKicker": "平台目录",
+    "sitesTitle": "站点",
+    "sitesSubtitle": "平台上共有 {count} 个站点。",
+    "manageSites": "查看所有站点",
+    "noSites": "尚未创建任何站点。"
+  },
   "reports": {
     "list": {
       "partialSearch": "搜索仅涵盖已加载的报修。加载更多以继续搜索。",
@@ -487,6 +525,7 @@
         "search": "搜索",
         "thinking": "正在分析…",
         "error": "无法理解该查询，请重试或使用筛选条件。",
+        "fallback": "未能识别出筛选条件，已按原文关键词搜索。",
         "interpreted": "已按条件筛选：{interpretation}",
         "removeChip": "移除此筛选条件",
         "clearAll": "清除全部",
@@ -761,9 +800,14 @@
       "aiAssessment": {
         "title": "AI 评估",
         "urgency": "AI 紧急程度",
+        "category": "分类",
+        "description": "评估内容",
         "confidence": "置信度",
         "loading": "正在分类…",
-        "trigger": "重新分类"
+        "classifying": "正在运行 AI 分类…",
+        "trigger": "运行分类",
+        "rerun": "重新分类",
+        "notRun": "暂无 AI 评估。点击「运行分类」来分析该报修。"
       },
       "aiAssessmentError": "无法刷新 AI 评估。",
       "vision": {
@@ -795,6 +839,33 @@
         "retry": "重试",
         "disclaimer": "AI 回答可能有误，重要信息请自行核实。"
       }
+    },
+    "assignSheet": {
+      "title": "指派技师",
+      "titleReassign": "重新指派技师",
+      "cardBody": "从本站点的签约技师中选择一位，将其指派到该报修。",
+      "open": "指派技师",
+      "openReassign": "重新指派技师",
+      "context": "报修 #{reportId} · {category}",
+      "loadingPool": "正在加载技师…",
+      "loadError": "无法加载技师列表。",
+      "loadErrorTitle": "无法加载技师",
+      "retry": "重试",
+      "emptyTitle": "暂无签约技师",
+      "emptyDesc": "该站点尚无签约技师。可使用「邀请」功能引入新技师。",
+      "searchPlaceholder": "按姓名或邮箱搜索…",
+      "noMatchTitle": "无匹配结果",
+      "noMatchDesc": "未找到匹配的技师，请换一个关键词再试。",
+      "availableCount": "{count} 位空闲",
+      "unavailableCount": "{count} 位忙碌",
+      "available": "空闲",
+      "unavailable": "忙碌",
+      "unavailableNote": "当前不可用",
+      "currentBadge": "当前",
+      "assign": "指派",
+      "reassign": "重新指派",
+      "assigning": "正在指派…",
+      "assignError": "无法指派该技师，请稍后再试。"
     }
   },
   "openJobs": {
@@ -887,6 +958,8 @@
       "siteRulesTitle": "站点规则",
       "allReportsTitle": "全部站点报修",
       "allReportsSubtitle": "所有站点的报修队列，优先显示待处理。",
+      "reportAnalyticsTitle": "报修数据分析",
+      "reportAnalyticsSubtitle": "按时间段查看趋势、分类汇总与总量统计。",
       "sitesTitle": "站点",
       "sitesSubtitleCreate": "创建和编辑站点。",
       "sitesSubtitleEdit": "编辑分配给您的站点。",
@@ -1582,6 +1655,24 @@
     "profileTitle": "个人资料",
     "idLabel": "编号 #{id}",
     "accountDetails": "账户详情",
+    "edit": {
+      "title": "个人信息",
+      "hint": "更新您的姓名、电话号码或地址。",
+      "open": "编辑",
+      "cancel": "取消",
+      "firstName": "名字",
+      "lastName": "姓氏",
+      "save": "保存更改",
+      "saved": "个人资料已更新。",
+      "saveFailed": "无法更新个人资料。",
+      "changePhoto": "更换照片",
+      "photo": "个人头像",
+      "photoTooLarge": "请选择小于 5 MiB 的图片。",
+      "photoSaved": "头像已更新。",
+      "photoRemoved": "头像已移除。",
+      "photoFailed": "无法更新头像。",
+      "removePhoto": "移除照片"
+    },
     "labels": {
       "role": "角色",
       "accountId": "账户编号",
@@ -2198,6 +2289,48 @@
     "action": {
       "processing": "开始处理",
       "shipped": "标记为已发货"
+    }
+  },
+  "analytics": {
+    "title": "报修数据分析",
+    "kickerAdmin": "{site}",
+    "kickerSuperAdmin": "全部站点",
+    "subtitle": "按时间段查看报修总量、趋势与分类汇总。",
+    "loading": "正在加载报修数据…",
+    "loadError": "无法加载报修数据。",
+    "loadErrorTitle": "无法加载报修数据",
+    "retry": "重试",
+    "refresh": "刷新",
+    "empty": "该时间段内暂无报修。",
+    "window": {
+      "week": "本周",
+      "month": "本月",
+      "all": "全部"
+    },
+    "stats": {
+      "total": "总计",
+      "totalNote": "{window}",
+      "open": "待处理",
+      "resolved": "已完成",
+      "urgent": "紧急"
+    },
+    "chart": {
+      "title": "报修趋势",
+      "empty": "该时间段内暂无报修。"
+    },
+    "statusBreakdown": {
+      "title": "状态分布",
+      "total": "合计",
+      "open": "待处理 / 等待中",
+      "inProgress": "处理中",
+      "resolved": "已完成",
+      "urgent": "紧急（重叠统计）"
+    },
+    "urgencyBreakdown": {
+      "title": "紧急程度分布"
+    },
+    "categoryBreakdown": {
+      "title": "分类分布"
     }
   }
 }

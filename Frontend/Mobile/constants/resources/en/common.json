@@ -443,6 +443,44 @@
       "retry": "Retry"
     }
   },
+  "superAdminDashboard": {
+    "kicker": "PLATFORM OPERATIONS",
+    "title": "Platform overview",
+    "subtitle": "A cross-site view of service health, reviews and the work waiting for attention.",
+    "loading": "Loading platform data…",
+    "loadFailed": "Could not load platform data.",
+    "retry": "Retry",
+    "refresh": "Refresh platform overview",
+    "deniedTitle": "Platform administrators only",
+    "deniedDescription": "This overview is available to super administrators.",
+    "metrics": {
+      "sites": "Sites",
+      "contracted": "{count} contracted",
+      "adminApplications": "Admin reviews",
+      "technicianChecks": "Technician checks",
+      "awaitingReview": "Awaiting review"
+    },
+    "actions": {
+      "reports": "Global reports",
+      "sites": "Manage sites",
+      "team": "Team access",
+      "analytics": "Analytics"
+    },
+    "unattendedKicker": "SERVICE OVERSIGHT",
+    "unattendedTitle": "Unassigned reports",
+    "unattendedSubtitle": "Active issues across sites that do not yet have a technician.",
+    "viewQueue": "Open oversight queue",
+    "noUnattended": "No unattended reports are waiting right now.",
+    "openReport": "Open report {id}",
+    "reportMeta": "Report #{id} · {site}",
+    "unknownSite": "Unknown site",
+    "moreUnattended": "More reports are waiting in the global oversight queue.",
+    "sitesKicker": "PLATFORM DIRECTORY",
+    "sitesTitle": "Sites",
+    "sitesSubtitle": "{count} sites registered on the platform.",
+    "manageSites": "View all sites",
+    "noSites": "No sites have been created yet."
+  },
   "reports": {
     "list": {
       "partialSearch": "Search covers loaded reports. Load more to continue searching.",
@@ -486,6 +524,7 @@
         "search": "Search",
         "thinking": "Thinking…",
         "error": "Could not understand that query. Try again or use the filters.",
+        "fallback": "No filters found in that, so I searched your words as text.",
         "interpreted": "Filtered as: {interpretation}",
         "removeChip": "Remove this filter",
         "clearAll": "Clear all",
@@ -760,9 +799,14 @@
       "aiAssessment": {
         "title": "AI assessment",
         "urgency": "AI urgency",
+        "category": "Category",
+        "description": "Assessment",
         "confidence": "Confidence",
         "loading": "Classifying…",
-        "trigger": "Run classification"
+        "classifying": "Running AI classification…",
+        "trigger": "Run classification",
+        "rerun": "Re-run",
+        "notRun": "No AI assessment yet. Tap 'Run classification' to analyse this report."
       },
       "aiAssessmentError": "Could not refresh the AI assessment.",
       "vision": {
@@ -794,6 +838,33 @@
         "retry": "Retry",
         "disclaimer": "AI answers can be wrong. Double-check anything important."
       }
+    },
+    "assignSheet": {
+      "title": "Assign technician",
+      "titleReassign": "Reassign technician",
+      "cardBody": "Pick a contracted technician from your site and assign them to this report.",
+      "open": "Assign technician",
+      "openReassign": "Reassign technician",
+      "context": "Report #{reportId} · {category}",
+      "loadingPool": "Loading technicians…",
+      "loadError": "Could not load technicians.",
+      "loadErrorTitle": "Could not load technicians",
+      "retry": "Retry",
+      "emptyTitle": "No contracted technicians",
+      "emptyDesc": "No technicians have an active contract at this site. Use the Invite option to bring technicians on board.",
+      "searchPlaceholder": "Search by name or email…",
+      "noMatchTitle": "No match",
+      "noMatchDesc": "No technician matches your search. Try a different name.",
+      "availableCount": "{count} available",
+      "unavailableCount": "{count} unavailable",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "unavailableNote": "currently unavailable",
+      "currentBadge": "current",
+      "assign": "Assign",
+      "reassign": "Reassign",
+      "assigning": "Assigning…",
+      "assignError": "Could not assign this technician. Please try again."
     }
   },
   "openJobs": {
@@ -886,6 +957,8 @@
       "siteRulesTitle": "Site rules",
       "allReportsTitle": "All site reports",
       "allReportsSubtitle": "Every site's queue, unattended reports first.",
+      "reportAnalyticsTitle": "Report analytics",
+      "reportAnalyticsSubtitle": "Trends, breakdowns, and totals by time window.",
       "sitesTitle": "Sites",
       "sitesSubtitleCreate": "Create and edit sites.",
       "sitesSubtitleEdit": "Edit sites assigned to you.",
@@ -1581,6 +1654,24 @@
     "profileTitle": "Profile",
     "idLabel": "ID #{id}",
     "accountDetails": "Account details",
+    "edit": {
+      "title": "Personal information",
+      "hint": "Update your name, phone number, or address.",
+      "open": "Edit",
+      "cancel": "Cancel",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "save": "Save changes",
+      "saved": "Profile updated.",
+      "saveFailed": "Could not update your profile.",
+      "changePhoto": "Change photo",
+      "photo": "Profile photo",
+      "photoTooLarge": "Choose an image smaller than 5 MiB.",
+      "photoSaved": "Profile photo updated.",
+      "photoRemoved": "Profile photo removed.",
+      "photoFailed": "Could not update your profile photo.",
+      "removePhoto": "Remove photo"
+    },
     "labels": {
       "role": "Role",
       "accountId": "Account ID",
@@ -2197,6 +2288,48 @@
     "action": {
       "processing": "Start processing",
       "shipped": "Mark as shipped"
+    }
+  },
+  "analytics": {
+    "title": "Report analytics",
+    "kickerAdmin": "{site}",
+    "kickerSuperAdmin": "All sites",
+    "subtitle": "Totals, trends, and breakdowns for your reports.",
+    "loading": "Loading report data…",
+    "loadError": "Could not load reports.",
+    "loadErrorTitle": "Could not load report data",
+    "retry": "Retry",
+    "refresh": "Refresh",
+    "empty": "No reports in this period.",
+    "window": {
+      "week": "This week",
+      "month": "This month",
+      "all": "All time"
+    },
+    "stats": {
+      "total": "Total",
+      "totalNote": "{window}",
+      "open": "Active",
+      "resolved": "Resolved",
+      "urgent": "Urgent"
+    },
+    "chart": {
+      "title": "Reports over time",
+      "empty": "No reports in this period."
+    },
+    "statusBreakdown": {
+      "title": "Status breakdown",
+      "total": "total",
+      "open": "Open / Waiting",
+      "inProgress": "In progress",
+      "resolved": "Resolved",
+      "urgent": "Urgent (overlap)"
+    },
+    "urgencyBreakdown": {
+      "title": "Urgency breakdown"
+    },
+    "categoryBreakdown": {
+      "title": "Category breakdown"
     }
   }
 }

@@ -1,14 +1,17 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import {
   ArrowRight,
   Bell,
   Building2,
+  Camera,
   ChevronRight,
   FileSignature,
   Mail,
   Phone,
+  Save,
   Settings,
   ShieldCheck,
   UserRound,
@@ -16,6 +19,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
+import { TextField } from '@/components/ui/TextField';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { TradeProfile } from '@/components/technician/TradeProfile';
@@ -24,6 +28,7 @@ import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
+import { deleteMyProfilePhoto, readMyProfilePhoto, updateMyProfile, uploadMyProfilePhoto } from '@/services/auth';
 import { fullName } from '@/utils/format';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
@@ -37,7 +42,7 @@ type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 export default function ProfileScreen() {
   const { t } = useTranslation('common');
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { site } = useCurrentSite();
   const {
     available,
@@ -48,6 +53,36 @@ export default function ProfileScreen() {
   } = useTechnicianAvailability();
 
   const [signingOut, setSigningOut] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [firstName, setFirstName] = useState(user?.firstName ?? '');
+  const [lastName, setLastName] = useState(user?.lastName ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [address, setAddress] = useState(user?.address ?? '');
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileNotice, setProfileNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFirstName(user?.firstName ?? '');
+    setLastName(user?.lastName ?? '');
+    setPhone(user?.phone ?? '');
+    setAddress(user?.address ?? '');
+    setEditing(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    let active = true;
+    setProfilePhoto(null);
+    if (user?.profilePhotoPath) {
+      void readMyProfilePhoto().then((uri) => {
+        if (active) setProfilePhoto(uri);
+      }).catch(() => {
+        if (active) setProfilePhoto(null);
+      });
+    }
+    return () => { active = false; };
+  }, [user?.id, user?.profilePhotoPath]);
 
   if (!user) {
     return <Screen>{null}</Screen>;
@@ -55,6 +90,79 @@ export default function ProfileScreen() {
 
   function openSettings() {
     router.push('/profile/settings');
+  }
+
+  async function saveProfile() {
+    if (!user || profileBusy) return;
+    setProfileBusy(true);
+    setProfileError(null);
+    setProfileNotice(null);
+    try {
+      const updated = await updateMyProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim() || null,
+        address: address.trim() || null,
+      });
+      updateUser(updated);
+      setEditing(false);
+      setProfileNotice(t('profile.edit.saved'));
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : t('profile.edit.saveFailed'));
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function changeProfilePhoto() {
+    if (profileBusy) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+      setProfileError(t('profile.edit.photoTooLarge'));
+      return;
+    }
+    setProfileBusy(true);
+    setProfileError(null);
+    setProfileNotice(null);
+    try {
+      const updated = await uploadMyProfilePhoto({
+        uri: asset.uri,
+        fileName: asset.fileName,
+        mimeType: asset.mimeType,
+      });
+      updateUser(updated);
+      setProfilePhoto(asset.uri);
+      setProfileNotice(t('profile.edit.photoSaved'));
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : t('profile.edit.photoFailed'));
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function removeProfilePhoto() {
+    if (!user || profileBusy) return;
+    setProfileBusy(true);
+    setProfileError(null);
+    setProfileNotice(null);
+    try {
+      await deleteMyProfilePhoto();
+      const updated = { ...user, profilePhotoPath: null };
+      updateUser(updated);
+      setProfilePhoto(null);
+      setProfileNotice(t('profile.edit.photoRemoved'));
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : t('profile.edit.photoFailed'));
+    } finally {
+      setProfileBusy(false);
+    }
   }
 
   const roleLabel = t(roleLabels[user.role]);
@@ -118,7 +226,9 @@ export default function ProfileScreen() {
                   backgroundColor: dashboardColors.cardBg,
                 }}
               >
-                <Text
+                {profilePhoto ? (
+                  <Image source={{ uri: profilePhoto }} className="h-full w-full rounded-full" accessibilityLabel={t('profile.edit.photo')} />
+                ) : <Text
                   className="text-[30px] font-bold"
                   style={{
                     color: dashboardColors.statMintDeep,
@@ -126,8 +236,19 @@ export default function ProfileScreen() {
                   }}
                 >
                   {initials}
-                </Text>
+                </Text>}
               </View>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.edit.changePhoto')}
+                onPress={() => void changeProfilePhoto()}
+                disabled={profileBusy}
+                className="mb-3 min-h-10 flex-row items-center gap-2 rounded-full border border-dashboard-card-line bg-dashboard-card-bg px-3 active:opacity-70"
+              >
+                {profileBusy ? <ActivityIndicator size="small" color={dashboardColors.teal} /> : <Camera color={dashboardColors.teal} size={14} />}
+                <Text className="text-[11px] font-semibold text-dashboard-teal">{t('profile.edit.changePhoto')}</Text>
+              </Pressable>
 
               <Text
                 className="text-[23px] font-bold text-ink"
@@ -208,6 +329,55 @@ export default function ProfileScreen() {
               value={user.address ?? t('profile.dash')}
               last
             />
+          </Card>
+
+          <Card className="mb-4">
+            <View className="mb-3 flex-row items-center justify-between gap-3">
+              <Text className="flex-1 text-[13px] font-semibold text-ink">{t('profile.edit.title')}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setProfileError(null);
+                  setProfileNotice(null);
+                  setEditing((current) => !current);
+                  if (editing) {
+                    setFirstName(user.firstName);
+                    setLastName(user.lastName);
+                    setPhone(user.phone ?? '');
+                    setAddress(user.address ?? '');
+                  }
+                }}
+                className="min-h-10 flex-row items-center gap-1.5 px-2 active:opacity-70"
+              >
+                <Text className="text-[11px] font-semibold text-dashboard-teal">
+                  {t(editing ? 'profile.edit.cancel' : 'profile.edit.open')}
+                </Text>
+              </Pressable>
+            </View>
+            {profileError ? <Text accessibilityRole="alert" className="mb-3 text-[12px] leading-[1.6] text-tone-danger">{profileError}</Text> : null}
+            {profileNotice ? <Text accessibilityRole="summary" className="mb-3 text-[12px] text-dashboard-teal">{profileNotice}</Text> : null}
+            {editing ? (
+              <>
+                <TextField label={t('profile.edit.firstName')} value={firstName} onChangeText={setFirstName} autoCapitalize="words" maxLength={128} />
+                <TextField label={t('profile.edit.lastName')} value={lastName} onChangeText={setLastName} autoCapitalize="words" maxLength={128} />
+                <TextField label={t('profile.labels.phone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={64} />
+                <TextField label={t('profile.labels.address')} value={address} onChangeText={setAddress} maxLength={512} />
+                <View className="flex-row gap-2">
+                  {user.profilePhotoPath ? (
+                    <Button variant="secondary" label={t('profile.edit.removePhoto')} disabled={profileBusy} onPress={() => void removeProfilePhoto()} className="flex-1" />
+                  ) : null}
+                  <Button label={t('profile.edit.save')} loading={profileBusy} disabled={!firstName.trim() || !lastName.trim()} onPress={() => void saveProfile()} className="flex-1">
+                    <Save color={dashboardColors.statMintDeep} size={15} />
+                    <Text className="ml-2 text-[15px] font-semibold text-dashboard-cta-text">{t('profile.edit.save')}</Text>
+                  </Button>
+                </View>
+              </>
+            ) : (
+              <Pressable accessibilityRole="button" onPress={() => setEditing(true)} className="min-h-10 flex-row items-center justify-between active:opacity-70">
+                <Text className="flex-1 text-[11px] leading-[1.6] text-dashboard-subtitle">{t('profile.edit.hint')}</Text>
+                <ChevronRight color={dashboardColors.teal} size={15} />
+              </Pressable>
+            )}
           </Card>
 
           {/* Shortcuts — settings and alerts are one tap away from here. */}

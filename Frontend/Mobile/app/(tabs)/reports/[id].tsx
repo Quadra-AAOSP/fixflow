@@ -9,7 +9,6 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import {
@@ -19,11 +18,13 @@ import {
   RefreshCw,
   Sparkles,
   UserPlus,
+  Wrench,
   X,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
+import { AssignTechnicianSheet } from '@/components/reports/AssignTechnicianSheet';
 import { ReportWorkActions } from '@/components/reports/ReportWorkActions';
 import { ReportChangeActions } from '@/components/reports/ReportChangeActions';
 import { ReportTimeline } from '@/components/reports/ReportTimeline';
@@ -109,7 +110,6 @@ export default function ReportDetailScreen() {
   const [reporters, setReporters] = useState<ReportReporter[] | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiAssessment, setAiAssessment] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -120,6 +120,7 @@ export default function ReportDetailScreen() {
   const [overrideReason, setOverrideReason] = useState('');
   const [overriding, setOverriding] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [assignSheetVisible, setAssignSheetVisible] = useState(false);
   const [ranking, setRanking] = useState<TechnicianRanking | null>(null);
   const [rankingMode, setRankingMode] = useState<RankingMode>('STANDARD');
   const [rankingLoading, setRankingLoading] = useState(false);
@@ -188,7 +189,6 @@ export default function ReportDetailScreen() {
     setReporters(null);
     setPhotoUrls({});
     setPreviewPhoto(null);
-    setAiAssessment(null);
     setVisionJob(null);
   }, []);
 
@@ -258,7 +258,6 @@ export default function ReportDetailScreen() {
     setAiError(null);
     try {
       const updatedReport = await classifyReport(reportId);
-      setAiAssessment(updatedReport);
       setReport(updatedReport);
     } catch (err) {
       setAiError(
@@ -875,8 +874,10 @@ export default function ReportDetailScreen() {
             }} />
         ) : null}
 
-        {/* AI Assessment Section */}
-        {(report.aiReport || (visionJob && visionJob.reportId === reportId)) && (
+        {/* AI Assessment Section — shown to anyone who can trigger or has
+            a prior assessment. The card is always visible to eligible roles
+            so they can kick off a first classification. */}
+        {(report.aiReport || (visionJob && visionJob.reportId === reportId) || canTriggerManualAIClassification(user)) ? (
           <Card className="mb-4">
             <View className="flex-row items-center justify-between">
               <Text
@@ -891,19 +892,35 @@ export default function ReportDetailScreen() {
                   disabled={aiLoading}
                   accessibilityRole="button"
                   className="flex-row items-center gap-1 active:opacity-70"
+                  style={{ opacity: aiLoading ? 0.5 : 1 }}
                 >
                   <Sparkles color={dashboardColors.teal} size={16} />
                   <Text className="text-[11px] font-medium text-dashboard-teal">
-                    {aiLoading ? t('reports.detail.aiAssessment.loading') : t('reports.detail.aiAssessment.trigger')}
+                    {aiLoading
+                      ? t('reports.detail.aiAssessment.loading')
+                      : report.aiReport
+                        ? t('reports.detail.aiAssessment.rerun')
+                        : t('reports.detail.aiAssessment.trigger')}
                   </Text>
                 </Pressable>
               )}
             </View>
-            {aiError && (
+
+            {aiError ? (
               <Text className="mt-2 text-[10px] text-tone-danger">
                 {aiError}
               </Text>
-            )}
+            ) : null}
+
+            {aiLoading ? (
+              <View className="mt-3 flex-row items-center gap-2">
+                <ActivityIndicator color={dashboardColors.teal} size="small" />
+                <Text className="text-[12px] text-dashboard-subtitle">
+                  {t('reports.detail.aiAssessment.classifying')}
+                </Text>
+              </View>
+            ) : null}
+
             {visionJob?.reportId === reportId ? (
               <Text className="mt-2 text-[12px] text-dashboard-subtitle">
                 {t('reports.detail.vision.progress', {
@@ -912,25 +929,67 @@ export default function ReportDetailScreen() {
                 })}
               </Text>
             ) : null}
+
             {report.aiReport ? (
-              <View className="mt-2">
-                <Text className="text-[12px] text-dashboard-subtitle">
-                  {t('reports.detail.aiAssessment.urgency')}: {report.aiReport.urgency ? urgencyLabels[report.aiReport.urgency] : '—'}
-                </Text>
-                {report.aiReport.description && (
-                  <Text className="mt-1 text-[12px] text-ink">
-                    {report.aiReport.description}
+              <View className="mt-3 gap-1.5">
+                <View className="flex-row items-center justify-between rounded-lg px-3 py-2.5"
+                  style={{ backgroundColor: dashboardColors.cardBg }}>
+                  <Text className="text-[11px] font-semibold uppercase tracking-[0.8px] text-dashboard-caption">
+                    {t('reports.detail.aiAssessment.urgency')}
                   </Text>
-                )}
-                {report.aiReport.urgencyReason && (
-                  <Text className="mt-1 text-[11px] text-dashboard-caption">
-                    {t('reports.detail.definition.urgencyReason')}: {report.aiReport.urgencyReason}
+                  <Text className="text-[12px] font-semibold text-ink">
+                    {report.aiReport.urgency
+                      ? t(urgencyLabels[report.aiReport.urgency])
+                      : '—'}
                   </Text>
-                )}
+                </View>
+
+                {report.aiReport.category ? (
+                  <View className="flex-row items-center justify-between rounded-lg px-3 py-2.5"
+                    style={{ backgroundColor: dashboardColors.cardBg }}>
+                    <Text className="text-[11px] font-semibold uppercase tracking-[0.8px] text-dashboard-caption">
+                      {t('reports.detail.aiAssessment.category')}
+                    </Text>
+                    <Text className="text-[12px] font-semibold text-ink">
+                      {humanize(report.aiReport.category)}
+                      {report.aiReport.specialty
+                        ? ` · ${humanize(report.aiReport.specialty)}`
+                        : ''}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {report.aiReport.description ? (
+                  <View className="rounded-lg px-3 py-2.5"
+                    style={{ backgroundColor: dashboardColors.cardBg }}>
+                    <Text className="mb-1 text-[11px] font-semibold uppercase tracking-[0.8px] text-dashboard-caption">
+                      {t('reports.detail.aiAssessment.description')}
+                    </Text>
+                    <Text className="text-[12px] leading-[1.7] text-ink">
+                      {report.aiReport.description}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {report.aiReport.urgencyReason ? (
+                  <View className="rounded-lg px-3 py-2.5"
+                    style={{ backgroundColor: dashboardColors.cardBg }}>
+                    <Text className="mb-1 text-[11px] font-semibold uppercase tracking-[0.8px] text-dashboard-caption">
+                      {t('reports.detail.definition.urgencyReason')}
+                    </Text>
+                    <Text className="text-[12px] leading-[1.7] text-ink">
+                      {report.aiReport.urgencyReason}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
+            ) : !aiLoading ? (
+              <Text className="mt-2 text-[12px] text-dashboard-subtitle">
+                {t('reports.detail.aiAssessment.notRun')}
+              </Text>
             ) : null}
           </Card>
-        )}
+        ) : null}
 
         {/* Photos gallery — fullscreen preview via Modal */}
         <Card className="mb-4">
@@ -1274,6 +1333,42 @@ export default function ReportDetailScreen() {
                 {joining ? t('reports.detail.joining') : t('reports.detail.joinButton')}
               </Text>
             </Pressable>
+          </Card>
+        ) : null}
+
+        {/* Site admin quick-assign card — appears for `admin` role when the
+            report is in an open/assignable state. The sheet loads the
+            technician pool from the backend, filtered to this site. */}
+        {user?.role === 'admin' && report.policy.canAssign && report.siteId ? (
+          <Card className="mb-4">
+            <View className="flex-row items-center gap-2 mb-3">
+              <View
+                className="rounded-full p-1.5"
+                style={{ backgroundColor: dashboardColors.statMintSoft }}
+              >
+                <Wrench color={dashboardColors.statMintDeep} size={14} />
+              </View>
+              <Text
+                className="text-[15px] font-semibold text-ink"
+                style={{ letterSpacing: -0.3 }}
+              >
+                {report.assignedTechnicianId !== null
+                  ? t('reports.assignSheet.titleReassign')
+                  : t('reports.assignSheet.title')}
+              </Text>
+            </View>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              {t('reports.assignSheet.cardBody')}
+            </Text>
+            <Button
+              label={
+                report.assignedTechnicianId !== null
+                  ? t('reports.assignSheet.openReassign')
+                  : t('reports.assignSheet.open')
+              }
+              variant="cta"
+              onPress={() => setAssignSheetVisible(true)}
+            />
           </Card>
         ) : null}
 
@@ -1624,7 +1719,7 @@ export default function ReportDetailScreen() {
           </Card>
         ) : null}
 
-        {canConfirmReopen && awaitingConfirmation && report.createdByUserId === user?.id && user?.role !== 'technician' ? (
+        {canConfirmReopen && awaitingConfirmation && (report.createdByUserId === user?.id || report.policy.canAssign) && user?.role !== 'technician' ? (
           <Card className="mb-4">
             <Text
               className="mb-1 text-[15px] font-semibold text-ink"
@@ -1635,7 +1730,14 @@ export default function ReportDetailScreen() {
             <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
               {t('reports.detail.confirm.body')}
             </Text>
-            <TextInput value={signedName} onChangeText={setSignedName} maxLength={255} placeholder="Your full name" accessibilityLabel="Your full name" className="mb-3 border border-gray-300 rounded p-3" />
+            <TextField
+              label={t('reports.detail.confirm.signedNameLabel')}
+              value={signedName}
+              onChangeText={setSignedName}
+              maxLength={255}
+              placeholder={t('reports.detail.confirm.signedNamePlaceholder')}
+              autoCapitalize="words"
+            />
             <Button
               disabled={!signedName.trim()}
               label={t('reports.detail.confirm.button')}
@@ -1755,6 +1857,20 @@ export default function ReportDetailScreen() {
           ) : null}
         </View>
       </Modal>
+
+      {report && user?.role === 'admin' && report.policy.canAssign && report.siteId ? (
+        <AssignTechnicianSheet
+          visible={assignSheetVisible}
+          report={report}
+          onClose={() => setAssignSheetVisible(false)}
+          onAssigned={(updated) => {
+            setReport(updated);
+            setAssignSheetVisible(false);
+            setActionMessage(t('reports.detail.assignSaved'));
+            void listReportHistory(reportId).then(setHistory).catch(() => {});
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }

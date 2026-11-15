@@ -6,17 +6,23 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.fixflow.dto.JoinableSiteResponse;
 import com.example.fixflow.dto.LoginRequest;
+import com.example.fixflow.dto.ProfileUpdateRequest;
 import com.example.fixflow.dto.RegisterRequest;
 import com.example.fixflow.dto.UserResponse;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.service.AuthService;
+import com.example.fixflow.service.UserProfilePhotoService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,11 +33,13 @@ import jakarta.validation.Valid;
 public class AuthController {
 
 	private final AuthService authService;
+    private final UserProfilePhotoService profilePhotoService;
     private final org.springframework.security.web.csrf.CsrfTokenRepository csrfTokens;
 
-	public AuthController(AuthService authService,
+    public AuthController(AuthService authService, UserProfilePhotoService profilePhotoService,
             org.springframework.security.web.csrf.CsrfTokenRepository csrfTokens) {
 		this.authService = authService;
+        this.profilePhotoService = profilePhotoService;
         this.csrfTokens = csrfTokens;
 	}
 
@@ -83,4 +91,33 @@ public class AuthController {
 	public UserResponse me(@AuthenticationPrincipal AppUserDetails principal) {
 		return authService.me(principal);
 	}
+
+    @PutMapping("/me")
+    public UserResponse updateMe(@jakarta.validation.Valid @RequestBody ProfileUpdateRequest request,
+            @AuthenticationPrincipal AppUserDetails principal) {
+        return authService.updateProfile(request, principal);
+    }
+
+    @PostMapping(value = "/me/photo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserResponse uploadMyPhoto(@RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal AppUserDetails principal) {
+        profilePhotoService.upload(file, principal);
+        return authService.me(principal);
+    }
+
+    @GetMapping("/me/photo")
+    public ResponseEntity<org.springframework.core.io.InputStreamResource> myPhoto(
+            @AuthenticationPrincipal AppUserDetails principal) {
+        var photo = profilePhotoService.read(principal);
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .contentType(org.springframework.http.MediaType.parseMediaType(photo.contentType()))
+                .body(new org.springframework.core.io.InputStreamResource(photo.content()));
+    }
+
+    @DeleteMapping("/me/photo")
+    public ResponseEntity<Void> deleteMyPhoto(@AuthenticationPrincipal AppUserDetails principal) {
+        profilePhotoService.delete(principal);
+        return ResponseEntity.noContent().build();
+    }
 }

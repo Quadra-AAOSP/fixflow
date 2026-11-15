@@ -42,6 +42,7 @@ export type User = {
   lastName: string;
   phone: string | null;
   address: string | null;
+  profilePhotoPath?: string | null;
   role: UserRole;
   siteId: number | null;
   capabilities: {

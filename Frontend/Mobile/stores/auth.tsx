@@ -48,6 +48,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
+  updateUser: (user: User) => void;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   /** Manually force a heartbeat now — shows a toast/indicator feedback. */
@@ -186,6 +187,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authApi.register(payload);
     await login({ email: payload.email, password: payload.password });
   }, [login]);
+
+  const updateUser = useCallback((next: User) => {
+    if (mounted.current) setUser(next);
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -367,6 +372,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: user !== null,
       login,
       register,
+      updateUser,
       logout,
       refresh,
       manualHeartbeat,
@@ -375,7 +381,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAutoReLogin,
     }),
     [
-      user, isLoading, login, register, logout, refresh,
+      user, isLoading, login, register, updateUser, logout, refresh,
       manualHeartbeat, session, setKeepAlive, setAutoReLogin,
     ],
   );

@@ -48,6 +48,12 @@ public class User {
 	@Column(length = 512)
 	private String address;
 
+	@Column(name = "profile_photo_object_key", length = 512)
+	private String profilePhotoObjectKey;
+
+	@Column(name = "profile_photo_content_type", length = 128)
+	private String profilePhotoContentType;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 32)
 	private UserRole role;

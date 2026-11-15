@@ -13,6 +13,18 @@ public interface ShopProductRepository extends JpaRepository<ShopProduct, String
 
 	List<ShopProduct> findByActiveTrueOrderByNameAsc();
 
+	/**
+	 * Active products whose name, description, or category contains the given
+	 * keyword (case-insensitive). Used by the report assistant to surface
+	 * relevant FixFlow shop items when a repair needs materials or tools.
+	 */
+	@Query("select p from ShopProduct p where p.active = true and "
+			+ "(lower(p.name) like lower(concat('%', :keyword, '%')) "
+			+ "or lower(p.description) like lower(concat('%', :keyword, '%')) "
+			+ "or lower(p.category) like lower(concat('%', :keyword, '%'))) "
+			+ "order by p.name asc")
+	List<ShopProduct> searchActiveByKeyword(@Param("keyword") String keyword);
+
 	boolean existsById(String id);
 
 	@Modifying(flushAutomatically = true)

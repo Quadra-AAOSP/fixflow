@@ -4,6 +4,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -26,6 +28,7 @@ import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.SiteRepository;
 import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.security.AppUserDetails;
+import com.example.fixflow.service.ObjectStorageService;
 
 @SpringBootTest
 class AuthApiIntegrationTest {
@@ -41,6 +44,9 @@ class AuthApiIntegrationTest {
 
 	@Autowired
 	private SiteAdminApplicationRepository applications;
+
+	@Autowired
+	private ObjectStorageService objectStorage;
 
 	private MockMvc mockMvc;
 	private Site site;
@@ -214,6 +220,82 @@ class AuthApiIntegrationTest {
 	void meRequiresAuthentication() throws Exception {
 		mockMvc.perform(get("/api/auth/me"))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void everyRoleCanUpdateOnlyTheirOwnProfileFields() throws Exception {
+		for (UserRole role : UserRole.values()) {
+			User account = new User();
+			account.setEmail("profile-" + role.name() + "-" + System.nanoTime() + "@example.test");
+			account.setPasswordHash("unused");
+			account.setFirstName("Before");
+			account.setLastName("Name");
+			account.setPhone("1111111");
+			account.setAddress("Old address");
+			account.setRole(role);
+			if (role == UserRole.reporter || role == UserRole.staff || role == UserRole.admin) account.setSite(site);
+			account = userRepository.save(account);
+
+			mockMvc.perform(put("/api/auth/me").with(user(new AppUserDetails(account)))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("""
+						{"firstName":"  New  ","lastName":"  Person  ","phone":"  2222222 ","address":"  New place  "}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.firstName").value("New"))
+				.andExpect(jsonPath("$.lastName").value("Person"))
+				.andExpect(jsonPath("$.phone").value("2222222"))
+				.andExpect(jsonPath("$.address").value("New place"))
+				.andExpect(jsonPath("$.role").value(role.name()));
+
+			User saved = userRepository.findById(account.getId()).orElseThrow();
+			org.assertj.core.api.Assertions.assertThat(saved.getEmail()).isEqualTo(account.getEmail());
+			org.assertj.core.api.Assertions.assertThat(saved.getRole()).isEqualTo(role);
+		}
+	}
+
+	@Test
+	void profileUpdateRequiresAuthenticationAndValidNames() throws Exception {
+		mockMvc.perform(put("/api/auth/me").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"firstName\":\"A\",\"lastName\":\"B\"}"))
+			.andExpect(status().isUnauthorized());
+		User account = legacyApplicant();
+		mockMvc.perform(put("/api/auth/me").with(user(new AppUserDetails(account)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"firstName\":\" \",\"lastName\":\"Valid\"}"))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void profilePhotoIsPrivateValidatedAndReplaceable() throws Exception {
+		User account = legacyApplicant();
+		AppUserDetails actor = new AppUserDetails(account);
+		byte[] png = java.util.Base64.getDecoder().decode(
+				"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pWQAAAAASUVORK5CYII=");
+		MockMultipartFile image = new MockMultipartFile("file", "avatar.png", "image/png", png);
+		String response = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.multipart("/api/auth/me/photo").file(image).with(user(actor)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.profilePhotoPath").value("/api/auth/me/photo"))
+			.andReturn().getResponse().getContentAsString();
+
+		byte[] received = mockMvc.perform(get("/api/auth/me/photo").with(user(actor)))
+			.andExpect(status().isOk()).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+				.content().contentType("image/png"))
+			.andReturn().getResponse().getContentAsByteArray();
+		org.assertj.core.api.Assertions.assertThat(received).isEqualTo(png);
+
+		User other = legacyApplicant();
+		mockMvc.perform(get("/api/auth/me/photo").with(user(new AppUserDetails(other))))
+			.andExpect(status().isNotFound());
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.multipart("/api/auth/me/photo").file(new MockMultipartFile("file", "bad.png", "image/png", new byte[]{1, 2, 3}))
+				.with(user(actor)))
+			.andExpect(status().isUnprocessableEntity());
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/auth/me/photo")
+				.with(user(actor))).andExpect(status().isNoContent());
+		mockMvc.perform(get("/api/auth/me/photo").with(user(actor))).andExpect(status().isNotFound());
+		org.assertj.core.api.Assertions.assertThat(response).contains("profilePhotoPath");
 	}
 
     @Test

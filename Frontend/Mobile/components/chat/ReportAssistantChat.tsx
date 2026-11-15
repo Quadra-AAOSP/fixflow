@@ -36,6 +36,7 @@ export function ReportAssistantChat({ reportId }: { reportId: number }) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<ChatNotice>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const listRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -46,10 +47,20 @@ export function ReportAssistantChat({ reportId }: { reportId: number }) {
   async function ask(history: AssistantTurn[]) {
     setSending(true);
     setNotice(null);
+    setErrorMessage(null);
     try {
       const reply = await askReportAssistant(reportId, history);
       if (reply.fallback) {
-        setNotice('fallback');
+        // Provider failed. If the backend still returned a usable (degraded)
+        // reply, show it; otherwise surface the retry bubble.
+        if (reply.reply && reply.reply.trim().length > 0) {
+          setTurns([
+            ...history,
+            { role: 'assistant', content: reply.reply },
+          ]);
+        } else {
+          setNotice('fallback');
+        }
       } else {
         setTurns([
           ...history,
@@ -61,7 +72,12 @@ export function ReportAssistantChat({ reportId }: { reportId: number }) {
         await logout().catch(() => {});
         return;
       }
-      setNotice(err instanceof ApiError && err.status === 429 ? 'rate' : 'error');
+      if (err instanceof ApiError) {
+        setErrorMessage(err.message);
+        setNotice(err.status === 429 ? 'rate' : 'error');
+      } else {
+        setNotice('error');
+      }
     } finally {
       setSending(false);
     }
@@ -161,7 +177,9 @@ export function ReportAssistantChat({ reportId }: { reportId: number }) {
             >
               {notice === 'rate'
                 ? t('reports.detail.chat.tooMany')
-                : t('reports.detail.chat.fallback')}
+                : notice === 'error'
+                  ? errorMessage ?? t('reports.detail.chat.error')
+                  : t('reports.detail.chat.fallback')}
             </Text>
             <Pressable
               accessibilityRole="button"

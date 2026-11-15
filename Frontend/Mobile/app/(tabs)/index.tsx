@@ -33,6 +33,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { HomeNotificationBell } from '@/components/dashboard/HomeNotificationBell';
+import { SuperAdminDashboard } from '@/components/dashboard/SuperAdminDashboard';
 import { ShopDashboard } from '@/components/dashboard/ShopDashboard';
 import { PlantArt } from '@/components/dashboard/PlantArt';
 import { Button } from '@/components/ui/Button';
@@ -171,7 +172,7 @@ const ATTENTION_LABELS: Record<'coral' | 'mint' | 'citron', {
  */
 export default function HomeScreen() {
   const { user } = useAuth();
-  return user?.role === 'technician' ? <Redirect href="/(tabs)/workspace" /> : user?.role === 'shop_manager' ? <ShopDashboard key={user.id} /> : <Dashboard />;
+  return user?.role === 'technician' ? <Redirect href="/(tabs)/workspace" /> : user?.role === 'shop_manager' ? <ShopDashboard key={user.id} /> : user?.role === 'super_admin' ? <SuperAdminDashboard key={user.id} /> : <Dashboard />;
 }
 
 function Dashboard() {

@@ -76,6 +76,10 @@ export default function MoreStackLayout() {
         name="admin-dashboard"
         options={{ title: t('more.menu.adminDashboardTitle') }}
       />
+      <Stack.Screen
+        name="report-analytics"
+        options={{ title: t('more.menu.reportAnalyticsTitle') }}
+      />
     </Stack>
   );
 }

@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import {
   ArrowRight,
+  BarChart3,
   Briefcase,
   Building2,
   FileText,
@@ -47,6 +48,7 @@ type ItemKey =
   | 'myVerification' | 'siteApplications' | 'verificationReviews' | 'marketplace'
   | 'myAdminApplication'
   | 'allReports'
+  | 'reportAnalytics'
   | 'siteSetup'
   | 'siteRules'
   | 'sites'
@@ -89,6 +91,9 @@ const ROLE_VISIBILITY: Record<ItemKey, UserRole[]> = {
   verificationReviews: ['super_admin'],
   // Cross-site report oversight + "notify the site admin" nudge.
   allReports: ['super_admin'],
+
+  // Report analytics — available to both site admins and super admins.
+  reportAnalytics: ['admin', 'super_admin'],
 
   // A reporter who applied to be site admin may track the status — guard
   // below requires user.adminApplication !== null.
@@ -175,6 +180,12 @@ export default function MoreScreen() {
       subtitleKey: 'more.menu.allReportsSubtitle',
       onPress: () => router.push('/more/all-reports'),
     },
+    reportAnalytics: {
+      icon: BarChart3,
+      titleKey: 'more.menu.reportAnalyticsTitle',
+      subtitleKey: 'more.menu.reportAnalyticsSubtitle',
+      onPress: () => router.push('/more/report-analytics'),
+    },
     myAdminApplication: {
       icon: ShieldCheck,
       titleKey: 'more.menu.myAdminApplicationTitle',
@@ -245,6 +256,7 @@ export default function MoreScreen() {
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
     'allReports',
+    'reportAnalytics',
     'siteSetup',
     'sites',
     'siteRules',

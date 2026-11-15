@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS users (
     last_name      VARCHAR(128)    NOT NULL,
     phone          VARCHAR(64)     NULL,
     address        VARCHAR(512)    NULL,
+    profile_photo_object_key VARCHAR(512) NULL,
+    profile_photo_content_type VARCHAR(128) NULL,
     role           ENUM(
                        'reporter',
                        'technician',
@@ -78,6 +80,22 @@ CREATE TABLE IF NOT EXISTS users (
         FOREIGN KEY (site_id) REFERENCES sites (id)
         ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET @profile_photo_key_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE()
+     AND table_name = 'users' AND column_name = 'profile_photo_object_key') = 0,
+    'ALTER TABLE users ADD COLUMN profile_photo_object_key VARCHAR(512) NULL', 'SELECT 1');
+PREPARE profile_photo_key_statement FROM @profile_photo_key_migration;
+EXECUTE profile_photo_key_statement;
+DEALLOCATE PREPARE profile_photo_key_statement;
+
+SET @profile_photo_type_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE()
+     AND table_name = 'users' AND column_name = 'profile_photo_content_type') = 0,
+    'ALTER TABLE users ADD COLUMN profile_photo_content_type VARCHAR(128) NULL', 'SELECT 1');
+PREPARE profile_photo_type_statement FROM @profile_photo_type_migration;
+EXECUTE profile_photo_type_statement;
+DEALLOCATE PREPARE profile_photo_type_statement;
 
 -- ---------------------------------------------------------------------------
 -- Existing databases also accept the dedicated shop management role.

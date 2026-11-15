@@ -223,6 +223,10 @@ export default function ReportsScreen() {
     [reports, query, siteName, filter, nlFilters, user?.role, visibility],
   );
 
+  // An empty page means "no reports yet" only while nothing filters the list;
+  // during a search it means the query matched nothing.
+  const isSearching = nlFilters !== null || query.trim() !== '' || filter !== 'all';
+
   async function onAskSubmit() {
     if (!site || !askQuery.trim() || askLoading) return;
     const generation = ++searchGeneration.current;
@@ -233,7 +237,8 @@ export default function ReportsScreen() {
       if (generation !== searchGeneration.current) return;
       setNlFilters(result.filters);
       setInterpretation(result.interpretation);
-      if (result.fallback) { setInterpretation(t('reports.list.nl.error')); }
+      // fallback: no filters extracted, so the backend searched the raw words.
+      if (result.fallback) { setInterpretation(t('reports.list.nl.fallback')); }
 
       setAskOpen(false);
       setAskQuery('');
@@ -385,16 +390,16 @@ export default function ReportsScreen() {
               ) : (
                 <StateView
                   variant="empty"
-                  icon={reports && reports.length === 0 ? ClipboardList : Search}
+                  icon={reports && reports.length === 0 && !isSearching ? ClipboardList : Search}
                   title={
-                    reports && reports.length === 0
+                    reports && reports.length === 0 && !isSearching
                       ? mineMode
                         ? t('reports.list.myEmptyTitle')
                         : t('reports.list.noReportsTitle')
                       : t('reports.list.noMatchesTitle')
                   }
                   description={
-                    reports && reports.length === 0
+                    reports && reports.length === 0 && !isSearching
                       ? mineMode
                         ? t('reports.list.myEmptyDesc')
                         : t('reports.list.noReportsDesc')
