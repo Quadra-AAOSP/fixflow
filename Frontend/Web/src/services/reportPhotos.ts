@@ -5,11 +5,19 @@ import type { ReportPhoto } from '@/types/maintenance';
 // Upload constraints from ReportPhotoValidator; the API enforces them again.
 export const REPORT_PHOTO_LIMIT = 1;
 export const REPORT_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
-export const REPORT_PHOTO_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+export const REPORT_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+/** Include extensions — Safari/macOS often ignores MIME-only `accept` and greys out Upload. */
+export const REPORT_PHOTO_ACCEPT = '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';
+const PHOTO_NAME = /\.(jpe?g|png|webp)$/i;
 export function validateReportPhoto(file: File) {
   if (!file.size) throw new Error('Choose a non-empty photo.');
   if (file.size > REPORT_PHOTO_MAX_BYTES) throw new Error('Each photo must be at most 5 MiB.');
-  if (!REPORT_PHOTO_TYPES.includes(file.type.toLowerCase())) throw new Error('Choose a JPEG, PNG, or WebP photo.');
+  const type = file.type.toLowerCase();
+  const allowedType =
+    (REPORT_PHOTO_TYPES as readonly string[]).includes(type) ||
+    type === 'image/jpg' ||
+    (!type && PHOTO_NAME.test(file.name));
+  if (!allowedType) throw new Error('Choose a JPEG, PNG, or WebP photo.');
 }
 export function safePhotoUrl(value: string | null): string | undefined {
   if (!value) return undefined;

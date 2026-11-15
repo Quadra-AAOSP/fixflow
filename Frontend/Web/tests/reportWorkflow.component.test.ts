@@ -27,6 +27,14 @@ it('lets only the assigned technician start work and emits the saved server resu
   await wrapper.setProps({ report: report({ status: 'assigned', assignedTechnicianId: 99 }) }); await flushPromises();
   expect(wrapper.text()).not.toContain('Start work');
 });
+it('hides repair actions when mounted as a supplementary history panel', async () => {
+  wrapper = mount(ReportWorkflowPanel, {
+    props: { report: report({ status: 'assigned', assignedTechnicianId: 54 }), supplementary: true },
+    global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } },
+  });
+  await flushPromises();
+  expect(wrapper.text()).not.toContain('Start work');
+});
 it('submits technician resolution details and leaves status unchanged on conflict', async () => {
   vi.mocked(api.resolveReport).mockRejectedValue(new Error('Only work in progress can be resolved'));
   await render(report({ status: 'in_progress', assignedTechnicianId: 54 }));

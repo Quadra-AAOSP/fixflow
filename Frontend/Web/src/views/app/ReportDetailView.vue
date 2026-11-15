@@ -135,19 +135,13 @@ const {
             :current-user-id="user?.id"
           />
 
-          <section class="ff-surface">
-            <header class="ff-section-heading">
-              <h2>{{ t('Repair workflow') }}</h2>
-            </header>
-            <div class="rd-workflow">
-              <ReportWorkflowPanel
-                supplementary
-                :report="report"
-                :disabled="actionInProgress"
-                @busy="workflowBusy = $event"
-                @saved="workflowSaved"
-              />
-            </div>
+          <section class="ff-surface rd-workflow-surface">
+            <ReportWorkflowPanel
+              :report="report"
+              :disabled="actionInProgress"
+              @busy="workflowBusy = $event"
+              @saved="workflowSaved"
+            />
           </section>
 
           <section class="ff-surface">

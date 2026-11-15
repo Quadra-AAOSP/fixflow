@@ -4,7 +4,7 @@ import { useLocale } from '@/i18n';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { errorMessage } from '@/services/api';
-import { REPORT_PHOTO_LIMIT, REPORT_PHOTO_TYPES, listReportPhotos, uploadReportPhoto, removeReportPhoto, refreshReportPhotoUrl, validateReportPhoto, safePhotoUrl } from '@/services/reportPhotos';
+import { REPORT_PHOTO_LIMIT, REPORT_PHOTO_ACCEPT, listReportPhotos, uploadReportPhoto, removeReportPhoto, refreshReportPhotoUrl, validateReportPhoto, safePhotoUrl } from '@/services/reportPhotos';
 import type { Report, ReportPhoto } from '@/types/maintenance';
 const { t } = useLocale();
 
@@ -102,7 +102,7 @@ async function refreshUrl(item: ReportPhoto) {
       <button v-else-if="canEdit" type="button" class="text-action" :disabled="busy" @click="confirmingId = item.id">{{ t('Remove photo {number}', { number: index + 1 }) }}</button>
     </li></ul>
     <form v-if="canEdit" class="draft-form" @submit.prevent="upload"><fieldset class="report-fields" :disabled="loading || busy || photos.length >= REPORT_PHOTO_LIMIT">
-      <label>{{ t("Add a photo") }}<input ref="input" type="file" :accept="REPORT_PHOTO_TYPES.join(',')" @change="select" /></label>
+      <label>{{ t("Add a photo") }}<input ref="input" type="file" :accept="REPORT_PHOTO_ACCEPT" @change="select" /></label>
       <button type="submit" class="report-issue-button" :disabled="!file">{{ t(busy ? 'Saving…' : 'Upload photo') }}</button>
     </fieldset></form>
   </section>

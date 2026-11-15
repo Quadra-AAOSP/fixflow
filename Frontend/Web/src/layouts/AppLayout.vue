@@ -11,7 +11,7 @@ import WorkspaceNavigation from '@/components/dashboard/WorkspaceNavigation.vue'
 import ShopNotifications from '@/components/dashboard/ShopNotifications.vue';
 import NotificationFeed from '@/components/dashboard/NotificationFeed.vue';
 import SkipLink from '@/components/ui/SkipLink.vue';
-import { listNotifications, type ReportNotice } from '@/services/notifications';
+import { listNotifications, noticeCopy, noticePath, type ReportNotice } from '@/services/notifications';
 import { errorMessage } from '@/services/api';
 import { useNotificationIndicator } from '@/composables/useNotificationIndicator';
 import { markNoticesSeen } from '@/utils/notificationSeen';
@@ -54,21 +54,14 @@ const shopNoticeEpoch = ref(0);
 const notificationsOpen = ref(false);
 let noticeVersion = 0;
 const notices = ref<ReportNotice[]>([]);
-const contractNoticeLabels = {
-  contract_submitted: ['New site contract request', 'A technician applied for a site contract.'],
-  contract_approved: ['Site contract approved', 'Your site contract request was approved.'],
-  contract_rejected: ['Site contract rejected', 'Your site contract request was rejected.'],
-} as const;
 const noticeItems = computed(() => notices.value.map(notice => {
-  if (notice.type in contractNoticeLabels) {
-    const [title, detail] = contractNoticeLabels[notice.type as keyof typeof contractNoticeLabels];
-    return { id: notice.id, createdAt: notice.createdAt, title: t(title), detail: t(detail), to: notice.type === 'contract_submitted' ? '/team?tab=contracts' : '/contracts' };
-  }
+  const copy = noticeCopy(notice.type);
   return {
-  id: notice.id, createdAt: notice.createdAt,
-  title: t(notice.type === 'work_completed' ? 'Work completed' : notice.type === 'report_edited' ? 'Report updated' : 'Report archived'),
-  detail: t(notice.type === 'work_completed' ? 'Report #{id} is ready for your confirmation.' : notice.type === 'report_edited' ? 'Report #{id} was edited.' : 'Report #{id} was archived.', { id: notice.reportId ?? '' }),
-  to: notice.type === 'report_deleted' || notice.reportId == null ? undefined : `/reports/${notice.reportId}`,
+    id: notice.id,
+    createdAt: notice.createdAt,
+    title: t(copy.title),
+    detail: t(copy.detail, { id: notice.reportId ?? notice.referenceId ?? '' }),
+    to: noticePath(notice),
   };
 }));
 const noticePage = ref(0);

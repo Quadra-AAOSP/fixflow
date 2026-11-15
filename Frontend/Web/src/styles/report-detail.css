@@ -26,9 +26,12 @@
 }
 
 .rd-photos,
-.rd-assistant,
-.rd-workflow {
+.rd-assistant {
   padding: 0 24px 22px;
+}
+
+.rd-workflow-surface {
+  padding: 22px 24px;
 }
 
 @media (max-width: 1050px) {

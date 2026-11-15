@@ -13,8 +13,8 @@ import {
   requestSubsiteAddition,
 } from "@/services/maintenance";
 import {
+  REPORT_PHOTO_ACCEPT,
   REPORT_PHOTO_LIMIT,
-  REPORT_PHOTO_TYPES,
   validateReportPhoto,
 } from "@/services/reportPhotos";
 import { ApiError, errorMessage } from "@/services/api";
@@ -451,22 +451,30 @@ async function submit() {
                 <h2>{{ t("Attachments") }}</h2>
               </div>
               <div class="create-section-fields">
-                <p>{{ t("Photos (optional)") }}</p>
-                <input
-                  id="report-photo"
-                  ref="photoInput"
-                  class="sr-only peer"
-                  type="file"
-                  :accept="REPORT_PHOTO_TYPES.join(',')"
-                  @change="selectPhotos"
-                />
-                <label for="report-photo" class="action-link cursor-pointer peer-focus-visible:outline peer-focus-visible:outline-2">
-                  {{ t(photos.length ? "Replace photo" : "Choose photo") }}
-                </label>
+                <div class="photo-field">
+                  <span class="photo-field-label">{{ t("Photos (optional)") }}</span>
+                  <label class="photo-picker">
+                    <span class="photo-picker-button">{{
+                      t(photos.length ? "Replace photo" : "Choose photo")
+                    }}</span>
+                    <input
+                      ref="photoInput"
+                      type="file"
+                      :accept="REPORT_PHOTO_ACCEPT"
+                      @change="selectPhotos"
+                    />
+                  </label>
+                  <span
+                    v-if="photos.length"
+                    class="photo-picker-name"
+                    role="status"
+                    >{{ photos[0]?.name }}</span
+                  >
+                </div>
                 <p class="field-hint">
                   {{
                     t(
-                      "Up to {limit} photos, 5 MiB each. Attached photos can be viewed by people authorized to access the report.",
+                      "Up to {limit} photos, 5 MiB each. JPEG, PNG, or WebP. Attached photos can be viewed by people authorized to access the report.",
                       { limit: REPORT_PHOTO_LIMIT },
                     )
                   }}
@@ -475,11 +483,6 @@ async function submit() {
                   {{ t(photoError) }}
                   {{ t("Choose again or clear the selection to continue.") }}
                 </p>
-                <ul v-if="photos.length" role="status">
-                  <li v-for="(photo, index) in photos" :key="index">
-                    {{ photo.name }}
-                  </li>
-                </ul>
                 <button
                   v-if="photos.length || photoError"
                   type="button"
@@ -565,7 +568,7 @@ async function submit() {
   min-width: 0;
   font-weight: 600;
 }
-.create-section input,
+.create-section input:not([type="file"]),
 .create-section textarea,
 .create-section select {
   width: 100%;
@@ -576,9 +579,68 @@ async function submit() {
   padding: 11px 12px;
   font-weight: 400;
 }
-.create-section input[type="file"] {
-  height: auto;
-  min-height: 0;
+.photo-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.photo-field-label {
+  flex: 1 0 100%;
+  font-weight: 600;
+}
+.photo-picker {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  margin: 0;
+  width: auto;
+  cursor: pointer;
+}
+.photo-picker-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--product-border);
+  border-radius: 8px;
+  background: var(--product-surface);
+  color: #006f65;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.photo-picker:hover .photo-picker-button {
+  background: #effaf6;
+  border-color: #79c9b5;
+}
+.photo-picker:has(input:focus-visible) .photo-picker-button {
+  outline: 3px solid #368575;
+  outline-offset: 3px;
+}
+.photo-picker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+.photo-picker-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #52677b;
+  font-size: 13px;
+  font-weight: 400;
 }
 .create-section .field-hint {
   margin: 0;

@@ -33,6 +33,11 @@ const sortedSites = computed(() =>
   }),
 );
 const error = ref("");
+/** Filenames chosen in this session while (or after) upload, until store refresh catches up. */
+const pendingDocumentNames = reactive({
+  terms: null as string | null,
+  contract: null as string | null,
+});
 const form = reactive({
   name: "",
   type: "" as Site["type"] | "",
@@ -66,6 +71,18 @@ const editingSite = computed(() =>
     ? null
     : (data.sites.find((site) => site.id === editingId.value) ?? null),
 );
+function documentDisplayName(kind: "terms" | "contract") {
+  const pending = pendingDocumentNames[kind];
+  if (pending) return pending;
+  if (kind === "terms") {
+    return editingSite.value?.termsDocumentPresent
+      ? editingSite.value.termsDocumentName || t("document")
+      : null;
+  }
+  return editingSite.value?.contractTermsDocumentPresent
+    ? editingSite.value.contractTermsDocumentName || t("document")
+    : null;
+}
 async function viewReports(id: number) {
   await data.selectSite(id);
   await router.push("/reports");
@@ -75,6 +92,8 @@ const imageUrl = (value: string | null) =>
 function edit(site?: Site) {
   editingId.value = site?.id ?? null;
   error.value = "";
+  pendingDocumentNames.terms = null;
+  pendingDocumentNames.contract = null;
   Object.assign(form, {
     name: site?.name ?? "",
     type: site?.type ?? "",
@@ -99,10 +118,13 @@ async function onDocumentChange(kind: "terms" | "contract", event: Event) {
   if (!file || editingId.value == null || busy.value) return;
   busy.value = true;
   error.value = "";
+  pendingDocumentNames[kind] = file.name;
   try {
     await uploadSiteDocument(editingId.value, kind, file);
     await Promise.all([data.refresh(), refreshUser()]);
+    pendingDocumentNames[kind] = null;
   } catch (err) {
+    pendingDocumentNames[kind] = null;
     error.value = errorMessage(err);
   } finally {
     busy.value = false;
@@ -119,7 +141,8 @@ async function save() {
     error.value = "Use an HTTP or HTTPS image URL.";
     return;
   }
-  const feeMajor = form.contractFlatFee.trim();
+  // number inputs can coerce v-model to a number; always normalize before trim/parse
+  const feeMajor = String(form.contractFlatFee ?? "").trim();
   let contractFlatFeeMinor: number | null = null;
   if (feeMajor) {
     const parsed = Number(feeMajor);
@@ -129,7 +152,7 @@ async function save() {
     }
     contractFlatFeeMinor = Math.round(parsed * 100);
   }
-  const currency = form.contractFeeCurrency.trim().toUpperCase() || "USD";
+  const currency = String(form.contractFeeCurrency ?? "").trim().toUpperCase() || "USD";
   if (currency.length < 3 || currency.length > 8) {
     error.value = "Use a currency code between 3 and 8 characters.";
     return;
@@ -364,38 +387,58 @@ async function save() {
           /></label>
         </div>
         <template v-if="editingId != null">
-          <label
-            >{{ t("Site terms file") }}
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.txt,application/pdf"
-              :disabled="busy"
-              @change="onDocumentChange('terms', $event)"
-            />
+          <div class="site-file-field">
+            <span class="site-file-label">{{ t("Site terms file") }}</span>
+            <div class="site-file-control">
+              <label class="site-file-picker">
+                <span class="site-file-button">{{ t("Choose file") }}</span>
+                <input
+                  class="sr-only"
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt,application/pdf"
+                  :disabled="busy"
+                  @change="onDocumentChange('terms', $event)"
+                />
+              </label>
+              <span
+                class="site-file-name"
+                :title="documentDisplayName('terms') ?? undefined"
+                >{{ documentDisplayName("terms") || t("No file selected") }}</span
+              >
+            </div>
             <span class="field-hint">{{
-              editingSite?.termsDocumentPresent
-                ? t("On file: {name}", {
-                    name: editingSite.termsDocumentName || t("document"),
-                  })
+              documentDisplayName("terms")
+                ? t("On file — choose a new file to replace it")
                 : t("Upload a PDF, Word, or text file")
             }}</span>
-          </label>
-          <label
-            >{{ t("Site contract file") }}
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.txt,application/pdf"
-              :disabled="busy"
-              @change="onDocumentChange('contract', $event)"
-            />
+          </div>
+          <div class="site-file-field">
+            <span class="site-file-label">{{ t("Site contract file") }}</span>
+            <div class="site-file-control">
+              <label class="site-file-picker">
+                <span class="site-file-button">{{ t("Choose file") }}</span>
+                <input
+                  class="sr-only"
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt,application/pdf"
+                  :disabled="busy"
+                  @change="onDocumentChange('contract', $event)"
+                />
+              </label>
+              <span
+                class="site-file-name"
+                :title="documentDisplayName('contract') ?? undefined"
+                >{{
+                  documentDisplayName("contract") || t("No file selected")
+                }}</span
+              >
+            </div>
             <span class="field-hint">{{
-              editingSite?.contractTermsDocumentPresent
-                ? t("On file: {name}", {
-                    name: editingSite.contractTermsDocumentName || t("document"),
-                  })
+              documentDisplayName("contract")
+                ? t("On file — choose a new file to replace it")
                 : t("Upload a PDF, Word, or text file")
             }}</span>
-          </label>
+          </div>
         </template>
         <p v-else class="field-hint">
           {{ t("After the site is created, open it again to upload terms and contract files.") }}
@@ -520,6 +563,65 @@ async function save() {
 }
 .site-editor {
   max-width: 680px;
+}
+.site-file-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.site-file-label {
+  font-weight: 600;
+  color: #152742;
+}
+.site-file-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.site-file-picker {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  margin: 0;
+}
+.site-file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid #dbe5df;
+  border-radius: 8px;
+  background: #fff;
+  color: #152742;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.site-file-picker:hover .site-file-button {
+  background: #effaf6;
+  border-color: #79c9b5;
+}
+.site-file-picker:has(input:disabled) .site-file-button {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.site-file-picker:has(input:focus-visible) .site-file-button {
+  outline: 3px solid #368575;
+  outline-offset: 3px;
+}
+.site-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #52677b;
+  font-size: 13px;
+  font-weight: 400;
+}
+.site-file-field .field-hint {
+  margin: 0;
 }
 @media (max-width: 900px) {
   .site-record {
