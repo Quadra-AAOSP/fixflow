@@ -3,6 +3,10 @@ import { accounts } from '../fixtures/accounts';
 import { authenticatedContext } from '../fixtures/auth';
 import { createPublicReport, openReport, uniqueTag } from '../fixtures/helpers';
 
+test.beforeEach(() => {
+  test.skip(process.env.ALLOW_WORKFLOW_WRITES !== 'true', 'Workflows that may write are opt-in');
+});
+
 test.describe('Staff / admin operations @staff @admin', () => {
   test('admin overrides urgency on a report', async ({ browser, baseURL }) => {
     const reporter = await authenticatedContext(browser, accounts.reporter1Site1, baseURL);

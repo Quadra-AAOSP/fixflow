@@ -10,6 +10,10 @@ const joiners = [
   accounts.reporter5Site1,
 ];
 
+test.beforeEach(() => {
+  test.skip(process.env.ALLOW_WORKFLOW_WRITES !== 'true', 'Workflows that may write are opt-in');
+});
+
 test.describe('Join boosts calculated urgency @join-urgency', () => {
   test('multiple reporters join the same public report and participation is visible', async ({ browser, baseURL }) => {
     test.info().annotations.push({ type: 'joiners', description: String(joiners.length) });

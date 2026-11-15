@@ -170,7 +170,7 @@ export default function SitesScreen() {
           }}
         />
 
-        {tab === 'category' ? <SiteRulesPanel embedded /> : null}
+        {tab === 'category' ? <SiteRulesPanel embedded ownSiteType={sites?.find((site) => site.id === user?.siteId)?.type} /> : null}
         {tab === 'contracts' ? <ContractsPanel embedded /> : null}
 
         {tab === 'list' ? (

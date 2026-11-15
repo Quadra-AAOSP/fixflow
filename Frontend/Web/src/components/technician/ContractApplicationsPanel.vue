@@ -16,6 +16,8 @@ const props = defineProps<{ initialSiteId?: number }>();
 const emit = defineEmits<{ contractCreated: [] }>();
 const technician = computed(() => user.value?.role === 'technician');
 const siteAdmin = computed(() => user.value?.role === 'admin');
+const superAdmin = computed(() => user.value?.role === 'super_admin');
+const reviewer = computed(() => siteAdmin.value || superAdmin.value);
 const items = ref<ContractApplication[]>([]);
 const loading = ref(false);
 const submitting = ref(false);
@@ -41,7 +43,7 @@ async function load() {
   items.value = []; success.value = null;
   error.value = '';
   loading.value = false;
-  if (!technician.value && !siteAdmin.value) return;
+  if (!technician.value && !reviewer.value) return;
   if (siteAdmin.value && user.value?.siteId == null) return;
   loading.value = true;
   try {
@@ -74,7 +76,7 @@ async function submit() {
 }
 
 async function decide(item: ContractApplication, decision: 'approve' | 'reject') {
-  if (!siteAdmin.value || item.siteId !== user.value?.siteId || item.status !== 'pending' || decidingId.value !== null) return;
+  if (!reviewer.value || (siteAdmin.value && item.siteId !== user.value?.siteId) || item.status !== 'pending' || decidingId.value !== null) return;
   const current = generation;
   decidingId.value = item.id; error.value = ''; success.value = null;
   try {
@@ -90,7 +92,7 @@ async function decide(item: ContractApplication, decision: 'approve' | 'reject')
 </script>
 
 <template>
-  <section v-if="technician || siteAdmin" class="contract-applications">
+  <section v-if="technician || reviewer" class="contract-applications">
     <template v-if="technician">
       <TechnicianTermsPanel ref="termsPanel" @change="terms = $event" />
       <section class="contract-choice">
@@ -107,6 +109,7 @@ async function decide(item: ContractApplication, decision: 'approve' | 'reject')
     <section class="contract-choice">
       <div class="card-heading"><h2>{{ t(technician ? 'Your contract requests' : 'Site contract requests') }}</h2><button type="button" class="text-action" :disabled="loading || submitting || decidingId !== null" @click="load">{{ t("Refresh requests") }}</button></div>
       <p v-if="siteAdmin" class="dialog-intro">{{ t("Only your site’s requests appear here. Approval creates the site contract after the backend checks current terms acceptance. The site’s configured flat fee is snapshotted onto the contract.") }}</p>
+      <p v-if="superAdmin" class="dialog-intro">{{ t("Showing contract requests from all sites.") }}</p>
       <p v-if="success" role="status" class="draft-notice">{{ submittedRequest ? t('Request #{id} submitted to site #{siteId}.', { id: success.id, siteId: success.siteId }) : t('Request #{id} {status}.', { id: success.id, status: t(success.status) }) }}</p>
       <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
       <LoadingStatus v-if="loading" :label="t('Loading requests…')" />
@@ -114,13 +117,14 @@ async function decide(item: ContractApplication, decision: 'approve' | 'reject')
       <ul v-else class="contract-request-list">
         <li v-for="item in items" :key="item.id" class="dashboard-card">
           <div class="card-heading"><h3>{{ t('Request #{id}', { id: item.id }) }}</h3><span class="status-badge mint">{{ t(item.status) }}</span></div>
+          <p v-if="item.siteName">{{ item.siteName }}</p>
           <p>{{ t('Site #{siteId} · Technician #{technicianId}', { siteId: item.siteId, technicianId: item.technicianId }) }}</p>
           <p>{{ t('Contract flat fee: {fee}', { fee: formatFee(item.siteFlatFeeMinor, item.siteFeeCurrency) }) }}</p>
           <p>{{ t('Submitted {date}', { date: formatDate(item.createdAt, true) }) }}</p>
           <p v-if="item.note">{{ item.note }}</p>
           <p v-if="item.decisionReason">{{ t('Decision: {reason}', { reason: item.decisionReason }) }}</p>
           <p v-if="item.decidedAt">{{ t('Reviewed {date}', { date: formatDate(item.decidedAt, true) }) }}</p>
-          <div v-if="siteAdmin && item.status === 'pending'" class="report-fields">
+          <div v-if="reviewer && item.status === 'pending'" class="report-fields">
             <label :for="`reason-${item.id}`">{{ t("Decision reason (optional)") }}</label>
             <textarea :id="`reason-${item.id}`" v-model="reasons[item.id]" maxlength="1000" rows="2" :disabled="decidingId !== null" />
             <div class="flex gap-3"><button type="button" class="report-issue-button" :disabled="decidingId !== null" @click="decide(item, 'approve')">{{ t('Approve request #{id}', { id: item.id }) }}</button><button type="button" class="text-action" :disabled="decidingId !== null" @click="decide(item, 'reject')">{{ t('Reject request #{id}', { id: item.id }) }}</button></div>

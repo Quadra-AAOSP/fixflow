@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { Bell, ChevronDown, Heart, Menu, X, RefreshCw } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useMaintenanceStore } from '@/stores/maintenance';
@@ -18,7 +18,24 @@ import { markNoticesSeen } from '@/utils/notificationSeen';
 import '@/styles/dashboard.css';
 
 const route = useRoute();
-const { user } = useAuth();
+const { user, logout } = useAuth();
+const router = useRouter();
+const signOutError = ref('');
+const signingOut = ref(false);
+async function signOut() {
+  if (signingOut.value) return;
+  signingOut.value = true;
+  signOutError.value = '';
+  try {
+    await logout();
+    await router.replace({ name: 'login' });
+  } catch (err) {
+    signOutError.value = errorMessage(err);
+    closeAccount(true);
+  } finally {
+    signingOut.value = false;
+  }
+}
 const { hasUnread } = useNotificationIndicator();
 const data = useMaintenanceStore();
 const realtime = useRealtimeStore();
@@ -37,12 +54,23 @@ const shopNoticeEpoch = ref(0);
 const notificationsOpen = ref(false);
 let noticeVersion = 0;
 const notices = ref<ReportNotice[]>([]);
-const noticeItems = computed(() => notices.value.map(notice => ({
+const contractNoticeLabels = {
+  contract_submitted: ['New site contract request', 'A technician applied for a site contract.'],
+  contract_approved: ['Site contract approved', 'Your site contract request was approved.'],
+  contract_rejected: ['Site contract rejected', 'Your site contract request was rejected.'],
+} as const;
+const noticeItems = computed(() => notices.value.map(notice => {
+  if (notice.type in contractNoticeLabels) {
+    const [title, detail] = contractNoticeLabels[notice.type as keyof typeof contractNoticeLabels];
+    return { id: notice.id, createdAt: notice.createdAt, title: t(title), detail: t(detail), to: notice.type === 'contract_submitted' ? '/team?tab=contracts' : '/contracts' };
+  }
+  return {
   id: notice.id, createdAt: notice.createdAt,
   title: t(notice.type === 'work_completed' ? 'Work completed' : notice.type === 'report_edited' ? 'Report updated' : 'Report archived'),
   detail: t(notice.type === 'work_completed' ? 'Report #{id} is ready for your confirmation.' : notice.type === 'report_edited' ? 'Report #{id} was edited.' : 'Report #{id} was archived.', { id: notice.reportId ?? '' }),
   to: notice.type === 'report_deleted' || notice.reportId == null ? undefined : `/reports/${notice.reportId}`,
-})));
+  };
+}));
 const noticePage = ref(0);
 const noticeRetryPage = ref(0);
 const moreNotices = ref(false);
@@ -81,14 +109,14 @@ const accountMenu = ref<HTMLElement>();
 const accountTrigger = ref<HTMLButtonElement>();
 async function toggleAccount() {
   accountOpen.value = !accountOpen.value;
-  if (accountOpen.value) { await nextTick(); accountMenu.value?.querySelector<HTMLElement>('a')?.focus(); }
+  if (accountOpen.value) { await nextTick(); accountMenu.value?.querySelector<HTMLElement>('[role=menuitem]')?.focus(); }
 }
 function closeAccount(restoreFocus = false) {
   accountOpen.value = false;
   if (restoreFocus) accountTrigger.value?.focus();
 }
 function accountKey(event: KeyboardEvent) {
-  const links = [...(accountMenu.value?.querySelectorAll<HTMLElement>('a') ?? [])];
+  const links = [...(accountMenu.value?.querySelectorAll<HTMLElement>('[role=menuitem]') ?? [])];
   const index = links.indexOf(document.activeElement as HTMLElement);
   if (event.key === 'Escape') { event.preventDefault(); closeAccount(true); }
   else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
@@ -117,7 +145,7 @@ watch(() => route.fullPath, () => closeAccount());
     </dialog>
     <div class="dashboard-workspace">
       <header class="dashboard-topbar"><button class="mobile-menu icon-button" :aria-label="t('Open navigation')" aria-controls="mobile-navigation" :aria-expanded="mobileOpen" @click="openNavigation"><Menu :size="22" /></button>
-        <div class="topbar-account"><button class="icon-button notification-indicator-button" :aria-label="t(hasUnread ? 'Notifications, new notifications' : 'Notifications')" @click="openNotifications"><Bell :size="23" /><span v-if="hasUnread" class="notification-unread-dot" aria-hidden="true" /></button><span class="topbar-divider" /><div class="account-menu-container"><button ref="accountTrigger" type="button" :aria-label="t('Account menu')" aria-controls="account-menu" aria-haspopup="menu" :aria-expanded="accountOpen" class="account-link account-trigger" @click="toggleAccount" @keydown.down.prevent="!accountOpen && toggleAccount()" @keydown.esc="closeAccount(true)"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></button><div v-if="accountOpen" id="account-menu" ref="accountMenu" role="menu" :aria-label="t('Account menu')" class="account-menu" @keydown="accountKey"><RouterLink role="menuitem" to="/profile" @click="closeAccount()">{{ t('Profile') }}</RouterLink><RouterLink role="menuitem" to="/settings" @click="closeAccount()">{{ t('Settings') }}</RouterLink></div></div></div>
+        <div class="topbar-account"><button class="icon-button notification-indicator-button" :aria-label="t(hasUnread ? 'Notifications, new notifications' : 'Notifications')" @click="openNotifications"><Bell :size="23" /><span v-if="hasUnread" class="notification-unread-dot" aria-hidden="true" /></button><span class="topbar-divider" /><div class="account-menu-container"><button ref="accountTrigger" type="button" :aria-label="t('Account menu')" aria-controls="account-menu" aria-haspopup="menu" :aria-expanded="accountOpen" class="account-link account-trigger" @click="toggleAccount" @keydown.down.prevent="!accountOpen && toggleAccount()" @keydown.esc="closeAccount(true)"><span class="user-avatar">{{ initials(name) }}</span><strong>{{ user?.firstName }}</strong><ChevronDown :size="16" /></button><div v-if="accountOpen" id="account-menu" ref="accountMenu" role="menu" :aria-label="t('Account menu')" class="account-menu" @keydown="accountKey"><RouterLink role="menuitem" to="/profile" @click="closeAccount()">{{ t('Profile') }}</RouterLink><RouterLink role="menuitem" to="/settings" @click="closeAccount()">{{ t('Settings') }}</RouterLink><button type="button" role="menuitem" :disabled="signingOut" @click="signOut">{{ t('Sign out') }}</button></div></div></div>
       </header>
       <main id="main-content" tabindex="-1" class="dashboard-main">
         <div v-if="!isShop && user?.role !== 'shop_manager'" class="workspace-context">
@@ -125,11 +153,12 @@ watch(() => route.fullPath, () => closeAccount());
         </div>
         <div v-if="!isShop && data.sitesError" class="live-error" role="alert">{{ t(data.sitesError) }} <button @click="data.refresh()">{{ t("Retry") }}</button></div>
         <p v-else-if="!isShop && !data.loading && !data.sites.length && user?.role !== 'technician' && user?.role !== 'shop_manager'" class="live-empty">{{ t("No sites are available for this account. Ask your administrator to check your site access.") }}</p>
-        <div v-if="!isShop && user?.siteOnboarding?.setupRequired && user.siteOnboarding.canManageSubsites" class="draft-notice" role="status">
+        <div v-if="!isShop && route.name !== 'site-setup' && user?.siteOnboarding?.setupRequired && user.siteOnboarding.canManageSubsites" class="draft-notice" role="status">
           {{ t("Site work stays locked until all three steps are done: labelled buildings, site address, and uploaded terms + contract files.") }}
-          <RouterLink :to="`/sites/${user.siteOnboarding.siteId}/subsites`" class="text-action">{{ t("Continue setup →") }}</RouterLink>
+          <RouterLink to="/site-setup" class="text-action">{{ t("Continue setup →") }}</RouterLink>
         </div>
 
+        <p v-if="signOutError" class="live-error" role="alert">{{ signOutError }}</p>
         <RouterView />
       </main>
       <footer class="dashboard-footer"><span><b>FixFlow</b> {{ t('© {year} FixFlow. Keeping spaces working beautifully.', { year: new Date().getFullYear() }) }}</span><span><Heart :size="13" fill="currentColor" />{{ t("Better spaces. Brighter tomorrows.") }}</span></footer>
@@ -137,7 +166,7 @@ watch(() => route.fullPath, () => closeAccount());
     <dialog ref="notificationDialog" @close="notificationsOpen = false" class="dashboard-dialog" :aria-label="t('Notifications')">
       <div class="dialog-heading"><h2>{{ t('Notifications') }}</h2><button class="icon-button" :aria-label="t('Close dialog')" @click="notificationDialog?.close()"><X :size="22" /></button></div>
       <div class="notification-sections">
-        <NotificationFeed v-if="user?.role !== 'shop_manager'" :title="t('Report updates')" :items="noticeItems" :loading="loadingNotices" :error="noticeError ? t(noticeError) : ''" :more="moreNotices" @retry="loadNotices(noticeRetryPage)" @more="loadNotices(noticePage + 1)" @navigate="notificationDialog?.close()" />
+        <NotificationFeed v-if="user?.role !== 'shop_manager'" :title="t('Report and contract updates')" :items="noticeItems" :loading="loadingNotices" :error="noticeError ? t(noticeError) : ''" :more="moreNotices" @retry="loadNotices(noticeRetryPage)" @more="loadNotices(noticePage + 1)" @navigate="notificationDialog?.close()" />
         <ShopNotifications v-if="notificationsOpen && user?.role !== 'reporter'" :key="shopNoticeEpoch" @navigate="notificationDialog?.close()" />
       </div>
     </dialog>
@@ -149,8 +178,10 @@ watch(() => route.fullPath, () => closeAccount());
 .manual-sync{display:inline-flex;align-items:center;gap:6px}
 @media(max-width:700px){.workspace-context{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;align-items:start}.workspace-context .live-toolbar{width:100%;min-width:0;gap:8px}.workspace-context .site-selector{width:100%;min-width:0;gap:8px}.workspace-context .site-selector select{min-width:0;width:100%;max-width:100%;flex:1}.workspace-context .workspace-language{max-width:100%;align-self:start}.workspace-context .workspace-language :deep(label){gap:6px}.workspace-context .workspace-language :deep(select){max-width:106px}.workspace-connection{max-width:100%;overflow-wrap:anywhere}}
 .notification-sections{display:grid;gap:28px;margin-top:20px}
+.draft-notice{font-size:1rem;line-height:1.5;align-items:center;flex-wrap:wrap;gap:12px}.account-menu{background:var(--product-surface);border-color:var(--product-border)}.account-menu :is(a,button){color:var(--product-ink)}
 </style>
 
 <style scoped>
-.dashboard-topbar{justify-content:space-between}.topbar-account{margin-left:auto}.account-menu-container{position:relative}.account-trigger{min-height:44px;background:transparent;border:0;padding:4px;cursor:pointer}.account-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:80;min-width:180px;padding:6px;background:#fff;border:1px solid #cddbd3;border-radius:12px;box-shadow:0 8px 20px #15274216}.account-menu a{display:flex;align-items:center;min-height:44px;padding:8px 14px;color:#233d36;border-radius:6px}.account-menu a:hover,.account-menu a:focus-visible{background:#e8f7f1}.workspace-context{display:block}@media(max-width:700px){.workspace-context{display:block}.workspace-context .live-toolbar{width:100%}}
+.dashboard-topbar{justify-content:space-between}.topbar-account{margin-left:auto}.account-menu-container{position:relative}.account-trigger{min-height:44px;background:transparent;border:0;padding:4px;cursor:pointer}.account-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:80;min-width:180px;padding:6px;background:#fff;border:1px solid #cddbd3;border-radius:12px;box-shadow:0 8px 20px #15274216}.account-menu :is(a,button){width:100%;text-align:left;display:flex;align-items:center;min-height:44px;padding:8px 14px;color:#233d36;border-radius:6px}.account-menu :is(a,button):hover,.account-menu :is(a,button):focus-visible{background:#e8f7f1}.workspace-context{display:block}@media(max-width:700px){.workspace-context{display:block}.workspace-context .live-toolbar{width:100%}}
+.draft-notice{font-size:1rem;line-height:1.5;align-items:center;flex-wrap:wrap;gap:12px}.account-menu{background:var(--product-surface);border-color:var(--product-border)}.account-menu :is(a,button){color:var(--product-ink)}
 </style>

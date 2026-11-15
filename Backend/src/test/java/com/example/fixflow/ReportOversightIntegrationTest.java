@@ -128,12 +128,21 @@ class ReportOversightIntegrationTest {
 	}
 
 	@Test
-	void onlySuperAdminsMayNotifyAndOnlyWhileUnattended() throws Exception {
+	void siteAdminsMayNotifyPeersAtOwnSiteAndOnlyWhileUnattended() throws Exception {
 		Number reportId = createReport(firstReporter, "Leaking pipe, nobody assigned");
+		User peer = createUser("oversight-admin-peer", UserRole.admin, firstSite);
+
+		mockMvc.perform(post("/api/reports/{id}/notify-site-admin", reportId)
+						.with(user(new AppUserDetails(secondAdmin))))
+				.andExpect(status().isForbidden());
 
 		mockMvc.perform(post("/api/reports/{id}/notify-site-admin", reportId)
 						.with(user(new AppUserDetails(firstAdmin))))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.recipients").value(1));
+		mockMvc.perform(get("/api/notifications").with(user(new AppUserDetails(peer))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[0].reportId").value(reportId));
 
 		// Once a technician is assigned the report is no longer "unattended".
 		var report = reports.findById(reportId.longValue()).orElseThrow();

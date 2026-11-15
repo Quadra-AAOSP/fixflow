@@ -78,8 +78,8 @@ public class SiteRuleService {
 	}
 
 	private void assertCanManageRules(AppUserDetails actor) {
-		if (actor.getRole() != UserRole.admin && actor.getRole() != UserRole.super_admin) {
-			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Only admin or super_admin can manage site rules");
+		if (actor == null || actor.getRole() != UserRole.super_admin) {
+			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Only super admins can manage shared site type rules");
 		}
 	}
 }

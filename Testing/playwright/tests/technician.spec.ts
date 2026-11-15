@@ -3,6 +3,10 @@ import { accounts } from '../fixtures/accounts';
 import { authenticatedContext } from '../fixtures/auth';
 import { createPublicReport, openReport, uniqueTag } from '../fixtures/helpers';
 
+test.beforeEach(() => {
+  test.skip(process.env.ALLOW_WORKFLOW_WRITES !== 'true', 'Workflows that may write are opt-in');
+});
+
 test.describe('Technician workspace @technician', () => {
   test('terms accept or already accepted, verification status, availability toggle', async ({ browser, baseURL }) => {
     const tech = await authenticatedContext(browser, accounts.technician1Site1, baseURL);

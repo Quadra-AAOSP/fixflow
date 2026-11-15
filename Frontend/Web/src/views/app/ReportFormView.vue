@@ -265,10 +265,10 @@ async function submit() {
         {{ t("Your account cannot create reports.") }}
       </p>
       <LoadingStatus
-        v-else-if="data.loading"
+        v-else-if="data.loading && (!data.selectedSite || !categories.length)"
         :label="t('Loading site categories…')"
       />
-      <p v-else-if="data.rulesError" class="live-error" role="alert">
+      <p v-else-if="data.rulesError && !categories.length" class="live-error" role="alert">
         {{ t(data.rulesError) }}
         <button @click="data.refresh()">{{ t("Retry") }}</button>
       </p>
@@ -451,15 +451,18 @@ async function submit() {
                 <h2>{{ t("Attachments") }}</h2>
               </div>
               <div class="create-section-fields">
-                <label
-                  >{{ t("Photos (optional)")
-                  }}<input
-                    ref="photoInput"
-                    type="file"
-                    multiple
-                    :accept="REPORT_PHOTO_TYPES.join(',')"
-                    @change="selectPhotos"
-                /></label>
+                <p>{{ t("Photos (optional)") }}</p>
+                <input
+                  id="report-photo"
+                  ref="photoInput"
+                  class="sr-only peer"
+                  type="file"
+                  :accept="REPORT_PHOTO_TYPES.join(',')"
+                  @change="selectPhotos"
+                />
+                <label for="report-photo" class="action-link cursor-pointer peer-focus-visible:outline peer-focus-visible:outline-2">
+                  {{ t(photos.length ? "Replace photo" : "Choose photo") }}
+                </label>
                 <p class="field-hint">
                   {{
                     t(
@@ -472,7 +475,7 @@ async function submit() {
                   {{ t(photoError) }}
                   {{ t("Choose again or clear the selection to continue.") }}
                 </p>
-                <ul v-if="photos.length">
+                <ul v-if="photos.length" role="status">
                   <li v-for="(photo, index) in photos" :key="index">
                     {{ photo.name }}
                   </li>

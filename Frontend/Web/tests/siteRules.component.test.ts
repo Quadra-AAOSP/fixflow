@@ -11,7 +11,7 @@ vi.mock('../src/services/siteRules', () => ({ listSiteRules: vi.fn(), saveSiteRu
 const rule = { id: 7, siteType: 'school' as const, category: 'plumbing', urgencyWeight: 4, sortOrder: 1 };
 beforeEach(() => {
   setActivePinia(createPinia()); vi.resetAllMocks(); setLocale('en');
-  useAuthStore().user = { id: 1, role: 'admin', siteId: 7, firstName: 'Test', lastName: 'Admin', email: 'test@example.invalid', phone: null, address: null };
+  useAuthStore().user = { id: 1, role: 'super_admin', siteId: null, firstName: 'Test', lastName: 'Admin', email: 'test@example.invalid', phone: null, address: null };
   useMaintenanceStore().sites = [{ id: 7, name: 'School', type: 'school', contractStatus: 'contracted', address: null, description: null, imageUrl: null, contractFlatFeeMinor: 50000, contractFeeCurrency: 'USD', createdAt: '', updatedAt: '' }];
   useMaintenanceStore().selectedSiteId = 7;
   vi.spyOn(useMaintenanceStore(), 'refresh').mockResolvedValue();
@@ -55,5 +55,21 @@ it('only displays rules for the selected site type and closes an old editor on s
   data.selectedSiteId = 8; await flushPromises();
   expect(wrapper.find('form').exists()).toBe(false);
   expect(wrapper.findAll('li strong').map(node => node.text())).toEqual(['hotel-only']);
+  wrapper.unmount();
+});
+
+it('shows site admins their own site categories without mutation controls', async () => {
+  const user = useAuthStore().user!;
+  user.role = 'admin';
+  user.siteId = 7;
+  const data = useMaintenanceStore();
+  data.sites.push({ ...data.sites[0]!, id: 8, name: 'Hotel', type: 'hotel' });
+  data.selectedSiteId = 8;
+  vi.mocked(api.listSiteRules).mockResolvedValue([rule, { ...rule, id: 8, siteType: 'hotel', category: 'hotel-only' }]);
+  const wrapper = mount(SiteRulesView); await flushPromises();
+  expect(wrapper.text()).toContain('managed by a super admin');
+  expect(wrapper.findAll('li strong').map(node => node.text())).toEqual(['plumbing']);
+  expect(wrapper.find('header button').exists()).toBe(false);
+  expect(wrapper.find('li button').exists()).toBe(false);
   wrapper.unmount();
 });

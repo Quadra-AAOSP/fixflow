@@ -1,26 +1,26 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173';
 const startWebServer = process.env.PLAYWRIGHT_WEB_SERVER === 'true';
 
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  retries: 0,
+  workers: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
   timeout: 90_000,
   expect: { timeout: 15_000 },
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    trace: 'off',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: 'off',
     locale: 'en-US',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'edge', use: { channel: 'msedge', headless: false, viewport: null, launchOptions: { args: ['--start-maximized'], slowMo: Number(process.env.SLOW_MO_MS ?? 500) } } },
   ],
   // Optional: start Vite when PLAYWRIGHT_WEB_SERVER=true.
   // Backend (API on :8080, proxied by Vite) must already be running with SEED_DEMO_DATA=true.

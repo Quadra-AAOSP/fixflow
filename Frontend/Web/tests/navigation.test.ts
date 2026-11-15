@@ -12,7 +12,7 @@ describe('account landing screens', () => {
     expect(accountHome({ ...user, siteOnboarding: {
       siteId: 71, reportingReady: false, setupRequired: true,
       canManageSubsites: true, setupEndpoint: '/api/sites/71/subsites',
-    } })).toBe('/sites/71/subsites');
+    } })).toBe('/site-setup');
   });
   it('does not send a reporter to an administration screen', () => {
     expect(accountHome({ ...user, role: 'reporter', siteOnboarding: {
@@ -38,7 +38,8 @@ describe('account landing screens', () => {
     };
     expect(requiresSiteSetup(incomplete)).toBe(true);
     expect(setupAllowedPath('/sites/71/subsites', 71)).toBe(true);
-    expect(setupAllowedPath('/sites', 71)).toBe(true);
+    expect(setupAllowedPath('/site-setup', 71)).toBe(true);
+    expect(setupAllowedPath('/sites/72/subsites', 71)).toBe(false);
     expect(setupAllowedPath('/profile', 71)).toBe(true);
     expect(setupAllowedPath('/reports', 71)).toBe(false);
     expect(setupAllowedPath('/marketplace', 71)).toBe(false);

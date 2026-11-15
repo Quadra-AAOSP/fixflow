@@ -7,6 +7,7 @@ import ReportDetailView from '../src/views/app/ReportDetailView.vue';
 import { useAuthStore } from '../src/stores/auth';
 import { useRealtimeStore } from '../src/stores/realtime';
 import * as api from '../src/services/maintenance';
+import { notifyReportSiteAdmins } from '../src/services/reportWorkflow';
 import { setLocale } from '../src/i18n';
 import { report } from './fixtures';
 import type { ReportRealtimeClient } from '../src/services/reportRealtime';
@@ -35,6 +36,11 @@ vi.mock('../src/services/maintenance', async (original) => ({
   getReport: vi.fn(),
   listReporters: vi.fn(),
   listSites: vi.fn(),
+}));
+
+vi.mock('../src/services/reportWorkflow', async (original) => ({
+  ...(await original<typeof import('../src/services/reportWorkflow')>()),
+  notifyReportSiteAdmins: vi.fn(),
 }));
 
 const actor = {
@@ -82,6 +88,7 @@ async function render(deferred = false) {
     vi.mocked(api.getReport).mockResolvedValue(
       report({
         id: 2,
+        siteId: 1,
         description: 'Leaking pipe near the lobby',
         address: 'Building A',
         category: 'plumbing',
@@ -124,6 +131,7 @@ describe('report detail layout', () => {
     finish(
       report({
         id: 2,
+        siteId: 1,
         description: 'Leaking pipe near the lobby',
         address: 'Building A',
         category: 'plumbing',
@@ -132,6 +140,22 @@ describe('report detail layout', () => {
     await flushPromises();
     expect(wrapper.find('.rd-skeleton').exists()).toBe(false);
     expect(wrapper.text()).toContain('Leaking pipe near the lobby');
+  });
+
+  it('lets an administrator remind peers about unattended work at their own site', async () => {
+    useAuthStore().user = { ...actor, role: 'admin' };
+    vi.mocked(notifyReportSiteAdmins).mockResolvedValue({ recipients: 1, siteName: 'Site A' });
+    await render();
+
+    const notify = () => wrapper.findAll('button').find((button) => button.text() === 'Notify site administrators');
+    await notify()!.trigger('click');
+    await flushPromises();
+    expect(notifyReportSiteAdmins).toHaveBeenCalledWith(2);
+    expect(wrapper.text()).toContain('Site administrators notified.');
+
+    useAuthStore().user = { ...actor, role: 'admin', siteId: 9 };
+    await flushPromises();
+    expect(notify()).toBeUndefined();
   });
 
   it('renders the redesigned summary and even columns after load', async () => {

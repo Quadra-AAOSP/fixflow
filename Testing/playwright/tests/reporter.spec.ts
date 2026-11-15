@@ -3,6 +3,10 @@ import { accounts } from '../fixtures/accounts';
 import { authenticatedContext } from '../fixtures/auth';
 import { createPublicReport, openReport, uniqueTag } from '../fixtures/helpers';
 
+test.beforeEach(() => {
+  test.skip(process.env.ALLOW_WORKFLOW_WRITES !== 'true', 'Workflows that may write are opt-in');
+});
+
 test.describe('Reporter report lifecycle @reporter', () => {
   test('create public report, join as another reporter, leave, confirm path @reporter', async ({ browser, baseURL }) => {
     test.info().annotations.push({ type: 'actors', description: 'reporter1 + reporter2 site1' });

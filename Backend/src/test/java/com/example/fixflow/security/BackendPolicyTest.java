@@ -42,7 +42,7 @@ class BackendPolicyTest {
 
 	@Test
 	void capabilityHintsMatchBackendRoles() {
-		assertThat(UserCapabilities.forRole(UserRole.admin).provisionableRoles()).containsExactly(UserRole.staff);
+		assertThat(UserCapabilities.forRole(UserRole.admin).provisionableRoles()).containsExactly(UserRole.staff, UserRole.admin);
 		assertThat(UserCapabilities.forRole(UserRole.super_admin).provisionableRoles())
 				.containsExactly(UserRole.staff, UserRole.admin, UserRole.shop_manager);
 		assertThat(UserCapabilities.forRole(UserRole.shop_manager).manageShop()).isTrue();

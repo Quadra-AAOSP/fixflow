@@ -141,6 +141,34 @@ class SiteApiIntegrationTest {
 	}
 
 	@Test
+	void onlySuperAdminCanChangeSharedSiteTypeRules() throws Exception {
+		User siteAdmin = new User();
+		siteAdmin.setEmail("site-admin-rule-test-" + System.nanoTime() + "@example.com");
+		siteAdmin.setPasswordHash("{noop}unused");
+		siteAdmin.setFirstName("Site");
+		siteAdmin.setLastName("Admin");
+		siteAdmin.setRole(UserRole.admin);
+		siteAdmin.setSite(reporter.getSite());
+		siteAdmin = userRepository.save(siteAdmin);
+
+		String body = """
+				{"siteType":"%s","category":"integration-rule-%s","urgencyWeight":20,"sortOrder":1}
+				""".formatted(reporter.getSite().getType(), System.nanoTime());
+
+		mockMvc.perform(post("/api/site-rules")
+						.with(user(new AppUserDetails(siteAdmin)))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isForbidden());
+
+		mockMvc.perform(post("/api/site-rules")
+						.with(user(new AppUserDetails(superAdmin)))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isCreated());
+	}
+
+	@Test
 	void unauthenticatedCannotListSites() throws Exception {
 		mockMvc.perform(get("/api/sites"))
 				.andExpect(status().isUnauthorized());

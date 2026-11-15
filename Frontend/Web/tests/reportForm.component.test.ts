@@ -65,6 +65,12 @@ describe('report intake interactions', () => {
     const photo = new File(['photo'], 'issue.png', { type: 'image/png' });
     Object.defineProperty(input.element, 'files', { value: [photo], configurable: true });
     await input.trigger('change');
+    useMaintenanceStore().loading = true;
+    await flushPromises();
+    expect(wrapper.get('input[type="file"]').element).toBe(input.element);
+    expect(wrapper.get('textarea').element.value).toBe('A pipe is leaking.');
+    useMaintenanceStore().loading = false;
+    await flushPromises();
     await wrapper.findAll('form')[0]!.trigger('submit'); await flushPromises();
     expect(api.createReportWithPhotos).toHaveBeenCalledWith(expect.objectContaining({ subsiteId: 42 }), [photo]);
     expect(api.createReport).not.toHaveBeenCalled();

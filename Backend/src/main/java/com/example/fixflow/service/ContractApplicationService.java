@@ -73,6 +73,7 @@ public class ContractApplicationService {
         var saved = applications.saveAndFlush(application);
         notifier.toSiteAdmins(saved.getSite().getId(),
                 com.example.fixflow.domain.ReportNotification.Type.contract_submitted, saved.getId());
+        notifier.toSuperAdmins(com.example.fixflow.domain.ReportNotification.Type.contract_submitted, saved.getId());
         return ContractApplicationResponse.from(saved);
     }
 
@@ -83,6 +84,10 @@ public class ContractApplicationService {
                     .filter(a -> siteId == null || a.getSite().getId().equals(siteId))
                     .map(ContractApplicationResponse::from).toList();
         }
+        if (actor.getRole() == UserRole.super_admin && siteId == null) {
+            return applications.findAllByOrderByCreatedAtDescIdDesc().stream()
+                    .map(ContractApplicationResponse::from).toList();
+        }
         Long target = siteId == null ? actor.getSiteId() : siteId;
         requireSiteAdmin(target, actor);
         return applications.findBySite_IdOrderByCreatedAtDesc(target).stream()
@@ -91,7 +96,9 @@ public class ContractApplicationService {
 
     @Transactional
     public ContractApplicationResponse decide(Long id, ContractDecisionRequest decision, AppUserDetails actor) {
-        if (actor.getRole() != UserRole.admin) throw new ApiException(403, "Only the target site admin can decide requests");
+        if (actor.getRole() != UserRole.admin && actor.getRole() != UserRole.super_admin) {
+            throw new ApiException(403, "Only administrators can decide requests");
+        }
         TechnicianContractApplication application = applications.lockById(id)
                 .orElseThrow(() -> new ApiException(404, "Contract request not found"));
         requireSiteAdmin(application.getSite().getId(), actor);
@@ -126,6 +133,9 @@ public class ContractApplicationService {
     }
 
     private void requireSiteAdmin(Long siteId, AppUserDetails actor) {
+        if (actor.getRole() == UserRole.super_admin) {
+            return;
+        }
         if (siteId == null || actor.getRole() != UserRole.admin || !siteId.equals(actor.getSiteId())) {
             throw new ApiException(403, "Only the target site admin can access requests");
         }

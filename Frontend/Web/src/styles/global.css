@@ -68,3 +68,8 @@ body{margin:0;min-width:0;min-height:100vh}button,a,input{touch-action:manipulat
 
 /* Preserve the authentication palette while keeping example input text readable. */
 .auth-form-panel input::placeholder,.auth-form-panel textarea::placeholder{color:#62665b;opacity:1}
+.dark{--product-ink:#e3eee8;--product-paper:#172321;--product-surface:#202f2b;--product-border:#415951;--product-muted:#b6c8be;--setup-accent:#73d5bc;color:var(--product-ink);background:var(--product-paper)}
+.dark :is(.dashboard-app,.dashboard-main,.dashboard-sidebar,.dashboard-topbar,.dashboard-card,.dashboard-dialog){background:var(--product-surface);color:var(--product-ink);border-color:var(--product-border)}
+.dark .dashboard-app :is(.ff-page-heading,.settings-language){border-color:var(--product-border)}
+.dark .dashboard-app :is(.ff-page-heading p,.text-action,.action-link,.account-link,.icon-button){color:var(--product-ink)}
+.dark .dashboard-app :is(.action-link:hover,.account-menu [role=menuitem]:hover,.account-menu [role=menuitem]:focus-visible){background:var(--product-paper)}

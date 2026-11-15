@@ -35,17 +35,22 @@ export async function createPublicReport(page: Page, description: string, option
 
   await page.getByLabel(/What happened/i).fill(description);
 
-  const category = page.getByLabel(/^Category$/i);
-  await category.selectOption({ index: 1 });
+  const category = page.getByRole('combobox', { name: /^Category$/i });
   if (options?.category) {
-    await category.selectOption({ label: options.category });
+    const option = category.getByRole('option', { name: options.category });
+    await expect(option).toHaveCount(1);
+    await category.selectOption(await option.evaluate(node => (node as HTMLOptionElement).value));
+  } else {
+    await category.selectOption({ index: 1 });
   }
 
-  const urgency = page.getByLabel(/Your urgency/i);
-  await urgency.selectOption({ label: options?.urgency ?? /Medium/i });
+  const urgency = page.getByRole('combobox', { name: /Your urgency/i });
+  const urgencyOption = urgency.getByRole('option', { name: options?.urgency ?? /^Medium$/i });
+  await expect(urgencyOption).toHaveCount(1);
+  await urgency.selectOption(await urgencyOption.evaluate(node => (node as HTMLOptionElement).value));
 
   const visibility = page.getByLabel(/Report visibility/i);
-  await visibility.selectOption({ label: /Public within your site/i });
+  await visibility.selectOption('public');
 
   await page.getByRole('button', { name: /Submit report/i }).click();
   await expect(page).toHaveURL(/\/reports\/\d+/);

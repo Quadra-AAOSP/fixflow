@@ -65,8 +65,13 @@ public class TechnicianHistoryService {
 		if (technician.getRole() != UserRole.technician) {
 			throw new ApiException(404, "Technician not found");
 		}
+		Long siteScope = actor.getRole() == UserRole.admin || actor.getRole() == UserRole.staff
+				? actor.getSiteId() : null;
 		List<HistoryItem> items = new ArrayList<>();
 		for (Report report : reports.findDetailedByAssignedTechnicianId(technicianId)) {
+			if (siteScope != null && !siteScope.equals(report.getSite().getId())) {
+				continue;
+			}
 			Integer score = ratings.findByResolution_Report_IdOrderByIdAsc(report.getId()).stream()
 					.filter(r -> r.getRatedBy().getRole() == UserRole.reporter)
 					.map(ReportRating::getScore)
@@ -85,6 +90,9 @@ public class TechnicianHistoryService {
 					report.getUpdatedAt()));
 		}
 		for (ReportReassignment row : reassignments.findByFromTechnicianOrToTechnician(technicianId)) {
+			if (siteScope != null && !siteScope.equals(row.getReport().getSite().getId())) {
+				continue;
+			}
 			String note = "Reassigned from #" + row.getFromTechnician().getId()
 					+ " to "
 					+ (row.getToTechnician() == null ? "unassigned" : ("#" + row.getToTechnician().getId()));

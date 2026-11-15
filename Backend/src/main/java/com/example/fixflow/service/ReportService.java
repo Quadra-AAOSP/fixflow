@@ -448,8 +448,7 @@ public class ReportService {
 	public record NotifySiteAdminsResult(int recipients, String siteName) {}
 
 	/**
-	 * Super-admin oversight action: nudge every administrator of the report's
-	 * site about a report that nobody has picked up yet.
+	 * Notify the report site’s administrators about unattended work.
 	 *
 	 * <p>The inbox row carries the report id, so the admin can open the report
 	 * straight from the notice. Refusing already-attended reports keeps the
@@ -458,12 +457,17 @@ public class ReportService {
 	 */
 	@Transactional
 	public NotifySiteAdminsResult notifySiteAdmin(Long id, AppUserDetails actor) {
-		if (actor.getRole() != UserRole.super_admin) {
+		boolean superAdmin = actor.getRole() == UserRole.super_admin;
+		if (!superAdmin && actor.getRole() != UserRole.admin) {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(),
-					"Only super administrators can notify site administrators");
+					"Only administrators can notify site administrators");
 		}
 		Report report = reportRepository.findDetailedById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND.value(), "Report not found"));
+		Long siteId = report.getSite().getId();
+		if (!superAdmin && !siteId.equals(actor.getSiteId())) {
+			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to notify administrators at another site");
+		}
 		boolean stillOpen = report.getStatus() == ReportStatus.open
 				|| report.getStatus() == ReportStatus.routed
 				|| report.getStatus() == ReportStatus.escalated
@@ -472,11 +476,11 @@ public class ReportService {
 			throw new ApiException(HttpStatus.CONFLICT.value(),
 					"Only reports that nobody has picked up can be escalated to the site administrator");
 		}
-		Long siteId = report.getSite().getId();
-		List<Long> recipients = userRepository.findIdsBySiteAndRole(siteId, UserRole.admin);
+		List<Long> recipients = userRepository.findIdsBySiteAndRole(siteId, UserRole.admin).stream()
+				.filter(recipient -> !recipient.equals(actor.getId())).toList();
 		if (recipients.isEmpty()) {
 			throw new ApiException(HttpStatus.CONFLICT.value(),
-					"This site has no site administrator to notify");
+					"This site has no other site administrator to notify");
 		}
 		Instant now = Instant.now();
 		notifications.saveAll(recipients.stream()

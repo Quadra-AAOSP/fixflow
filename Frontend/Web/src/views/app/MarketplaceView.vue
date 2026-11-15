@@ -479,8 +479,8 @@ onBeforeUnmount(() => {
               }}
             </p>
             <SiteVettingPanel
-              v-if="user?.siteId"
-              :site-id="user.siteId"
+              v-if="listing.siteId ?? user?.siteId"
+              :site-id="(listing.siteId ?? user?.siteId)!"
               :technicians="[applicant.technicianId]"
               :initial-technician-id="applicant.technicianId"
             />

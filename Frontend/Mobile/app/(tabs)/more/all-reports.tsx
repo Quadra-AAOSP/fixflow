@@ -56,6 +56,7 @@ export default function AllReportsScreen() {
   const { t } = useTranslation('common');
 
   const isSuperAdmin = user?.role === 'super_admin';
+  const canOversee = isSuperAdmin || (user?.role === 'admin' && user.siteId != null);
 
   const [mode, setMode] = useState<Mode>('unattended');
   const [siteId, setSiteId] = useState<number | null>(null);
@@ -132,9 +133,9 @@ export default function AllReportsScreen() {
   );
 
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!canOversee) return;
     void load(0);
-  }, [isSuperAdmin, load]);
+  }, [canOversee, load]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -184,7 +185,7 @@ export default function AllReportsScreen() {
     }
   }
 
-  if (!isSuperAdmin) {
+  if (!canOversee) {
     return (
       <Screen>
         <Stack.Screen options={{ title: t('more.allReports.title') }} />
@@ -261,12 +262,12 @@ export default function AllReportsScreen() {
               : t('more.allReports.allHint')}
           </Text>
 
-          <Picker
+          {isSuperAdmin ? <Picker
             label={t('more.allReports.siteLabel')}
             value={siteId === null ? 'all' : String(siteId)}
             onChange={(value) => setSiteId(value === 'all' ? null : Number(value))}
             options={siteOptions}
-          />
+          /> : null}
 
           <SearchField
             value={query}

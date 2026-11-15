@@ -3,6 +3,10 @@ import { accounts } from '../fixtures/accounts';
 import { authenticatedContext } from '../fixtures/auth';
 import { uniqueTag } from '../fixtures/helpers';
 
+test.beforeEach(() => {
+  test.skip(process.env.ALLOW_WORKFLOW_WRITES !== 'true', 'Workflows that may write are opt-in');
+});
+
 test.describe('Super admin platform ops @super_admin', () => {
   test('site applications review page is reachable', async ({ browser, baseURL }) => {
     const session = await authenticatedContext(browser, accounts.superadmin1, baseURL);

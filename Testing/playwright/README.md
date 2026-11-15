@@ -12,7 +12,7 @@ End-to-end workflows for the Vue web app under `Frontend/Web`.
 
    (Exact env wiring depends on your Backend run config / Spring profile.)
 
-2. **Backend** listening on `http://127.0.0.1:8080` (Vite proxies `/api`).
+2. **Backend** listening on `http://localhost:8080` (Vite proxies `/api`).
 
 3. **Web** on `http://localhost:5173`:
 
@@ -25,7 +25,7 @@ End-to-end workflows for the Vue web app under `Frontend/Web`.
    ```bash
    cd Testing/playwright
    npm install
-   npx playwright install chromium   # once, for a full run
+   // Microsoft Edge must be installed
    ```
 
 ## Seed accounts
@@ -74,7 +74,6 @@ npx playwright test --ui
 | `join-urgency.spec.ts` | 3–5 joiners; participation / calculated urgency |
 | `staff-admin.spec.ts` | Assign technician, urgency override, escalate |
 | `technician.spec.ts` | Terms, verification, availability, start/resolve |
-| `invitations-contracts.spec.ts` | Invite → contract request → approve / vetting |
 | `marketplace.spec.ts` | Publish → apply → offer → accept |
 | `super-admin.spec.ts` | Site applications, verification decide, team provision |
 | `site-admin.spec.ts` | Site rules, buildings, create staff |
@@ -85,4 +84,16 @@ npx playwright test --ui
 
 - Vitest unit/component tests under `Frontend/Web/tests/*.test.ts` are separate — do not run them from this package.
 - Prefer role/label selectors that match Vue UI copy.
-- Listing tests (`--list`) must succeed offline; a full run needs the live stack + Chromium.
+- Listing tests (`--list`) must succeed offline; a full run needs the live stack + Microsoft Edge.
+
+## Selecting workflows and writes
+
+Run a role or named workflow with Playwright's grep filter, for example:
+
+```powershell
+npx playwright test --grep @technician
+npx playwright test --grep @shop
+npx playwright test tests/reporter.spec.ts
+```
+
+Tests that may create or change records are skipped unless `$env:ALLOW_WORKFLOW_WRITES="true"` is set. The shop flow creates a synthetic order and uses that order throughout fulfillment. Other existing workflows may modify seeded data; inspect them before enabling writes. `DEMO_MODE=true` announces UI login as one action; other actions do not yet have announcements. The suite targets Vue; Expo web and native phone are separate and are not covered here.

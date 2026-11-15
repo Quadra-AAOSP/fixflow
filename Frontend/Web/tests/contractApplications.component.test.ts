@@ -88,11 +88,15 @@ describe('contract request screen interactions', () => {
     expect(wrapper.get('li').text()).toContain('approved');
     expect(wrapper.get('li').find('textarea').exists()).toBe(false);
   });
-  it('does not expose site-admin request decisions to a super administrator', async () => {
+  it('shows and lets a super administrator decide requests without a selected site', async () => {
     Object.assign(useAuthStore().user!, { role: 'super_admin', siteId: null });
+    vi.mocked(api.listContractApplications).mockResolvedValue([{ ...application, siteName: 'CNU School' }]);
     wrapper = mount(ContractApplicationsPanel); await flushPromises();
-    expect(api.listContractApplications).not.toHaveBeenCalled();
-    expect(wrapper.find('section').exists()).toBe(false);
+    expect(api.listContractApplications).toHaveBeenCalledWith(undefined);
+    expect(wrapper.text()).toContain('CNU School');
+    await wrapper.findAll('button').find(button => button.text() === 'Approve request #93')!.trigger('click');
+    await flushPromises();
+    expect(api.decideContractApplication).toHaveBeenCalledWith(93, 'approve', '');
   });
 });
 

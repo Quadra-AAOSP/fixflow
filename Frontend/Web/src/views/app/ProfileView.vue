@@ -8,7 +8,6 @@ import { User } from "@lucide/vue";
 import Button from "@/components/ui/Button.vue";
 import { useAuth } from "@/composables/useAuth";
 import { errorMessage } from "@/services/api";
-import { changePassword } from "@/services/auth";
 import { roleLabels } from "@/constants/access";
 import { colors } from "@/constants/theme";
 const { t } = useLocale();
@@ -17,13 +16,6 @@ const router = useRouter();
 const { user, logout } = useAuth();
 const loggingOut = ref(false);
 const error = ref("");
-const passwordError = ref("");
-const passwordSuccess = ref("");
-const passwordBusy = ref(false);
-const currentPassword = ref("");
-const nextPassword = ref("");
-const confirmPassword = ref("");
-
 async function onLogout() {
   loggingOut.value = true;
   error.value = "";
@@ -37,30 +29,6 @@ async function onLogout() {
   }
 }
 
-async function onChangePassword() {
-  passwordError.value = "";
-  passwordSuccess.value = "";
-  if (nextPassword.value.length < 15) {
-    passwordError.value = t("Use a password of at least 15 characters.");
-    return;
-  }
-  if (nextPassword.value !== confirmPassword.value) {
-    passwordError.value = t("New password and confirmation do not match.");
-    return;
-  }
-  passwordBusy.value = true;
-  try {
-    await changePassword(currentPassword.value, nextPassword.value);
-    currentPassword.value = "";
-    nextPassword.value = "";
-    confirmPassword.value = "";
-    passwordSuccess.value = t("Password updated.");
-  } catch (err) {
-    passwordError.value = errorMessage(err);
-  } finally {
-    passwordBusy.value = false;
-  }
-}
 </script>
 
 <template>
@@ -133,33 +101,7 @@ async function onChangePassword() {
       <TradeProfile />
     </details>
 
-    <section class="dashboard-card profile-password">
-      <h2 class="font-semibold">{{ t("Change password") }}</h2>
-      <p class="dialog-intro">
-        {{ t("Enter your current password, then choose a new one of at least 15 characters.") }}
-      </p>
-      <form class="draft-form" @submit.prevent="onChangePassword">
-        <label
-          >{{ t("Current password") }}
-          <input v-model="currentPassword" type="password" autocomplete="current-password" required />
-        </label>
-        <label
-          >{{ t("New password") }}
-          <input v-model="nextPassword" type="password" autocomplete="new-password" minlength="15" required />
-        </label>
-        <label
-          >{{ t("Confirm new password") }}
-          <input v-model="confirmPassword" type="password" autocomplete="new-password" minlength="15" required />
-        </label>
-        <p v-if="passwordError" role="alert" class="live-error">{{ passwordError }}</p>
-        <p v-if="passwordSuccess" role="status">{{ passwordSuccess }}</p>
-        <Button
-          label="Update password"
-          :loading="passwordBusy"
-          :disabled="passwordBusy || !currentPassword || !nextPassword || !confirmPassword"
-        />
-      </form>
-    </section>
+
 
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p>
     <Button

@@ -8,7 +8,7 @@ export const roleLabels: Record<UserRole, string> = {
 };
 export const canProvision = (role: UserRole | undefined) => role === 'admin' || role === 'super_admin';
 export function canProvisionRole(actor: UserRole | undefined, target: UserRole) {
-  return target === 'staff' ? canProvision(actor) : (target === 'admin' || target === 'shop_manager') && actor === 'super_admin';
+  return target === 'staff' || target === 'admin' ? canProvision(actor) : target === 'shop_manager' && actor === 'super_admin';
 }
 export const superAdminCriteria = [
   { title: 'Verified organizational identity', detail: 'A named person whose identity and organizational authority are verified through a trusted process. An email domain alone is not proof.' },

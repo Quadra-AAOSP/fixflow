@@ -21,6 +21,7 @@ export interface MarketplaceApplication {
 export interface MarketplaceListing {
   id: number;
   reportId: number | null;
+  siteId?: number | null;
   summary: string;
   broadLocation: string;
   timing: string;

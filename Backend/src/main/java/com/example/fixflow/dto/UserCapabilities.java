@@ -13,7 +13,7 @@ public record UserCapabilities(boolean provision, boolean decideContracts, boole
                 administrator, administrator || role == UserRole.staff,
                 role != UserRole.technician && role != UserRole.shop_manager,
                 role == UserRole.super_admin ? List.of(UserRole.staff, UserRole.admin, UserRole.shop_manager)
-                        : role == UserRole.admin ? List.of(UserRole.staff) : List.of(),
+                        : role == UserRole.admin ? List.of(UserRole.staff, UserRole.admin) : List.of(),
                 role == UserRole.super_admin || role == UserRole.shop_manager);
     }
 }

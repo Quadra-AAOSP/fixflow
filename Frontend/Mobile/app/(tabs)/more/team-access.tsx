@@ -71,7 +71,9 @@ export default function TeamAccessScreen() {
   const [sitesError, setSitesError] = useState<string | null>(null);
 
   const [role, setRole] = useState<UserRole | null>(null);
-  const [siteId, setSiteId] = useState<number | null>(null);
+  const [selectedSiteId, setSiteId] = useState<number | null>(null);
+  const isSiteAdmin = user?.role === 'admin';
+  const siteId = isSiteAdmin ? user?.siteId ?? null : selectedSiteId;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -118,11 +120,11 @@ export default function TeamAccessScreen() {
 
   // Pick a sensible default site once the list arrives.
   useEffect(() => {
-    if (siteId === null && sites && sites.length > 0) {
+    if (!isSiteAdmin && siteId === null && sites && sites.length > 0) {
       const userSite = sites.find((site) => site.id === user?.siteId);
       setSiteId(userSite?.id ?? sites[0].id);
     }
-  }, [siteId, sites, user?.siteId]);
+  }, [isSiteAdmin, siteId, sites, user?.siteId]);
 
   if (!user || !canProvision(user)) {
     return (
@@ -160,7 +162,7 @@ export default function TeamAccessScreen() {
     .join(', ');
 
   async function onSubmit() {
-    if (role === null) {
+    if (role === null || !roles.includes(role)) {
       setError(t('more.teamAccess.errors.chooseRole'));
       return;
     }
@@ -328,7 +330,7 @@ export default function TeamAccessScreen() {
                   onChange={(value) => setRole(value as UserRole)}
                   options={roleOptions}
                 />
-                {!siteless ? (
+                {!siteless && !isSiteAdmin ? (
                   <Picker
                     label={t('more.teamAccess.siteLabel')}
                     value={siteId !== null ? String(siteId) : null}

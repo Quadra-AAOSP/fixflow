@@ -46,12 +46,14 @@ const form = reactive<RegistrationInput>({
   role: "staff",
   siteId: "",
 });
+const isSiteAdmin = computed(() => user.value?.role === "admin");
+const ownSiteId = computed(() => isSiteAdmin.value ? user.value?.siteId : null);
 const roles = computed(() =>
   (
     user.value?.capabilities?.provisionableRoles ??
     (user.value?.role === "super_admin"
       ? ["staff", "admin", "shop_manager"]
-      : ["staff"])
+      : [])
   ).filter(
     (role) => role === "staff" || role === "admin" || role === "shop_manager",
   ),
@@ -111,7 +113,7 @@ async function decide(id: number, decision: "approve" | "reject") {
 
 onMounted(loadApplications);
 watch(
-  () => data.selectedSiteId,
+  () => isSiteAdmin.value ? ownSiteId.value : data.selectedSiteId,
   (id) => {
     if (!busy.value) form.siteId = id == null ? "" : String(id);
   },
@@ -125,9 +127,11 @@ async function submit() {
     if (!roles.value.some((role) => role === form.role))
       throw new Error("Choose a role available to your account.");
     const payload = buildProvisionPayload(
-      form,
+      isSiteAdmin.value ? { ...form, siteId: String(ownSiteId.value ?? "") } : form,
       user.value?.role,
-      data.sites.map((site) => site.id),
+      isSiteAdmin.value
+        ? ownSiteId.value == null ? [] : [ownSiteId.value]
+        : data.sites.map((site) => site.id),
       accessPolicy.policy.passwordMinLength,
     );
     busy.value = true;
@@ -155,7 +159,7 @@ async function submit() {
             t(
               user?.role === "super_admin"
                 ? "Create approved site-administrator, staff, and shop-manager accounts."
-                : "Create staff accounts for your site.",
+                : "Create staff and site administrator accounts for your site.",
             )
           }}
         </p>
@@ -233,7 +237,9 @@ async function submit() {
                 </select></label
               ><label v-if="form.role !== 'shop_manager'"
                 >{{ t("Site")
-                }}<select v-model="form.siteId" required>
+                }}
+                <span v-if="isSiteAdmin">{{ data.siteName(ownSiteId ?? null) }}</span>
+                <select v-else v-model="form.siteId" required>
                   <option disabled value="">{{ t("Choose a site") }}</option>
                   <option
                     v-for="site in data.sites"

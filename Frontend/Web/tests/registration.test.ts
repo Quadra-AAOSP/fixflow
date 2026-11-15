@@ -79,12 +79,13 @@ describe('role-based public registration', () => {
 });
 
 describe('managed-role provisioning', () => {
-  it('permits only a super admin to provision a site admin', () => {
+  it('permits both admin roles to provision a site admin at an accessible site', () => {
     const input = { ...form, role: 'admin' as const };
     expect(buildProvisionPayload(input, 'super_admin', [71], 15)).toMatchObject({ role: 'admin', siteId: 71 });
-    expect(() => buildProvisionPayload(input, 'admin', [71], 15)).toThrow('permission');
+    expect(buildProvisionPayload(input, 'admin', [71], 15)).toMatchObject({ role: 'admin', siteId: 71 });
+    expect(() => buildProvisionPayload(input, 'admin', [72], 15)).toThrow('available');
   });
-  it('limits site admins to staff in an accessible site', () => {
+  it('permits site admins to provision staff only in an accessible site', () => {
     const input = { ...form, role: 'staff' as const };
     expect(buildProvisionPayload(input, 'admin', [71], 15).role).toBe('staff');
     expect(() => buildProvisionPayload(input, 'admin', [72], 15)).toThrow('available');

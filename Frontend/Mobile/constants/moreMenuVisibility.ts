@@ -40,7 +40,7 @@ export const MORE_MENU_ROLE_VISIBILITY: Record<MoreMenuItemKey, UserRole[]> = {
   siteApplications: ['super_admin'],
   verificationReviews: ['super_admin'],
   // Cross-site report oversight + "notify the site admin" nudge.
-  allReports: ['super_admin'],
+  allReports: ['admin', 'super_admin'],
   myAdminApplication: ['reporter'],
   // Site setup = manage buildings (subsites) for the current site — site-bound admins only.
   siteSetup: ['admin'],

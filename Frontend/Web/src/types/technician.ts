@@ -11,6 +11,7 @@ export type ContractApplication = {
   id: number;
   technicianId: number;
   siteId: number;
+  siteName?: string;
   status: 'pending' | 'approved' | 'rejected';
   note: string | null;
   decisionReason: string | null;

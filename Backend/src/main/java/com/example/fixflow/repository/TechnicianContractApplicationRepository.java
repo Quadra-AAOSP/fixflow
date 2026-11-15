@@ -15,6 +15,7 @@ public interface TechnicianContractApplicationRepository extends JpaRepository<T
             TechnicianContractApplication.Status status);
     List<TechnicianContractApplication> findByTechnician_IdOrderByCreatedAtDesc(Long technicianId);
     List<TechnicianContractApplication> findBySite_IdOrderByCreatedAtDesc(Long siteId);
+    List<TechnicianContractApplication> findAllByOrderByCreatedAtDescIdDesc();
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from TechnicianContractApplication a where a.id = :id")
     Optional<TechnicianContractApplication> lockById(@Param("id") Long id);

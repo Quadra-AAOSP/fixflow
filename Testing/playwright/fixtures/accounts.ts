@@ -24,13 +24,13 @@ export type SeedAccount = {
 };
 
 function siteAccount(role: Exclude<SeedRole, 'super_admin' | 'shop_manager'>, n: number, site: 1 | 2 | 3): SeedAccount {
-  const email = `${role}${n}.site${site}@fixflow.test`;
+  const email = accountEmail(role, n, site);
   return { email, password: email, role, siteId: site, label: `${role}${n}@site${site}` };
 }
 
 function globalAccount(role: 'super_admin' | 'shop_manager', n: number): SeedAccount {
-  const local = role === 'super_admin' ? `superadmin${n}` : `shopmanager${n}`;
-  const email = `${local}@fixflow.test`;
+  const local = role === 'super_admin' ? 'superadmin' : 'shopmanager';
+  const email = `${local}${n === 1 ? "" : n}@fixflow.test`;
   return { email, password: email, role, label: local };
 }
 
@@ -92,7 +92,7 @@ export const accounts = {
   shopmanager1: globalAccount('shop_manager', 1),
 } as const;
 
-/** Buyers for shop checkout must not be reporters (router blocks /shop for reporters). */
+/** Seeded shoppers for checkout workflows. */
 export const shopBuyers = {
   staff: accounts.staff1Site1,
   admin: accounts.admin1Site1,
@@ -100,7 +100,7 @@ export const shopBuyers = {
 } as const;
 
 export function accountEmail(role: Exclude<SeedRole, 'super_admin' | 'shop_manager'>, n: number, site: 1 | 2 | 3): string {
-  return `${role}${n}.site${site}@fixflow.test`;
+  return site === 1 && n === 1 ? `${role}@fixflow.test` : `${role}${n}.site${site}@fixflow.test`;
 }
 
 export function passwordFor(email: string): string {

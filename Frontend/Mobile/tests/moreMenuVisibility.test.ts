@@ -23,7 +23,8 @@ describe('More menu role visibility', () => {
 
   it('exposes all-reports oversight to super_admin only', () => {
     expect(isMoreMenuItemVisible('allReports', 'super_admin')).toBe(true);
-    expect(isMoreMenuItemVisible('allReports', 'admin')).toBe(false);
+    expect(isMoreMenuItemVisible('allReports', 'admin')).toBe(true);
+    expect(isMoreMenuItemVisible('allReports', 'staff')).toBe(false);
   });
 
   it('keeps sites and technicians hubs for admins; contracts flat for staff', () => {

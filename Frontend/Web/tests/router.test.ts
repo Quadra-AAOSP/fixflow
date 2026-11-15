@@ -86,8 +86,11 @@ describe('actual application route guards', () => {
     } });
     const router = createAppRouter(createMemoryHistory());
     await router.push('/login');
-    expect(router.currentRoute.value.name).toBe('subsites');
-    expect(router.currentRoute.value.params.siteId).toBe('71');
+    expect(router.currentRoute.value.path).toBe('/site-setup');
+    await router.push('/reports');
+    expect(router.currentRoute.value.path).toBe('/site-setup');
+    await router.push('/sites/72/subsites');
+    expect(router.currentRoute.value.path).toBe('/site-setup');
   });
 });
 

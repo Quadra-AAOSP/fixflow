@@ -80,6 +80,11 @@ async function submit() {
       </div>
       <span class="contracts-mark"><Handshake :size="24" /></span>
     </header>
+    <ContractApplicationsPanel
+      v-if="isManager"
+      key="site-admin-requests"
+      @contract-created="contractRevision++"
+    />
     <section
       v-if="user?.role === 'technician'"
       class="dashboard-card contract-choice"
@@ -177,7 +182,7 @@ async function submit() {
       <p class="contract-note">
         {{
           t(
-            "The request history below is separate from direct contract creation.",
+            "Site contract requests are reviewed separately from direct contract creation.",
           )
         }}
       </p>
@@ -188,6 +193,8 @@ async function submit() {
       /><ContractDirectoryPanel
         :revision="contractRevision"
       /><ContractApplicationsPanel
+        v-if="user?.role === 'technician'"
+        key="technician-requests"
         :initial-site-id="initialSiteId"
         @contract-created="contractRevision++"
       />

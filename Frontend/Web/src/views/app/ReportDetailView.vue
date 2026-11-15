@@ -4,6 +4,7 @@ import { useReportDetail } from '@/composables/useReportDetail';
 import ReportDetailSkeleton from '@/components/reports/ReportDetailSkeleton.vue';
 import ReportDetailHeader from '@/components/reports/ReportDetailHeader.vue';
 import ReportDetailSummary from '@/components/reports/ReportDetailSummary.vue';
+import ReportAdminReminder from '@/components/reports/ReportAdminReminder.vue';
 import ReportDetailActions from '@/components/reports/ReportDetailActions.vue';
 import ReportDetailMeta from '@/components/reports/ReportDetailMeta.vue';
 import ReportDetailPeople from '@/components/reports/ReportDetailPeople.vue';
@@ -75,6 +76,13 @@ const {
       />
 
       <ReportDetailSummary :report="report" />
+      <ReportAdminReminder
+        v-if="!report.assignedTechnicianId
+          && ['open', 'routed', 'escalated', 'reopened'].includes(report.status)
+          && (user?.role === 'super_admin' || (user?.role === 'admin' && user.siteId === report.siteId))"
+        :key="report.id"
+        :report-id="report.id"
+      />
 
       <div class="rd-status">
         <p v-if="message" class="draft-notice" role="status">{{ t(message) }}</p>

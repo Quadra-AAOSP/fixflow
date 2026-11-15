@@ -66,6 +66,17 @@ export async function uiLogin(page: Page, account: SeedAccount | { email: string
   const password = 'password' in account && account.password ? account.password : passwordFor(email);
 
   await page.goto('/login');
+  if (process.env.DEMO_MODE === 'true') {
+    await page.evaluate(() => {
+      const notice = document.createElement('div');
+      notice.id = 'playwright-demo-notice';
+      notice.textContent = 'Sign in';
+      notice.style.cssText = 'position:fixed;z-index:2147483647;top:1rem;left:50%;transform:translateX(-50%);background:#17212f;color:white;padding:1rem;border-radius:.5rem';
+      document.body.appendChild(notice);
+    });
+    await page.waitForTimeout(1000);
+    await page.locator('#playwright-demo-notice').evaluate(node => node.remove());
+  }
   await expect(page.getByRole('heading', { name: /Welcome back/i })).toBeVisible();
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
@@ -85,7 +96,7 @@ export async function authenticatedContext(
   account: SeedAccount,
   baseURL?: string,
 ): Promise<{ context: BrowserContext; page: Page; user: AuthUser }> {
-  const context = await browser.newContext({ baseURL, storageState: undefined });
+  const context = await browser.newContext({ baseURL, storageState: undefined, viewport: null });
   const request = context.request;
   const user = await apiLogin(request, account);
   const page = await context.newPage();

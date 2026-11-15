@@ -86,6 +86,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY}
     ports:
       - '${MINIO_BIND_ADDRESS:-127.0.0.1}:${MINIO_HOST_PORT:-9000}:9000'
+      - '127.0.0.1:9001:9001'
     volumes:
       - minio_data:/data
     healthcheck:

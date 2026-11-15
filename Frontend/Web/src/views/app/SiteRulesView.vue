@@ -26,6 +26,7 @@ const data = useMaintenanceStore();
 const allowed = computed(
   () => user.value?.role === "admin" || user.value?.role === "super_admin",
 );
+const canEdit = computed(() => user.value?.role === "super_admin");
 const rules = ref<SiteRule[] | null>(null);
 const busy = ref(false);
 const loading = ref(false);
@@ -42,7 +43,10 @@ const draft = ref<RuleDraft>({
   urgencyWeight: 0,
   sortOrder: 0,
 });
-const currentType = computed(() => data.selectedSite?.type);
+const site = computed(() => canEdit.value
+  ? data.selectedSite
+  : data.sites.find((site) => site.id === user.value?.siteId));
+const currentType = computed(() => site.value?.type);
 const visible = computed(() =>
   (rules.value ?? [])
     .filter((rule) => currentType.value && rule.siteType === currentType.value)
@@ -53,7 +57,7 @@ const visible = computed(() =>
     ),
 );
 watch(
-  () => data.selectedSite?.id,
+  () => site.value?.id,
   () => {
     editing.value = false;
     removing.value = null;
@@ -78,7 +82,7 @@ async function load() {
   }
 }
 async function edit(rule?: SiteRule) {
-  if (busy.value || loading.value || !currentType.value) return;
+  if (!canEdit.value || busy.value || loading.value || !currentType.value) return;
   id.value = rule?.id ?? null;
   removing.value = null;
   message.value = "";
@@ -102,7 +106,7 @@ async function edit(rule?: SiteRule) {
 }
 async function save() {
   if (
-    !allowed.value ||
+    !canEdit.value ||
     busy.value ||
     draft.value.siteType !== currentType.value
   )
@@ -128,14 +132,14 @@ async function save() {
   }
 }
 async function askRemove(rule: SiteRule) {
-  if (busy.value) return;
+  if (!canEdit.value || busy.value) return;
   removing.value = rule;
   editing.value = false;
   await nextTick();
   confirmation.value?.focus();
 }
 async function remove() {
-  if (!allowed.value || busy.value || !removing.value) return;
+  if (!canEdit.value || busy.value || !removing.value) return;
   const current = ++generation;
   const target = removing.value;
   busy.value = true;
@@ -171,6 +175,7 @@ onMounted(load);
         </p>
       </div>
       <button
+        v-if="canEdit"
         type="button"
         class="report-issue-button"
         :disabled="busy || loading || !currentType"
@@ -182,7 +187,9 @@ onMounted(load);
     <p class="rules-scope-note">
       {{
         t(
-          "Showing categories for the current site. These rules are shared with other sites of the same type; edits affect those sites too.",
+          canEdit
+            ? "Showing categories for the current site. These rules are shared with other sites of the same type; edits affect those sites too."
+            : "These categories are shared by sites of the same type and managed by a super admin.",
         )
       }}
     </p>
@@ -193,7 +200,7 @@ onMounted(load);
       </button>
     </p>
     <p v-if="message" class="draft-notice" role="status">{{ t(message) }}</p>
-    <form v-if="editing" ref="editor" class="draft-form" @submit.prevent="save">
+    <form v-if="canEdit && editing" ref="editor" class="draft-form" @submit.prevent="save">
       <h2>{{ t(id === null ? "Add category" : "Edit rule") }}</h2>
       <fieldset class="report-fields" :disabled="busy">
         <label
@@ -238,7 +245,7 @@ onMounted(load);
       </fieldset>
     </form>
     <section
-      v-if="removing"
+      v-if="canEdit && removing"
       ref="confirmation"
       tabindex="-1"
       class="draft-notice rule-confirmation"
@@ -274,7 +281,7 @@ onMounted(load);
       </div>
     </section>
     <p class="rule-filter">
-      {{ data.selectedSite?.name || t("Choose a site to view its rules.")
+      {{ site?.name || t("Choose a site to view its rules.")
       }}<span v-if="currentType"> · {{ t(humanize(currentType)) }}</span>
     </p>
     <LoadingStatus v-if="loading" :label="t('Loading rules…')" />
@@ -288,7 +295,7 @@ onMounted(load);
             {{ t("Sort order") }}: {{ rule.sortOrder ?? t("Not specified") }}
           </p>
         </div>
-        <div class="rule-actions">
+        <div v-if="canEdit" class="rule-actions">
           <button
             type="button"
             class="text-action"

@@ -224,7 +224,7 @@ class AuthApiIntegrationTest {
 	}
 
 	@Test
-	void provisionStaffRequiresAdmin() throws Exception {
+	void siteAdminCanProvisionOnlySiteScopedTeamRoles() throws Exception {
 		User admin = new User();
 		admin.setEmail("siteadmin" + System.nanoTime() + "@example.com");
 		admin.setPasswordHash("{noop}unused");
@@ -251,6 +251,36 @@ class AuthApiIntegrationTest {
 						.content(body))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.role").value("staff"));
+
+		for (String disallowedRole : new String[]{"super_admin", "shop_manager"}) {
+			mockMvc.perform(post("/api/admin/users")
+							.with(user(new AppUserDetails(admin)))
+							.contentType(MediaType.APPLICATION_JSON)
+							.content(body.replace("\"staff\"", "\"" + disallowedRole + "\"")
+									.replace("staff", disallowedRole)))
+					.andExpect(status().isForbidden());
+		}
+
+		String adminBody = body.replace("\"staff\"", "\"admin\"").replace("staff", "newadmin");
+		Site foreignSite = new Site();
+		foreignSite.setName("Foreign site " + System.nanoTime());
+		foreignSite.setType(site.getType());
+		foreignSite.setContractStatus(site.getContractStatus());
+		foreignSite = siteRepository.save(foreignSite);
+		mockMvc.perform(post("/api/admin/users")
+						.with(user(new AppUserDetails(admin)))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(adminBody.replace("\"siteId\": " + site.getId(),
+								"\"siteId\": " + foreignSite.getId())))
+				.andExpect(status().isForbidden());
+
+		mockMvc.perform(post("/api/admin/users")
+						.with(user(new AppUserDetails(admin)))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(adminBody))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.role").value("admin"))
+				.andExpect(jsonPath("$.siteId").value(site.getId()));
 	}
 
 	@Test

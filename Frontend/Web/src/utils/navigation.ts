@@ -7,7 +7,7 @@ export function accountHome(user: User | null): string {
   if (user?.role === 'shop_manager') return '/shop/dashboard';
   const setup = user?.siteOnboarding;
   if ((user?.role === 'admin' || user?.role === 'super_admin') && setup?.setupRequired && setup.canManageSubsites) {
-    return setup.siteId != null ? `/sites/${setup.siteId}/subsites` : '/sites';
+    return '/site-setup';
   }
   if (user?.role === 'reporter') return '/reporter';
   return '/';
@@ -15,10 +15,10 @@ export function accountHome(user: User | null): string {
 
 /** Routes an admin may use while buildings + site profile + terms/contract files are incomplete. */
 export function setupAllowedPath(path: string, siteId: number | null | undefined): boolean {
-  if (path === '/sites' || path.startsWith('/sites/')) return true;
+  if (path === '/site-setup') return true;
+  if (siteId != null && path === `/sites/${siteId}/subsites`) return true;
   if (path === '/profile' || path.startsWith('/profile/')) return true;
   if (path === '/settings' || path.startsWith('/settings/')) return true;
-  if (siteId != null && path.startsWith(`/sites/${siteId}`)) return true;
   return false;
 }
 

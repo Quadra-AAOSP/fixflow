@@ -62,6 +62,29 @@ describe('site-admin application review', () => {
     expect(getPendingSiteAdminApplications).not.toHaveBeenCalled();
     expect(wrapper.text()).not.toContain('Site-admin applications');
   });
+  it('creates another site admin at the actor’s site even when the workspace selects a different site', async () => {
+    const actor = useAuthStore().user!;
+    Object.assign(actor, {
+      role: 'admin',
+      siteId: 7,
+      capabilities: {
+        provision: true, decideContracts: true, createSite: false, editSite: true,
+        assignTechnician: true, createReport: true, provisionableRoles: ['staff', 'admin'], manageShop: false,
+      },
+    });
+    const data = useMaintenanceStore();
+    data.sites = [site(7), site(8)]; data.selectedSiteId = 8;
+    vi.mocked(provisionUser).mockResolvedValue({ ...actor, id: 22, email: 'new@example.invalid' });
+    wrapper = render(); await flushPromises();
+    const selects = wrapper.findAll('form select');
+    expect(selects).toHaveLength(1);
+    await selects[0]!.setValue('admin');
+    const inputs = wrapper.findAll('form input');
+    await inputs[0]!.setValue('New'); await inputs[1]!.setValue('Admin');
+    await inputs[2]!.setValue('new@example.invalid'); await inputs[3]!.setValue('a unique test passphrase');
+    await wrapper.get('form').trigger('submit'); await flushPromises();
+    expect(provisionUser).toHaveBeenCalledWith(expect.objectContaining({ role: 'admin', siteId: 7 }));
+  });
   it('creates a shop manager from Chinese controls with no site assignment', async () => {
     setLocale('zh-CN');
     vi.mocked(provisionUser).mockResolvedValue({ ...useAuthStore().user!, id: 22, role: 'shop_manager', firstName: 'Mei', lastName: 'Chen', email: 'mei@example.invalid', siteId: null });

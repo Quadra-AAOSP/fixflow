@@ -166,8 +166,8 @@ public class AuthService {
 			throw new ApiException(HttpStatus.FORBIDDEN.value(), "Only super_admin can provision another super_admin");
 		}
 		if (actor.getRole() == UserRole.admin) {
-			if (request.role() != UserRole.staff) {
-				throw new ApiException(HttpStatus.FORBIDDEN.value(), "Site admins can only provision staff");
+			if (request.role() != UserRole.staff && request.role() != UserRole.admin) {
+				throw new ApiException(HttpStatus.FORBIDDEN.value(), "Site admins can only provision staff or site admins");
 			}
 			if (request.siteId() == null || !request.siteId().equals(actor.getSiteId())) {
 				throw new ApiException(HttpStatus.FORBIDDEN.value(), "Site admins can only provision users for their own site");

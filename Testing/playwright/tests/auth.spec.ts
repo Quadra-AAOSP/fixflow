@@ -13,8 +13,6 @@ const roleAccounts = [
 ] as const;
 
 test.describe('Auth workflows', () => {
-  test.describe.configure({ mode: 'serial' });
-
   test('UI login and logout for reporter @auth @ui', async ({ page }) => {
     test.info().annotations.push({ type: 'role', description: 'reporter' });
     await uiLogin(page, accounts.reporter);
@@ -36,6 +34,7 @@ test.describe('Auth workflows', () => {
   }
 
   test('Register reporter smoke @auth @register', async ({ page }) => {
+    test.skip(process.env.ALLOW_WORKFLOW_WRITES !== 'true', 'Synthetic writes are opt-in');
     test.info().annotations.push({ type: 'flow', description: 'self-registration' });
     const tag = uniqueTag('reg');
     const email = `${tag}@fixflow.test`;
@@ -63,6 +62,7 @@ test.describe('Auth workflows', () => {
   });
 
   test('Register technician smoke @auth @register', async ({ page }) => {
+    test.skip(process.env.ALLOW_WORKFLOW_WRITES !== 'true', 'Synthetic writes are opt-in');
     test.info().annotations.push({ type: 'flow', description: 'technician self-registration' });
     const tag = uniqueTag('tech');
     const email = `${tag}@fixflow.test`;

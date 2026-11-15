@@ -3,6 +3,10 @@ import { accounts } from '../fixtures/accounts';
 import { authenticatedContext } from '../fixtures/auth';
 import { uniqueTag } from '../fixtures/helpers';
 
+test.beforeEach(() => {
+  test.skip(process.env.ALLOW_WORKFLOW_WRITES !== 'true', 'Workflows that may write are opt-in');
+});
+
 test.describe('Site admin configuration @site-admin', () => {
   test('site rules page can add a category', async ({ browser, baseURL }) => {
     const admin = await authenticatedContext(browser, accounts.admin1Site1, baseURL);

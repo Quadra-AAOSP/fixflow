@@ -18,6 +18,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	boolean existsByRole(UserRole role);
 
+	boolean existsByRoleAndSite_Id(UserRole role, Long siteId);
+
 	List<User> findByRoleOrderByLastNameAscFirstNameAsc(UserRole role);
 
 	@Query("select u.id from User u where u.site.id = :siteId and u.role = :role")

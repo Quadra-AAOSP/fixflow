@@ -70,7 +70,7 @@ fixflow:
     session-check-ms: ${WEBSOCKET_SESSION_CHECK_MS:5000}
   seed:
     # Full demo dataset. When false, DefaultAccountsLoader still creates one
-    # super_admin and one shop_manager on a fresh database.
+    # super_admin, one shop_manager, and an admin for each built-in site.
     demo-enabled: ${SEED_DEMO_DATA:false}
   cors:
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*}

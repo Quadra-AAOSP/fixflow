@@ -13,6 +13,18 @@ Enable in-app seeding instead with SEED_DEMO_DATA=true (loads demo-data.sql via
 SqlDataSeeder; still requires schema.sql on startup).
 
 
+Default site admins (without the full demo dataset)
+---------------------------------------------------
+On backend startup with SEED_DEMO_DATA=false, each built-in site without
+an admin gets one account. The password is the email address itself:
+
+  admin@fixflow.test          CNU School
+  admin1.site2@fixflow.test   CNU Hostel
+  admin1.site3@fixflow.test   CNU Hotel
+
+Existing admins and accounts are preserved. The full demo dataset already
+includes these same logins.
+
 Demo accounts (70 total @fixflow.test)
 --------------------------------------
 Password for every account is the email address itself.

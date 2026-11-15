@@ -5,7 +5,10 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import com.example.fixflow.audit.ReportReassignment;
+import com.example.fixflow.audit.ReportReassignmentRepository;
 import com.example.fixflow.domain.*;
 import com.example.fixflow.repository.*;
 import com.example.fixflow.security.AppUserDetails;
@@ -30,6 +33,7 @@ class ReportWorkflowIntegrationTest {
     @Autowired TechnicianContractRepository contracts;
     @Autowired ReportResolutionRepository resolutions;
     @Autowired ReportNotificationRepository notifications;
+    @Autowired ReportReassignmentRepository reassignments;
     @Autowired com.example.fixflow.service.ReportWorkflowService workflow;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     MockMvc mvc;
@@ -56,6 +60,49 @@ class ReportWorkflowIntegrationTest {
         User value = new User(); value.setEmail("workflow-" + System.nanoTime() + "@example.test");
         value.setPasswordHash("test-only"); value.setFirstName("Workflow"); value.setLastName("Test");
         value.setRole(role); value.setSite(site); return users.save(value);
+    }
+
+    @Test void technicianHistoryOmitsForeignAssignmentsAndReassignmentsForSiteRoles() throws Exception {
+        report.setAssignedTechnician(technician);
+        reports.save(report);
+        Site foreign = new Site();
+        foreign.setName("Foreign workflow " + System.nanoTime());
+        foreign.setType(SiteType.school);
+        foreign.setContractStatus(ContractStatus.contracted);
+        foreign = sites.save(foreign);
+        Report other = new Report();
+        other.setSite(foreign);
+        other.setCreatedBy(account(UserRole.reporter, foreign));
+        other.setDescription("Foreign workflow issue");
+        other.setCategory("electrical");
+        other.setReporterUrgency(Urgency.medium);
+        other.setAssignedTechnician(technician);
+        other = reports.save(other);
+
+        for (Report item : java.util.List.of(report, other)) {
+            ReportReassignment reassignment = new ReportReassignment();
+            reassignment.setReport(item);
+            reassignment.setFromTechnician(technician);
+            reassignment.setReassignedBy(item == report ? admin : account(UserRole.admin, foreign));
+            reassignments.save(reassignment);
+        }
+
+        String path = "/api/technicians/" + technician.getId() + "/history";
+        User staff = account(UserRole.staff, report.getSite());
+        for (User actor : java.util.List.of(admin, staff)) {
+            mvc.perform(get(path).with(user(new AppUserDetails(actor))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[*].type", containsInAnyOrder("assignment", "reassignment")))
+                    .andExpect(jsonPath("$[*].reportId",
+                            containsInAnyOrder(report.getId().intValue(), report.getId().intValue())));
+        }
+        for (User actor : java.util.List.of(technician, account(UserRole.super_admin, null))) {
+            mvc.perform(get(path).with(user(new AppUserDetails(actor))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[*].reportId", containsInAnyOrder(
+                            report.getId().intValue(), report.getId().intValue(),
+                            other.getId().intValue(), other.getId().intValue())));
+        }
     }
 
     @Test void reviewApiScopesWritesAndExposesCurrentStatusToTechnician() throws Exception {

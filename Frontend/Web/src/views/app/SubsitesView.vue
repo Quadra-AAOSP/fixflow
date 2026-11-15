@@ -261,8 +261,8 @@ async function resolve(item: SubsiteAlert) {
 
 <template>
   <section class="live-page subsite-page">
-    <RouterLink to="/sites" class="text-action subsite-back"
-      ><ArrowLeft :size="16" /> {{ t("All sites") }}</RouterLink
+    <RouterLink :to="user?.siteOnboarding?.setupRequired ? '/site-setup' : '/sites'" class="action-link subsite-back"
+      ><ArrowLeft :size="16" /> {{ t(user?.siteOnboarding?.setupRequired ? "Continue site setup" : "All sites") }}</RouterLink
     >
     <header class="subsite-header">
       <div>

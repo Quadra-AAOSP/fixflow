@@ -31,8 +31,8 @@ describe('role-specific workspace menus', () => {
   it.each([
     ['reporter', ['/reporter', '/reports/new', '/sites', '/building-suggestions'], []],
     ['staff', ['/', '/reports', '/assignments', '/sites', '/shop'], []],
-    ['admin', ['/', '/reports', '/marketplace', '/sites'], ['/team', '/assignments', '/contracts', '/team-access', '/site-rules', '/shop']],
-    ['super_admin', ['/', '/reports', '/marketplace', '/sites'], ['/team', '/shop', '/assignments', '/contracts', '/team-access', '/site-rules', '/shop/manage', '/site-applications', '/technician-verifications']],
+    ['admin', ['/', '/reports', '/marketplace', '/sites'], ['/team', '/assignments', '/shop']],
+    ['super_admin', ['/', '/reports', '/marketplace', '/sites'], ['/team', '/shop', '/assignments', '/shop/manage']],
     ['technician', ['/technician', '/marketplace', '/contracts', '/reports', '/shop'], []],
     ['shop_manager', ['/shop/dashboard', '/shop/orders-management', '/shop/manage', '/profile'], []],
   ] as [UserRole, string[], string[]][])(

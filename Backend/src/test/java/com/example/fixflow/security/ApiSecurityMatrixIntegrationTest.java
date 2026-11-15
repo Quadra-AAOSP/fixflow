@@ -174,8 +174,8 @@ class ApiSecurityMatrixIntegrationTest {
         mvc.perform(post("/api/technician-contract-requests/1/decision").with(user(new AppUserDetails(admin))).contentType(MediaType.APPLICATION_JSON).content("{\"decision\":\"pending\"}")).andExpect(status().isBadRequest());
     }
 
-    @ParameterizedTest @EnumSource(value = UserRole.class, names = {"reporter", "technician", "staff", "super_admin"})
-    void onlyTargetSiteAdminCanDecide(UserRole role) throws Exception {
+    @ParameterizedTest @EnumSource(value = UserRole.class, names = {"reporter", "technician", "staff"})
+    void nonAdminRolesCannotDecide(UserRole role) throws Exception {
         User actor = account(role, role == UserRole.super_admin || role == UserRole.technician ? null : own);
         var pending = application(technician, own);
         mvc.perform(post("/api/technician-contract-requests/" + pending.getId() + "/decision")
@@ -183,6 +183,24 @@ class ApiSecurityMatrixIntegrationTest {
                 .content("{\"decision\":\"approve\"}")).andExpect(status().isForbidden());
         assertThat(applications.findById(pending.getId()).orElseThrow().getStatus()).isEqualTo(TechnicianContractApplication.Status.pending);
         assertThat(contracts.existsByTechnician_IdAndSite_Id(technician.getId(), own.getId())).isFalse();
+    }
+
+    @Test void superAdminListsAllSitesAndCanDecideForAnotherSite() throws Exception {
+        var local = application(technician, own);
+        var foreign = application(secondTechnician, other);
+        var global = user(new AppUserDetails(account(UserRole.super_admin, null)));
+        mvc.perform(get("/api/technician-contract-requests").with(global))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[*].id", org.hamcrest.Matchers.hasItems(
+                        local.getId().intValue(), foreign.getId().intValue())));
+        mvc.perform(get("/api/technician-contract-requests").with(user(new AppUserDetails(admin))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(local.getId()));
+        mvc.perform(get("/api/technician-contract-requests").param("siteId", other.getId().toString())
+                .with(global)).andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(foreign.getId()));
+        mvc.perform(post("/api/technician-contract-requests/" + foreign.getId() + "/decision")
+                .with(global).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"decision\":\"reject\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("rejected"));
     }
 
     @Test void taxonomyAndSkillsRejectWrongRoleAndChangedTechnicianId() throws Exception {

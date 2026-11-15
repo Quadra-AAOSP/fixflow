@@ -48,15 +48,11 @@ export function workspaceLinks(user: User | null, hasSite: boolean): WorkspaceLi
   if (role !== 'reporter' && (role !== 'technician' || hasSite)) links.push({ to: '/reports', label: 'Reports', icon: 'reports' });
   if (workspaceRoles.sites.some(value => value === role)) links.push({ to: '/sites', label: 'Sites', icon: 'sites' });
   if (workspaceRoles.assignments.some(value => value === role)) links.push({ to: '/assignments', label: 'Assignments', icon: 'assignments' });
-  if (workspaceRoles.contracts.some(value => value === role)) links.push({ to: '/contracts', label: 'Site contracts', icon: 'contracts' });
+  if (role === 'technician') links.push({ to: '/contracts', label: 'Site contracts', icon: 'contracts' });
   if (workspaceRoles.marketplace.some(value => value === role)) links.push({ to: '/marketplace', label: 'Job marketplace', icon: 'assignments' });
-  if (workspaceRoles.team.some(value => value === role)) links.push({ to: '/site-rules', label: 'Site category', icon: 'team' });
   if (workspaceRoles.team.some(value => value === role)) links.push({ to: '/team', label: 'Team', icon: 'team' });
-  if (workspaceRoles.team.some(value => value === role)) links.push({ to: '/team-access', label: 'Team access', icon: 'team' });
   if (role === 'reporter' && user.adminApplication) links.push({ to: '/admin-application', label: 'My application', icon: 'team' });
   if (role === 'super_admin') links.push({ to: '/shop/manage', label: 'Product management', icon: 'shop' });
-  if (role === 'super_admin') links.push({ to: '/site-applications', label: 'Site applications', icon: 'team' },
-    { to: '/technician-verifications', label: 'Technician verification', icon: 'team' });
   if (role !== 'reporter') links.push({ to: '/shop', label: 'Shop', icon: 'shop' });
   return links;
 }
@@ -65,8 +61,8 @@ export function workspaceLinks(user: User | null, hasSite: boolean): WorkspaceLi
 const destinationOrder: Record<UserRole, string[]> = {
   reporter: ['/reporter', '/reports/new', '/sites', '/building-suggestions', '/admin-application'],
   staff: ['/', '/reports', '/assignments', '/sites', '/shop'],
-  admin: ['/', '/reports', '/marketplace', '/sites', '/team', '/assignments', '/contracts', '/team-access', '/site-rules', '/shop'],
-  super_admin: ['/', '/reports', '/marketplace', '/sites', '/team', '/shop', '/assignments', '/contracts', '/team-access', '/site-rules', '/shop/manage', '/site-applications', '/technician-verifications'],
+  admin: ['/', '/reports', '/marketplace', '/sites', '/team', '/assignments', '/shop'],
+  super_admin: ['/', '/reports', '/marketplace', '/sites', '/team', '/shop', '/assignments', '/shop/manage'],
   technician: ['/technician', '/marketplace', '/contracts', '/reports', '/shop'],
   shop_manager: ['/shop/dashboard', '/shop/orders-management', '/shop/manage', '/profile'],
 };

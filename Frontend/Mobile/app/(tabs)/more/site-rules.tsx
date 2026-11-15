@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   deleteSiteRule,
   listAllSiteRules,
+  listSiteRules,
   saveSiteRule,
 } from '@/services/siteRules';
 import type { SiteRule, SiteType } from '@/types';
@@ -29,10 +30,11 @@ type Filter = SiteType | 'all';
  * Site category taxonomy panel. Used standalone (legacy route redirects to the
  * Sites hub) and embedded as a tab on `sites.tsx`.
  */
-export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
+export function SiteRulesPanel({ embedded = false, ownSiteType }: { embedded?: boolean; ownSiteType?: SiteType }) {
   const { t } = useTranslation('common');
   const { user } = useAuth();
-  const allowed = user?.role === 'admin' || user?.role === 'super_admin';
+  const canEdit = user?.role === 'super_admin';
+  const allowed = user?.role === 'admin' || canEdit;
 
   const [rules, setRules] = useState<SiteRule[] | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
@@ -46,23 +48,25 @@ export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!allowed) return;
+    const request = canEdit ? listAllSiteRules : ownSiteType ? () => listSiteRules(ownSiteType) : null;
+    if (!allowed || !request) return;
     setBusy(true);
     setError(null);
     try {
-      setRules(await listAllSiteRules());
+      setRules(await request());
     } catch {
       setError(t('more.siteRules.loadFailed'));
     } finally {
       setBusy(false);
     }
-  }, [allowed, t]);
+  }, [allowed, canEdit, ownSiteType, t]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   function edit(rule?: SiteRule) {
+    if (!canEdit) return;
     setId(rule?.id ?? null);
     setSiteType(rule?.siteType ?? (filter === 'all' ? 'school' : filter));
     setCategory(rule?.category ?? '');
@@ -73,7 +77,7 @@ export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
   }
 
   async function save() {
-    if (busy || !allowed) return;
+    if (busy || !canEdit) return;
     if (
       !category.trim() ||
       !/^-?\d+$/.test(weight) ||
@@ -110,7 +114,7 @@ export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
   }
 
   async function remove(rule: SiteRule) {
-    if (busy || !allowed) return;
+    if (busy || !canEdit) return;
     setBusy(true);
     setError(null);
     try {
@@ -125,13 +129,15 @@ export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
 
   const visible = useMemo(() => {
     const list = (rules ?? []).filter(
-      (rule) => filter === 'all' || rule.siteType === filter,
+      (rule) => canEdit
+        ? filter === 'all' || rule.siteType === filter
+        : rule.siteType === ownSiteType,
     );
     return [...list].sort(
       (a, b) =>
         a.siteType.localeCompare(b.siteType) || a.sortOrder - b.sortOrder,
     );
-  }, [rules, filter]);
+  }, [rules, filter, canEdit, ownSiteType]);
 
   const filterOptions = [
     { value: 'all' as const, label: t('more.siteRules.all') },
@@ -203,7 +209,13 @@ export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
           </View>
         ) : null}
 
-        {editing ? (
+        {!canEdit ? (
+          <Text className="mb-3 text-sm text-dashboard-caption">
+            {t('more.siteRules.readOnly')}
+          </Text>
+        ) : null}
+
+        {canEdit && editing ? (
           <Card className="mb-4">
             <View className="mb-3 flex-row items-start justify-between gap-2">
               <View className="flex-1">
@@ -279,21 +291,21 @@ export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
               disabled={busy}
             />
           </Card>
-        ) : (
+        ) : canEdit ? (
           <Button
             label={t('more.siteRules.addCategory')}
             onPress={() => edit()}
             disabled={busy}
             className="mb-4"
           />
-        )}
+        ) : null}
 
-        <SegmentedControl
+        {canEdit ? <SegmentedControl
           className="mb-4"
           value={filter}
           onChange={(value) => setFilter(value)}
           options={filterOptions}
-        />
+        /> : null}
 
         {rules === null && busy ? (
           <StateView variant="loading" title={t('more.siteRules.loading')} />
@@ -302,9 +314,9 @@ export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
             variant="empty"
             icon={ListFilter}
             title={t('more.siteRules.emptyTitle')}
-            description={t('more.siteRules.emptyDesc')}
-            actionLabel={t('more.siteRules.addCategory')}
-            onAction={() => edit()}
+            description={canEdit ? t('more.siteRules.emptyDesc') : undefined}
+            actionLabel={canEdit ? t('more.siteRules.addCategory') : undefined}
+            onAction={canEdit ? () => edit() : undefined}
           />
         ) : (
           <View className="gap-2.5">
@@ -346,7 +358,7 @@ export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
                   </View>
                 </View>
 
-                <View className="mt-3 flex-row gap-2 border-t border-dashboard-card-line pt-3">
+                {canEdit ? <View className="mt-3 flex-row gap-2 border-t border-dashboard-card-line pt-3">
                   <Pressable
                     accessibilityRole="button"
                     disabled={busy}
@@ -388,18 +400,18 @@ export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
                       {t('more.siteRules.delete')}
                     </Text>
                   </Pressable>
-                </View>
+                </View> : null}
               </Card>
             ))}
           </View>
         )}
 
-        <View className="mt-4 flex-row items-start gap-2">
+        {canEdit ? <View className="mt-4 flex-row items-start gap-2">
           <Plus color={dashboardColors.statMintDeep} size={13} />
           <Text className="flex-1 text-[10px] leading-[1.6] text-dashboard-caption">
             {t('more.siteRules.footerHint')}
           </Text>
-        </View>
+        </View> : null}
       </ScrollView>
   );
 

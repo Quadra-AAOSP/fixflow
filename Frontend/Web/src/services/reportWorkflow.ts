@@ -19,6 +19,7 @@ const post = <T>(reportId: number, action: string, body?: unknown) => request<T>
 export const claimReport = (reportId: number) => post<Report>(reportId, 'claim');
 export const startReport = (reportId: number) => post<Report>(reportId, 'start');
 export const resolveReport = (reportId: number, description: string) => post<Report>(reportId, 'resolve', { description: text(description, 10000) });
+export const notifyReportSiteAdmins = (reportId: number) => post<{ recipients: number; siteName: string }>(reportId, 'notify-site-admin');
 export const escalateReport = (reportId: number, reason: string) => post<Report>(reportId, 'escalate', { reason: text(reason, 2000) });
 export function overrideReportUrgency(reportId: number, urgency: Urgency, reason: string) {
   if (!['low', 'medium', 'high', 'critical'].includes(urgency)) throw new Error('Choose a valid urgency.');

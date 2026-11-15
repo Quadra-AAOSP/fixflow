@@ -41,6 +41,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'reports/:id', name: 'report-detail', meta: { roles: [...workspaceRoles.reports] }, component: () => import('@/views/app/ReportDetailView.vue') },
     { path: 'sites', name: 'sites', meta: { roles: [...workspaceRoles.sites] }, component: () => import('@/views/app/SitesView.vue') },
     { path: 'sites/:siteId', name: 'site-detail', meta: { roles: [...workspaceRoles.sites] }, component: () => import('@/views/app/SiteDetailView.vue') },
+    { path: 'site-setup', name: 'site-setup', meta: { roles: ['admin', 'super_admin'] }, component: () => import('@/views/app/SiteSetupView.vue') },
     { path: 'sites/:siteId/subsites', name: 'subsites', meta: { roles: [...workspaceRoles.sites] }, component: () => import('@/views/app/SubsitesView.vue') },
     { path: 'assignments', name: 'assignments', meta: { roles: [...workspaceRoles.assignments] }, component: () => import('@/views/app/AssignmentsView.vue') },
     { path: 'technician', name: 'technician', meta: { roles: ['technician'] }, component: () => import('@/views/app/TechnicianView.vue') },

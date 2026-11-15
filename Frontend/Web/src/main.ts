@@ -11,6 +11,9 @@ import './styles/global.css';
 import { shopManagerRouteAllowed } from '@/utils/workspaceAccess';
 import { i18n } from './i18n';
 
+import { applyTheme } from '@/utils/themePreference';
+
+applyTheme(localStorage.getItem('fixflow-web-theme') === 'dark' ? 'dark' : 'light');
 const app = createApp(App);
 const pinia = createPinia();
 app.use(pinia);
