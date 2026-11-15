@@ -103,7 +103,6 @@ export type TechnicianSkillPayload = {
   technicianId?: number;
   category: string;
   specialty?: string;
-  proficiency: number;
 };
 
 /** Payload for creating a technician ↔ site contract. */

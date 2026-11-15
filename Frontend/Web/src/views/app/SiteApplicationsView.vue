@@ -62,7 +62,15 @@ async function setup(id: number) {
       `/api/admin/site-applications/${id}/setup-invitation`,
       { method: "POST" },
     );
-    invitation.value = `Setup token: ${result.setupToken}\nExpires: ${result.expiresAt}\nDeliver privately to the proposed site administrator for /setup-site-admin. No email has been sent. Issuing again invalidates earlier tokens.`;
+    const email =
+      applications.value.find((entry) => entry.id === id)?.adminEmail ??
+      "the proposed administrator";
+    invitation.value =
+      `Setup token: ${result.setupToken}\n` +
+      `Expires: ${result.expiresAt}\n` +
+      `Login email: ${email}\n` +
+      `Deliver this token privately. They open /setup-site-admin, paste the token, and choose a password (15+ characters). ` +
+      `There is no temporary password. No email was sent. Issuing again invalidates earlier tokens.`;
   } catch (e) {
     error.value = errorMessage(e);
   } finally {

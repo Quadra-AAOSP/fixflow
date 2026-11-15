@@ -19,7 +19,7 @@ const applicant: marketplace.MarketplaceApplication = {
   offerExpiresAt: null, activeCases: 0, completedJobs: 2, averageRating: null,
 };
 const listing: marketplace.MarketplaceListing = {
-  id: 1, reportId: 8, summary: 'Repair a broken fixture', broadLocation: 'West district', timing: 'This week',
+  id: 1, reportId: 8, summary: 'Repair a broken fixture', broadLocation: 'West district', timing: '2026-11-18T14:30',
   category: 'general', specialty: null, urgency: 'medium', status: 'open', canCancelAssignment: false, expiresAt: '2026-11-12T00:00:00Z', myApplication: null,
 };
 const global = { stubs: { RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } };
@@ -34,15 +34,37 @@ beforeEach(() => { vi.resetAllMocks(); setActivePinia(createPinia()); });
 it('publishes only the fields written for the public listing and requires a privacy check', async () => {
   signIn('admin');
   vi.mocked(marketplace.publishMarketplaceJob).mockResolvedValue(listing);
-  const wrapper = mount(MarketplacePublishPanel, { props: { report: report({ id: 8, siteId: 7, status: 'open', assignedTechnicianId: null, description: 'Private report text' }) }, global });
+  const { useMaintenanceStore } = await import('../src/stores/maintenance');
+  useMaintenanceStore().sites = [{
+    id: 7, name: 'West campus', type: 'school', contractStatus: 'contracted',
+    address: null, description: null, imageUrl: null, contractFlatFeeMinor: null, contractFeeCurrency: 'USD',
+    termsText: null, contractTermsText: null,
+    createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+  }];
+  const wrapper = mount(MarketplacePublishPanel, {
+    props: {
+      report: report({
+        id: 8, siteId: 7, status: 'open', assignedTechnicianId: null,
+        description: 'Private report text', address: 'Building lobby',
+      }),
+    },
+    global,
+  });
   expect(wrapper.find('textarea').element.value).toBe('');
+  expect((wrapper.findAll('input')[0].element as HTMLInputElement).value)
+    .toBe('West campus, Building lobby');
   expect(wrapper.find('button[type=submit]').attributes('disabled')).toBeDefined();
   await wrapper.find('textarea').setValue(listing.summary);
   const inputs = wrapper.findAll('input');
   await inputs[0].setValue(listing.broadLocation);
   await inputs[1].setValue(listing.timing);
   await inputs[2].setValue('125.50');
-  await wrapper.setProps({ report: report({ id: 8, siteId: 7, status: 'open', assignedTechnicianId: null, description: 'Refreshed private report' }) });
+  await wrapper.setProps({
+    report: report({
+      id: 8, siteId: 7, status: 'open', assignedTechnicianId: null,
+      description: 'Refreshed private report', address: 'Building lobby',
+    }),
+  });
   await wrapper.find('form').trigger('submit');
   expect(marketplace.publishMarketplaceJob).not.toHaveBeenCalled();
   await wrapper.find('input[type=checkbox]').setValue(true);

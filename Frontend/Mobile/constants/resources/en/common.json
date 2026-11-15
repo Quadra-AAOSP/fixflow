@@ -66,6 +66,9 @@
     "confirmPrivacy": "I checked that this listing contains no private details.",
     "broadLocation": "Broad location",
     "timing": "Expected timing",
+    "timingPlaceholder": "Choose date and time",
+    "timingCancel": "Cancel",
+    "timingDone": "Done",
     "payAmount": "Pay amount",
     "publishing": "Publishing…",
     "publish": "Publish job",
@@ -124,6 +127,14 @@
     "accepted": "Offer accepted. You can now open the assigned report.",
     "decline": "Decline offer",
     "declined": "Offer declined.",
+    "negotiateHint": "Accept the listed terms, or propose a different pay and timing before the offer expires.",
+    "proposePay": "Proposed pay",
+    "proposeTiming": "Proposed timing",
+    "proposePayRequired": "Enter a proposed pay amount greater than zero.",
+    "proposeTimingRequired": "Choose a proposed date and time.",
+    "proposeTerms": "Propose different terms",
+    "countered": "Counter proposal sent. The site admin can review your updated terms.",
+    "proposedTiming": "Proposed timing: {timing}",
     "publishFromReport": "Publish to job marketplace",
     "states": {
       "open": "Open",
@@ -488,8 +499,8 @@
         "subtitle": "Provision accounts"
       },
       "applications": {
-        "title": "Applications",
-        "subtitle": "Site-admin requests"
+        "title": "Site applications",
+        "subtitle": "Review new site requests"
       },
       "browseReports": {
         "title": "Browse reports",
@@ -512,9 +523,9 @@
     "setupGate": {
       "title": "Set up {site}",
       "titleFallback": "your site",
-      "subtitle": "Reporters can't file reports until the site has at least one building or area. Add the labelled locations your reporters will pick from — for example E5 / Classroom building.",
-      "cta": "Open site setup",
-      "helper": "You can still use the other tabs. This screen clears itself once the first building is added."
+      "subtitle": "Finish setup in order: add buildings, confirm site details, then upload terms and contract files. Nothing else unlocks until all three steps are done.",
+      "cta": "Continue site setup",
+      "helper": "Profile stays available for sign-out. All other screens stay locked until setup is complete."
     },
     "reportDisabledReasons": {
       "noSite": "A site must be linked before reports can be filed.",
@@ -537,8 +548,8 @@
       "myReports": "My reports",
       "myEmptyTitle": "You haven't filed any reports yet.",
       "myEmptyDesc": "Reports you file — at any site — show up here with their progress.",
-      "contracted": "Contracted",
-      "uncontracted": "Uncontracted",
+      "contracted": "Site-contracted pool",
+      "uncontracted": "Open technician pool",
       "newReport": "New report",
       "searchPlaceholder": "Search reports…",
       "status": "Status",
@@ -972,8 +983,12 @@
       "myAdminApplicationPending": "Awaiting super-admin review.",
       "myAdminApplicationStatus": "Application {status}.",
       "siteSetupTitle": "Site setup",
-      "siteSetupSubtitleRequired": "Required — add your first building.",
-      "siteSetupSubtitle": "Manage buildings and reporting readiness.",
+      "siteSetupSubtitleRequired": "Required — buildings, then site details, then terms.",
+      "siteSetupSubtitle": "Buildings, site details, and terms.",
+      "siteSetupSubtitleBuildings": "Next: add your first building.",
+      "siteSetupSubtitleSite": "Next: confirm your site details.",
+      "siteSetupSubtitleTerms": "Next: upload terms and contract files.",
+      "siteSetupSubtitleDone": "Setup complete — manage buildings anytime.",
       "siteRulesTitle": "Site category",
       "allReportsTitle": "All site reports",
       "allReportsSubtitle": "Every site's queue, unattended reports first.",
@@ -1161,6 +1176,12 @@
     },
     "sites": {
       "title": "Your sites",
+      "hubSubtitle": "Manage sites, categories, and contracts.",
+      "tabs": {
+        "list": "Sites",
+        "category": "Site category",
+        "contracts": "Site contracts"
+      },
       "count": "{count} site{plural} available to your account",
       "available": "Sites available to your account",
       "addSite": "Add site",
@@ -1185,10 +1206,13 @@
         "hostel": "Hostel",
         "hotel": "Hotel"
       },
-      "contractStatusLabel": "Contract status",
+      "contractStatusLabel": "Technician pool",
+      "contractStatusHint": "Controls which technicians can be assigned — not a site-application contract.",
       "contractStatuses": {
-        "contracted": "Contracted",
-        "uncontracted": "Uncontracted"
+        "contracted": "Site-contracted technicians",
+        "uncontracted": "Open technician pool",
+        "siteContracted": "Site-contracted technicians",
+        "siteUncontracted": "Open technician pool"
       },
       "addressLabel": "Address",
       "descriptionLabel": "Description",
@@ -1196,6 +1220,11 @@
       "flatFeeLabel": "Contract flat fee",
       "flatFeePlaceholder": "Required before signing technicians",
       "feeCurrencyLabel": "Fee currency",
+      "termsLabel": "Site terms",
+      "termsPlaceholder": "Terms for technicians working at this site",
+      "contractTermsLabel": "Site contract",
+      "contractTermsPlaceholder": "Contract body technicians accept for this site",
+      "documentsAfterCreate": "After the site is created, open it again to upload terms and contract files.",
       "optionalPlaceholder": "Optional",
       "errors": {
         "nameRequired": "Name is required.",
@@ -1207,6 +1236,10 @@
     },
     "technicians": {
       "title": "Technicians",
+      "tabs": {
+        "directory": "Technicians",
+        "reviews": "Verification reviews"
+      },
       "count": "{count} technician{plural}",
       "subtitleAll": "Availability and site contracts across your sites.",
       "subtitleAtSite": "Availability and site contracts at {site}.",
@@ -1574,13 +1607,42 @@
   },
   "siteSetup": {
     "title": "Site setup",
-    "intro": "Add the labelled buildings and areas reporters pick from when filing a report, for example E5 / Classroom building.",
+    "intro": "Complete setup in order: buildings, then site details, then terms.",
+    "steps": {
+      "buildings": "Buildings",
+      "site": "Site",
+      "terms": "Terms",
+      "kicker": "Setup progress"
+    },
+    "buildingsIntro": "Add the labelled buildings and areas reporters pick from when filing a report, for example E5 / Classroom building.",
+    "siteIntro": "Confirm the site profile reporters and technicians will see. Technician pool chooses who can be assigned — it is not a contract with FixFlow.",
+    "termsIntro": "Upload the site terms and site contract files technicians accept when they work here (PDF, Word, or text).",
+    "continueSite": "Continue to site details",
+    "continueTerms": "Continue to terms",
+    "backBuildings": "Back to buildings",
+    "backSite": "Back to site details",
+    "finishSetup": "Finish setup",
+    "siteSaved": "Site details saved.",
+    "termsSaved": "Setup complete.",
+    "documentUploaded": "Document uploaded.",
+    "documentsRequired": "Upload both the site terms and site contract files before finishing.",
+    "documentOnFile": "On file: {name}",
+    "documentMissing": "No file uploaded yet.",
+    "documentFallback": "document",
+    "uploadDocument": "Upload file",
+    "replaceDocument": "Replace file",
+    "siteNameLabel": "Site name",
+    "siteAddressLabel": "Address",
+    "siteDescriptionLabel": "Description",
+    "saveSiteDetails": "Save site details",
+    "saveTerms": "Save terms",
+    "termsCompleteHint": "Both files are required. Reporting stays locked until they are uploaded.",
     "adminOnlyTitle": "Site administrators only",
     "adminOnlyDesc": "Only the administrator of a site can manage its buildings and areas.",
     "noSiteTitle": "No site linked",
     "noSiteDesc": "A site must be linked to your account before buildings can be set up.",
     "readinessReady": "Reporting is ready",
-    "readinessReadyDesc": "{count} active building{plural} — reporters can file reports.",
+    "readinessReadyDesc": "{count} active building{plural} — reporters can file reports. Next: confirm site details, then terms.",
     "readinessSetupRequired": "Setup required",
     "readinessSetupRequiredDesc": "Add at least one building before reporters can file reports.",
     "loadingBuildings": "Loading buildings…",
@@ -1623,7 +1685,8 @@
       "couldNotSave": "Could not save the building.",
       "couldNotSuggest": "Could not add suggested buildings.",
       "couldNotResolve": "Could not resolve the alert.",
-      "couldNotArchive": "Could not archive the building."
+      "couldNotArchive": "Could not archive the building.",
+      "couldNotUpload": "Could not upload the document."
     }
   },
   "adminApplications": {
@@ -1672,7 +1735,19 @@
     "shortcuts": {
       "kicker": "Shortcuts",
       "settings": "App settings",
+      "changePassword": "Change password",
       "notifications": "Notifications"
+    },
+    "password": {
+      "title": "Change password",
+      "hint": "Enter your current password, then choose a new one of at least {min} characters.",
+      "current": "Current password",
+      "next": "New password",
+      "confirm": "Confirm new password",
+      "submit": "Update password",
+      "mismatch": "New password and confirmation do not match.",
+      "success": "Password updated.",
+      "failed": "Could not change the password. Try again."
     },
     "heroKicker": "Your account",
     "openSettings": "Open settings",
@@ -2011,7 +2086,7 @@
       "viewReports": "View reports →",
       "editSite": "Edit site",
       "editA11y": "Edit {name}",
-      "contract": "Contract: {contract} · Site ID: {id}",
+      "contract": "Technician pool: {contract} · Site ID: {id}",
       "flatFee": "Contract flat fee: {fee}",
       "flatFeeNotSet": "Not set"
     },
@@ -2045,36 +2120,26 @@
     },
     "tradeProfile": {
       "heading": "Your trade profile",
-      "intro": "Manage the trades saved to your account. A reviewer verifies qualifications separately.",
+      "intro": "Manage the trades saved to your account. Proficiency starts at 2.5 and updates from confirmed reporter ratings. A reviewer verifies qualifications separately.",
       "saved": "Saved: {category} · {specialty} · proficiency {proficiency}/5.",
       "addTrade": "Add trade →",
       "addAnother": "Add another trade →",
       "primaryTrade": "Primary trade",
       "specialtyLabel": "Specialty and work you are qualified to undertake (optional)",
-      "proficiencyLabel": "Self-assessed proficiency",
+      "proficiencyHint": "New trades start at proficiency 2.5. The platform updates this from confirmed reporter ratings — you cannot set it yourself.",
       "chooseCategory": "Choose a category…",
       "categoryPlaceholder": "e.g. electrical",
       "specialtyPlaceholder": "e.g. low-voltage wiring",
-      "chooseLevel": "Choose a level",
       "saving": "Saving…",
       "save": "Save trade details",
       "beforeYouStart": "Before you start work at a site",
       "reviewBody": "Arrange a review with the site administrator covering your identity, relevant work history and references, qualifications, applicable trade licences and expiry dates, and insurance appropriate to the work. Requirements depend on the trade and location.",
       "evidenceNote": "Site vetting approval is required before work. Contact your site administrator to request a review. Do not enter identity numbers or document links here. A saved trade or site contract is not proof of vetting.",
-      "levels": {
-        "beginner": "Beginner",
-        "basicExperience": "Basic practical experience",
-        "independent": "Independent routine work",
-        "advanced": "Advanced work",
-        "expert": "Expert"
-      },
       "errors": {
         "categoryRequired": "Category is required.",
         "specialtyRequired": "Specialty is required.",
-        "chooseProficiency": "Choose a proficiency level.",
         "categoryTooLong": "Category must be {max} characters or fewer.",
         "specialtyTooLong": "Specialty must be {max} characters or fewer.",
-        "proficiencyRange": "Proficiency must be between 1 and 5.",
         "saveFailed": "Could not save the trade right now.",
         "duplicateSuffix": " If the connection was interrupted, reload your saved trades before trying again.",
         "loadFailed": "Could not load your saved trades."
@@ -2175,7 +2240,8 @@
     "request_information": "Ask for corrections",
     "applicationOnFile": "Application already on file",
     "issueSetup": "Issue setup token",
-    "privateHandoff": "Share this token securely with the proposed administrator. No email was sent.",
+    "privateHandoff": "Share this token privately with {email}. No email was sent.",
+    "setupLoginHint": "They open Sign in → Have a setup token?, paste this token, and choose a password (15+ characters). Their login email is {email} — there is no temporary password.",
     "expires": "Expires",
     "dismiss": "Dismiss token",
     "history": "Show history",

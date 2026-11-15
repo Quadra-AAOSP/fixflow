@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
+import { useLocale } from '@/i18n';
 import { request, errorMessage } from '@/services/api';
 import '@/styles/dashboard.css';
 import { humanize } from '@/utils/maintenance';
+const { t } = useLocale();
 const route = useRoute();
 const router = useRouter();
 const setup = computed(() => route.name === 'site-admin-setup');
@@ -170,14 +172,30 @@ function checkIssuedToken() {
           </button>
         </fieldset>
       </form>
-      <div v-if="tracking && status">
-        <h2>Application: {{ humanize(status.status) }}</h2>
-        <p>{{ status.message }}</p>
-        <p v-if="status.siteId">Created site #{{ status.siteId }}</p>
-        <p v-if="status.status === 'approved'">
-          The proposed administrator receives setup instructions through the approving
-          administrator. Contact them for secure delivery.
+      <div v-if="tracking && status" class="status-card">
+        <p class="status-kicker">{{ t("Application status") }}</p>
+        <p class="status-pill">{{ humanize(status.status) }}</p>
+        <p v-if="status.message">{{ status.message }}</p>
+        <p v-if="status.siteId">{{ t("Created site #{id}", { id: status.siteId }) }}</p>
+        <p v-if="status.setupComplete">
+          {{
+            t(
+              "Setup complete. Sign in with the administrator email and the password you chose.",
+            )
+          }}
         </p>
+        <template v-else-if="status.status === 'approved'">
+          <p>
+            {{
+              t(
+                "The site was approved. Ask the super admin for the setup token, then set the administrator password before signing in.",
+              )
+            }}
+          </p>
+          <RouterLink class="text-action" to="/setup-site-admin">{{
+            t("Enter setup token →")
+          }}</RouterLink>
+        </template>
       </div>
       <form
         v-if="(!tracking && !token) || status?.status === 'information_requested'"
@@ -235,9 +253,10 @@ function checkIssuedToken() {
       </div>
     </template>
     <nav class="onboarding-links" aria-label="Site application links">
-      <RouterLink to="/site-application">Track an application</RouterLink>
-      <RouterLink to="/request-site">Request a site</RouterLink>
-      <RouterLink to="/login">Sign in</RouterLink>
+      <RouterLink to="/site-application">{{ t("Track an application") }}</RouterLink>
+      <RouterLink to="/request-site">{{ t("Request a site") }}</RouterLink>
+      <RouterLink to="/setup-site-admin">{{ t("Have a setup token?") }}</RouterLink>
+      <RouterLink to="/login">{{ t("Sign in") }}</RouterLink>
     </nav>
   </main>
 </template>
@@ -297,13 +316,49 @@ a {
   border-color: #006f65;
   font-weight: 650;
 }
+.status-card {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #d7e0da;
+  border-radius: 12px;
+  background: #f7faf8;
+}
+.status-kicker {
+  margin: 0 0 8px;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #66736c;
+}
+.status-pill {
+  display: inline-block;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fae4e5;
+  color: #934b4b;
+  font-weight: 650;
+}
 .onboarding-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 20px;
+  display: grid;
+  gap: 0;
   margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #e1ebe5;
+  border: 1px solid #d7e0da;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.onboarding-links a {
+  display: block;
+  padding: 14px 16px;
+  text-decoration: none;
+  border-bottom: 1px solid #e1ebe5;
+  font-weight: 600;
+}
+.onboarding-links a:last-child {
+  border-bottom: 0;
+}
+.onboarding-links a:hover {
+  background: #f7faf8;
 }
 @media (max-width: 600px) {
   .live-page {

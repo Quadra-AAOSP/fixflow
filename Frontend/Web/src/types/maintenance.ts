@@ -6,6 +6,9 @@ export interface Site {
   id: number; name: string; type: SiteType; contractStatus: 'contracted' | 'uncontracted';
   address: string | null; description: string | null; imageUrl: string | null;
   contractFlatFeeMinor: number | null; contractFeeCurrency: string;
+  termsText: string | null; contractTermsText: string | null;
+  termsDocumentName: string | null; contractTermsDocumentName: string | null;
+  termsDocumentPresent: boolean; contractTermsDocumentPresent: boolean;
   createdAt: string; updatedAt: string;
 }
 export interface SiteRule {
@@ -59,4 +62,4 @@ export interface ReportVisionJob {
   status: 'queued' | 'processing' | 'completed' | 'review_required' | 'stale' | 'failed';
   model: string | null;
 }
-export type SitePayload = Pick<Site, 'name' | 'type' | 'contractStatus' | 'address' | 'description' | 'imageUrl' | 'contractFlatFeeMinor' | 'contractFeeCurrency'>;
+export type SitePayload = Pick<Site, 'name' | 'type' | 'contractStatus' | 'address' | 'description' | 'imageUrl' | 'contractFlatFeeMinor' | 'contractFeeCurrency' | 'termsText' | 'contractTermsText'>;

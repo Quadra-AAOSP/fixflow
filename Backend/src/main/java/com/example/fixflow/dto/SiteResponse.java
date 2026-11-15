@@ -16,6 +16,12 @@ public record SiteResponse(
 		String imageUrl,
 		Long contractFlatFeeMinor,
 		String contractFeeCurrency,
+		String termsText,
+		String contractTermsText,
+		String termsDocumentName,
+		String contractTermsDocumentName,
+		boolean termsDocumentPresent,
+		boolean contractTermsDocumentPresent,
 		Instant createdAt,
 		Instant updatedAt
 ) {
@@ -30,6 +36,12 @@ public record SiteResponse(
 				site.getImageUrl(),
 				site.getContractFlatFeeMinor(),
 				site.getContractFeeCurrency() == null ? "USD" : site.getContractFeeCurrency(),
+				site.getTermsText(),
+				site.getContractTermsText(),
+				site.getTermsDocumentName(),
+				site.getContractTermsDocumentName(),
+				site.getTermsDocumentKey() != null && !site.getTermsDocumentKey().isBlank(),
+				site.getContractTermsDocumentKey() != null && !site.getContractTermsDocumentKey().isBlank(),
 				site.getCreatedAt(),
 				site.getUpdatedAt()
 		);

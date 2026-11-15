@@ -18,14 +18,14 @@ Demo accounts (70 total @fixflow.test)
 Password for every account is the email address itself.
 
 Compatibility aliases (site 1 / globals n=1):
-  reporter@fixflow.test       reporter   Demo School
-  staff@fixflow.test          staff      Demo School
-  admin@fixflow.test          admin      Demo School
-  technician@fixflow.test     technician (site_id NULL; contracted to Demo School)
+  reporter@fixflow.test       reporter   CNU School
+  staff@fixflow.test          staff      CNU School
+  admin@fixflow.test          admin      CNU School
+  technician@fixflow.test     technician (site_id NULL; contracted to CNU School)
   superadmin@fixflow.test     super_admin
   shopmanager@fixflow.test    shop_manager
 
-Per site (s=1 Demo School, s=2 Demo Hostel, s=3 Demo Hotel), n=1..5:
+Per site (s=1 CNU School, s=2 CNU Hostel, s=3 CNU Hotel), n=1..5:
   reporter{n}.site{s}@fixflow.test
   staff{n}.site{s}@fixflow.test
   admin{n}.site{s}@fixflow.test
@@ -33,7 +33,7 @@ Per site (s=1 Demo School, s=2 Demo Hostel, s=3 Demo Hotel), n=1..5:
 Notes:
   - For site 1, n=1 uses the classic alias emails above (not reporter1.site1@…).
   - Technicians always have users.site_id NULL and a technician_contracts row
-    for their site.
+    for their site (with flat fee).
   - Each site has 5 reporters + 5 staff + 5 admins + 5 technicians.
 
 Globals n=1..5:
@@ -43,9 +43,9 @@ Globals n=1..5:
 
 Sites
 -----
-  Demo School  (school, contracted)  + MAIN subsite
-  Demo Hostel  (hostel, contracted)  + MAIN subsite
-  Demo Hotel   (hotel, contracted)   + MAIN subsite
+  CNU School  (school, contracted)  + MAIN subsite
+  CNU Hostel  (hostel, contracted)  + MAIN subsite
+  CNU Hotel   (hotel, contracted)   + MAIN subsite
 
 
 Technician onboarding seed
@@ -53,19 +53,22 @@ Technician onboarding seed
 Contracted technicians are seeded verified (all platform checks), with site
 vetting approved, skills, availability=available, and terms acceptance for:
 
-  TECHNICIAN_TERMS_VERSION=demo-v1
-  TECHNICIAN_TERMS_DOCUMENT_URL=https://example.test/technician-terms/demo-v1
+  TECHNICIAN_TERMS_VERSION=2026-11-03
+  TECHNICIAN_TERMS_DOCUMENT_URL=/api/technician-terms/document
+  (demo acceptances also record the absolute agreements HTML URL)
 
-Set those env vars (see .env.example) when exercising terms-gated flows against
-this dump.
+Skill proficiency is platform-owned: inserts omit proficiency so the column
+DEFAULT 2.5 applies. It is not self-assessed; the service recalculates from
+confirmed reporter ratings in batches of 5.
 
 
 Sample demo content
 -------------------
 - Reports across open/routed/assigned/in_progress/resolved/confirmed/reopened/
   escalated, including multi-joiner reports for urgency tests
-- Marketplace listing + applications
-- Report notifications (e.g. work completed)
+- Marketplace listing + applications (with pay amounts)
+- Job offers table (paid contracted assignment path)
+- Report notifications (report-scoped and account-level via reference_id)
 - One paid shop order (items + succeeded payment, fulfillment_status=ordered)
   for shopmanager@fixflow.test fulfillment demos
 

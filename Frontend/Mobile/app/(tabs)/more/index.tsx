@@ -19,12 +19,14 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 
 import { Screen } from '@/components/ui/Screen';
+import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { roleLabels, canManageShop, canProvision } from '@/constants/access';
 import {
   isMoreMenuItemVisible,
   type MoreMenuItemKey,
 } from '@/constants/moreMenuVisibility';
 import { dashboardColors } from '@/constants/theme';
+import { useCurrentSite } from '@/stores/site';
 import type { UserRole } from '@/types';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
@@ -36,6 +38,7 @@ type MenuSection = {
 };
 
 type MenuItem = {
+  key: ItemKey;
   icon: LucideIcon;
   titleKey: string;
   subtitleKey: string | null;
@@ -55,23 +58,22 @@ export default function MoreScreen() {
   const { t } = useTranslation('common');
   const router = useRouter();
   const { user } = useAuth();
+  const { site, sites } = useCurrentSite();
 
   const role: UserRole = user?.role ?? 'reporter';
+  const canSwitchSites = role === 'super_admin' || sites.length > 1;
 
-  const canManageSite = role === 'admin' || role === 'super_admin';
   const canProvisionUser = canProvision(user);
   const hasAdminApplication =
     role === 'reporter' && user?.adminApplication !== null;
 
-  // Role → item-guard map. Anything that needs a second check after the role
-  // allowlist (e.g. capability flags, application presence) lives here.
   const guards: ItemGuards = {
     myAdminApplication: () => hasAdminApplication,
     teamAccess: () => canProvisionUser,
     shopManagement: () => canManageShop(user),
   };
 
-  const allItems: Record<ItemKey, MenuItem> = {
+  const allItems: Record<ItemKey, Omit<MenuItem, 'key'>> = {
     openJobs: {
       icon: Briefcase,
       titleKey: 'more.menu.openJobsTitle',
@@ -87,7 +89,7 @@ export default function MoreScreen() {
     myVerification: { icon: ShieldCheck, titleKey: 'review.myVerification', subtitleKey: null, onPress: () => router.push('/more/my-verification') },
     marketplace: { icon: Briefcase, titleKey: 'marketplace.title', subtitleKey: null, onPress: () => router.push('/more/marketplace') },
     siteApplications: { icon: Building2, titleKey: 'review.siteReviews', subtitleKey: null, onPress: () => router.push('/more/site-applications') },
-    verificationReviews: { icon: UserCheck, titleKey: 'review.verificationReviews', subtitleKey: null, onPress: () => router.push('/more/verification-reviews') },
+    verificationReviews: { icon: UserCheck, titleKey: 'review.verificationReviews', subtitleKey: null, onPress: () => router.push('/more/technicians?tab=reviews') },
     allReports: {
       icon: Globe,
       titleKey: 'more.menu.allReportsTitle',
@@ -103,10 +105,14 @@ export default function MoreScreen() {
     siteSetup: {
       icon: Building2,
       titleKey: 'more.menu.siteSetupTitle',
-      subtitleKey: 'more.menu.siteSetupSubtitleRequired',
+      subtitleKey: user?.siteOnboarding?.setupRequired
+        ? site?.address
+          ? 'more.menu.siteSetupSubtitleTerms'
+          : 'more.menu.siteSetupSubtitleBuildings'
+        : 'more.menu.siteSetupSubtitleDone',
       onPress: () => router.push('/more/site-setup'),
     },
-    siteRules: { icon: FileText, titleKey: 'more.menu.siteRulesTitle', subtitleKey: null, onPress: () => router.push('/more/site-rules') },
+    siteRules: { icon: FileText, titleKey: 'more.menu.siteRulesTitle', subtitleKey: null, onPress: () => router.push('/more/sites?tab=category') },
     sites: {
       icon: Users,
       titleKey: 'more.menu.sitesTitle',
@@ -125,18 +131,13 @@ export default function MoreScreen() {
       subtitleKey: 'more.menu.techniciansSubtitle',
       onPress: () => router.push('/more/technicians'),
     },
-    adminApplications: {
-      icon: ShieldCheck,
-      titleKey: 'more.menu.adminApplicationsTitle',
-      subtitleKey: 'more.menu.adminApplicationsSubtitle',
-      onPress: () => router.push('/more/admin-applications'),
-    },
     contractsTechnician: {
       icon: FileText,
       titleKey: 'more.menu.siteContractsTitle',
       subtitleKey: 'more.menu.siteContractsSubtitleTechnician',
       onPress: () => router.push('/more/contracts'),
     },
+    // Staff cannot open the Sites hub — keep a flat contracts entry for them.
     contractsAdmin: {
       icon: FileText,
       titleKey: 'more.menu.siteContractsTitle',
@@ -158,21 +159,18 @@ export default function MoreScreen() {
     },
   };
 
-  // Group keys into their sections, then filter each by itemVisible.
-  // Each section drops out entirely when it has zero visible items.
   const workspaceKeys: ItemKey[] = ['openJobs', 'jobOffers', 'contractsTechnician', 'myVerification', 'marketplace'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
+  // Category + contracts live as tabs on Sites; verification reviews as a tab
+  // on Technicians. Staff still get a flat contracts row (no Sites hub).
   const adminKeys: ItemKey[] = [
     'allReports',
     'siteSetup',
     'sites',
-    'siteRules',
     'teamAccess',
     'technicians',
-    'adminApplications',
     'siteApplications',
-    'verificationReviews',
-    'contractsAdmin',
+    ...(role === 'staff' ? (['contractsAdmin'] as const) : []),
   ];
   const shopKeys: ItemKey[] = ['shopManagement', 'shopOrders', 'shopCustomer'];
 
@@ -183,15 +181,13 @@ export default function MoreScreen() {
   ): MenuSection | null => {
     const items = keys
       .filter((key) => itemVisible(key, role, guards))
-      .map((key) => allItems[key]);
+      .map((key) => ({ key, ...allItems[key] }));
     if (items.length === 0) return null;
     return { key: sectionKey, labelKey, items };
   };
 
   const sections: MenuSection[] = [
     buildSection('workspace', 'more.sections.workspace', workspaceKeys),
-    // Reporters who applied for admin get a dedicated section — not buried
-    // under "Administration" which is otherwise an admin-only concept.
     buildSection('application', 'more.sections.application', applicationKeys),
     buildSection('administration', 'more.sections.administration', adminKeys),
     buildSection('shop', 'more.sections.shop', shopKeys),
@@ -221,6 +217,11 @@ export default function MoreScreen() {
             {t('more.signedInAs', { role: t(roleLabels[role]) })}
             {applicationStatusLabel ? ` · ${applicationStatusLabel}` : ''}
           </Text>
+          {canSwitchSites ? (
+            <View className="mt-2">
+              <SiteSwitcher />
+            </View>
+          ) : null}
         </View>
 
         {sections.map((section) => (
@@ -251,7 +252,7 @@ function MenuSection({
       <View className="overflow-hidden rounded-xl border border-dashboard-card-line bg-dashboard-card-bg">
         {items.map((item, idx) => (
           <Pressable
-            key={item.titleKey}
+            key={item.key}
             accessibilityRole="button"
             accessibilityLabel={t(item.titleKey)}
             onPress={item.onPress}

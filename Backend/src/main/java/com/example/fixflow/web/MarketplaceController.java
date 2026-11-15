@@ -24,10 +24,12 @@ public class MarketplaceController {
     public record Publication(@NotNull @Positive Long reportId, @NotBlank @Size(max = 300) String summary,
             @NotBlank @Size(max = 160) String broadLocation, @NotBlank @Size(max = 160) String timing,
             @NotNull @Positive Long amountMinor, @Size(min = 3, max = 8) String currency) { }
-    public record Application(@NotBlank @Size(max = 1000) String note, @Positive Long proposedAmountMinor) { }
+    public record Application(@NotBlank @Size(max = 1000) String note, @Positive Long proposedAmountMinor,
+            @Size(max = 160) String proposedTiming) { }
     public record Selection(@NotNull Boolean safetyConfirmed) { }
     public record Cancellation(@NotBlank @Size(max = 2000) String reason) { }
-    public record Counter(@NotNull @Positive Long amountMinor, @Size(max = 1000) String note) { }
+    public record Counter(@NotNull @Positive Long amountMinor, @Size(max = 160) String timing,
+            @Size(max = 1000) String note) { }
 
     @GetMapping
     public List<ListingView> list(@AuthenticationPrincipal AppUserDetails actor) {
@@ -61,13 +63,13 @@ public class MarketplaceController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApplicationView apply(@PathVariable Long id, @Valid @RequestBody Application body,
             @AuthenticationPrincipal AppUserDetails actor) {
-        return marketplace.apply(id, body.note(), body.proposedAmountMinor(), actor);
+        return marketplace.apply(id, body.note(), body.proposedAmountMinor(), body.proposedTiming(), actor);
     }
 
     @PostMapping("/{id}/applications/{applicationId}/counter")
     public ApplicationView counter(@PathVariable Long id, @PathVariable Long applicationId,
             @Valid @RequestBody Counter body, @AuthenticationPrincipal AppUserDetails actor) {
-        return marketplace.counter(id, applicationId, body.amountMinor(), body.note(), actor);
+        return marketplace.counter(id, applicationId, body.amountMinor(), body.timing(), body.note(), actor);
     }
 
     @PostMapping("/{id}/applications/{applicationId}/select")

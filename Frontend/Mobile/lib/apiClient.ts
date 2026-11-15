@@ -151,10 +151,16 @@ function withTimeout(
   return { signal: controller.signal, cancel: () => clearTimeout(timer) };
 }
 
+function isFormDataBody(body: RequestInit['body']): boolean {
+  if (body == null || typeof FormData === 'undefined') return false;
+  if (body instanceof FormData) return true;
+  // Some RN runtimes use a FormData polyfill that fails `instanceof`.
+  return Object.prototype.toString.call(body) === '[object FormData]';
+}
+
 function buildHeaders(init?: RequestInit): Record<string, string> {
   const provided = (init?.headers as Record<string, string> | undefined) ?? {};
-  const isFormBody =
-    typeof FormData !== 'undefined' && init?.body instanceof FormData;
+  const isFormBody = isFormDataBody(init?.body);
   return {
     Accept: 'application/json',
     ...(init?.body && !isFormBody ? { 'Content-Type': 'application/json' } : {}),

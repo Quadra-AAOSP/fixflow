@@ -1,3 +1,4 @@
+import { Redirect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { ListFilter, Pencil, Plus, Trash2 } from 'lucide-react-native';
@@ -25,11 +26,10 @@ const TYPES: SiteType[] = ['school', 'hostel', 'hotel'];
 type Filter = SiteType | 'all';
 
 /**
- * Site rules: the per-site-type category taxonomy. Editors live in a card at
- * the top; the rules below are grouped into compact stat rows so weights and
- * ordering are readable at a glance.
+ * Site category taxonomy panel. Used standalone (legacy route redirects to the
+ * Sites hub) and embedded as a tab on `sites.tsx`.
  */
-export default function SiteRulesScreen() {
+export function SiteRulesPanel({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation('common');
   const { user } = useAuth();
   const allowed = user?.role === 'admin' || user?.role === 'super_admin';
@@ -142,25 +142,24 @@ export default function SiteRulesScreen() {
   ];
 
   if (!allowed) {
-    return (
-      <Screen>
-        <StateView
-          variant="empty"
-          icon={ListFilter}
-          title={t('more.siteRules.accessDeniedTitle')}
-          description={t('more.siteRules.accessDeniedDesc')}
-        />
-      </Screen>
+    const denied = (
+      <StateView
+        variant="empty"
+        icon={ListFilter}
+        title={t('more.siteRules.accessDeniedTitle')}
+        description={t('more.siteRules.accessDeniedDesc')}
+      />
     );
+    return embedded ? denied : <Screen>{denied}</Screen>;
   }
 
-  return (
-    <Screen>
+  const body = (
       <ScrollView
-        contentContainerClassName="px-5 pb-12 pt-4"
+        contentContainerClassName={embedded ? 'pb-12' : 'px-5 pb-12 pt-4'}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        {embedded ? null : (
         <PageHeader
           kicker={t('more.siteRules.kicker')}
           title={t('more.siteRules.title')}
@@ -180,6 +179,7 @@ export default function SiteRulesScreen() {
             </Text>
           </View>
         </PageHeader>
+        )}
 
         {error ? (
           <View className="mb-3 rounded-lg bg-dashboard-error-bg px-3 py-2">
@@ -401,6 +401,12 @@ export default function SiteRulesScreen() {
           </Text>
         </View>
       </ScrollView>
-    </Screen>
   );
+
+  return embedded ? body : <Screen>{body}</Screen>;
+}
+
+/** Legacy route — category lives as a tab on the Sites hub. */
+export default function SiteRulesScreen() {
+  return <Redirect href={{ pathname: '/more/sites', params: { tab: 'category' } }} />;
 }

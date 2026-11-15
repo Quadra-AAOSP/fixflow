@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import {
@@ -318,7 +318,11 @@ function ReviewCard({
   );
 }
 
-export default function VerificationReviews() {
+export function VerificationReviewsPanel({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const { t } = useTranslation('common');
   const { user } = useAuth();
   const [items, setItems] = useState<Verification[]>([]);
@@ -370,21 +374,23 @@ export default function VerificationReviews() {
   }
 
   if (user?.role !== 'super_admin') {
+    const denied = (
+      <View className={embedded ? 'py-2' : 'p-5'}>
+        <Text className="text-sm text-ink">{t('review.denied')}</Text>
+      </View>
+    );
+    if (embedded) return denied;
     return (
       <Screen>
         <Stack.Screen options={{ title: t('review.verificationReviews') }} />
-        <View className="p-5">
-          <Text className="text-sm text-ink">{t('review.denied')}</Text>
-        </View>
+        {denied}
       </Screen>
     );
   }
 
-  return (
-    <Screen>
-      <Stack.Screen options={{ title: t('review.verificationReviews') }} />
+  const body = (
       <ScrollView
-        contentContainerClassName="p-5 pb-12"
+        contentContainerClassName={embedded ? 'pb-12' : 'p-5 pb-12'}
         keyboardShouldPersistTaps="handled"
       >
         {error ? (
@@ -454,6 +460,20 @@ export default function VerificationReviews() {
           onPress={() => void run(load)}
         />
       </ScrollView>
+  );
+
+  if (embedded) return body;
+  return (
+    <Screen>
+      <Stack.Screen options={{ title: t('review.verificationReviews') }} />
+      {body}
     </Screen>
+  );
+}
+
+/** Legacy route — reviews live as a tab on the Technicians hub. */
+export default function VerificationReviewsScreen() {
+  return (
+    <Redirect href={{ pathname: '/more/technicians', params: { tab: 'reviews' } }} />
   );
 }

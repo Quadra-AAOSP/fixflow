@@ -6,6 +6,10 @@ import { colors } from '@/constants/theme';
 import type { Site } from '@/types';
 import { humanize } from '@/utils/format';
 
+function poolLabel(status: Site['contractStatus'], t: (key: string) => string) {
+  return t(`more.sites.contractStatuses.${status}`);
+}
+
 type SiteCardProps = {
   site: Site;
   /** Present only when the caller may edit this site. */
@@ -60,7 +64,7 @@ export function SiteCard({ site, onEdit, onPress, active }: SiteCardProps) {
 
       <Text className="mt-1.5 text-[11px] text-subtitle">
         {t('components.siteCard.contract', {
-          contract: humanize(site.contractStatus),
+          contract: poolLabel(site.contractStatus, t),
           id: site.id,
         })}
       </Text>

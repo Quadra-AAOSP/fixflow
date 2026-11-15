@@ -433,11 +433,9 @@ function Dashboard() {
             ? t('home.statLabels.unassigned.label')
             : t(groupLabels[activeStatus]);
 
-  // First-login setup gate: a site administrator whose site has no active
-  // building lands on this screen instead of the dashboard. Authentication is
-  // never blocked (the backend recalculates readiness live on /me) and the
-  // other tabs stay reachable — only Home is gated, since it is the landing
-  // screen.
+  // First-login setup gate: site admins stay here until buildings, site
+  // details, and terms/contract files are all complete. Other tabs redirect
+  // to site-setup while this flag is set.
   if (setupRequired) {
     return (
       <Screen>
@@ -547,7 +545,7 @@ function Dashboard() {
                 onPressSites={() => router.push('/more/sites')}
                 onPressSiteSetup={() => router.push('/more/site-setup')}
                 onPressTeamAccess={() => router.push('/more/team-access')}
-                onPressApplications={() => router.push('/more/admin-applications')}
+                onPressApplications={() => router.push('/more/site-applications')}
               />
             </>
           ) : (
@@ -651,7 +649,7 @@ function Dashboard() {
                 onPressSites={() => router.push('/more/sites')}
                 onPressSiteSetup={() => router.push('/more/site-setup')}
                 onPressTeamAccess={() => router.push('/more/team-access')}
-                onPressApplications={() => router.push('/more/admin-applications')}
+                onPressApplications={() => router.push('/more/site-applications')}
               />
             </>
           )

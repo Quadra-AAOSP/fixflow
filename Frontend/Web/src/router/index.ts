@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw, type RouterHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { shopManagerRouteAllowed, workspaceRoles } from '@/utils/workspaceAccess';
-import { accountHome } from '@/utils/navigation';
+import { accountHome, requiresSiteSetup, setupAllowedPath } from '@/utils/navigation';
 
 const routes: RouteRecordRaw[] = [
   { path: '/welcome', name: 'landing', meta: { public: true }, component: () => import('@/views/public/LandingView.vue') },
@@ -78,6 +78,9 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     if (auth.user?.role === 'shop_manager' && to.meta.requiresAuth && !shopManagerRouteAllowed(to.name)) return '/shop/dashboard';
     if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.user?.role)) return accountHome(auth.user);
     if (to.name === 'home' && auth.user?.role === 'technician') return { name: 'technician' };
+    if (requiresSiteSetup(auth.user) && !setupAllowedPath(to.path, auth.user?.siteOnboarding?.siteId)) {
+      return accountHome(auth.user);
+    }
     return true;
   });
   return router;

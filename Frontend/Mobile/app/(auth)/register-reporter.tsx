@@ -119,7 +119,7 @@ export default function RegisterReporterScreen() {
 
   return (
     <AuthShell>
-      <BackToRoles router={router} t={t} />
+      <BackToRoles />
       <AuthHeading
         kicker={t('auth.registerReporter.kicker')}
         title={t('auth.registerReporter.title')}
@@ -200,13 +200,10 @@ export default function RegisterReporterScreen() {
   );
 }
 
-export function BackToRoles({
-  router,
-  t,
-}: {
-  router: ReturnType<typeof useRouter>;
-  t: (key: string) => string;
-}) {
+/** Shared “change role” control — owns its own router/i18n so callers need no props. */
+export function BackToRoles() {
+  const { t } = useTranslation('common');
+  const router = useRouter();
   return (
     <Pressable
       accessibilityRole="button"

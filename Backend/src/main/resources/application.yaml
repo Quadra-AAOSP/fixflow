@@ -1,7 +1,7 @@
 spring:
   servlet:
     multipart:
-      max-file-size: 5MB
+      max-file-size: 10MB
       max-request-size: 30MB
   application:
     name: fixflow
@@ -69,6 +69,8 @@ fixflow:
     allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081}
     session-check-ms: ${WEBSOCKET_SESSION_CHECK_MS:5000}
   seed:
+    # Full demo dataset. When false, DefaultAccountsLoader still creates one
+    # super_admin and one shop_manager on a fresh database.
     demo-enabled: ${SEED_DEMO_DATA:false}
   cors:
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*}

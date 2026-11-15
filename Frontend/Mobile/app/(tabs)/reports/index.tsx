@@ -45,6 +45,7 @@ import { Card } from '@/components/ui/Card';
 import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
+import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { dashboardColors, themeColors } from '@/constants/theme';
@@ -327,7 +328,6 @@ export default function ReportsScreen() {
                 <ReportsHeader
                 t={t}
                 title={mineMode ? t('reports.list.myReports') : undefined}
-                siteName={site?.name ?? ''}
                 contractStatus={isOps ? site?.contractStatus ?? null : null}
                 canCreate={canCreate}
                 onCreate={() => router.push('/reports/new')}
@@ -585,7 +585,6 @@ type ReportsHeaderProps = {
   t: TranslateFn;
   /** Overrides the default “Reports” heading (used by Track reports). */
   title?: string;
-  siteName: string;
   contractStatus?: 'contracted' | 'uncontracted' | null;
   canCreate: boolean;
   onCreate: () => void;
@@ -607,11 +606,11 @@ type ReportsHeaderProps = {
  * The card's top block: the `.card-heading` (title + site + "New report"),
  * then the search control, then the `.report-filters` row (a "Status"
  * select, the matching count, and the clear-search affordance).
+ * Super admins switch sites via SiteSwitcher (same as Web chrome).
  */
 function ReportsHeader({
   t,
   title,
-  siteName,
   contractStatus,
   canCreate,
   onCreate,
@@ -648,30 +647,24 @@ function ReportsHeader({
           >
             {title ?? t('reports.list.title')}
           </Text>
-          <Text className="mt-0.5 text-[11px] text-dashboard-subtitle">
-            {siteName}
+          <View className="mt-0.5 flex-row flex-wrap items-center gap-1">
+            <SiteSwitcher />
             {contractStatus === 'contracted' ? (
-              <>
-                {' · '}
-                <Text
-                  className="font-semibold"
-                  style={{ color: dashboardColors.statMintDeep }}
-                >
-                  {t('reports.list.contracted')}
-                </Text>
-              </>
+              <Text
+                className="text-[11px] font-semibold"
+                style={{ color: dashboardColors.statMintDeep }}
+              >
+                · {t('reports.list.contracted')}
+              </Text>
             ) : contractStatus === 'uncontracted' ? (
-              <>
-                {' · '}
-                <Text
-                  className="font-semibold"
-                  style={{ color: dashboardColors.statCitronDeep }}
-                >
-                  {t('reports.list.uncontracted')}
-                </Text>
-              </>
+              <Text
+                className="text-[11px] font-semibold"
+                style={{ color: dashboardColors.statCitronDeep }}
+              >
+                · {t('reports.list.uncontracted')}
+              </Text>
             ) : null}
-          </Text>
+          </View>
         </View>
         {canCreate ? (
           <Pressable

@@ -62,6 +62,18 @@ export const assignTechnician = (id: number, technicianId: number) => request<Re
 export const createSite = (payload: SitePayload) => request<Site>('/api/sites', { method: 'POST', body: JSON.stringify(sitePayload(payload)) });
 export const updateSite = (id: number, payload: SitePayload) => request<Site>(`/api/sites/${id}`, { method: 'PUT', body: JSON.stringify(sitePayload(payload)) });
 
+export type SiteDocumentKind = 'terms' | 'contract';
+
+/** Upload a PDF, Word, or text file for site terms or the site contract. */
+export function uploadSiteDocument(siteId: number, kind: SiteDocumentKind, file: File) {
+  if (!Number.isSafeInteger(siteId) || siteId <= 0) throw new Error('Choose a valid site.');
+  if (kind !== 'terms' && kind !== 'contract') throw new Error('Document kind must be terms or contract.');
+  if (!file?.size) throw new Error('Choose a non-empty document.');
+  const body = new FormData();
+  body.append('file', file);
+  return request<Site>(`/api/sites/${siteId}/documents/${kind}`, { method: 'POST', body });
+}
+
 function subsitePath(siteId: number) {
   if (!Number.isSafeInteger(siteId) || siteId <= 0) throw new Error('Choose a valid site.');
   return `/api/sites/${siteId}/subsites`;

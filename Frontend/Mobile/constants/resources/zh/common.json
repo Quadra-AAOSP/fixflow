@@ -66,6 +66,9 @@
     "confirmPrivacy": "我已确认此工作信息不包含私人详情。",
     "broadLocation": "大致位置",
     "timing": "预计时间",
+    "timingPlaceholder": "选择日期和时间",
+    "timingCancel": "取消",
+    "timingDone": "完成",
     "payAmount": "报酬金额",
     "publishing": "正在发布…",
     "publish": "发布工作",
@@ -124,6 +127,14 @@
     "accepted": "已接受邀请。您现在可以打开分配的报告。",
     "decline": "拒绝邀请",
     "declined": "已拒绝邀请。",
+    "negotiateHint": "可直接接受所列条件，或在邀请过期前提出不同的报酬与时间。",
+    "proposePay": "提议报酬",
+    "proposeTiming": "提议时间",
+    "proposePayRequired": "请输入大于零的提议报酬。",
+    "proposeTimingRequired": "请选择提议的日期与时间。",
+    "proposeTerms": "提出不同条件",
+    "countered": "还价已发送。场地管理员可查看您更新后的条件。",
+    "proposedTiming": "提议时间：{timing}",
     "publishFromReport": "发布至工作市场",
     "states": {
       "open": "开放",
@@ -489,8 +500,8 @@
         "subtitle": "开通账户"
       },
       "applications": {
-        "title": "申请审核",
-        "subtitle": "站点管理员申请"
+        "title": "场地申请",
+        "subtitle": "审核新场地申请"
       },
       "browseReports": {
         "title": "浏览报修",
@@ -513,9 +524,9 @@
     "setupGate": {
       "title": "设置 {site}",
       "titleFallback": "您的站点",
-      "subtitle": "在站点至少添加一栋建筑或区域之前，报修人无法提交报修。请添加报修人可选的带标签地点 — 例如 E5 / 教学楼。",
-      "cta": "打开站点设置",
-      "helper": "您仍然可以使用其他标签页。添加第一栋建筑后此界面会自动清除。"
+      "subtitle": "请按顺序完成：添加建筑 → 确认站点详情 → 上传条款与合同文件。三步全部完成前，其他功能保持锁定。",
+      "cta": "继续站点设置",
+      "helper": "个人资料仍可用于退出登录。设置完成前，其他界面保持锁定。"
     },
     "reportDisabledReasons": {
       "noSite": "提交报修前必须先关联站点。",
@@ -538,8 +549,8 @@
       "myReports": "我的报修",
       "myEmptyTitle": "您还没有提交任何报修。",
       "myEmptyDesc": "您在任意站点提交的报修都会显示在这里，并附上处理进度。",
-      "contracted": "已签约",
-      "uncontracted": "未签约",
+      "contracted": "站点签约技师池",
+      "uncontracted": "开放技师池",
       "newReport": "新建报修",
       "searchPlaceholder": "搜索报修…",
       "status": "状态",
@@ -973,8 +984,12 @@
       "myAdminApplicationPending": "等待超级管理员审核。",
       "myAdminApplicationStatus": "申请状态：{status}。",
       "siteSetupTitle": "站点设置",
-      "siteSetupSubtitleRequired": "必做 — 添加您的第一栋建筑。",
-      "siteSetupSubtitle": "管理建筑及报修就绪检查。",
+      "siteSetupSubtitleRequired": "必做 — 先建筑，再站点详情，再条款。",
+      "siteSetupSubtitle": "建筑、站点详情与条款。",
+      "siteSetupSubtitleBuildings": "下一步：添加第一栋建筑。",
+      "siteSetupSubtitleSite": "下一步：确认站点详情。",
+      "siteSetupSubtitleTerms": "下一步：上传条款与合同文件。",
+      "siteSetupSubtitleDone": "设置完成 — 可随时管理建筑。",
       "siteRulesTitle": "场地类别",
       "allReportsTitle": "全部站点报修",
       "allReportsSubtitle": "所有站点的报修队列，优先显示待处理。",
@@ -1162,6 +1177,12 @@
     },
     "sites": {
       "title": "您的站点",
+      "hubSubtitle": "管理站点、类别与合同。",
+      "tabs": {
+        "list": "站点",
+        "category": "场地类别",
+        "contracts": "场地合同"
+      },
       "count": "{count} 个站点可供您的账户使用",
       "available": "可供您账户使用的站点",
       "addSite": "添加站点",
@@ -1186,10 +1207,13 @@
         "hostel": "宿舍",
         "hotel": "酒店"
       },
-      "contractStatusLabel": "合同状态",
+      "contractStatusLabel": "技师池",
+      "contractStatusHint": "控制可被指派的技师范围 — 不是场地申请合同。",
       "contractStatuses": {
-        "contracted": "已签约",
-        "uncontracted": "未签约"
+        "contracted": "仅站点签约技师",
+        "uncontracted": "开放技师池",
+        "siteContracted": "仅站点签约技师",
+        "siteUncontracted": "开放技师池"
       },
       "addressLabel": "地址",
       "descriptionLabel": "描述",
@@ -1197,6 +1221,11 @@
       "flatFeeLabel": "合同固定费用",
       "flatFeePlaceholder": "签约技师前必须设置",
       "feeCurrencyLabel": "费用货币",
+      "termsLabel": "场地条款",
+      "termsPlaceholder": "本场地技师适用的条款",
+      "contractTermsLabel": "场地合同",
+      "contractTermsPlaceholder": "技师签约本场地时接受的合同正文",
+      "documentsAfterCreate": "创建站点后，再次打开即可上传条款与合同文件。",
       "optionalPlaceholder": "可选",
       "errors": {
         "nameRequired": "名称为必填项。",
@@ -1208,6 +1237,10 @@
     },
     "technicians": {
       "title": "技师",
+      "tabs": {
+        "directory": "技师",
+        "reviews": "认证审核"
+      },
       "count": "{count} 位技师",
       "subtitleAll": "您各站点的技师在岗情况与站点合同。",
       "subtitleAtSite": "{site} 的技师在岗情况与站点合同。",
@@ -1575,13 +1608,42 @@
   },
   "siteSetup": {
     "title": "站点设置",
-    "intro": "添加报修人在提交问题时要选择的带标签建筑和区域，例如 E5 / 教学楼。",
+    "intro": "请按顺序完成：建筑 → 站点详情 → 条款。",
+    "steps": {
+      "buildings": "建筑",
+      "site": "站点",
+      "terms": "条款",
+      "kicker": "设置进度"
+    },
+    "buildingsIntro": "添加报修人在提交问题时要选择的带标签建筑和区域，例如 E5 / 教学楼。",
+    "siteIntro": "确认报修人与技师将看到的站点资料。技师池决定可指派对象 — 不是与 FixFlow 的合同。",
+    "termsIntro": "上传技师在此站点工作时接受的条款与合同文件（PDF、Word 或文本）。",
+    "continueSite": "继续填写站点详情",
+    "continueTerms": "继续填写条款",
+    "backBuildings": "返回建筑",
+    "backSite": "返回站点详情",
+    "finishSetup": "完成设置",
+    "siteSaved": "站点详情已保存。",
+    "termsSaved": "设置完成。",
+    "documentUploaded": "文件已上传。",
+    "documentsRequired": "完成前请上传站点条款与站点合同两份文件。",
+    "documentOnFile": "已上传：{name}",
+    "documentMissing": "尚未上传文件。",
+    "documentFallback": "文件",
+    "uploadDocument": "上传文件",
+    "replaceDocument": "更换文件",
+    "siteNameLabel": "站点名称",
+    "siteAddressLabel": "地址",
+    "siteDescriptionLabel": "描述",
+    "saveSiteDetails": "保存站点详情",
+    "saveTerms": "保存条款",
+    "termsCompleteHint": "两份文件均为必传。上传完成前无法启用报修。",
     "adminOnlyTitle": "仅站点管理员可访问",
     "adminOnlyDesc": "只有站点管理员可以管理其站点的建筑和区域。",
     "noSiteTitle": "未关联站点",
     "noSiteDesc": "在设置建筑之前，必须先将站点关联到您的账户。",
     "readinessReady": "报修已就绪",
-    "readinessReadyDesc": "{count} 栋活跃建筑 — 报修人可以提交报修。",
+    "readinessReadyDesc": "{count} 栋活跃建筑 — 报修人可以提交报修。下一步：确认站点详情，然后填写条款。",
     "readinessSetupRequired": "需要设置",
     "readinessSetupRequiredDesc": "请至少添加一栋建筑，报修人才可以提交报修。",
     "loadingBuildings": "正在加载建筑…",
@@ -1624,7 +1686,8 @@
       "couldNotSave": "无法保存建筑。",
       "couldNotSuggest": "无法添加建议的建筑。",
       "couldNotResolve": "无法处理该提醒。",
-      "couldNotArchive": "无法归档建筑。"
+      "couldNotArchive": "无法归档建筑。",
+      "couldNotUpload": "无法上传文件。"
     }
   },
   "adminApplications": {
@@ -1673,7 +1736,19 @@
     "shortcuts": {
       "kicker": "快捷入口",
       "settings": "应用设置",
+      "changePassword": "修改密码",
       "notifications": "通知"
+    },
+    "password": {
+      "title": "修改密码",
+      "hint": "请输入当前密码，然后设置至少 {min} 个字符的新密码。",
+      "current": "当前密码",
+      "next": "新密码",
+      "confirm": "确认新密码",
+      "submit": "更新密码",
+      "mismatch": "新密码与确认密码不一致。",
+      "success": "密码已更新。",
+      "failed": "无法修改密码，请重试。"
     },
     "heroKicker": "您的账户",
     "openSettings": "打开设置",
@@ -2012,7 +2087,7 @@
       "viewReports": "查看报修 →",
       "editSite": "编辑站点",
       "editA11y": "编辑 {name}",
-      "contract": "合同：{contract} · 站点编号：{id}",
+      "contract": "技师池：{contract} · 站点编号：{id}",
       "flatFee": "合同固定费用：{fee}",
       "flatFeeNotSet": "未设置"
     },
@@ -2046,36 +2121,26 @@
     },
     "tradeProfile": {
       "heading": "您的技能档案",
-      "intro": "管理已保存到您账户的工种。资质由审核人员另行核实。",
+      "intro": "管理已保存到您账户的工种。熟练度从 2.5 起步，并根据已确认的报修人评分由平台更新。资质由审核人员另行核实。",
       "saved": "已保存：{category} · {specialty} · 熟练度 {proficiency}/5。",
       "addTrade": "添加工种 →",
       "addAnother": "添加另一项技能 →",
       "primaryTrade": "主工种",
       "specialtyLabel": "专长及您有资格从事的工作（可选）",
-      "proficiencyLabel": "自评熟练度",
+      "proficiencyHint": "新工种的熟练度从 2.5 起步，由平台根据已确认的报修人评分更新——您无法自行设置。",
       "chooseCategory": "选择类别…",
       "categoryPlaceholder": "例如 电气",
       "specialtyPlaceholder": "例如 低压布线",
-      "chooseLevel": "选择等级",
       "saving": "正在保存…",
       "save": "保存技能详情",
       "beforeYouStart": "在站点开始工作之前",
       "reviewBody": "请与站点管理员安排一次审核，内容涵盖您的身份、相关工作经历与推荐人、资质、适用的行业执照及有效期，以及适合该工作的保险。具体要求取决于工种和所在地。",
       "evidenceNote": "暂不支持安全证据上传和审批跟踪。请勿在此输入身份号码或文件链接。已保存的技能或站点合同并非审核通过的凭证。",
-      "levels": {
-        "beginner": "初学者",
-        "basicExperience": "具备基础实践经验",
-        "independent": "能独立完成日常工作",
-        "advanced": "进阶工作",
-        "expert": "专家"
-      },
       "errors": {
         "categoryRequired": "类别为必填项。",
         "specialtyRequired": "专长为必填项。",
-        "chooseProficiency": "请选择熟练度等级。",
         "categoryTooLong": "类别不得超过 {max} 个字符。",
         "specialtyTooLong": "专长不得超过 {max} 个字符。",
-        "proficiencyRange": "熟练度必须在 1 到 5 之间。",
         "saveFailed": "目前无法保存该技能。",
         "duplicateSuffix": " 如果连接中断，请重新加载已保存的工种后再试。",
         "loadFailed": "无法加载已保存的工种。"
@@ -2176,7 +2241,8 @@
     "request_information": "要求更正",
     "applicationOnFile": "申请内容已提交",
     "issueSetup": "生成设置令牌",
-    "privateHandoff": "请安全地将此令牌交给拟任管理员。系统未发送邮件。",
+    "privateHandoff": "请私下将此令牌交给 {email}。系统未发送邮件。",
+    "setupLoginHint": "对方打开「登录 → 已有设置令牌？」，粘贴此令牌并设置密码（至少 15 个字符）。登录邮箱是 {email}，没有临时密码。",
     "expires": "到期时间",
     "dismiss": "关闭令牌",
     "history": "查看历史",

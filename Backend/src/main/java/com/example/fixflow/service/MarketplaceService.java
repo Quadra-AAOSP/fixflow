@@ -53,7 +53,7 @@ public class MarketplaceService {
             List<ApplicationView> applications) { }
 
     public record ApplicationView(Long id, Long technicianId, String technicianName, String note,
-            Long proposedAmountMinor, MarketplaceApplication.Status status, Instant offerExpiresAt,
+            Long proposedAmountMinor, String proposedTiming, MarketplaceApplication.Status status, Instant offerExpiresAt,
             long activeCases, long completedJobs, Double averageRating, String reviewedTrades,
             String reviewedQualifications, long cancellations) { }
 
@@ -161,7 +161,8 @@ public class MarketplaceService {
                 .map(application -> applicationView(application, true, now)).toList();
     }
 
-    public ApplicationView apply(Long id, String note, Long proposedAmountMinor, AppUserDetails actor) {
+    public ApplicationView apply(Long id, String note, Long proposedAmountMinor, String proposedTiming,
+            AppUserDetails actor) {
         requireTechnician(actor);
         MarketplaceListing listing = lockedListing(id);
         Instant now = Instant.now();
@@ -179,12 +180,14 @@ public class MarketplaceService {
         application.setTechnician(technician);
         application.setNote(note.trim());
         application.setProposedAmountMinor(proposedAmountMinor);
+        application.setProposedTiming(normalizeTiming(proposedTiming));
         applications.save(application);
         audit(listing, application, actor.getId(), "applied", now);
         return applicationView(application, false, now);
     }
 
-    public ApplicationView counter(Long id, Long applicationId, long amountMinor, String note, AppUserDetails actor) {
+    public ApplicationView counter(Long id, Long applicationId, long amountMinor, String timing, String note,
+            AppUserDetails actor) {
         requireTechnician(actor);
         MarketplaceListing listing = lockedListing(id);
         MarketplaceApplication application = ownApplication(id, applicationId, actor);
@@ -196,6 +199,8 @@ public class MarketplaceService {
         }
         if (amountMinor <= 0) throw new ApiException(400, "Counter amount must be greater than zero");
         application.setProposedAmountMinor(amountMinor);
+        String normalizedTiming = normalizeTiming(timing);
+        if (normalizedTiming != null) application.setProposedTiming(normalizedTiming);
         if (note != null && !note.isBlank()) application.setNote(note.trim());
         if (application.getStatus() == MarketplaceApplication.Status.offered) {
             listing.setStatus(MarketplaceListing.Status.open);
@@ -243,6 +248,9 @@ public class MarketplaceService {
                 : listing.getAmountMinor();
         report.setAgreedAmountMinor(agreed);
         report.setAgreedCurrency(listing.getCurrency());
+        if (application.getProposedTiming() != null && !application.getProposedTiming().isBlank()) {
+            listing.setTiming(application.getProposedTiming().trim());
+        }
         workflow.activateMarketplaceAssignment(report, technician, actor);
         listing.setStatus(MarketplaceListing.Status.assigned);
         application.setStatus(MarketplaceApplication.Status.accepted);
@@ -378,12 +386,23 @@ public class MarketplaceService {
         }
         var evidence = admin ? verifications.findById(id).orElse(null) : null;
         return new ApplicationView(application.getId(), id, technician.getFirstName() + " " + technician.getLastName(),
-                application.getNote(), application.getProposedAmountMinor(), status, application.getOfferExpiresAt(),
+                application.getNote(), application.getProposedAmountMinor(), application.getProposedTiming(), status,
+                application.getOfferExpiresAt(),
                 admin ? reports.countByAssignedTechnician_IdAndStatusIn(id, ACTIVE) : 0,
                 admin ? reports.countByAssignedTechnician_IdAndStatus(id, ReportStatus.confirmed) : 0,
                 admin ? ratings.averageConfirmedScore(id, ReportStatus.confirmed) : null,
                 evidence == null ? null : evidence.getTrades(), evidence == null ? null : evidence.getQualifications(),
                 admin ? applications.countByTechnician_IdAndStatus(id, MarketplaceApplication.Status.cancelled) : 0);
+    }
+
+    private static String normalizeTiming(String timing) {
+        if (timing == null) return null;
+        String trimmed = timing.trim();
+        if (trimmed.isEmpty()) return null;
+        if (trimmed.length() > 160) {
+            throw new ApiException(400, "Proposed timing must be 160 characters or fewer");
+        }
+        return trimmed;
     }
 
     private User requireEligible(MarketplaceListing listing, Long id) {

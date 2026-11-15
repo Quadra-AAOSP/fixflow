@@ -3,13 +3,20 @@ import { Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
+import { DateTimeField } from '@/components/ui/DateTimeField';
 import { TextField } from '@/components/ui/TextField';
 import { ApiError } from '@/lib/apiClient';
 import { publishJob } from '@/services/marketplace';
 import type { Report } from '@/types';
+import {
+  buildMarketplaceBroadLocation,
+  isMarketplaceDateTimeTiming,
+} from '@/utils/marketplace';
 
 type MarketplacePublishFormProps = {
   report: Report;
+  /** Site display name used to prefill broad location. */
+  siteName?: string | null;
   disabled?: boolean;
   onPublished?: () => void;
 };
@@ -20,6 +27,7 @@ type MarketplacePublishFormProps = {
  */
 export function MarketplacePublishForm({
   report,
+  siteName = null,
   disabled = false,
   onPublished,
 }: MarketplacePublishFormProps) {
@@ -35,13 +43,13 @@ export function MarketplacePublishForm({
 
   useEffect(() => {
     setSummary('');
-    setBroadLocation('');
+    setBroadLocation(buildMarketplaceBroadLocation(siteName, report.address));
     setTiming('');
     setAmount('');
     setConfirmed(false);
     setPublished(false);
     setError(null);
-  }, [report.id]);
+  }, [report.id, report.address, siteName]);
 
   async function onPublish() {
     const amountMinor = Math.round(Number(amount) * 100);
@@ -52,19 +60,24 @@ export function MarketplacePublishForm({
       !confirmed ||
       !summary.trim() ||
       !broadLocation.trim() ||
-      !timing.trim() ||
+      !isMarketplaceDateTimeTiming(timing) ||
       !Number.isFinite(amountMinor) ||
       amountMinor <= 0
     ) {
       if (!confirmed) {
         setError(t('marketplace.publishMissingPrivacy'));
-      } else if (!summary.trim() || !broadLocation.trim() || !timing.trim() || amountMinor <= 0) {
+      } else if (
+        !summary.trim() ||
+        !broadLocation.trim() ||
+        !isMarketplaceDateTimeTiming(timing) ||
+        amountMinor <= 0
+      ) {
         setError(
           t('marketplace.publishMissingFields', {
             fields: [
               !summary.trim() ? t('marketplace.summary') : null,
               !broadLocation.trim() ? t('marketplace.broadLocation') : null,
-              !timing.trim() ? t('marketplace.timing') : null,
+              !isMarketplaceDateTimeTiming(timing) ? t('marketplace.timing') : null,
               amountMinor <= 0 ? t('marketplace.payAmount') : null,
             ]
               .filter(Boolean)
@@ -130,11 +143,11 @@ export function MarketplacePublishForm({
         onChangeText={setBroadLocation}
         maxLength={160}
       />
-      <TextField
+      <DateTimeField
         label={t('marketplace.timing')}
         value={timing}
-        onChangeText={setTiming}
-        maxLength={160}
+        onChange={setTiming}
+        disabled={busy || disabled}
       />
       <TextField
         label={t('marketplace.payAmount')}

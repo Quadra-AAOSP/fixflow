@@ -19,18 +19,20 @@ import type {
 /** Max lengths enforced by the backend (`TechnicianSkillRequest` validation). */
 export const SKILL_CATEGORY_MAX_LENGTH = 128;
 export const SKILL_SPECIALTY_MAX_LENGTH = 128;
-export const SKILL_PROFICIENCY_MIN = 1;
-export const SKILL_PROFICIENCY_MAX = 5;
 
 export function listMyTechnicianSkills(signal?: AbortSignal): Promise<TechnicianSkill[]> {
   return api.get<TechnicianSkill[]>(endpoints.technicianSkills.me, { signal });
 }
 
-/** Declares a trade skill on a technician's profile. */
+/** Declares a trade skill. Proficiency is platform-owned (starts at 2.5). */
 export function addTechnicianSkill(
   payload: TechnicianSkillPayload,
 ): Promise<TechnicianSkill> {
-  return api.post<TechnicianSkill>(endpoints.technicianSkills.create, payload);
+  return api.post<TechnicianSkill>(endpoints.technicianSkills.create, {
+    technicianId: payload.technicianId,
+    category: payload.category,
+    specialty: payload.specialty ?? null,
+  });
 }
 
 /**

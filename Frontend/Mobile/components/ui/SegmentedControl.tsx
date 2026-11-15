@@ -34,14 +34,14 @@ export function SegmentedControl<T extends string>({
 }: SegmentedControlProps<T>) {
   return (
     <View
-      className={`flex-row rounded-md border border-border bg-card p-1 ${className ?? ''}`}
+      className={`flex-row rounded border border-border bg-card p-0.5 ${className ?? ''}`}
     >
       {options.map((option) => {
         const selected = option.value === value;
         return (
           <Pressable
             key={option.value}
-            className={`flex-1 items-center rounded py-2.5 ${
+            className={`flex-1 items-center rounded py-1 ${
               selected
                 ? 'bg-dashboard-teal-soft'
                 : 'bg-transparent'
@@ -54,7 +54,7 @@ export function SegmentedControl<T extends string>({
             accessibilityState={{ selected, disabled }}
           >
             <Text
-              className={`text-[12px] font-semibold ${
+              className={`text-[10px] font-semibold leading-[1.3] ${
                 selected ? 'text-dashboard-teal' : 'text-subtitle'
               }`}
             >

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountHome } from '../src/utils/navigation';
+import { accountHome, requiresSiteSetup, setupAllowedPath } from '../src/utils/navigation';
 import type { User } from '../src/types';
 
 const user: User = {
@@ -27,5 +27,20 @@ describe('account landing screens', () => {
   it('routes independent technicians and shop managers to their own area', () => {
     expect(accountHome({ ...user, siteId: null, role: 'technician' })).toBe('/technician');
     expect(accountHome({ ...user, siteId: null, role: 'shop_manager' })).toBe('/shop/dashboard');
+  });
+  it('locks site managers to setup and profile routes until the three steps are done', () => {
+    const incomplete = {
+      ...user,
+      siteOnboarding: {
+        siteId: 71, reportingReady: false, setupRequired: true,
+        canManageSubsites: true, setupEndpoint: '/api/sites/71/subsites',
+      },
+    };
+    expect(requiresSiteSetup(incomplete)).toBe(true);
+    expect(setupAllowedPath('/sites/71/subsites', 71)).toBe(true);
+    expect(setupAllowedPath('/sites', 71)).toBe(true);
+    expect(setupAllowedPath('/profile', 71)).toBe(true);
+    expect(setupAllowedPath('/reports', 71)).toBe(false);
+    expect(setupAllowedPath('/marketplace', 71)).toBe(false);
   });
 });

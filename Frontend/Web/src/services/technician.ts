@@ -23,13 +23,12 @@ export type TechnicianTrade = { id: number; category: string; specialty: string 
 export const listMyTechnicianSkills = (signal?: AbortSignal) =>
   request<TechnicianTrade[]>('/api/technician-skills/me', { signal });
 
-export function addTechnicianSkill(technicianId: number, category: string, specialty: string, proficiency: string) {
-  const level = Number(proficiency);
+export function addTechnicianSkill(technicianId: number, category: string, specialty: string) {
   if (!category.trim() || category.trim().length > 128) throw new Error('Enter a trade of up to 128 characters.');
   if (specialty.trim().length > 128) throw new Error('Enter a specialty of up to 128 characters.');
-  if (!Number.isInteger(level) || level < 1 || level > 5) throw new Error('Choose a self-assessed proficiency from 1 to 5.');
+  // Proficiency is platform-owned (starts at 2.5; updated from reporter ratings).
   return request<TechnicianTrade>('/api/technician-skills', {
-    method: 'POST', body: JSON.stringify({ technicianId, category: category.trim(), specialty: specialty.trim() || null, proficiency: level }),
+    method: 'POST', body: JSON.stringify({ technicianId, category: category.trim(), specialty: specialty.trim() || null }),
   });
 }
 export function getTechnicianTermsFor(technicianId: number): Promise<TechnicianTermsStatus> {

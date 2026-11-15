@@ -6,12 +6,12 @@ import { useRouter } from "vue-router";
 import { MapPin, Plus, X } from "@lucide/vue";
 import { useAuth } from "@/composables/useAuth";
 import { useMaintenanceStore } from "@/stores/maintenance";
-import { createSite, updateSite } from "@/services/maintenance";
+import { createSite, updateSite, uploadSiteDocument } from "@/services/maintenance";
 import { errorMessage } from "@/services/api";
 import { humanize } from "@/utils/maintenance";
 import type { Site, SitePayload } from "@/types/maintenance";
 const { t } = useLocale();
-const { user } = useAuth();
+const { user, refreshUser } = useAuth();
 const data = useMaintenanceStore();
 const router = useRouter();
 const editor = ref<HTMLDialogElement>();
@@ -42,6 +42,8 @@ const form = reactive({
   imageUrl: "",
   contractFlatFee: "",
   contractFeeCurrency: "USD",
+  termsText: null as string | null,
+  contractTermsText: null as string | null,
 });
 function formatFee(minor: number | null | undefined, currency = "USD") {
   if (minor == null) return t("Not set");
@@ -58,6 +60,11 @@ const canEdit = computed(
   () =>
     user.value?.capabilities?.editSite ??
     (canCreate.value || user.value?.role === "admin"),
+);
+const editingSite = computed(() =>
+  editingId.value == null
+    ? null
+    : (data.sites.find((site) => site.id === editingId.value) ?? null),
 );
 async function viewReports(id: number) {
   await data.selectSite(id);
@@ -80,8 +87,26 @@ function edit(site?: Site) {
         ? ""
         : (site.contractFlatFeeMinor / 100).toFixed(2),
     contractFeeCurrency: site?.contractFeeCurrency ?? "USD",
+    termsText: site?.termsText ?? null,
+    contractTermsText: site?.contractTermsText ?? null,
   });
   editor.value?.showModal();
+}
+async function onDocumentChange(kind: "terms" | "contract", event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file || editingId.value == null || busy.value) return;
+  busy.value = true;
+  error.value = "";
+  try {
+    await uploadSiteDocument(editingId.value, kind, file);
+    await Promise.all([data.refresh(), refreshUser()]);
+  } catch (err) {
+    error.value = errorMessage(err);
+  } finally {
+    busy.value = false;
+  }
 }
 async function save() {
   if (busy.value) return;
@@ -118,13 +143,15 @@ async function save() {
     imageUrl: form.imageUrl.trim() || null,
     contractFlatFeeMinor,
     contractFeeCurrency: currency,
+    termsText: form.termsText,
+    contractTermsText: form.contractTermsText,
   };
   busy.value = true;
   try {
     if (editingId.value != null) await updateSite(editingId.value, payload);
     else await createSite(payload);
     editor.value?.close();
-    await data.refresh();
+    await Promise.all([data.refresh(), refreshUser()]);
   } catch (err) {
     error.value = errorMessage(err);
   } finally {
@@ -336,6 +363,43 @@ async function save() {
               required
           /></label>
         </div>
+        <template v-if="editingId != null">
+          <label
+            >{{ t("Site terms file") }}
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,application/pdf"
+              :disabled="busy"
+              @change="onDocumentChange('terms', $event)"
+            />
+            <span class="field-hint">{{
+              editingSite?.termsDocumentPresent
+                ? t("On file: {name}", {
+                    name: editingSite.termsDocumentName || t("document"),
+                  })
+                : t("Upload a PDF, Word, or text file")
+            }}</span>
+          </label>
+          <label
+            >{{ t("Site contract file") }}
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,application/pdf"
+              :disabled="busy"
+              @change="onDocumentChange('contract', $event)"
+            />
+            <span class="field-hint">{{
+              editingSite?.contractTermsDocumentPresent
+                ? t("On file: {name}", {
+                    name: editingSite.contractTermsDocumentName || t("document"),
+                  })
+                : t("Upload a PDF, Word, or text file")
+            }}</span>
+          </label>
+        </template>
+        <p v-else class="field-hint">
+          {{ t("After the site is created, open it again to upload terms and contract files.") }}
+        </p>
         <button class="report-issue-button" type="submit" :disabled="busy">
           {{ t(busy ? "Saving…" : "Save site") }}
         </button>

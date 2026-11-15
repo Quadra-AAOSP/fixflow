@@ -276,6 +276,24 @@ public class AuthService {
 		}
 	}
 
+	@Transactional
+	public void changePassword(AppUserDetails actor, String currentPassword, String newPassword) {
+		if (actor == null) {
+			throw new ApiException(HttpStatus.UNAUTHORIZED.value(), "Sign in required");
+		}
+		User user = userRepository.findById(actor.getId())
+				.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED.value(), "Sign in required"));
+		if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+			throw new ApiException(HttpStatus.BAD_REQUEST.value(), "Current password is incorrect");
+		}
+		AccountPolicy.validatePassword(newPassword);
+		if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+			throw new ApiException(HttpStatus.BAD_REQUEST.value(),
+					"New password must be different from the current password");
+		}
+		user.setPasswordHash(passwordEncoder.encode(newPassword));
+	}
+
 	private UserResponse response(User user) {
 		var application = adminApplications.mine(new AppUserDetails(user));
 		var applicationStatus = application == null ? null
@@ -283,8 +301,10 @@ public class AuthService {
 		if (user.getSite() == null) {
 			return UserResponse.from(user, null, applicationStatus);
 		}
-		Long siteId = user.getSite().getId();
-		boolean ready = subsites.existsBySite_IdAndArchivedAtIsNull(siteId);
+		Site site = user.getSite();
+		Long siteId = site.getId();
+		boolean hasBuilding = subsites.existsBySite_IdAndArchivedAtIsNull(siteId);
+		boolean ready = SiteSetupPolicy.isOperational(site, hasBuilding);
 		boolean manager = user.getRole() == UserRole.admin || user.getRole() == UserRole.super_admin;
 		return UserResponse.from(user, new UserResponse.SiteOnboarding(siteId, ready,
 				manager && !ready, manager, "/api/sites/" + siteId + "/subsites"), applicationStatus);

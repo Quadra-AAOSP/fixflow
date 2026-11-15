@@ -4,6 +4,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,7 +61,7 @@ class AuthApiIntegrationTest {
 	}
 
 	@Test
-	void siteAdminSeesSetupRequirementUntilAnActiveSubsiteExists() throws Exception {
+	void siteAdminSeesSetupRequirementUntilBuildingsSiteAndTermsAreComplete() throws Exception {
 		Site empty = new Site();
 		empty.setName("Setup " + System.nanoTime());
 		empty.setType(SiteType.school);
@@ -92,6 +93,17 @@ class AuthApiIntegrationTest {
 						{"label":"E5","name":"Classroom building"}
 						"""))
 				.andExpect(status().isCreated());
+		// Buildings alone are not enough — profile + terms are still required.
+		mockMvc.perform(get("/api/auth/me").with(user(actor)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.siteOnboarding.setupRequired").value(true))
+				.andExpect(jsonPath("$.siteOnboarding.reportingReady").value(false));
+		mockMvc.perform(put("/api/sites/" + empty.getId()).with(user(actor))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"name":"%s","type":"school","contractStatus":"contracted","address":"1 Setup Road","termsText":"Site terms","contractTermsText":"Site contract"}
+						""".formatted(empty.getName())))
+				.andExpect(status().isOk());
 		mockMvc.perform(get("/api/auth/me").with(user(actor)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.siteOnboarding.setupRequired").value(false))

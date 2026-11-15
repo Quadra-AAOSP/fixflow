@@ -176,8 +176,12 @@ public class ReportService {
 				throw new ApiException(400, "Archived subsites cannot be selected for new reports");
 			}
 		}
-		if (requireSiteSetup && !subsiteRepository.existsBySite_IdAndArchivedAtIsNull(site.getId())) {
-			throw new ApiException(409, "Site setup required: ask the site admin to add an active subsite before reporting");
+		if (requireSiteSetup) {
+			boolean buildings = subsiteRepository.existsBySite_IdAndArchivedAtIsNull(site.getId());
+			if (!SiteSetupPolicy.isOperational(site, buildings)) {
+				throw new ApiException(409,
+						"Site setup required: ask the site admin to finish buildings, site details, and terms before reporting");
+			}
 		}
 		report.setCreatedBy(filer);
 		report.setDescription(request.description().trim());

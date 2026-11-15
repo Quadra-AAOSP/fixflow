@@ -39,9 +39,6 @@ spring:
       - org.springframework.boot.testcontainers.service.connection.ServiceConnectionAutoConfiguration
 
 fixflow:
-  technician-terms:
-    # Fixtures predate the terms gate; production keeps required=true.
-    required: false
   reporting:
     # Legacy API fixtures deliberately exercise reports without configured buildings.
     # Dedicated onboarding tests explicitly enable the production setup policy.
@@ -49,6 +46,7 @@ fixflow:
   technician-terms:
     version: test-v1
     document-url: http://localhost:8080/agreements/technician/test-v1.html
+    # Override per-test when fixtures intentionally skip the terms gate.
     required: true
   minio:
     enabled: false

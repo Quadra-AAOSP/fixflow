@@ -17,6 +17,14 @@ CREATE TABLE IF NOT EXISTS sites (
     address          VARCHAR(512)    NULL,
     description      TEXT            NULL,
     image_url        VARCHAR(1024)   NULL,
+    contract_flat_fee_minor BIGINT    NULL,
+    contract_fee_currency VARCHAR(8) NOT NULL DEFAULT 'USD',
+    terms_text       TEXT            NULL,
+    contract_terms_text TEXT         NULL,
+    terms_document_key VARCHAR(512)  NULL,
+    terms_document_name VARCHAR(255) NULL,
+    contract_terms_document_key VARCHAR(512) NULL,
+    contract_terms_document_name VARCHAR(255) NULL,
     created_at       TIMESTAMP(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at       TIMESTAMP(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
@@ -82,6 +90,8 @@ CREATE TABLE IF NOT EXISTS technician_contracts (
     id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     technician_id  BIGINT UNSIGNED NOT NULL,
     site_id        BIGINT UNSIGNED NOT NULL,
+    flat_fee_minor BIGINT          NOT NULL,
+    fee_currency   VARCHAR(8)      NOT NULL DEFAULT 'USD',
     created_at     TIMESTAMP(6)    NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
     UNIQUE KEY uq_tech_contract (technician_id, site_id),
@@ -109,7 +119,7 @@ CREATE TABLE IF NOT EXISTS technician_skills (
     technician_id  BIGINT UNSIGNED NOT NULL,
     category       VARCHAR(128)    NOT NULL,
     specialty      VARCHAR(128)    NULL,
-    proficiency    TINYINT UNSIGNED NOT NULL DEFAULT 3,
+    proficiency    DECIMAL(3,1)    NOT NULL DEFAULT 2.5,
     PRIMARY KEY (id),
     UNIQUE KEY uq_tech_skill (technician_id, category, specialty),
     KEY idx_tech_skills_category (category),
@@ -117,7 +127,7 @@ CREATE TABLE IF NOT EXISTS technician_skills (
         FOREIGN KEY (technician_id) REFERENCES users (id)
         ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT chk_tech_skills_proficiency
-        CHECK (proficiency BETWEEN 1 AND 5)
+        CHECK (proficiency BETWEEN 1.0 AND 5.0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS subsites (
@@ -204,6 +214,8 @@ CREATE TABLE IF NOT EXISTS reports (
                                 'escalated'
                             )               NOT NULL DEFAULT 'open',
     assigned_technician_id  BIGINT UNSIGNED NULL,
+    agreed_amount_minor     BIGINT          NULL,
+    agreed_currency         VARCHAR(8)      NULL,
     editable                TINYINT(1)      NOT NULL DEFAULT 1,
     archived_at             TIMESTAMP(6)    NULL,
     visibility              VARCHAR(16)     NOT NULL DEFAULT 'public',
@@ -235,6 +247,45 @@ CREATE TABLE IF NOT EXISTS reports (
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ---------------------------------------------------------------------------
+-- report_photos — max 1 image per report (≤5MB); MinIO object keys; also sent to AI vision
+-- ---------------------------------------------------------------------------
+-- Preserve existing installations: CREATE TABLE IF NOT EXISTS alone does not
+-- add columns. Prepared SQL keeps this additive migration restart-safe on MySQL 8.
+SET @subsite_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'subsite_id') = 0,
+    'ALTER TABLE reports ADD COLUMN subsite_id BIGINT UNSIGNED NULL, ADD CONSTRAINT fk_reports_subsite FOREIGN KEY (subsite_id) REFERENCES subsites(id) ON DELETE RESTRICT ON UPDATE CASCADE',
+    'SELECT 1');
+PREPARE subsite_statement FROM @subsite_migration;
+EXECUTE subsite_statement;
+DEALLOCATE PREPARE subsite_statement;
+
+SET @archive_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'subsites' AND column_name = 'archived_at') = 0,
+    'ALTER TABLE subsites ADD COLUMN archived_at TIMESTAMP NULL', 'SELECT 1');
+PREPARE archive_statement FROM @archive_migration;
+EXECUTE archive_statement;
+DEALLOCATE PREPARE archive_statement;
+
+-- Existing databases gain report visibility without losing data.
+SET @visibility_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'visibility') = 0,
+    'ALTER TABLE reports ADD COLUMN visibility VARCHAR(16) NOT NULL DEFAULT ''public''', 'SELECT 1');
+PREPARE visibility_statement FROM @visibility_migration;
+EXECUTE visibility_statement;
+DEALLOCATE PREPARE visibility_statement;
+
+SET @report_archive_sql = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'archived_at') = 0,
+    'ALTER TABLE reports ADD COLUMN archived_at TIMESTAMP(6) NULL', 'SELECT 1');
+PREPARE report_archive_statement FROM @report_archive_sql;
+EXECUTE report_archive_statement;
+DEALLOCATE PREPARE report_archive_statement;
+
 CREATE TABLE IF NOT EXISTS report_notifications (
     id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     recipient_id BIGINT UNSIGNED NOT NULL,
@@ -247,6 +298,51 @@ CREATE TABLE IF NOT EXISTS report_notifications (
     CONSTRAINT fk_report_notification_recipient
         FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Account-level notices (verification, terms, contracts, marketplace jobs) carry
+-- no report, so report_id became nullable and reference_id was added.
+SET @notification_report_nullable = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'report_notifications'
+        AND column_name = 'report_id' AND is_nullable = 'NO') > 0,
+    'ALTER TABLE report_notifications MODIFY COLUMN report_id BIGINT UNSIGNED NULL', 'SELECT 1');
+PREPARE notification_report_statement FROM @notification_report_nullable;
+EXECUTE notification_report_statement;
+DEALLOCATE PREPARE notification_report_statement;
+
+SET @notification_reference_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'report_notifications'
+        AND column_name = 'reference_id') = 0,
+    'ALTER TABLE report_notifications ADD COLUMN reference_id BIGINT UNSIGNED NULL', 'SELECT 1');
+PREPARE notification_reference_statement FROM @notification_reference_migration;
+EXECUTE notification_reference_statement;
+DEALLOCATE PREPARE notification_reference_statement;
+
+SET @confirm_user_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'confirmed_by_user_id') = 0,
+    'ALTER TABLE reports ADD COLUMN confirmed_by_user_id BIGINT UNSIGNED NULL, ADD CONSTRAINT fk_reports_confirmed_by FOREIGN KEY (confirmed_by_user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE',
+    'SELECT 1');
+PREPARE confirm_user_statement FROM @confirm_user_migration;
+EXECUTE confirm_user_statement;
+DEALLOCATE PREPARE confirm_user_statement;
+
+SET @confirm_at_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'confirmed_at') = 0,
+    'ALTER TABLE reports ADD COLUMN confirmed_at TIMESTAMP(6) NULL', 'SELECT 1');
+PREPARE confirm_at_statement FROM @confirm_at_migration;
+EXECUTE confirm_at_statement;
+DEALLOCATE PREPARE confirm_at_statement;
+
+SET @reopen_reason_migration = IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'reports' AND column_name = 'reopen_reason') = 0,
+    'ALTER TABLE reports ADD COLUMN reopen_reason TEXT NULL', 'SELECT 1');
+PREPARE reopen_reason_statement FROM @reopen_reason_migration;
+EXECUTE reopen_reason_statement;
+DEALLOCATE PREPARE reopen_reason_statement;
 
 CREATE TABLE IF NOT EXISTS report_photos (
     id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -579,6 +675,8 @@ CREATE TABLE IF NOT EXISTS marketplace_listings (
     timing VARCHAR(160) NOT NULL,
     category VARCHAR(128) NOT NULL,
     specialty VARCHAR(128) NULL,
+    amount_minor BIGINT NOT NULL DEFAULT 0,
+    currency VARCHAR(8) NOT NULL DEFAULT 'USD',
     status VARCHAR(16) NOT NULL,
     expires_at TIMESTAMP(6) NOT NULL,
     PRIMARY KEY (id),
@@ -593,6 +691,8 @@ CREATE TABLE IF NOT EXISTS marketplace_applications (
     listing_id BIGINT UNSIGNED NOT NULL,
     technician_id BIGINT UNSIGNED NOT NULL,
     note VARCHAR(1000) NOT NULL,
+    proposed_amount_minor BIGINT NULL,
+    proposed_timing VARCHAR(160) NULL,
     status VARCHAR(16) NOT NULL,
     offer_expires_at TIMESTAMP(6) NULL,
     PRIMARY KEY (id),
@@ -601,6 +701,32 @@ CREATE TABLE IF NOT EXISTS marketplace_applications (
         FOREIGN KEY (listing_id) REFERENCES marketplace_listings (id) ON DELETE CASCADE,
     CONSTRAINT fk_marketplace_application_technician
         FOREIGN KEY (technician_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS job_offers (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    report_id BIGINT UNSIGNED NOT NULL,
+    technician_id BIGINT UNSIGNED NOT NULL,
+    marketplace_listing_id BIGINT UNSIGNED NULL,
+    amount_minor BIGINT NOT NULL,
+    currency VARCHAR(8) NOT NULL DEFAULT 'USD',
+    counter_amount_minor BIGINT NULL,
+    status VARCHAR(16) NOT NULL,
+    note VARCHAR(1000) NULL,
+    created_by_user_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    KEY idx_job_offers_report (report_id),
+    KEY idx_job_offers_technician (technician_id),
+    CONSTRAINT fk_job_offers_report
+        FOREIGN KEY (report_id) REFERENCES reports (id) ON DELETE CASCADE,
+    CONSTRAINT fk_job_offers_technician
+        FOREIGN KEY (technician_id) REFERENCES users (id),
+    CONSTRAINT fk_job_offers_listing
+        FOREIGN KEY (marketplace_listing_id) REFERENCES marketplace_listings (id) ON DELETE SET NULL,
+    CONSTRAINT fk_job_offers_created_by
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS marketplace_audit (
@@ -688,10 +814,10 @@ INSERT IGNORE INTO shop_products (id, name, description, category, brand, image_
     ('safety-gloves', 'Cut-Resistant Work Gloves', 'Pair of protective gloves sized for maintenance crews and DIY reporters.', 'Safety', 'GuardHand', NULL, 1590, 50, TRUE),
     ('toolbox-small', 'Compact Toolbox', 'Organiser case for bits, fasteners, and small hand tools on site visits.', 'Storage', 'FixFlow Basics', NULL, 4590, 12, TRUE);
 
-INSERT IGNORE INTO sites (name, type, contract_status, address) VALUES
-    ('CNU School', 'school', 'contracted', 'CNU main campus'),
-    ('CNU Hostel', 'hostel', 'contracted', 'CNU student residence'),
-    ('CNU Hotel', 'hotel', 'contracted', 'CNU hospitality building');
+INSERT IGNORE INTO sites (name, type, contract_status, address, contract_flat_fee_minor, contract_fee_currency) VALUES
+    ('CNU School', 'school', 'contracted', 'CNU main campus', 50000, 'USD'),
+    ('CNU Hostel', 'hostel', 'contracted', 'CNU student residence', 50000, 'USD'),
+    ('CNU Hotel', 'hotel', 'contracted', 'CNU hospitality building', 50000, 'USD');
 
 INSERT INTO subsites (site_id, label, name)
 SELECT s.id, 'MAIN', 'Main building'
@@ -755,37 +881,42 @@ INSERT INTO users (email, password_hash, first_name, last_name, phone, address, 
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'admin4.site3@fixflow.test', '$2a$10$mcneokGxjrx0Mzjq5T9MsuxuEzmDH9KFcgfiQnGc9GKEkKcq.9zlO', 'Site4', 'S3', '+15550000000', 'Demo address', 'admin', (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin4.site3@fixflow.test');
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'admin5.site3@fixflow.test', '$2a$10$1aye69QbgrjEcxRlQW8Fl.S/eHlcsqItRVMvKLXGMWKTE8jckTO0y', 'Site5', 'S3', '+15550000000', 'Demo address', 'admin', (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin5.site3@fixflow.test');
 
+UPDATE sites
+SET contract_flat_fee_minor = COALESCE(contract_flat_fee_minor, 50000),
+    contract_fee_currency = COALESCE(NULLIF(TRIM(contract_fee_currency), ''), 'USD')
+WHERE name IN ('CNU School', 'CNU Hostel', 'CNU Hotel');
+
 -- Technicians (users.site_id NULL) + contracts per site
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician@fixflow.test', '$2a$10$miZ2Qb1pmS6ntaFi7MRPH..ORCU3qU5CZKcmw.xyDmkauXYpYrn7m', 'Tech1', 'S1', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician2.site1@fixflow.test', '$2a$10$tRNSChTHA1xZ/XvxbYoKF.BnoErR1czSmNgDrWrk5HaSle/JqVUiq', 'Tech2', 'S1', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician2.site1@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician2.site1@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician2.site1@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician2.site1@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician2.site1@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician3.site1@fixflow.test', '$2a$10$Ps8KkAnOWZv94RtFp32/Q.weYaISzsxD0KABAoWmtOmNWY0WHTyMi', 'Tech3', 'S1', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician3.site1@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician3.site1@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician3.site1@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician3.site1@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician3.site1@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician4.site1@fixflow.test', '$2a$10$iZwwZsHjqz2cmbOXRA1h4O0aDVpXvi.EmCo4Ri0grgXr7UlKjdvsK', 'Tech4', 'S1', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician4.site1@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician4.site1@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician4.site1@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician4.site1@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician4.site1@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician5.site1@fixflow.test', '$2a$10$VQU5H8MuHHaNjnnk6dmG5eyMW/WTf5GJbO2xf68BeaCkxSNd3fBY6', 'Tech5', 'S1', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician5.site1@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician5.site1@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician5.site1@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician5.site1@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician5.site1@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU School' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician1.site2@fixflow.test', '$2a$10$NyGYpC1MaeGxSBCqm7sir.H4P/8JMtv3po2TXHMzCbRFUzbLD5WNW', 'Tech1', 'S2', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician1.site2@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician1.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician1.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician1.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician1.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician2.site2@fixflow.test', '$2a$10$nKYqr6ghxaJTJ1LNsIx4tue4KQ3bmPNtQ.lvA0QGyQwWLuMF/88dS', 'Tech2', 'S2', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician2.site2@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician2.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician2.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician2.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician2.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician3.site2@fixflow.test', '$2a$10$xVbDecXEE2Yiz3.cecp4Fejjem3iNicv1xW1gZYiWr0JhGjcN9uW.', 'Tech3', 'S2', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician3.site2@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician3.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician3.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician3.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician3.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician4.site2@fixflow.test', '$2a$10$sNx.RrMOe1XFz1Ph808WceRnXZgMzyBHdPEOpSK1nTBKeCmmsS9cS', 'Tech4', 'S2', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician4.site2@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician4.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician4.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician4.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician4.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician5.site2@fixflow.test', '$2a$10$bzUbRUp1VEwXomiZKO5A6O8EW8unyMkriATjKmJPWzwrr93QJ7kHO', 'Tech5', 'S2', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician5.site2@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician5.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician5.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician5.site2@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician5.site2@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hostel' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician1.site3@fixflow.test', '$2a$10$RXLCMRRlALTC6wRFzqWMGeduS8yOmzNur.gvPWxcyfvtWCI9G9PP2', 'Tech1', 'S3', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician1.site3@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician1.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician1.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician1.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician1.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician2.site3@fixflow.test', '$2a$10$JaQ8cOunvRbSgBiA75y0AOtYPoRx1U.FQVwhiJVSu3JvMSQS5z7xu', 'Tech2', 'S3', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician2.site3@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician2.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician2.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician2.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician2.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician3.site3@fixflow.test', '$2a$10$NwYETanMhboEJp7ETUARZ.ocdV1t3s0Xm2O25yyunOxnQM38mCDne', 'Tech3', 'S3', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician3.site3@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician3.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician3.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician3.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician3.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician4.site3@fixflow.test', '$2a$10$l6Ws0C7Zi8ht1xSbGo5nJ.moZT8y5LqOvEWtxzGifp7OwhnJBdS.q', 'Tech4', 'S3', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician4.site3@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'technician5.site3@fixflow.test', '$2a$10$LWAtHQtCN5nHuKFBSpCoaeH1oUoqWfIkg0qysTS8PRAnFO1eLQzvS', 'Tech5', 'S3', '+15550000000', 'Demo address', 'technician', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'technician5.site3@fixflow.test');
-INSERT INTO technician_contracts (technician_id, site_id, created_at) SELECT (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
+INSERT INTO technician_contracts (technician_id, site_id, flat_fee_minor, fee_currency, created_at) SELECT (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test'), (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), 50000, 'USD', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_contracts tc WHERE tc.technician_id = (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test') AND tc.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1));
 
 -- Global super_admins and shop_managers (site_id NULL)
 INSERT INTO users (email, password_hash, first_name, last_name, phone, address, role, site_id, created_at, updated_at) SELECT 'superadmin@fixflow.test', '$2a$10$v28SeYERFn5/VPLQxhfokuHwo1UW3u/qnZ7jbve2EJRjllBqCss82', 'Super1', 'Admin', '+15550000000', 'Demo address', 'super_admin', NULL, '2026-01-15 10:00:00.000000', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'superadmin@fixflow.test');
@@ -850,22 +981,22 @@ INSERT INTO site_technician_vetting (site_id, technician_id, status, reviewed_by
 INSERT INTO site_technician_vetting (site_id, technician_id, status, reviewed_by, reviewed_at, expires_at, identity_checked, references_checked, qualifications_checked, licence_applicable, licence_checked, licence_expires_at, insurance_applicable, insurance_checked, insurance_expires_at) SELECT (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test'), 'approved', (SELECT id FROM users WHERE email = 'admin1.site3@fixflow.test'), '2026-01-15 10:00:00.000000', '2037-12-31 23:59:59.000000', TRUE, TRUE, TRUE, FALSE, FALSE, NULL, FALSE, FALSE, NULL WHERE NOT EXISTS (SELECT 1 FROM site_technician_vetting v WHERE v.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1) AND v.technician_id = (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test') AND v.status = 'approved');
 INSERT INTO site_technician_vetting (site_id, technician_id, status, reviewed_by, reviewed_at, expires_at, identity_checked, references_checked, qualifications_checked, licence_applicable, licence_checked, licence_expires_at, insurance_applicable, insurance_checked, insurance_expires_at) SELECT (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1), (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test'), 'approved', (SELECT id FROM users WHERE email = 'admin1.site3@fixflow.test'), '2026-01-15 10:00:00.000000', '2037-12-31 23:59:59.000000', TRUE, TRUE, TRUE, FALSE, FALSE, NULL, FALSE, FALSE, NULL WHERE NOT EXISTS (SELECT 1 FROM site_technician_vetting v WHERE v.site_id = (SELECT id FROM sites WHERE name = 'CNU Hotel' ORDER BY id LIMIT 1) AND v.technician_id = (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test') AND v.status = 'approved');
 
--- Technician skills
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician@fixflow.test'), 'plumbing', 'leaks', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician2.site1@fixflow.test'), 'electrical', 'outlets', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician2.site1@fixflow.test') AND sk.category = 'electrical' AND sk.specialty = 'outlets');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician3.site1@fixflow.test'), 'hvac', 'filters', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician3.site1@fixflow.test') AND sk.category = 'hvac' AND sk.specialty = 'filters');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician4.site1@fixflow.test'), 'general', NULL, 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician4.site1@fixflow.test') AND sk.category = 'general' AND sk.specialty IS NULL);
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician5.site1@fixflow.test'), 'plumbing', 'leaks', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician5.site1@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician1.site2@fixflow.test'), 'plumbing', 'leaks', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician1.site2@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician2.site2@fixflow.test'), 'electrical', 'outlets', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician2.site2@fixflow.test') AND sk.category = 'electrical' AND sk.specialty = 'outlets');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician3.site2@fixflow.test'), 'hvac', 'filters', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician3.site2@fixflow.test') AND sk.category = 'hvac' AND sk.specialty = 'filters');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician4.site2@fixflow.test'), 'general', NULL, 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician4.site2@fixflow.test') AND sk.category = 'general' AND sk.specialty IS NULL);
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician5.site2@fixflow.test'), 'plumbing', 'leaks', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician5.site2@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician1.site3@fixflow.test'), 'plumbing', 'leaks', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician1.site3@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician2.site3@fixflow.test'), 'electrical', 'outlets', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician2.site3@fixflow.test') AND sk.category = 'electrical' AND sk.specialty = 'outlets');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician3.site3@fixflow.test'), 'hvac', 'filters', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician3.site3@fixflow.test') AND sk.category = 'hvac' AND sk.specialty = 'filters');
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test'), 'general', NULL, 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test') AND sk.category = 'general' AND sk.specialty IS NULL);
-INSERT INTO technician_skills (technician_id, category, specialty, proficiency) SELECT (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test'), 'plumbing', 'leaks', 4 WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
+-- Technician skills (proficiency omitted → platform DEFAULT 2.5; not self-assessed)
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician@fixflow.test'), 'plumbing', 'leaks' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician2.site1@fixflow.test'), 'electrical', 'outlets' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician2.site1@fixflow.test') AND sk.category = 'electrical' AND sk.specialty = 'outlets');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician3.site1@fixflow.test'), 'hvac', 'filters' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician3.site1@fixflow.test') AND sk.category = 'hvac' AND sk.specialty = 'filters');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician4.site1@fixflow.test'), 'general', NULL WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician4.site1@fixflow.test') AND sk.category = 'general' AND sk.specialty IS NULL);
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician5.site1@fixflow.test'), 'plumbing', 'leaks' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician5.site1@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician1.site2@fixflow.test'), 'plumbing', 'leaks' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician1.site2@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician2.site2@fixflow.test'), 'electrical', 'outlets' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician2.site2@fixflow.test') AND sk.category = 'electrical' AND sk.specialty = 'outlets');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician3.site2@fixflow.test'), 'hvac', 'filters' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician3.site2@fixflow.test') AND sk.category = 'hvac' AND sk.specialty = 'filters');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician4.site2@fixflow.test'), 'general', NULL WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician4.site2@fixflow.test') AND sk.category = 'general' AND sk.specialty IS NULL);
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician5.site2@fixflow.test'), 'plumbing', 'leaks' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician5.site2@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician1.site3@fixflow.test'), 'plumbing', 'leaks' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician1.site3@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician2.site3@fixflow.test'), 'electrical', 'outlets' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician2.site3@fixflow.test') AND sk.category = 'electrical' AND sk.specialty = 'outlets');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician3.site3@fixflow.test'), 'hvac', 'filters' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician3.site3@fixflow.test') AND sk.category = 'hvac' AND sk.specialty = 'filters');
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test'), 'general', NULL WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician4.site3@fixflow.test') AND sk.category = 'general' AND sk.specialty IS NULL);
+INSERT INTO technician_skills (technician_id, category, specialty) SELECT (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test'), 'plumbing', 'leaks' WHERE NOT EXISTS (SELECT 1 FROM technician_skills sk WHERE sk.technician_id = (SELECT id FROM users WHERE email = 'technician5.site3@fixflow.test') AND sk.category = 'plumbing' AND sk.specialty = 'leaks');
 
 -- Technician availability = available
 INSERT INTO technician_availability (technician_id, status, updated_at) SELECT (SELECT id FROM users WHERE email = 'technician@fixflow.test'), 'available', '2026-01-15 10:00:00.000000' WHERE NOT EXISTS (SELECT 1 FROM technician_availability a WHERE a.technician_id = (SELECT id FROM users WHERE email = 'technician@fixflow.test'));

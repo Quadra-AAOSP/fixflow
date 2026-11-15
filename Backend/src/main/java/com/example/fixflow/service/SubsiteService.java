@@ -25,9 +25,10 @@ import com.example.fixflow.web.ApiException;
 public class SubsiteService {
     public record SetupStatus(Long siteId, boolean reportingReady, int activeSubsiteCount) { }
     @Transactional(readOnly = true) public SetupStatus setup(Long siteId, AppUserDetails actor) {
-        assertCanView(siteId, actor); site(siteId);
+        assertCanView(siteId, actor);
+        Site site = site(siteId);
         int count = subsites.findBySite_IdAndArchivedAtIsNullOrderByLabelAsc(siteId).size();
-        return new SetupStatus(siteId, count > 0, count);
+        return new SetupStatus(siteId, SiteSetupPolicy.isOperational(site, count > 0), count);
     }
     private final SiteRepository sites; private final SubsiteRepository subsites; private final SubsiteRequestRepository alerts; private final UserRepository users;
     public SubsiteService(SiteRepository sites, SubsiteRepository subsites, SubsiteRequestRepository alerts, UserRepository users) { this.sites = sites; this.subsites = subsites; this.alerts = alerts; this.users = users; }

@@ -55,6 +55,28 @@ public class Site {
 	@Column(name = "contract_fee_currency", nullable = false, length = 8)
 	private String contractFeeCurrency = "USD";
 
+	/** Site-specific terms shown during setup and to technicians at this site. */
+	@Column(name = "terms_text", columnDefinition = "TEXT")
+	private String termsText;
+
+	/** Site-specific contract body technicians accept when binding to this site. */
+	@Column(name = "contract_terms_text", columnDefinition = "TEXT")
+	private String contractTermsText;
+
+	/** Uploaded terms document object key in storage. */
+	@Column(name = "terms_document_key", length = 512)
+	private String termsDocumentKey;
+
+	@Column(name = "terms_document_name", length = 255)
+	private String termsDocumentName;
+
+	/** Uploaded contract document object key in storage. */
+	@Column(name = "contract_terms_document_key", length = 512)
+	private String contractTermsDocumentKey;
+
+	@Column(name = "contract_terms_document_name", length = 255)
+	private String contractTermsDocumentName;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 

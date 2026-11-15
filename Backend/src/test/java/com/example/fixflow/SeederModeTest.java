@@ -1,16 +1,21 @@
 package com.example.fixflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.example.fixflow.config.DefaultAccountsLoader;
 import com.example.fixflow.config.DemoDataLoader;
+import com.example.fixflow.repository.UserRepository;
 
 class SeederModeTest {
 
-	private final ApplicationContextRunner context = new ApplicationContextRunner()
+	private final ApplicationContextRunner demoContext = new ApplicationContextRunner()
 			.withUserConfiguration(DemoDataLoader.class)
 			.withBean(javax.sql.DataSource.class, () -> {
 				DriverManagerDataSource dataSource = new DriverManagerDataSource();
@@ -21,11 +26,25 @@ class SeederModeTest {
 				return dataSource;
 			});
 
+	private final ApplicationContextRunner defaultAccountsContext = new ApplicationContextRunner()
+			.withUserConfiguration(DefaultAccountsLoader.class)
+			.withBean(UserRepository.class, () -> mock(UserRepository.class))
+			.withBean(PasswordEncoder.class, BCryptPasswordEncoder::new);
+
 	@Test
 	void registersDemoLoaderOnlyWhenDemoSeedEnabled() {
-		context.withPropertyValues("fixflow.seed.demo-enabled=false")
+		demoContext.withPropertyValues("fixflow.seed.demo-enabled=false")
 				.run(app -> assertThat(app).doesNotHaveBean(DemoDataLoader.class));
-		context.withPropertyValues("fixflow.seed.demo-enabled=true")
+		demoContext.withPropertyValues("fixflow.seed.demo-enabled=true")
 				.run(app -> assertThat(app).hasSingleBean(DemoDataLoader.class));
+	}
+
+	@Test
+	void registersDefaultAccountsLoaderOnlyWhenDemoSeedDisabled() {
+		defaultAccountsContext.withPropertyValues("fixflow.seed.demo-enabled=false")
+				.run(app -> assertThat(app).hasSingleBean(DefaultAccountsLoader.class));
+		defaultAccountsContext.withPropertyValues("fixflow.seed.demo-enabled=true")
+				.run(app -> assertThat(app).doesNotHaveBean(DefaultAccountsLoader.class));
+		defaultAccountsContext.run(app -> assertThat(app).hasSingleBean(DefaultAccountsLoader.class));
 	}
 }

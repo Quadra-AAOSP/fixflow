@@ -16,6 +16,8 @@ public record SiteRequest(
 		String description,
 		@Size(max = 1024) String imageUrl,
 		@PositiveOrZero Long contractFlatFeeMinor,
-		@Size(min = 3, max = 8) String contractFeeCurrency
+		@Size(min = 3, max = 8) String contractFeeCurrency,
+		String termsText,
+		String contractTermsText
 ) {
 }

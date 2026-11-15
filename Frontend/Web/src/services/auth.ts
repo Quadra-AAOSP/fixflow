@@ -21,6 +21,12 @@ export function logout(): Promise<void> {
   return request('/api/auth/logout', { method: 'POST' });
 }
 export function getMe(): Promise<User> { return request('/api/auth/me'); }
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return request('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
 export async function getSiteAdminApplication(): Promise<SiteAdminApplication | null> {
   return (await request<SiteAdminApplication | null | undefined>('/api/auth/site-admin-application', { allowEmptyResponse: true })) ?? null;
 }

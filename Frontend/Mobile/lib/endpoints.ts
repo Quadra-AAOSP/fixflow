@@ -19,6 +19,8 @@ export const endpoints = {
     register: '/api/auth/register',
     logout: '/api/auth/logout',
     me: '/api/auth/me',
+    /** POST — change the signed-in user's password. */
+    changePassword: '/api/auth/change-password',
     /** GET — the caller's own site-admin application, or null. */
     siteAdminApplication: '/api/auth/site-admin-application',
     /** GET — public list for the registration site picker. */
@@ -51,6 +53,9 @@ export const endpoints = {
     /** GET — eligible contracted technicians for a site. */
     technicianPool: (siteId: number | string) =>
       `/api/sites/${siteId}/technician-pool`,
+    /** POST multipart — upload site terms or contract document (`terms` | `contract`). */
+    document: (siteId: number | string, kind: 'terms' | 'contract') =>
+      `/api/sites/${siteId}/documents/${kind}`,
   },
 
   siteRules: {

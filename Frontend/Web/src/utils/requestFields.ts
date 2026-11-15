@@ -7,7 +7,9 @@ export function sitePayload(input: SitePayload): SitePayload {
     address: input.address?.trim() || null, description: input.description?.trim() || null,
     imageUrl: input.imageUrl?.trim() || null,
     contractFlatFeeMinor: input.contractFlatFeeMinor ?? null,
-    contractFeeCurrency: currency };
+    contractFeeCurrency: currency,
+    termsText: input.termsText?.trim() || null,
+    contractTermsText: input.contractTermsText?.trim() || null };
   if (!value.name || value.name.length > 255 || (value.address?.length ?? 0) > 512 || (value.imageUrl?.length ?? 0) > 1024 ||
       !['school', 'hostel', 'hotel'].includes(value.type) || !['contracted', 'uncontracted'].includes(value.contractStatus) ||
       currency.length < 3 || currency.length > 8 ||

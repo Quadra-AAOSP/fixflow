@@ -48,7 +48,8 @@
         {
           "microphonePermission": "Allow FixFlow to record audio for report transcription."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": false

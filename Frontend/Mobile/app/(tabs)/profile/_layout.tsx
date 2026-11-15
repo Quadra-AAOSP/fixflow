@@ -50,6 +50,20 @@ export default function ProfileStackLayout() {
           ),
         }}
       />
+      <Stack.Screen
+        name="change-password"
+        options={{
+          title: t('profile.password.title'),
+          headerStyle: { backgroundColor: palette.card },
+          headerTintColor: palette.ink,
+          headerTitleStyle: { fontWeight: '600', fontSize: 16 },
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: palette.surface },
+          headerLeft: () => (
+            <HeaderBackButton color={palette.ink} popTo="/profile" />
+          ),
+        }}
+      />
     </Stack>
   );
 }

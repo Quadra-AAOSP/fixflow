@@ -56,9 +56,21 @@ export default function TabLayout() {
   // still land on it. Bounce any role sitting on a route its tab bar hides.
   const guardRole = user?.role ?? null;
   const redirect = landingRedirectForRoute(guardRole, pathname);
+  const setupRequired = user?.siteOnboarding?.setupRequired === true
+    && user?.siteOnboarding?.canManageSubsites === true;
+  const onAllowedDuringSetup =
+    pathname.includes('/more/site-setup')
+    || pathname.includes('/profile')
+    || pathname === '/'
+    || pathname.endsWith('/(tabs)')
+    || pathname.endsWith('/(tabs)/index');
   useEffect(() => {
     if (redirect) router.replace(redirect as never);
   }, [redirect, router]);
+  useEffect(() => {
+    if (!setupRequired || onAllowedDuringSetup) return;
+    router.replace('/more/site-setup');
+  }, [setupRequired, onAllowedDuringSetup, router]);
 
   if (isLoading || !user) {
     return (
@@ -73,6 +85,9 @@ export default function TabLayout() {
   // Render nothing while the bounce is in flight, so the forbidden screen
   // never paints (or fetches) for the wrong role.
   if (redirect) {
+    return null;
+  }
+  if (setupRequired && !onAllowedDuringSetup) {
     return null;
   }
 

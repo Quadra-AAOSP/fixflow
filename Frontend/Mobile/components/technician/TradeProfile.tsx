@@ -13,8 +13,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
 import {
   SKILL_CATEGORY_MAX_LENGTH,
-  SKILL_PROFICIENCY_MAX,
-  SKILL_PROFICIENCY_MIN,
   SKILL_SPECIALTY_MAX_LENGTH,
   addTechnicianSkill,
   listMyTechnicianSkills,
@@ -23,42 +21,16 @@ import { listAllSiteRules } from '@/services/siteRules';
 import type { SiteRule } from '@/types';
 import type { TechnicianSkill } from '@/types/technician';
 
-/** Proficiency level i18n keys — mirrors the <select> in `TradeProfile.vue`. */
-const PROFICIENCY_LABELS: Record<number, string> = {
-  1: 'beginner',
-  2: 'basicExperience',
-  3: 'independent',
-  4: 'advanced',
-  5: 'expert',
-};
-
 /**
- * Trade profile form. Lets a technician declare a category, a specialty, and a
- * self-assessed proficiency (1–5) for the site they're working at. Mirrors
- * the web `TradeProfile.vue`; the backend enforces the same length limits so
- * the inputs share the constants exported from `services/technician.ts`.
+ * Trade profile form. Technicians declare category and optional specialty;
+ * proficiency starts at 2.5 and is updated by the platform from ratings.
  */
 export function TradeProfile() {
   const { t } = useTranslation('common');
   const palette = themeColors();
   const { user } = useAuth();
-  const PROFICIENCY_OPTIONS = Array.from(
-    { length: SKILL_PROFICIENCY_MAX - SKILL_PROFICIENCY_MIN + 1 },
-    (_, index) => {
-      const value = SKILL_PROFICIENCY_MIN + index;
-      return {
-        value: String(value),
-        label: `${value} — ${t(
-          `components.tradeProfile.levels.${PROFICIENCY_LABELS[value]}`,
-        )}`,
-      };
-    },
-  );
   const [category, setCategory] = useState('');
   const [specialty, setSpecialty] = useState('');
-  // Starts empty so an explicit choice is required — matches the web select's
-  // disabled placeholder ("Choose a level") in `TradeProfile.vue`.
-  const [proficiency, setProficiency] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [trades, setTrades] = useState<TechnicianSkill[]>([]);
@@ -99,17 +71,13 @@ export function TradeProfile() {
   }, [loadTrades, user?.id, user?.role]);
 
   useEffect(() => {
-    // The trade list is the platform category taxonomy (the same categories
-    // reports are filed under), so a technician's skill matches real work even
-    // when their account has no site yet.
     let cancelled = false;
     (async () => {
       try {
         const next = await listAllSiteRules();
         if (!cancelled) setRules(next);
       } catch {
-        // Failing to load the taxonomy shouldn't block the manual entry path —
-        // a free-text category is still acceptable to the backend.
+        // Free-text category remains acceptable if taxonomy fails to load.
       }
     })();
     return () => {
@@ -121,10 +89,6 @@ export function TradeProfile() {
     if (user?.role !== 'technician' || loadingTrades || tradeLoadError || submitting) return;
     if (category.trim().length === 0) {
       setError(t('components.tradeProfile.errors.categoryRequired'));
-      return;
-    }
-    if (proficiency === '') {
-      setError(t('components.tradeProfile.errors.chooseProficiency'));
       return;
     }
     if (category.length > SKILL_CATEGORY_MAX_LENGTH) {
@@ -143,15 +107,6 @@ export function TradeProfile() {
       );
       return;
     }
-    const proficiencyValue = Number(proficiency);
-    if (
-      !Number.isInteger(proficiencyValue) ||
-      proficiencyValue < SKILL_PROFICIENCY_MIN ||
-      proficiencyValue > SKILL_PROFICIENCY_MAX
-    ) {
-      setError(t('components.tradeProfile.errors.proficiencyRange'));
-      return;
-    }
 
     setError(null);
     setSubmitting(true);
@@ -160,7 +115,6 @@ export function TradeProfile() {
         technicianId: user.id,
         category: category.trim(),
         specialty: specialty.trim() || undefined,
-        proficiency: proficiencyValue,
       });
       setTrades(current => [...current.filter(trade => trade.id !== result.id), result]);
       setSavedId(result.id);
@@ -182,7 +136,6 @@ export function TradeProfile() {
     setError(null);
     setCategory('');
     setSpecialty('');
-    setProficiency('');
   }
 
   return (
@@ -267,13 +220,9 @@ export function TradeProfile() {
                 className="mb-3"
               />
 
-              <Picker
-                label={t('components.tradeProfile.proficiencyLabel')}
-                value={proficiency}
-                onChange={setProficiency}
-                options={PROFICIENCY_OPTIONS}
-                placeholder={t('components.tradeProfile.chooseLevel')}
-              />
+              <Text className="mb-3 text-xs leading-5 text-muted">
+                {t('components.tradeProfile.proficiencyHint')}
+              </Text>
 
               {error ? (
                 <Text className="mt-3 text-xs leading-5 text-tone-danger">
@@ -291,10 +240,8 @@ export function TradeProfile() {
                 onPress={onSubmit}
                 className="mt-4"
               />
-              {(
-                <Button label={t('components.tradeProfile.cancel')} variant="secondary"
-                  disabled={submitting} onPress={closeForm} className="mt-2" />
-              )}
+              <Button label={t('components.tradeProfile.cancel')} variant="secondary"
+                disabled={submitting} onPress={closeForm} className="mt-2" />
             </ScrollView>
           ) : null}
         </>

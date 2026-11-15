@@ -19,7 +19,7 @@ test.describe('Marketplace publish → apply → offer → accept @marketplace',
     await expect(admin.page.getByRole('heading', { name: /List this job in the marketplace/i })).toBeVisible();
     await admin.page.getByLabel(/Public job summary/i).fill('General plumbing repair in shared facility area.');
     await admin.page.getByLabel(/Broad location/i).fill('Campus north wing');
-    await admin.page.getByLabel(/Expected timing/i).fill('Within 3 business days');
+    await admin.page.getByLabel(/Expected timing/i).fill('2026-11-20T10:00');
     await admin.page.getByLabel(/no private details/i).check();
     await admin.page.getByRole('button', { name: /Publish job listing/i }).click();
     await expect(admin.page.getByRole('status')).toContainText(/published/i);
@@ -41,7 +41,7 @@ test.describe('Marketplace publish → apply → offer → accept @marketplace',
     await admin.page.getByLabel(/Technician route/i).selectOption({ label: /Publish to the job marketplace/i });
     await admin.page.getByLabel(/Public job summary/i).fill(`Offer flow listing ${reportId}`);
     await admin.page.getByLabel(/Broad location/i).fill('Campus east');
-    await admin.page.getByLabel(/Expected timing/i).fill('This week');
+    await admin.page.getByLabel(/Expected timing/i).fill('2026-11-21T15:30');
     await admin.page.getByLabel(/no private details/i).check();
     await admin.page.getByRole('button', { name: /Publish job listing/i }).click();
     await expect(admin.page.getByRole('status')).toContainText(/published/i);

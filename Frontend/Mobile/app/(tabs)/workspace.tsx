@@ -40,7 +40,7 @@ import { effectiveUrgency, isClaimable, statusGroup } from '@/utils/maintenance'
 /**
  * Landing page for `technician` accounts. Mirrors `TechnicianView.vue`:
  *   - Welcome banner (cream background, large Wrench)
- *   - `TradeProfile` component (technician's trade + specialty + proficiency)
+ *   - `TradeProfile` component (technician's trade + specialty; platform proficiency)
  *   - Two info cards in a grid: "Independent by default" / "Work with a site"
  *   - "Assigned work" card with the count of reports assigned to this user
  *

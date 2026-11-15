@@ -33,7 +33,7 @@ export function FilterTabs<T extends string>({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerClassName="gap-2 px-1"
+      contentContainerClassName="gap-1 px-0.5"
       className={className}
     >
       {options.map((option) => {
@@ -44,14 +44,14 @@ export function FilterTabs<T extends string>({
             onPress={() => onChange(option.value)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
-            className={`rounded-lg border px-3.5 py-1.5 active:opacity-80 ${
+            className={`rounded border px-2 py-0.5 active:opacity-80 ${
               selected
                 ? 'border-dashboard-teal bg-dashboard-teal-soft'
                 : 'border-border bg-card'
             }`}
           >
             <Text
-              className={`text-[12px] font-semibold ${
+              className={`text-[10px] font-semibold leading-[1.3] ${
                 selected ? 'text-dashboard-teal' : 'text-subtitle'
               }`}
             >

@@ -10,13 +10,18 @@ import {
   applyForMarketplaceJob,
   cancelMarketplaceAssignment,
   closeMarketplaceJob,
+  counterMarketplaceApplication,
   listMarketplaceApplicants,
   listMarketplaceJobs,
   type MarketplaceListing,
 } from "@/services/marketplace";
 import { formatDate, humanize, urgencyLabels } from "@/utils/maintenance";
+import {
+  formatMarketplaceTimingDisplay,
+  isMarketplaceDateTimeTiming,
+} from "@/utils/marketplace";
 
-const { t } = useLocale();
+const { t, locale } = useLocale();
 const { user } = useAuth();
 const admin = computed(() => user.value?.role === "admin" || user.value?.role === "super_admin");
 const listings = ref<MarketplaceListing[]>([]);
@@ -70,6 +75,7 @@ const matchingListings = computed(() =>
   ),
 );
 const notes = ref<Record<number, string>>({});
+const counters = ref<Record<number, { amount: string; timing: string }>>({});
 const safetyConfirmed = ref<Record<number, boolean>>({});
 const loading = ref(false);
 const refreshingApplicants = ref<number | null>(null);
@@ -141,11 +147,66 @@ async function save(change: () => Promise<unknown>, listingId: number) {
   }
 }
 
+function counterDraft(listing: MarketplaceListing) {
+  const own = listing.myApplication;
+  return (
+    counters.value[listing.id] ?? {
+      amount: ((own?.proposedAmountMinor ?? listing.amountMinor) / 100).toFixed(2),
+      timing: own?.proposedTiming || listing.timing || "",
+    }
+  );
+}
+
+function setCounter(listingId: number, patch: Partial<{ amount: string; timing: string }>) {
+  const listing = listings.value.find((entry) => entry.id === listingId);
+  if (!listing) return;
+  counters.value = {
+    ...counters.value,
+    [listingId]: { ...counterDraft(listing), ...patch },
+  };
+}
+
 function apply(listing: MarketplaceListing) {
   const note = notes.value[listing.id]?.trim();
   if (note && listing.status === "open" && !listing.myApplication) {
-    void save(() => applyForMarketplaceJob(listing.id, note), listing.id);
+    const draft = counterDraft(listing);
+    const amountMinor = Math.round(Number(draft.amount) * 100);
+    void save(
+      () =>
+        applyForMarketplaceJob(listing.id, note, {
+          amountMinor:
+            Number.isFinite(amountMinor) && amountMinor > 0 ? amountMinor : null,
+          timing: isMarketplaceDateTimeTiming(draft.timing) ? draft.timing : null,
+        }),
+      listing.id,
+    );
   }
+}
+
+function counterOffer(listing: MarketplaceListing) {
+  const own = listing.myApplication;
+  if (!own || own.status !== "offered") return;
+  const draft = counterDraft(listing);
+  const amountMinor = Math.round(Number(draft.amount) * 100);
+  if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
+    error.value = t("Enter a proposed pay amount greater than zero.");
+    return;
+  }
+  if (!isMarketplaceDateTimeTiming(draft.timing)) {
+    error.value = t("Choose a proposed date and time.");
+    return;
+  }
+  void save(
+    () =>
+      counterMarketplaceApplication(
+        listing.id,
+        own.id,
+        amountMinor,
+        draft.timing,
+        notes.value[listing.id] || null,
+      ),
+    listing.id,
+  );
 }
 
 function cancel(listing: MarketplaceListing) {
@@ -284,7 +345,7 @@ onBeforeUnmount(() => {
           </div>
           <div>
             <dt>{{ t("Expected timing") }}</dt>
-            <dd>{{ listing.timing }}</dd>
+            <dd>{{ formatMarketplaceTimingDisplay(listing.timing, locale) }}</dd>
           </div>
           <div>
             <dt>{{ t("Category") }}</dt>
@@ -394,6 +455,29 @@ onBeforeUnmount(() => {
               {{ t(humanize(applicant.status)) }}
             </h3>
             <p class="marketplace-note">{{ applicant.note }}</p>
+            <p
+              v-if="applicant.proposedAmountMinor != null && applicant.proposedAmountMinor > 0"
+              class="marketplace-note"
+            >
+              {{
+                t("Proposed: {amount}", {
+                  amount: (applicant.proposedAmountMinor / 100).toLocaleString(
+                    undefined,
+                    { style: "currency", currency: listing.currency || "USD" },
+                  ),
+                })
+              }}
+            </p>
+            <p v-if="applicant.proposedTiming" class="marketplace-note">
+              {{
+                t("Proposed timing: {timing}", {
+                  timing: formatMarketplaceTimingDisplay(
+                    applicant.proposedTiming,
+                    locale,
+                  ),
+                })
+              }}
+            </p>
             <SiteVettingPanel
               v-if="user?.siteId"
               :site-id="user.siteId"
@@ -482,6 +566,52 @@ onBeforeUnmount(() => {
               })
             }}
           </p>
+          <div
+            v-if="listing.myApplication.status === 'offered'"
+            class="draft-form"
+          >
+            <p>
+              {{
+                t(
+                  "Accept the listed terms, or propose a different pay and timing before the offer expires.",
+                )
+              }}
+            </p>
+            <label
+              >{{ t("Proposed pay") }}
+              <input
+                :value="counterDraft(listing).amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                :disabled="busy || loading"
+                @input="
+                  setCounter(
+                    listing.id,
+                    {
+                      amount: ($event.target as HTMLInputElement).value,
+                    },
+                  )
+                "
+              />
+            </label>
+            <label
+              >{{ t("Proposed timing") }}
+              <input
+                :value="counterDraft(listing).timing"
+                type="datetime-local"
+                :disabled="busy || loading"
+                @input="
+                  setCounter(
+                    listing.id,
+                    {
+                      timing: ($event.target as HTMLInputElement).value,
+                    },
+                  )
+                "
+              />
+            </label>
+          </div>
           <div class="marketplace-actions">
             <template v-if="listing.myApplication.status === 'offered'">
               <button
@@ -499,6 +629,14 @@ onBeforeUnmount(() => {
                 @click="act(listing.id, listing.myApplication.id, 'decline')"
               >
                 {{ t("Decline offer") }}
+              </button>
+              <button
+                class="text-action"
+                type="button"
+                :disabled="busy || loading"
+                @click="counterOffer(listing)"
+              >
+                {{ t("Propose different terms") }}
               </button>
             </template>
             <button

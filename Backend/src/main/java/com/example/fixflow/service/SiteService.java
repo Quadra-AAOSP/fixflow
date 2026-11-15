@@ -94,6 +94,14 @@ public class SiteService {
 		site.setContractFeeCurrency(
 				currency == null || currency.isBlank() ? "USD" : currency.trim().toUpperCase()
 		);
+		site.setTermsText(blankToNull(request.termsText()));
+		site.setContractTermsText(blankToNull(request.contractTermsText()));
+	}
+
+	private static String blankToNull(String value) {
+		if (value == null) return null;
+		String trimmed = value.trim();
+		return trimmed.isEmpty() ? null : trimmed;
 	}
 
 	private void assertCanView(AppUserDetails actor, Site site) {

@@ -427,7 +427,10 @@ export default function SiteReviews() {
                         {t('review.expires')}: {token.expires}
                       </Text>
                       <Text className="mt-1 text-[10px] leading-[1.6] text-dashboard-subtitle">
-                        {t('review.privateHandoff')}
+                        {t('review.privateHandoff', { email: application.adminEmail })}
+                      </Text>
+                      <Text className="mt-1.5 text-[10px] leading-[1.6] text-dashboard-subtitle">
+                        {t('review.setupLoginHint', { email: application.adminEmail })}
                       </Text>
                       <Pressable
                         accessibilityRole="button"

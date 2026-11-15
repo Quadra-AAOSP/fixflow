@@ -6,6 +6,7 @@ export type MarketplaceApplication = {
   technicianName: string;
   note: string;
   proposedAmountMinor?: number | null;
+  proposedTiming?: string | null;
   status: 'pending' | 'offered' | 'accepted' | 'declined' | 'withdrawn' | 'rejected' | 'expired' | 'cancelled';
   offerExpiresAt: string | null;
   activeCases: number;
@@ -66,8 +67,33 @@ export const cancelJobAssignment = (listingId: number, reason: string) =>
   api.post<MarketplaceListing>(`${listings}/${listingId}/cancel-assignment`, { reason });
 export const listJobApplications = (listingId: number) =>
   api.get<MarketplaceApplication[]>(applications(listingId));
-export const applyForJob = (listingId: number, note: string) =>
-  api.post<MarketplaceApplication>(applications(listingId), { note });
+export const applyForJob = (
+  listingId: number,
+  note: string,
+  proposal?: { amountMinor?: number | null; timing?: string | null },
+) =>
+  api.post<MarketplaceApplication>(applications(listingId), {
+    note,
+    proposedAmountMinor: proposal?.amountMinor ?? undefined,
+    proposedTiming: proposal?.timing?.trim() || undefined,
+  });
+
+export const counterJobApplication = (
+  listingId: number,
+  applicationId: number,
+  amountMinor: number,
+  timing?: string | null,
+  note?: string | null,
+) =>
+  api.post<MarketplaceApplication>(
+    `${applications(listingId)}/${applicationId}/counter`,
+    {
+      amountMinor,
+      timing: timing?.trim() || undefined,
+      note: note?.trim() || undefined,
+    },
+  );
+
 export const actOnJobApplication = (
   listingId: number,
   applicationId: number,

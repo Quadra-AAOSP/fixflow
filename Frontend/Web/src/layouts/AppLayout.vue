@@ -126,8 +126,8 @@ watch(() => route.fullPath, () => closeAccount());
         <div v-if="!isShop && data.sitesError" class="live-error" role="alert">{{ t(data.sitesError) }} <button @click="data.refresh()">{{ t("Retry") }}</button></div>
         <p v-else-if="!isShop && !data.loading && !data.sites.length && user?.role !== 'technician' && user?.role !== 'shop_manager'" class="live-empty">{{ t("No sites are available for this account. Ask your administrator to check your site access.") }}</p>
         <div v-if="!isShop && user?.siteOnboarding?.setupRequired && user.siteOnboarding.canManageSubsites" class="draft-notice" role="status">
-          {{ t("Your site needs a labelled building before reports can be submitted.") }}
-          <RouterLink :to="`/sites/${user.siteOnboarding.siteId}/subsites`" class="text-action">{{ t("Set up buildings →") }}</RouterLink>
+          {{ t("Site work stays locked until all three steps are done: labelled buildings, site address, and uploaded terms + contract files.") }}
+          <RouterLink :to="`/sites/${user.siteOnboarding.siteId}/subsites`" class="text-action">{{ t("Continue setup →") }}</RouterLink>
         </div>
 
         <RouterView />

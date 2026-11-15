@@ -16,6 +16,16 @@ export type Site = {
   imageUrl: string | null;
   contractFlatFeeMinor: number | null;
   contractFeeCurrency: string;
+  /** Site-specific terms for technicians at this site. */
+  termsText: string | null;
+  /** Site-specific contract body for technician bindings. */
+  contractTermsText: string | null;
+  /** Uploaded terms filename when a document is on file. */
+  termsDocumentName: string | null;
+  /** Uploaded contract filename when a document is on file. */
+  contractTermsDocumentName: string | null;
+  termsDocumentPresent: boolean;
+  contractTermsDocumentPresent: boolean;
   createdAt: string;
   updatedAt: string;
 };

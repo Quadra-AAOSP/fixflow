@@ -1,5 +1,5 @@
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -21,6 +21,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Pill } from '@/components/ui/Pill';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { StateView } from '@/components/ui/StateView';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,6 +31,9 @@ import { useCurrentSite } from '@/stores/site';
 import type { TechnicianAvailability, TechnicianSummary } from '@/types';
 import type { TechnicianTermsStatus } from '@/types/technician';
 import { formatDate, fullName } from '@/utils/format';
+import { VerificationReviewsPanel } from './verification-reviews';
+
+type TechniciansHubTab = 'directory' | 'reviews';
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;
 
@@ -71,9 +75,11 @@ function initials(technician: TechnicianSummary): string {
  */
 export default function TechniciansScreen() {
   const palette = themeColors();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const { t } = useTranslation('common');
   const { site } = useCurrentSite();
+  const params = useLocalSearchParams<{ tab?: string }>();
 
   const canView =
     user?.role === 'staff' ||
@@ -81,6 +87,30 @@ export default function TechniciansScreen() {
     user?.role === 'super_admin';
   const canViewTerms =
     user?.role === 'admin' || user?.role === 'super_admin';
+  const canReviewVerification = user?.role === 'super_admin';
+  const initialTab: TechniciansHubTab =
+    params.tab === 'reviews' && canReviewVerification ? 'reviews' : 'directory';
+  const [tab, setTab] = useState<TechniciansHubTab>(initialTab);
+
+  useEffect(() => {
+    if (params.tab === 'reviews' && canReviewVerification) setTab('reviews');
+    if (params.tab === 'directory') setTab('directory');
+  }, [params.tab, canReviewVerification]);
+
+  const hubTabs = useMemo(
+    () => [
+      { value: 'directory' as const, label: t('more.technicians.tabs.directory') },
+      ...(canReviewVerification
+        ? [
+            {
+              value: 'reviews' as const,
+              label: t('more.technicians.tabs.reviews'),
+            },
+          ]
+        : []),
+    ],
+    [canReviewVerification, t],
+  );
 
   const [technicians, setTechnicians] = useState<TechnicianSummary[] | null>(
     null,
@@ -226,6 +256,24 @@ export default function TechniciansScreen() {
           </View>
         </PageHeader>
 
+        {canReviewVerification ? (
+          <SegmentedControl
+            className="mb-4"
+            options={hubTabs}
+            value={tab}
+            onChange={(next) => {
+              setTab(next);
+              router.setParams({ tab: next });
+            }}
+          />
+        ) : null}
+
+        {tab === 'reviews' && canReviewVerification ? (
+          <VerificationReviewsPanel embedded />
+        ) : null}
+
+        {tab === 'directory' ? (
+          <>
         {technicians === null && loading ? (
           <StateView variant="loading" title={t('review.loading')} />
         ) : technicians && technicians.length === 0 ? (
@@ -332,6 +380,8 @@ export default function TechniciansScreen() {
             </ScrollView>
           </>
         )}
+          </>
+        ) : null}
       </View>
     </Screen>
   );

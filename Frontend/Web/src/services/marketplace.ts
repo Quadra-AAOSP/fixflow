@@ -7,6 +7,7 @@ export interface MarketplaceApplication {
   technicianName: string;
   note: string;
   proposedAmountMinor: number | null;
+  proposedTiming?: string | null;
   status: 'pending' | 'offered' | 'accepted' | 'declined' | 'withdrawn' | 'rejected' | 'expired' | 'cancelled';
   offerExpiresAt: string | null;
   activeCases: number | null;
@@ -56,8 +57,36 @@ export const cancelMarketplaceAssignment = (listingId: number, reason: string) =
 });
 export const listMarketplaceApplicants = (listingId: number, signal?: AbortSignal) =>
   request<MarketplaceApplication[]>(`${listings}/${listingId}/applications`, { signal });
-export const applyForMarketplaceJob = (listingId: number, note: string) =>
-  request<MarketplaceApplication>(`${listings}/${listingId}/applications`, { method: 'POST', body: JSON.stringify({ note }) });
+export const applyForMarketplaceJob = (
+  listingId: number,
+  note: string,
+  proposal?: { amountMinor?: number | null; timing?: string | null },
+) =>
+  request<MarketplaceApplication>(`${listings}/${listingId}/applications`, {
+    method: 'POST',
+    body: JSON.stringify({
+      note,
+      proposedAmountMinor: proposal?.amountMinor ?? undefined,
+      proposedTiming: proposal?.timing?.trim() || undefined,
+    }),
+  });
+
+export const counterMarketplaceApplication = (
+  listingId: number,
+  applicationId: number,
+  amountMinor: number,
+  timing?: string | null,
+  note?: string | null,
+) =>
+  request<MarketplaceApplication>(`${listings}/${listingId}/applications/${applicationId}/counter`, {
+    method: 'POST',
+    body: JSON.stringify({
+      amountMinor,
+      timing: timing?.trim() || undefined,
+      note: note?.trim() || undefined,
+    }),
+  });
+
 export const actOnMarketplaceApplication = (listingId: number, applicationId: number, action: 'select' | 'accept' | 'decline' | 'withdraw') =>
   request<MarketplaceApplication>(`${listings}/${listingId}/applications/${applicationId}/${action}`, {
     method: 'POST', ...(action === 'select' ? { body: JSON.stringify({ safetyConfirmed: true }) } : {}),

@@ -38,7 +38,7 @@ import { formatDate, humanize } from '@/utils/format';
  * the backend does not return site names, so they are resolved from
  * `GET /api/sites`.
  */
-export default function ContractsScreen() {
+export function ContractsPanel({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
   const { t } = useTranslation('common');
   const isAdmin = user !== null && canDecideContracts(user);
@@ -137,20 +137,18 @@ export default function ContractsScreen() {
 
   if (!user) return null;
 
-  return (
-    <Screen>
+  const body = (
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerClassName="px-5 pb-12 pt-4"
+          contentContainerClassName={embedded ? 'pb-12' : 'px-5 pb-12 pt-4'}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
-        {/* Card heading — mirrors the web's `.card-heading` with a large
-            `Handshake` on the right. */}
+        {embedded ? null : (
         <View className="mb-4 flex-row items-start justify-between">
           <View className="flex-1 pr-3">
             <Text
@@ -165,6 +163,7 @@ export default function ContractsScreen() {
           </View>
           <Handshake color={dashboardColors.statMintDeep} size={30} />
         </View>
+        )}
 
         {isTechnician ? <TechnicianView userId={user.id} t={t} /> : null}
         {isAdmin ? <AdminView t={t} /> : null}
@@ -297,8 +296,14 @@ export default function ContractsScreen() {
         ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
-    </Screen>
   );
+
+  return embedded ? body : <Screen>{body}</Screen>;
+}
+
+/** Standalone route for technicians (and staff without the Sites hub). */
+export default function ContractsScreen() {
+  return <ContractsPanel />;
 }
 
 type TranslateFn = (key: string, vars?: Record<string, unknown>) => string;

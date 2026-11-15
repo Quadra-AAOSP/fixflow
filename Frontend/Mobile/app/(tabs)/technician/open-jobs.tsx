@@ -5,6 +5,7 @@ import { ArrowRight, Briefcase, ChevronDown, ChevronUp, ClipboardList, Search } 
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
+import { DateTimeField } from '@/components/ui/DateTimeField';
 import { HeaderBackButton } from '@/components/ui/HeaderBackButton';
 import { Screen } from '@/components/ui/Screen';
 import { StateView } from '@/components/ui/StateView';
@@ -14,13 +15,20 @@ import { useToast } from '@/components/ui/useToastContext';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listJobs, applyForJob, actOnJobApplication, type MarketplaceListing } from '@/services/marketplace';
+import {
+  listJobs,
+  applyForJob,
+  actOnJobApplication,
+  counterJobApplication,
+  type MarketplaceListing,
+} from '@/services/marketplace';
 import { ownVerification } from '@/services/onboarding';
 import { claimReport, listReports } from '@/services/reports';
 import { getTechnicianTerms, listTechnicianContracts } from '@/services/technician';
 import { TextField } from '@/components/ui/TextField';
 import type { Report, Urgency } from '@/types';
 import { humanize, relativeTime } from '@/utils/format';
+import { isMarketplaceDateTimeTiming } from '@/utils/marketplace';
 import { effectiveUrgency, isClaimable } from '@/utils/maintenance';
 
 const URGENCY_RANK: Record<Urgency, number> = {
@@ -371,6 +379,7 @@ function MarketplaceSection({
   const router = useRouter();
   const { showToast } = useToast();
   const [notes, setNotes] = useState<Record<number, string>>({});
+  const [counters, setCounters] = useState<Record<number, { amount: string; timing: string }>>({});
   const [busyJob, setBusyJob] = useState<number | null>(null);
   const [verification, setVerification] = useState<string>();
   const [termsRequired, setTermsRequired] = useState(false);
@@ -402,7 +411,13 @@ function MarketplaceSection({
     }, []),
   );
 
-  const open = (listings ?? []).filter((job) => job.status === 'open');
+  // Keep open browse + pending offers. Listing status flips to `offered` when
+  // the admin selects you — still show it so accept / negotiate stay reachable.
+  const open = (listings ?? []).filter(
+    (job) =>
+      job.status === 'open' ||
+      (job.status === 'offered' && job.myApplication?.status === 'offered'),
+  );
   // Only hard-disable when we *know* the account is blocked (unverified or
   // terms outstanding). If the gate info failed to load (`undefined`) we let
   // the tap through — the backend re-validates eligibility on apply and its
@@ -505,6 +520,10 @@ function MarketplaceSection({
       ) : (
         open.map((job) => {
           const own = job.myApplication;
+          const counter = counters[job.id] ?? {
+            amount: ((own?.proposedAmountMinor ?? job.amountMinor) / 100).toFixed(2),
+            timing: own?.proposedTiming || job.timing || '',
+          };
           return (
             <View
               key={job.id}
@@ -559,6 +578,28 @@ function MarketplaceSection({
                     multiline
                     className="mt-3"
                   />
+                  <TextField
+                    label={t('marketplace.proposePay')}
+                    value={counter.amount}
+                    onChangeText={(value) =>
+                      setCounters((previous) => ({
+                        ...previous,
+                        [job.id]: { ...counter, amount: value },
+                      }))
+                    }
+                    className="mt-2"
+                  />
+                  <DateTimeField
+                    label={t('marketplace.proposeTiming')}
+                    value={counter.timing}
+                    disabled={busyJob !== null}
+                    onChange={(value) =>
+                      setCounters((previous) => ({
+                        ...previous,
+                        [job.id]: { ...counter, timing: value },
+                      }))
+                    }
+                  />
                   <Button
                     variant="cta"
                     className="mt-2 min-h-0 py-2"
@@ -573,14 +614,23 @@ function MarketplaceSection({
                       !(notes[job.id] ?? '').trim() ||
                       blocked
                     }
-                    onPress={() =>
+                    onPress={() => {
+                      const amountMinor = Math.round(Number(counter.amount) * 100);
                       void runJob(
                         job.id,
                         () =>
-                          applyForJob(job.id, (notes[job.id] ?? '').trim()),
+                          applyForJob(job.id, (notes[job.id] ?? '').trim(), {
+                            amountMinor:
+                              Number.isFinite(amountMinor) && amountMinor > 0
+                                ? amountMinor
+                                : null,
+                            timing: isMarketplaceDateTimeTiming(counter.timing)
+                              ? counter.timing
+                              : null,
+                          }),
                         'marketplace.applied',
-                      )
-                    }
+                      );
+                    }}
                   />
                 </>
               ) : (
@@ -616,6 +666,31 @@ function MarketplaceSection({
                           })}
                         </Text>
                       ) : null}
+                      <Text className="mt-2 text-[11px] leading-[1.6] text-dashboard-caption">
+                        {t('marketplace.negotiateHint')}
+                      </Text>
+                      <TextField
+                        label={t('marketplace.proposePay')}
+                        value={counter.amount}
+                        onChangeText={(value) =>
+                          setCounters((previous) => ({
+                            ...previous,
+                            [job.id]: { ...counter, amount: value },
+                          }))
+                        }
+                        className="mt-2"
+                      />
+                      <DateTimeField
+                        label={t('marketplace.proposeTiming')}
+                        value={counter.timing}
+                        disabled={busyJob !== null}
+                        onChange={(value) =>
+                          setCounters((previous) => ({
+                            ...previous,
+                            [job.id]: { ...counter, timing: value },
+                          }))
+                        }
+                      />
                       <View className="mt-2 flex-row gap-2">
                         <View className="flex-1">
                           <Button
@@ -659,9 +734,35 @@ function MarketplaceSection({
                           />
                         </View>
                       </View>
-                      <Text className="mt-2 text-[11px] leading-[1.6] text-dashboard-caption">
-                        {t('openJobs.acceptHint')}
-                      </Text>
+                      <Button
+                        variant="secondary"
+                        className="mt-2 min-h-0 py-2"
+                        label={t('marketplace.proposeTerms')}
+                        disabled={busyJob !== null}
+                        onPress={() => {
+                          const amountMinor = Math.round(Number(counter.amount) * 100);
+                          if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
+                            showToast(t('marketplace.proposePayRequired'), 'error');
+                            return;
+                          }
+                          if (!isMarketplaceDateTimeTiming(counter.timing)) {
+                            showToast(t('marketplace.proposeTimingRequired'), 'error');
+                            return;
+                          }
+                          void runJob(
+                            job.id,
+                            () =>
+                              counterJobApplication(
+                                job.id,
+                                own.id,
+                                amountMinor,
+                                counter.timing,
+                                notes[job.id] || null,
+                              ),
+                            'marketplace.countered',
+                          );
+                        }}
+                      />
                     </>
                   ) : null}
                 </>

@@ -18,7 +18,6 @@ export type MoreMenuItemKey =
   | 'sites'
   | 'teamAccess'
   | 'technicians'
-  | 'adminApplications'
   | 'contractsTechnician'
   | 'contractsAdmin'
   | 'shopManagement'
@@ -28,6 +27,10 @@ export type MoreMenuItemKey =
 /**
  * Which roles may see which More-menu items. Matches backend capability /
  * security rules documented on the More screen.
+ *
+ * Site category + site contracts nest under Sites in the More UI.
+ * Verification reviews nest under Technicians. Site admins are created when
+ * a site application is accepted — there is no separate admin-applications item.
  */
 export const MORE_MENU_ROLE_VISIBILITY: Record<MoreMenuItemKey, UserRole[]> = {
   openJobs: ['technician'],
@@ -45,7 +48,6 @@ export const MORE_MENU_ROLE_VISIBILITY: Record<MoreMenuItemKey, UserRole[]> = {
   siteRules: ['admin', 'super_admin'],
   teamAccess: ['admin', 'super_admin'],
   technicians: ['staff', 'admin', 'super_admin'],
-  adminApplications: ['super_admin'],
   contractsTechnician: ['technician'],
   contractsAdmin: ['staff', 'admin', 'super_admin'],
   shopManagement: ['super_admin', 'shop_manager'],

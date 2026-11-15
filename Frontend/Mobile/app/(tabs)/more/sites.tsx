@@ -1,5 +1,5 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -13,6 +13,7 @@ import { MapPin, Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
+import { FilterTabs } from '@/components/ui/FilterTabs';
 import { ModalSheet } from '@/components/ui/ModalSheet';
 import { Picker } from '@/components/ui/Picker';
 import { Screen } from '@/components/ui/Screen';
@@ -23,11 +24,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { canCreateSite, canEditSite } from '@/constants/access';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { ApiError } from '@/lib/apiClient';
-import { createSite, listSites, updateSite } from '@/services/sites';
+import { createSite, listSites, updateSite, uploadSiteDocument } from '@/services/sites';
 import { useCurrentSite } from '@/stores/site';
 import type { ContractStatus, Site, SiteType } from '@/types';
 import type { SitePayload } from '@/services/sites';
 import { humanize } from '@/utils/format';
+import { ContractsPanel } from './contracts';
+import { SiteRulesPanel } from './site-rules';
+import * as DocumentPicker from 'expo-document-picker';
+
+type SitesHubTab = 'list' | 'category' | 'contracts';
 
 // Label values are i18n keys, resolved against `t` inside the component body —
 // reading translations at module scope would capture whichever locale was
@@ -39,8 +45,8 @@ const SITE_TYPES: { value: SiteType; labelKey: string }[] = [
 ];
 
 const CONTRACT_STATUSES: { value: ContractStatus; labelKey: string }[] = [
-  { value: 'contracted', labelKey: 'more.sites.contractStatuses.siteContracted' },
-  { value: 'uncontracted', labelKey: 'more.sites.contractStatuses.siteUncontracted' },
+  { value: 'contracted', labelKey: 'more.sites.contractStatuses.contracted' },
+  { value: 'uncontracted', labelKey: 'more.sites.contractStatuses.uncontracted' },
 ];
 
 /**
@@ -57,6 +63,25 @@ export default function SitesScreen() {
   const { setActiveSite } = useCurrentSite();
   const canCreate = user ? canCreateSite(user) : false;
   const canEdit = user ? canEditSite(user) : false;
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const initialTab: SitesHubTab =
+    params.tab === 'category' || params.tab === 'contracts' ? params.tab : 'list';
+  const [tab, setTab] = useState<SitesHubTab>(initialTab);
+
+  useEffect(() => {
+    if (params.tab === 'category' || params.tab === 'contracts' || params.tab === 'list') {
+      setTab(params.tab);
+    }
+  }, [params.tab]);
+
+  const hubTabs = useMemo(
+    () => [
+      { value: 'list' as const, label: t('more.sites.tabs.list') },
+      { value: 'category' as const, label: t('more.sites.tabs.category') },
+      { value: 'contracts' as const, label: t('more.sites.tabs.contracts') },
+    ],
+    [t],
+  );
 
   const [sites, setSites] = useState<Site[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -105,7 +130,7 @@ export default function SitesScreen() {
     router.push('/reports');
   }
 
-  if (error && sites === null) {
+  if (error && sites === null && tab === 'list') {
     return (
       <Screen>
         <StateView
@@ -124,111 +149,130 @@ export default function SitesScreen() {
   return (
     <Screen>
       <View className="flex-1 px-5 pt-4">
-        {/* Card heading — mirrors the web's `.card-heading`: title on the
-            left, "Add site" mint CTA on the right when the actor is
-            super_admin. */}
-        <View className="mb-4 flex-row items-start justify-between">
-          <View className="flex-1 pr-3">
-            <Text
-              className="text-2xl font-bold text-ink"
-              style={{ letterSpacing: -0.5 }}
-            >
-              {t('more.sites.title')}
-            </Text>
-            <Text className="mt-0.5 text-xs text-dashboard-subtitle">
-              {sites
-                ? t('more.sites.count', {
-                    count: sites.length,
-                    plural: sites.length === 1 ? '' : 's',
-                  })
-                : t('more.sites.available')}
-            </Text>
-          </View>
-          {canCreate ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setCreating(true)}
-              className="flex-row items-center gap-1.5 rounded-[11px] border px-3.5 py-2 active:opacity-90"
-              style={{
-                backgroundColor: dashboardColors.ctaBg,
-                borderColor: dashboardColors.ctaBorder,
-              }}
-            >
-              <Plus color={dashboardColors.ctaText} size={16} strokeWidth={2.4} />
-              <Text
-                className="text-[13px] font-semibold"
-                style={{ color: dashboardColors.ctaText }}
-              >
-                {t('more.sites.addSite')}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        {sites === null && loading ? (
-          <StateView variant="loading" title={t('more.shopAdmin.loadingSites')} />
-        ) : sites && sites.length === 0 ? (
-          <StateView
-            variant="empty"
-            icon={MapPin}
-            title={t('more.sites.emptyTitle')}
-            description={
-              canCreate
-                ? t('more.sites.emptyDescCreate')
-                : t('more.sites.emptyDesc')
-            }
-          />
-        ) : (
-          <ScrollView
-            contentContainerClassName="pb-8"
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={palette.primary}
-              />
-            }
+        <View className="mb-3">
+          <Text
+            className="text-2xl font-bold text-ink"
+            style={{ letterSpacing: -0.5 }}
           >
-            {sites?.map((site) => (
-              <View key={site.id} className="mb-3">
-                {site.imageUrl ? (
-                  <SiteHero
-                    url={site.imageUrl}
-                    name={site.name}
-                    onPress={() => viewReports(site.id)}
-                    t={t}
-                  />
-                ) : null}
-                <SiteCard
-                  site={site}
-                  onPress={() => viewReports(site.id)}
-                  onEdit={canEdit ? () => setEditing(site) : undefined}
-                />
-              </View>
-            ))}
-          </ScrollView>
-        )}
-      </View>
+            {t('more.sites.title')}
+          </Text>
+          <Text className="mt-0.5 text-xs text-dashboard-subtitle">
+            {t('more.sites.hubSubtitle')}
+          </Text>
+        </View>
+        <FilterTabs
+          className="mb-4"
+          options={hubTabs}
+          value={tab}
+          onChange={(next) => {
+            setTab(next);
+            router.setParams({ tab: next });
+          }}
+        />
 
-      <SiteEditor
-        visible={creating || editing !== null}
-        initial={editing}
-        t={t}
-        onClose={() => {
-          setCreating(false);
-          setEditing(null);
-        }}
-        onSaved={() => {
-          setCreating(false);
-          setEditing(null);
-          void load();
-        }}
-        onError={(message) =>
-          Alert.alert(t('more.sites.couldNotSaveSite'), message, [
-            { text: t('more.sites.ok') },
-          ])
-        }
-      />
+        {tab === 'category' ? <SiteRulesPanel embedded /> : null}
+        {tab === 'contracts' ? <ContractsPanel embedded /> : null}
+
+        {tab === 'list' ? (
+          <>
+            <View className="mb-4 flex-row items-start justify-between">
+              <View className="flex-1 pr-3">
+                <Text className="text-[13px] font-semibold text-ink">
+                  {sites
+                    ? t('more.sites.count', {
+                        count: sites.length,
+                        plural: sites.length === 1 ? '' : 's',
+                      })
+                    : t('more.sites.available')}
+                </Text>
+              </View>
+              {canCreate ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setCreating(true)}
+                  className="flex-row items-center gap-1.5 rounded-[11px] border px-3.5 py-2 active:opacity-90"
+                  style={{
+                    backgroundColor: dashboardColors.ctaBg,
+                    borderColor: dashboardColors.ctaBorder,
+                  }}
+                >
+                  <Plus color={dashboardColors.ctaText} size={16} strokeWidth={2.4} />
+                  <Text
+                    className="text-[13px] font-semibold"
+                    style={{ color: dashboardColors.ctaText }}
+                  >
+                    {t('more.sites.addSite')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {sites === null && loading ? (
+              <StateView variant="loading" title={t('more.shopAdmin.loadingSites')} />
+            ) : sites && sites.length === 0 ? (
+              <StateView
+                variant="empty"
+                icon={MapPin}
+                title={t('more.sites.emptyTitle')}
+                description={
+                  canCreate
+                    ? t('more.sites.emptyDescCreate')
+                    : t('more.sites.emptyDesc')
+                }
+              />
+            ) : (
+              <ScrollView
+                contentContainerClassName="pb-8"
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor={palette.primary}
+                  />
+                }
+              >
+                {sites?.map((site) => (
+                  <View key={site.id} className="mb-3">
+                    {site.imageUrl ? (
+                      <SiteHero
+                        url={site.imageUrl}
+                        name={site.name}
+                        onPress={() => viewReports(site.id)}
+                        t={t}
+                      />
+                    ) : null}
+                    <SiteCard
+                      site={site}
+                      onPress={() => viewReports(site.id)}
+                      onEdit={canEdit ? () => setEditing(site) : undefined}
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            <SiteEditor
+              visible={creating || editing !== null}
+              initial={editing}
+              t={t}
+              onClose={() => {
+                setCreating(false);
+                setEditing(null);
+              }}
+              onSaved={() => {
+                setCreating(false);
+                setEditing(null);
+                void load();
+              }}
+              onError={(message) =>
+                Alert.alert(t('more.sites.couldNotSaveSite'), message, [
+                  { text: t('more.sites.ok') },
+                ])
+              }
+            />
+          </>
+        ) : null}
+      </View>
     </Screen>
   );
 }
@@ -320,6 +364,39 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
     setError(null);
   }, [initial, visible]);
 
+  async function uploadEditorDocument(kind: 'terms' | 'contract') {
+    if (!initial || submitting) return;
+    const picked = await DocumentPicker.getDocumentAsync({
+      type: [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain',
+      ],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (picked.canceled || !picked.assets?.[0]) return;
+    const asset = picked.assets[0];
+    setSubmitting(true);
+    setError(null);
+    try {
+      await uploadSiteDocument(initial.id, kind, {
+        uri: asset.uri,
+        name: asset.name || `${kind}.txt`,
+        mimeType: asset.mimeType,
+      });
+      onSaved();
+    } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : t('siteSetup.errors.couldNotUpload');
+      setError(message);
+      onError(message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function onSubmit() {
     if (name.trim().length === 0) {
       setError(t('more.sites.errors.nameRequired'));
@@ -355,6 +432,9 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
       imageUrl: trimmedImage.length > 0 ? trimmedImage : undefined,
       contractFlatFeeMinor,
       contractFeeCurrency: currency,
+      // Preserve existing text/document markers; uploads go through uploadSiteDocument.
+      termsText: initial?.termsText ?? null,
+      contractTermsText: initial?.contractTermsText ?? null,
     };
     setSubmitting(true);
     setError(null);
@@ -422,6 +502,9 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
           label: t(option.labelKey),
         }))}
       />
+      <Text className="mb-3 -mt-2 text-[11px] leading-[1.6] text-dashboard-caption">
+        {t('more.sites.contractStatusHint')}
+      </Text>
       <TextField
         label={t('more.sites.addressLabel')}
         value={address}
@@ -461,6 +544,59 @@ function SiteEditor({ visible, initial, t, onClose, onSaved, onError }: SiteEdit
         autoCapitalize="characters"
         autoCorrect={false}
       />
+      {initial ? (
+        <>
+          <Text className="mb-1 text-[12px] font-medium text-ink">
+            {t('more.sites.termsLabel')}
+          </Text>
+          <Text className="mb-2 text-[11px] text-dashboard-caption">
+            {initial.termsDocumentPresent
+              ? t('siteSetup.documentOnFile', {
+                  name: initial.termsDocumentName || t('siteSetup.documentFallback'),
+                })
+              : t('siteSetup.documentMissing')}
+          </Text>
+          <Button
+            className="mb-3"
+            variant="secondary"
+            label={
+              initial.termsDocumentPresent
+                ? t('siteSetup.replaceDocument')
+                : t('siteSetup.uploadDocument')
+            }
+            loading={submitting}
+            disabled={submitting}
+            onPress={() => void uploadEditorDocument('terms')}
+          />
+          <Text className="mb-1 text-[12px] font-medium text-ink">
+            {t('more.sites.contractTermsLabel')}
+          </Text>
+          <Text className="mb-2 text-[11px] text-dashboard-caption">
+            {initial.contractTermsDocumentPresent
+              ? t('siteSetup.documentOnFile', {
+                  name:
+                    initial.contractTermsDocumentName || t('siteSetup.documentFallback'),
+                })
+              : t('siteSetup.documentMissing')}
+          </Text>
+          <Button
+            className="mb-3"
+            variant="secondary"
+            label={
+              initial.contractTermsDocumentPresent
+                ? t('siteSetup.replaceDocument')
+                : t('siteSetup.uploadDocument')
+            }
+            loading={submitting}
+            disabled={submitting}
+            onPress={() => void uploadEditorDocument('contract')}
+          />
+        </>
+      ) : (
+        <Text className="mb-3 text-[11px] leading-[1.6] text-dashboard-caption">
+          {t('more.sites.documentsAfterCreate')}
+        </Text>
+      )}
       {error ? <Text className="text-xs text-tone-danger">{error}</Text> : null}
     </ModalSheet>
   );

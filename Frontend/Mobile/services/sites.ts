@@ -34,6 +34,8 @@ export type SitePayload = {
   imageUrl?: string;
   contractFlatFeeMinor?: number | null;
   contractFeeCurrency?: string;
+  termsText?: string | null;
+  contractTermsText?: string | null;
 };
 
 export function createSite(payload: SitePayload): Promise<Site> {
@@ -42,6 +44,66 @@ export function createSite(payload: SitePayload): Promise<Site> {
 
 export function updateSite(id: number, payload: SitePayload): Promise<Site> {
   return api.put<Site>(endpoints.sites.byId(id), payload);
+}
+
+export type SiteDocumentKind = 'terms' | 'contract';
+
+function mimeFromFilename(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.pdf')) return 'application/pdf';
+  if (lower.endsWith('.doc')) return 'application/msword';
+  if (lower.endsWith('.docx')) {
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  }
+  if (lower.endsWith('.txt')) return 'text/plain';
+  return 'application/octet-stream';
+}
+
+function normalizeFileUri(uri: string): string {
+  if (!uri) return uri;
+  if (uri.startsWith('file://') || uri.startsWith('content://') || uri.startsWith('ph://')) {
+    return uri;
+  }
+  return `file://${uri}`;
+}
+
+/**
+ * Upload a PDF/Word/text file for site terms or the site contract.
+ * Backend stores the file and persists its storage path on the site row.
+ */
+export async function uploadSiteDocument(
+  siteId: number,
+  kind: SiteDocumentKind,
+  file: { uri: string; name: string; mimeType?: string | null },
+): Promise<Site> {
+  const name = (file.name || `${kind}.txt`).replace(/[/\\]/g, '_');
+  const mimeType =
+    file.mimeType && file.mimeType !== 'application/octet-stream'
+      ? file.mimeType
+      : mimeFromFilename(name);
+
+  let uri = normalizeFileUri(file.uri);
+  // iOS document-picker URIs can be short-lived File Provider paths; copy into
+  // app cache so FormData can always read bytes for the multipart upload.
+  try {
+    const FileSystem = await import('expo-file-system/legacy');
+    const cacheDir = FileSystem.cacheDirectory;
+    if (cacheDir) {
+      const dest = `${cacheDir}site-${kind}-${Date.now()}-${name}`;
+      await FileSystem.copyAsync({ from: uri, to: dest });
+      uri = dest;
+    }
+  } catch {
+    // Fall back to the picker URI when cache copy is unavailable.
+  }
+
+  const form = new FormData();
+  // React Native FormData expects `{ uri, name, type }`, not a web Blob.
+  form.append('file', { uri, name, type: mimeType } as unknown as Blob);
+  return api.post<Site>(endpoints.sites.document(siteId, kind), undefined, {
+    body: form,
+    timeoutMs: 60_000,
+  });
 }
 
 export function deleteSite(id: number): Promise<void> {

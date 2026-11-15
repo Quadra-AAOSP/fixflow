@@ -41,6 +41,10 @@ export function getMe(): Promise<User> {
   return api.get<User>(endpoints.auth.me);
 }
 
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return api.post<void>(endpoints.auth.changePassword, { currentPassword, newPassword });
+}
+
 /** The caller's own site-admin application, or null when none was filed. */
 export function getMySiteAdminApplication(): Promise<SiteAdminApplication | null> {
   return api.get<SiteAdminApplication | null>(endpoints.auth.siteAdminApplication);

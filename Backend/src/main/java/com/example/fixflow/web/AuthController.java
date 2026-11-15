@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.fixflow.dto.ChangePasswordRequest;
 import com.example.fixflow.dto.JoinableSiteResponse;
 import com.example.fixflow.dto.LoginRequest;
 import com.example.fixflow.dto.RegisterRequest;
@@ -82,5 +83,12 @@ public class AuthController {
 	@GetMapping("/me")
 	public UserResponse me(@AuthenticationPrincipal AppUserDetails principal) {
 		return authService.me(principal);
+	}
+
+	@PostMapping("/change-password")
+	public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request,
+			@AuthenticationPrincipal AppUserDetails principal) {
+		authService.changePassword(principal, request.currentPassword(), request.newPassword());
+		return ResponseEntity.noContent().build();
 	}
 }

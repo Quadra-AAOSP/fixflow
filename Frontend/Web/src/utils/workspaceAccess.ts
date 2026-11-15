@@ -30,6 +30,18 @@ export function workspaceLinks(user: User | null, hasSite: boolean): WorkspaceLi
     { to: '/shop/manage', label: 'Product management', icon: 'shop' },
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ];
+  const setupLocked = (role === 'admin' || role === 'super_admin')
+    && user.siteOnboarding?.setupRequired === true
+    && user.siteOnboarding?.canManageSubsites === true;
+  if (setupLocked) {
+    const siteId = user.siteOnboarding?.siteId;
+    if (siteId != null) {
+      links.push({ to: `/sites/${siteId}/subsites`, label: 'Set up buildings', icon: 'sites' });
+    }
+    links.push({ to: '/sites', label: 'Sites', icon: 'sites' });
+    links.push({ to: '/profile', label: 'Profile', icon: 'profile' });
+    return links;
+  }
   if (role === 'reporter') links.push({ to: '/reports/new', label: 'Report issue', icon: 'reports' }, { to: '/reporter', label: 'My reports', icon: 'home' }, { to: '/building-suggestions', label: 'My building suggestions', icon: 'sites' });
   else if (role === 'technician') links.push({ to: '/technician', label: 'My workspace', icon: 'technician' });
   else if (workspaceRoles.dashboard.some(value => value === role)) links.push({ to: '/', label: 'Dashboard', icon: 'home' });
@@ -68,6 +80,13 @@ function relabel(user: User, link: WorkspaceLink): WorkspaceLink {
 export function workspaceNavigation(user: User | null, hasSite: boolean) {
   const links = workspaceLinks(user, hasSite);
   if (!user || user.applicationOnly) return { primary: [] as WorkspaceLink[], more: [] as WorkspaceLink[] };
+  const setupLocked = (user.role === 'admin' || user.role === 'super_admin')
+    && user.siteOnboarding?.setupRequired === true
+    && user.siteOnboarding?.canManageSubsites === true;
+  // Incomplete setup uses a short fixed nav — don't reorder against the normal destination list.
+  if (setupLocked) {
+    return { primary: links.map(link => relabel(user, link)), more: [] as WorkspaceLink[] };
+  }
   const ordered = destinationOrder[user.role]
     .flatMap(destination => links.filter(link => link.to === destination))
     .map(link => relabel(user, link));

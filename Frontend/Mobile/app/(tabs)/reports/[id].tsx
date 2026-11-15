@@ -750,8 +750,6 @@ export default function ReportDetailScreen() {
   const canConfirmReopen = report.policy.participant || report.policy.canAssign || report.createdByUserId === user?.id;
 
   const awaitingConfirmation = report.status === 'resolved_pending_confirmation';
-  const reopenable =
-    report.status === 'confirmed' || report.status === 'resolved_pending_confirmation';
   const isAssignedTechnician = user?.role === 'technician' && report.assignedTechnicianId === user.id;
   const isOperator = ['staff', 'admin', 'super_admin'].includes(user?.role ?? '');
   const canReadWork = canSeeSensitive && (isAssignedTechnician || isOperator || (user?.role === 'reporter' && (user.id === report.createdByUserId || report.policy.participant)));
@@ -862,6 +860,49 @@ export default function ReportDetailScreen() {
               if (reportRevision === loadRevision.current) setReport(updated);
               void listReportHistory(reportId).then(setHistory).catch(() => {});
             }} />
+        ) : null}
+
+        {/* Review stays above; confirm + reopen stay directly under it so these
+            decision zones do not jump when status flips awaiting ↔ confirmed. */}
+        {canConfirmReopen && awaitingConfirmation && report.createdByUserId === user?.id && user?.role !== 'technician' ? (
+          <Card className="mb-4">
+            <Text
+              className="mb-1 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.confirm.title')}
+            </Text>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              {t('reports.detail.confirm.body')}
+            </Text>
+            <TextInput value={signedName} onChangeText={setSignedName} maxLength={255} placeholder="Your full name" accessibilityLabel="Your full name" className="mb-3 border border-gray-300 rounded p-3" />
+            <Button
+              disabled={!signedName.trim()}
+              label={t('reports.detail.confirm.button')}
+              variant="cta"
+              onPress={onConfirm}
+              loading={confirming}
+            />
+          </Card>
+        ) : null}
+
+        {canConfirmReopen && (awaitingConfirmation || report.status === 'confirmed') ? (
+          <Card className="mb-4">
+            <Text
+              className="mb-1 text-[15px] font-semibold text-ink"
+              style={{ letterSpacing: -0.3 }}
+            >
+              {t('reports.detail.reopen.buttonLabel')}
+            </Text>
+            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
+              {t('reports.detail.reopen.buttonBody')}
+            </Text>
+            <Button
+              label={t('reports.detail.reopen.buttonLabel')}
+              variant="secondary"
+              onPress={openReopenModal}
+            />
+          </Card>
         ) : null}
 
         {/* AI Assessment Section */}
@@ -1545,7 +1586,11 @@ export default function ReportDetailScreen() {
               </View>
             ) : null}
             {routingOptions.includes('marketplace') ? (
-              <MarketplacePublishForm report={report} disabled={assigning} />
+              <MarketplacePublishForm
+                report={report}
+                siteName={sites.find((entry) => entry.id === report.siteId)?.name}
+                disabled={assigning}
+              />
             ) : null}
           </Card>
         ) : null}
@@ -1582,47 +1627,6 @@ export default function ReportDetailScreen() {
             <Text className="text-[12px] leading-[1.8] text-ink">
               {report.reopenReason}
             </Text>
-          </Card>
-        ) : null}
-
-        {canConfirmReopen && awaitingConfirmation && report.createdByUserId === user?.id && user?.role !== 'technician' ? (
-          <Card className="mb-4">
-            <Text
-              className="mb-1 text-[15px] font-semibold text-ink"
-              style={{ letterSpacing: -0.3 }}
-            >
-              {t('reports.detail.confirm.title')}
-            </Text>
-            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-              {t('reports.detail.confirm.body')}
-            </Text>
-            <TextInput value={signedName} onChangeText={setSignedName} maxLength={255} placeholder="Your full name" accessibilityLabel="Your full name" className="mb-3 border border-gray-300 rounded p-3" />
-            <Button
-              disabled={!signedName.trim()}
-              label={t('reports.detail.confirm.button')}
-              variant="cta"
-              onPress={onConfirm}
-              loading={confirming}
-            />
-          </Card>
-        ) : null}
-
-        {canConfirmReopen && reopenable ? (
-          <Card className="mb-4">
-            <Text
-              className="mb-1 text-[15px] font-semibold text-ink"
-              style={{ letterSpacing: -0.3 }}
-            >
-              {t('reports.detail.reopen.buttonLabel')}
-            </Text>
-            <Text className="mb-3 text-[12px] leading-[1.8] text-dashboard-subtitle">
-              {t('reports.detail.reopen.buttonBody')}
-            </Text>
-            <Button
-              label={t('reports.detail.reopen.buttonLabel')}
-              variant="secondary"
-              onPress={openReopenModal}
-            />
           </Card>
         ) : null}
 

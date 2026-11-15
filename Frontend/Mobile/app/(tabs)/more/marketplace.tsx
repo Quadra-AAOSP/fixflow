@@ -13,28 +13,38 @@ import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Action, Field } from '@/components/ReviewControls';
 import { Button } from '@/components/ui/Button';
+import { DateTimeField } from '@/components/ui/DateTimeField';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
+import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { useAuth } from '@/hooks/useAuth';
 import { dashboardColors } from '@/constants/theme';
 import {
-  actOnJobApplication, applyForJob, cancelJobAssignment, closeJob, listJobApplications, listJobs, publishJob, searchJobsWithAi,
+  actOnJobApplication, applyForJob, cancelJobAssignment, closeJob, counterJobApplication, listJobApplications, listJobs, publishJob, searchJobsWithAi,
   type MarketplaceApplication, type MarketplaceListing,
 } from '@/services/marketplace';
 import { ownVerification } from '@/services/onboarding';
 import { getReport, listReportsPage } from '@/services/reports';
 import { getTechnicianTerms } from '@/services/technician';
+import { useCurrentSite } from '@/stores/site';
 import type { Report } from '@/types';
 import { isClaimable } from '@/utils/maintenance';
+import {
+  buildMarketplaceBroadLocation,
+  formatMarketplaceTimingDisplay,
+  isMarketplaceDateTimeTiming,
+} from '@/utils/marketplace';
 
 const emptyDraft = { summary: '', broadLocation: '', timing: '', amount: '' };
-const limits = { summary: 300, broadLocation: 160, timing: 160 };
+const limits = { summary: 300, broadLocation: 160 } as const;
 const openStates = ['open', 'offered'];
 
 export default function MarketplaceScreen() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const router = useRouter();
   const { user } = useAuth();
+  const { site } = useCurrentSite();
+  const activeSiteId = site?.id ?? null;
   const { reportId } = useLocalSearchParams<{ reportId?: string }>();
   const paramReportId = Number(reportId);
   const paramSource = Number.isSafeInteger(paramReportId) && paramReportId > 0 ? paramReportId : undefined;
@@ -52,7 +62,10 @@ export default function MarketplaceScreen() {
   const [draft, setDraft] = useState(emptyDraft);
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const [notes, setNotes] = useState<Record<number, string>>({});
+  /** Per-listing counter proposals while an offer is open. */
+  const [counters, setCounters] = useState<Record<number, { amount: string; timing: string }>>({});
   const [candidate, setCandidate] = useState<number>();
+  const [reviewJob, setReviewJob] = useState<number>();
   const [closingJob, setClosingJob] = useState<number>();
   const [cancellingJob, setCancellingJob] = useState<number>();
   const [cancellationReason, setCancellationReason] = useState('');
@@ -80,6 +93,19 @@ export default function MarketplaceScreen() {
     if (paramSource !== undefined) setSource(paramSource);
   }, [paramSource]);
 
+  const selectedPublishable = publishable.find((report) => report.id === source);
+
+  // Prefill broad location from site name + report address when the source changes.
+  useEffect(() => {
+    if (!selectedPublishable) return;
+    setDraft({
+      ...emptyDraft,
+      broadLocation: buildMarketplaceBroadLocation(site?.name, selectedPublishable.address),
+    });
+    setPrivacyConfirmed(false);
+    setPublishIssue('');
+  }, [source, selectedPublishable?.id, selectedPublishable?.address, site?.name]);
+
   const run = useCallback(async (operation: () => Promise<void>) => {
     setBusy(true);
     setError('');
@@ -94,8 +120,8 @@ export default function MarketplaceScreen() {
   }, [t]);
 
   const loadPublishableReports = useCallback(async (): Promise<Report[]> => {
-    if (user?.siteId == null) return [];
-    const page = await listReportsPage({ siteId: user.siteId, size: 100 });
+    if (activeSiteId == null) return [];
+    const page = await listReportsPage({ siteId: activeSiteId, size: 100 });
     const reports = (page.content ?? []).filter(isClaimable);
     if (paramSource === undefined) return reports;
     if (reports.some(report => report.id === paramSource)) return reports;
@@ -105,7 +131,7 @@ export default function MarketplaceScreen() {
     } catch {
       return reports;
     }
-  }, [paramSource, user?.siteId]);
+  }, [activeSiteId, paramSource]);
 
   useFocusEffect(useCallback(() => {
     if (!isAdmin && !isTechnician) return;
@@ -126,11 +152,11 @@ export default function MarketplaceScreen() {
       }
     });
     return () => { active = false; };
-  }, [isAdmin, isTechnician, loadPublishableReports, run, user?.siteId]));
+  }, [isAdmin, isTechnician, loadPublishableReports, run, activeSiteId]));
 
   async function refresh() {
     setJobs(await listJobs());
-    if (isAdmin && user?.siteId != null) {
+    if (isAdmin && activeSiteId != null) {
       setPublishableReports(await loadPublishableReports());
     }
     if (isTechnician) {
@@ -158,6 +184,11 @@ export default function MarketplaceScreen() {
     });
   }
 
+  function review(jobId: number) {
+    setReviewJob(jobId);
+    refreshApplicants(jobId);
+  }
+
   function openReport(id: number) {
     router.push({ pathname: '/reports/[id]', params: { id: String(id) } });
   }
@@ -175,6 +206,11 @@ export default function MarketplaceScreen() {
               <Text className="mt-1 text-[12px] leading-[1.6] text-dashboard-subtitle">
                 {t(isAdmin ? 'marketplace.adminIntro' : 'marketplace.technicianIntro')}
               </Text>
+              {isAdmin ? (
+                <View className="mt-2">
+                  <SiteSwitcher />
+                </View>
+              ) : null}
             </View>
             <Pressable
               accessibilityRole="button"
@@ -296,6 +332,15 @@ export default function MarketplaceScreen() {
                     setPublishIssue('');
                   }} />
               ))}
+              <DateTimeField
+                label={t('marketplace.timing')}
+                value={draft.timing}
+                disabled={busy}
+                onChange={(value) => {
+                  setDraft((previous) => ({ ...previous, timing: value }));
+                  setPublishIssue('');
+                }}
+              />
               <Field label={t('marketplace.payAmount')} value={draft.amount}
                 onChangeText={value => {
                   setDraft(previous => ({ ...previous, amount: value }));
@@ -313,6 +358,9 @@ export default function MarketplaceScreen() {
                   const missing = (Object.keys(limits) as (keyof typeof limits)[])
                     .filter(key => !draft[key].trim())
                     .map(key => t(`marketplace.${key}`));
+                  if (!isMarketplaceDateTimeTiming(draft.timing)) {
+                    missing.push(t('marketplace.timing'));
+                  }
                   if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
                     missing.push(t('marketplace.payAmount'));
                   }
@@ -388,6 +436,13 @@ export default function MarketplaceScreen() {
           {visibleJobs.map(job => {
             const own = job.myApplication;
             const note = notes[job.id] ?? '';
+            const applications = job.applications ?? [];
+            const counter = counters[job.id] ?? {
+              amount: (
+                (own?.proposedAmountMinor ?? job.amountMinor) / 100
+              ).toFixed(2),
+              timing: own?.proposedTiming || job.timing || '',
+            };
             const accessibleReportId = isAdmin || own?.status === 'accepted' ? job.reportId : null;
             const chip = listingChip(job.status);
             return (
@@ -410,7 +465,9 @@ export default function MarketplaceScreen() {
                   {job.timing ? (
                     <View className="flex-row items-center gap-1 rounded-full px-2 py-1" style={{ backgroundColor: dashboardColors.pillBg }}>
                       <Clock color={dashboardColors.subtitle} size={11} />
-                      <Text className="text-[10.5px]" style={{ color: dashboardColors.subtitle }}>{job.timing}</Text>
+                      <Text className="text-[10.5px]" style={{ color: dashboardColors.subtitle }}>
+                        {formatMarketplaceTimingDisplay(job.timing, i18n.language)}
+                      </Text>
                     </View>
                   ) : null}
                   {job.urgency ? (
@@ -523,7 +580,7 @@ export default function MarketplaceScreen() {
                           offering={job.status === 'open' && application.status === 'pending'}
                           candidate={candidate === application.id}
                           busy={busy}
-                          siteId={job.siteId ?? user?.siteId ?? null}
+                          siteId={job.siteId ?? activeSiteId}
                           t={t}
                           onSelect={() => setCandidate(application.id)}
                           onSend={() => mutate(async () => {
@@ -540,9 +597,45 @@ export default function MarketplaceScreen() {
                     {!own && job.status === 'open' ? <>
                       <Field label={t('marketplace.note')} value={note} maxLength={1000} multiline
                         onChangeText={value => setNotes(previous => ({ ...previous, [job.id]: value }))} />
+                      <Field
+                        label={t('marketplace.proposePay')}
+                        value={counter.amount}
+                        onChangeText={(value) =>
+                          setCounters((previous) => ({
+                            ...previous,
+                            [job.id]: { ...counter, amount: value },
+                          }))
+                        }
+                      />
+                      <DateTimeField
+                        label={t('marketplace.proposeTiming')}
+                        value={counter.timing}
+                        disabled={busy}
+                        onChange={(value) =>
+                          setCounters((previous) => ({
+                            ...previous,
+                            [job.id]: { ...counter, timing: value },
+                          }))
+                        }
+                      />
                       <Button className="mt-1" label={t('marketplace.apply')}
                         disabled={busy || !note.trim() || (verification !== null && verification !== 'verified') || termsRequired}
-                        onPress={() => mutate(() => applyForJob(job.id, note.trim()), 'marketplace.applied')} />
+                        onPress={() => {
+                          const amountMinor = Math.round(Number(counter.amount) * 100);
+                          mutate(
+                            () =>
+                              applyForJob(job.id, note.trim(), {
+                                amountMinor:
+                                  Number.isFinite(amountMinor) && amountMinor > 0
+                                    ? amountMinor
+                                    : null,
+                                timing: isMarketplaceDateTimeTiming(counter.timing)
+                                  ? counter.timing
+                                  : null,
+                              }),
+                            'marketplace.applied',
+                          );
+                        }} />
                     </> : null}
                     {own ? <>
                       <View className="mb-1 flex-row items-center justify-between gap-2">
@@ -569,12 +662,64 @@ export default function MarketplaceScreen() {
                             </Text>
                           </View>
                         ) : null}
+                        <Text className="mt-2 text-[11px] leading-[1.6]" style={{ color: dashboardColors.subtitle }}>
+                          {t('marketplace.negotiateHint')}
+                        </Text>
+                        <Field
+                          label={t('marketplace.proposePay')}
+                          value={counter.amount}
+                          onChangeText={(value) =>
+                            setCounters((previous) => ({
+                              ...previous,
+                              [job.id]: { ...counter, amount: value },
+                            }))
+                          }
+                        />
+                        <DateTimeField
+                          label={t('marketplace.proposeTiming')}
+                          value={counter.timing}
+                          disabled={busy}
+                          onChange={(value) =>
+                            setCounters((previous) => ({
+                              ...previous,
+                              [job.id]: { ...counter, timing: value },
+                            }))
+                          }
+                        />
                         <View className="mt-2 flex-row gap-2">
                           <Button className="flex-1" label={t('marketplace.accept')} disabled={busy}
                             onPress={() => mutate(() => actOnJobApplication(job.id, own.id, 'accept'), 'marketplace.accepted')} />
                           <Button className="flex-1" variant="secondary" label={t('marketplace.decline')} disabled={busy}
                             onPress={() => mutate(() => actOnJobApplication(job.id, own.id, 'decline'), 'marketplace.declined')} />
                         </View>
+                        <Button
+                          className="mt-2"
+                          variant="secondary"
+                          label={t('marketplace.proposeTerms')}
+                          disabled={busy}
+                          onPress={() => {
+                            const amountMinor = Math.round(Number(counter.amount) * 100);
+                            if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
+                              setError(t('marketplace.proposePayRequired'));
+                              return;
+                            }
+                            if (!isMarketplaceDateTimeTiming(counter.timing)) {
+                              setError(t('marketplace.proposeTimingRequired'));
+                              return;
+                            }
+                            mutate(
+                              () =>
+                                counterJobApplication(
+                                  job.id,
+                                  own.id,
+                                  amountMinor,
+                                  counter.timing,
+                                  note || null,
+                                ),
+                              'marketplace.countered',
+                            );
+                          }}
+                        />
                       </> : null}
                     </> : null}
                   </View>
@@ -742,6 +887,13 @@ function ApplicantCard({ application, offering, candidate, busy, siteId, t, onSe
               style: 'currency',
               currency: 'USD',
             }),
+          })}
+        </Text>
+      ) : null}
+      {application.proposedTiming ? (
+        <Text className="mt-1 text-[12px] font-semibold text-ink">
+          {t('marketplace.proposedTiming', {
+            timing: formatMarketplaceTimingDisplay(application.proposedTiming),
           })}
         </Text>
       ) : null}

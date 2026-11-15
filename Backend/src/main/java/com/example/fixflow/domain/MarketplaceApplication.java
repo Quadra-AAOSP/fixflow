@@ -26,6 +26,9 @@ public class MarketplaceApplication {
     private String note;
     @Column(name = "proposed_amount_minor")
     private Long proposedAmountMinor;
+    /** Technician counter-proposal for expected timing (listing uses this on accept). */
+    @Column(name = "proposed_timing", length = 160)
+    private String proposedTiming;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private Status status = Status.pending;

@@ -7,6 +7,7 @@ import {
   Building2,
   ChevronRight,
   FileSignature,
+  KeyRound,
   Mail,
   Phone,
   Settings,
@@ -18,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
+import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { TradeProfile } from '@/components/technician/TradeProfile';
 import { roleLabels } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
@@ -38,7 +40,7 @@ export default function ProfileScreen() {
   const { t } = useTranslation('common');
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { site } = useCurrentSite();
+  const { site, sites } = useCurrentSite();
   const {
     available,
     setAvailable,
@@ -58,8 +60,10 @@ export default function ProfileScreen() {
   }
 
   const roleLabel = t(roleLabels[user.role]);
-  const siteName =
-    user.siteId !== null && site ? site.name : t('profile.dash');
+  // Super admins have no bound siteId; show the active selected site instead.
+  const canSwitchSites = user.role === 'super_admin' || sites.length > 1;
+  const showSite = canSwitchSites || user.siteId !== null;
+  const siteName = site ? site.name : t('profile.dash');
   const displayName = fullName(user.firstName, user.lastName).trim();
   const initials =
     `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() ||
@@ -160,20 +164,23 @@ export default function ProfileScreen() {
                 </Text>
               </View>
 
-              {/* Site pill — second identity anchor, hidden when the account
-                  is site-agnostic. */}
-              {user.siteId !== null ? (
+              {/* Site — bound accounts show a pill; super admins can switch. */}
+              {showSite ? (
                 <View
                   className="mt-2 flex-row items-center gap-1.5 rounded-full border border-dashboard-card-line px-3 py-1.5"
                   style={{ backgroundColor: dashboardColors.cardBg }}
                 >
                   <Building2 color={dashboardColors.subtitle} size={11} />
-                  <Text
-                    className="text-[10px] font-semibold uppercase text-dashboard-subtitle"
-                    style={{ letterSpacing: 0.8 }}
-                  >
-                    {siteName}
-                  </Text>
+                  {canSwitchSites ? (
+                    <SiteSwitcher />
+                  ) : (
+                    <Text
+                      className="text-[10px] font-semibold uppercase text-dashboard-subtitle"
+                      style={{ letterSpacing: 0.8 }}
+                    >
+                      {siteName}
+                    </Text>
+                  )}
                 </View>
               ) : null}
             </View>
@@ -221,6 +228,11 @@ export default function ProfileScreen() {
               icon={Settings}
               label={t('profile.shortcuts.settings')}
               onPress={openSettings}
+            />
+            <ShortcutRow
+              icon={KeyRound}
+              label={t('profile.shortcuts.changePassword')}
+              onPress={() => router.push('/profile/change-password')}
             />
             <ShortcutRow
               icon={Bell}
@@ -282,9 +294,8 @@ export default function ProfileScreen() {
             </Card>
           ) : null}
 
-          {/* Technician skills — trade / specialty / proficiency selection
-              (GET + POST /api/technician-skills), the same component the
-              workspace screen uses. Only rendered for technicians. */}
+          {/* Technician skills — trade / specialty (platform-owned proficiency)
+              via GET + POST /api/technician-skills. Same as workspace. */}
           {user.role === 'technician' ? <TradeProfile /> : null}
 
           {/* Preferences — availability for technicians, session echo for
@@ -331,7 +342,7 @@ export default function ProfileScreen() {
                 <Text className="flex-1 text-[11.5px] leading-[1.6] text-dashboard-subtitle">
                   {t('profile.session.signedInAs', {
                     role: roleLabel,
-                    site: user.siteId !== null && site ? ` · ${site.name}` : '',
+                    site: site ? ` · ${site.name}` : '',
                   })}
                 </Text>
               </View>
