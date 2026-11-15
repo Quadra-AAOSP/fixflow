@@ -25,14 +25,30 @@ public class ContractApplicationService {
     private final UserRepository users;
     private final SiteRepository sites;
     private final TechnicianTermsService terms;
+    private final NotificationService notifier;
 
     public ContractApplicationService(TechnicianContractApplicationRepository applications,
-            TechnicianContractRepository contracts, UserRepository users, SiteRepository sites, TechnicianTermsService terms) {
+            TechnicianContractRepository contracts, UserRepository users, SiteRepository sites,
+            TechnicianTermsService terms, NotificationService notifier) {
         this.applications = applications;
         this.contracts = contracts;
         this.users = users;
         this.sites = sites;
         this.terms = terms;
+        this.notifier = notifier;
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.example.fixflow.dto.SiteResponse> availableSites(AppUserDetails actor) {
+        if (actor.getRole() != UserRole.technician) {
+            throw new ApiException(403, "Only technicians can apply to sites");
+        }
+        // Applicants need the whole directory, not just their account site:
+        // the contract is how they opt in to a site they do not belong to yet.
+        return sites.findAll().stream()
+                .sorted(java.util.Comparator.comparing(com.example.fixflow.domain.Site::getName))
+                .map(com.example.fixflow.dto.SiteResponse::from)
+                .toList();
     }
 
     @Transactional
@@ -41,8 +57,11 @@ public class ContractApplicationService {
         if (contracts.existsByTechnician_IdAndSite_Id(actor.getId(), request.siteId())) {
             throw new ApiException(409, "Contract already exists");
         }
-        if (applications.existsByTechnician_IdAndSite_Id(actor.getId(), request.siteId())) {
-            throw new ApiException(409, "A request already exists for this site");
+        // Only a pending request blocks re-applying: a rejected one stays in
+        // history but the technician may ask again.
+        if (applications.existsByTechnician_IdAndSite_IdAndStatus(actor.getId(), request.siteId(),
+                TechnicianContractApplication.Status.pending)) {
+            throw new ApiException(409, "A request is already pending for this site");
         }
         TechnicianContractApplication application = new TechnicianContractApplication();
         User technician = users.findById(actor.getId()).orElseThrow(() -> new ApiException(401, "User not found"));
@@ -51,7 +70,10 @@ public class ContractApplicationService {
         terms.requireAcceptance(technician.getId());
         application.setSite(sites.findById(request.siteId()).orElseThrow(() -> new ApiException(404, "Site not found")));
         application.setNote(request.note());
-        return ContractApplicationResponse.from(applications.saveAndFlush(application));
+        var saved = applications.saveAndFlush(application);
+        notifier.toSiteAdmins(saved.getSite().getId(),
+                com.example.fixflow.domain.ReportNotification.Type.contract_submitted, saved.getId());
+        return ContractApplicationResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +117,11 @@ public class ContractApplicationService {
         application.setDecisionReason(decision.reason());
         application.setDecidedBy(users.findById(actor.getId()).orElseThrow(() -> new ApiException(401, "User not found")));
         application.setDecidedAt(Instant.now());
+        notifier.send(application.getTechnician().getId(),
+                application.getStatus() == TechnicianContractApplication.Status.approved
+                        ? com.example.fixflow.domain.ReportNotification.Type.contract_approved
+                        : com.example.fixflow.domain.ReportNotification.Type.contract_rejected,
+                null, application.getId());
         return ContractApplicationResponse.from(application);
     }
 

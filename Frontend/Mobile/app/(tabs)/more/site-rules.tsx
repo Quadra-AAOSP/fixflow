@@ -1,58 +1,77 @@
-import { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
-import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/Button";
-import { Screen } from "@/components/ui/Screen";
-import { TextField } from "@/components/ui/TextField";
-import { useAuth } from "@/hooks/useAuth";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ListFilter, Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Pill } from '@/components/ui/Pill';
+import { Screen } from '@/components/ui/Screen';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { StateView } from '@/components/ui/StateView';
+import { TextField } from '@/components/ui/TextField';
+import { dashboardColors } from '@/constants/theme';
+import { useAuth } from '@/hooks/useAuth';
 import {
   deleteSiteRule,
   listAllSiteRules,
   saveSiteRule,
-} from "@/services/siteRules";
-import type { SiteRule, SiteType } from "@/types";
+} from '@/services/siteRules';
+import type { SiteRule, SiteType } from '@/types';
 
-const types: SiteType[] = ["school", "hostel", "hotel"];
+const TYPES: SiteType[] = ['school', 'hostel', 'hotel'];
+
+type Filter = SiteType | 'all';
+
+/**
+ * Site rules: the per-site-type category taxonomy. Editors live in a card at
+ * the top; the rules below are grouped into compact stat rows so weights and
+ * ordering are readable at a glance.
+ */
 export default function SiteRulesScreen() {
+  const { t } = useTranslation('common');
   const { user } = useAuth();
-  const { i18n } = useTranslation("common");
-  const tr = (en: string, zh: string) =>
-    i18n.language.startsWith("zh") ? zh : en;
-  const allowed = user?.role === "admin" || user?.role === "super_admin";
-  const [rules, setRules] = useState<SiteRule[]>([]);
-  const [filter, setFilter] = useState<SiteType | "all">("all");
+  const allowed = user?.role === 'admin' || user?.role === 'super_admin';
+
+  const [rules, setRules] = useState<SiteRule[] | null>(null);
+  const [filter, setFilter] = useState<Filter>('all');
   const [editing, setEditing] = useState(false);
   const [id, setId] = useState<number | null>(null);
-  const [siteType, setSiteType] = useState<SiteType>("school");
-  const [category, setCategory] = useState("");
-  const [weight, setWeight] = useState("0");
-  const [order, setOrder] = useState("0");
+  const [siteType, setSiteType] = useState<SiteType>('school');
+  const [category, setCategory] = useState('');
+  const [weight, setWeight] = useState('0');
+  const [order, setOrder] = useState('0');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (!allowed) return;
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       setRules(await listAllSiteRules());
     } catch {
-      setError("load");
+      setError(t('more.siteRules.loadFailed'));
     } finally {
       setBusy(false);
     }
-  }, [allowed]);
+  }, [allowed, t]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
   function edit(rule?: SiteRule) {
     setId(rule?.id ?? null);
-    setSiteType(rule?.siteType ?? (filter === "all" ? "school" : filter));
-    setCategory(rule?.category ?? "");
+    setSiteType(rule?.siteType ?? (filter === 'all' ? 'school' : filter));
+    setCategory(rule?.category ?? '');
     setWeight(String(rule?.urgencyWeight ?? 0));
     setOrder(String(rule?.sortOrder ?? 0));
-    setError("");
+    setError(null);
     setEditing(true);
   }
+
   async function save() {
     if (busy || !allowed) return;
     if (
@@ -60,196 +79,327 @@ export default function SiteRulesScreen() {
       !/^-?\d+$/.test(weight) ||
       !/^-?\d+$/.test(order) ||
       ![Number(weight), Number(order)].every(
-        (n) => Number.isInteger(n) && n >= -2147483648 && n <= 2147483647,
+        (value) =>
+          Number.isInteger(value) &&
+          value >= -2147483648 &&
+          value <= 2147483647,
       )
     ) {
-      setError("validation");
+      setError(t('more.siteRules.validation'));
       return;
     }
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       const saved = await saveSiteRule(id, {
         siteType,
-        category,
+        category: category.trim(),
         urgencyWeight: Number(weight),
         sortOrder: Number(order),
       });
-      setRules((old) => [...old.filter((r) => r.id !== saved.id), saved]);
+      setRules((old) => [
+        ...(old ?? []).filter((rule) => rule.id !== saved.id),
+        saved,
+      ]);
       setEditing(false);
     } catch {
-      setError("save");
+      setError(t('more.siteRules.saveFailed'));
     } finally {
       setBusy(false);
     }
   }
+
   async function remove(rule: SiteRule) {
     if (busy || !allowed) return;
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       await deleteSiteRule(rule.id);
-      setRules((old) => old.filter((r) => r.id !== rule.id));
+      setRules((old) => (old ?? []).filter((item) => item.id !== rule.id));
     } catch {
-      setError("delete");
+      setError(t('more.siteRules.deleteFailed'));
     } finally {
       setBusy(false);
     }
   }
-  if (!allowed)
+
+  const visible = useMemo(() => {
+    const list = (rules ?? []).filter(
+      (rule) => filter === 'all' || rule.siteType === filter,
+    );
+    return [...list].sort(
+      (a, b) =>
+        a.siteType.localeCompare(b.siteType) || a.sortOrder - b.sortOrder,
+    );
+  }, [rules, filter]);
+
+  const filterOptions = [
+    { value: 'all' as const, label: t('more.siteRules.all') },
+    ...TYPES.map((type) => ({
+      value: type,
+      label: t(`more.sites.types.${type}`),
+    })),
+  ];
+
+  if (!allowed) {
     return (
       <Screen>
-        <Text>{tr("Access denied", "无权访问")}</Text>
+        <StateView
+          variant="empty"
+          icon={ListFilter}
+          title={t('more.siteRules.accessDeniedTitle')}
+          description={t('more.siteRules.accessDeniedDesc')}
+        />
       </Screen>
     );
-  const visible = rules.filter(
-    (r) => filter === "all" || r.siteType === filter,
-  );
+  }
+
   return (
     <Screen>
       <ScrollView
-        contentContainerClassName="p-5 gap-3"
+        contentContainerClassName="px-5 pb-12 pt-4"
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        <Text className="text-ink">
-          {tr(
-            "Rules apply to every site of the selected type. Changes affect report intake and AI taxonomy.",
-            "规则适用于所选类型的所有站点。更改会影响报修和 AI 分类。",
-          )}
-        </Text>
-        {error ? (
-          <Text accessibilityRole="alert" className="text-red-600">
-            {error === "validation"
-              ? tr(
-                  "Enter a category and valid whole-number values.",
-                  "请输入分类和有效整数。",
-                )
-              : tr(
-                  "Unable to complete the action. Please retry.",
-                  "无法完成操作，请重试。",
-                )}
-          </Text>
-        ) : null}
-        {error === "load" && (
-          <Button label={tr("Retry", "重试")} onPress={load} disabled={busy} />
-        )}
-        <Button
-          label={tr("Add category", "添加分类")}
-          onPress={() => edit()}
-          disabled={busy}
-        />
-        {editing && (
-          <View className="gap-3">
-            <Text className="font-bold text-ink">
-              {id === null
-                ? tr("Add category", "添加分类")
-                : tr("Edit rule", "编辑规则")}
+        <PageHeader
+          kicker={t('more.siteRules.kicker')}
+          title={t('more.siteRules.title')}
+          subtitle={t('more.siteRules.subtitle')}
+          icon={ListFilter}
+        >
+          <View className="flex-row items-center gap-2">
+            <Pill
+              tone="mint"
+              label={t('more.siteRules.count', {
+                count: rules?.length ?? 0,
+                plural: (rules?.length ?? 0) === 1 ? '' : 's',
+              })}
+            />
+            <Text className="flex-1 text-[10.5px] leading-[1.5] text-dashboard-caption">
+              {t('more.siteRules.intro')}
             </Text>
-            <Text>{tr("Site type", "站点类型")}</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {types.map((type) => (
-                <Button
-                  key={type}
-                  label={type}
-                  variant={siteType === type ? "cta" : "secondary"}
-                  onPress={() => setSiteType(type)}
-                  disabled={busy}
-                />
-              ))}
+          </View>
+        </PageHeader>
+
+        {error ? (
+          <View className="mb-3 rounded-lg bg-dashboard-error-bg px-3 py-2">
+            <Text
+              accessibilityRole="alert"
+              className="text-[11px] leading-[1.7] text-dashboard-error-text"
+            >
+              {error}
+            </Text>
+            {rules === null ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void load()}
+                className="mt-1.5 self-start active:opacity-70"
+              >
+                <Text className="text-[11px] font-semibold text-dashboard-error-text">
+                  {t('more.siteRules.retry')} →
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {editing ? (
+          <Card className="mb-4">
+            <View className="mb-3 flex-row items-start justify-between gap-2">
+              <View className="flex-1">
+                <Text className="text-[13px] font-semibold text-ink">
+                  {id === null
+                    ? t('more.siteRules.addCategory')
+                    : t('more.siteRules.editRule')}
+                </Text>
+                <Text className="mt-0.5 text-[10.5px] leading-[1.6] text-dashboard-caption">
+                  {t('more.siteRules.editorHint')}
+                </Text>
+              </View>
+              <Pill
+                tone="citron"
+                label={id === null ? t('more.siteRules.new') : `#${id}`}
+              />
             </View>
+
+            <Text className="mb-1.5 text-[11px] font-semibold text-dashboard-subtitle">
+              {t('more.siteRules.siteType')}
+            </Text>
+            <SegmentedControl
+              className="mb-3"
+              value={siteType}
+              onChange={(value) => setSiteType(value)}
+              options={TYPES.map((type) => ({
+                value: type,
+                label: t(`more.sites.types.${type}`),
+              }))}
+              disabled={busy}
+            />
+
             <TextField
-              label={tr("Category code", "分类代码")}
+              label={t('more.siteRules.categoryCode')}
               value={category}
               onChangeText={setCategory}
               maxLength={128}
               editable={!busy}
+              autoCapitalize="none"
             />
-            <TextField
-              label={tr("Urgency weight", "紧急权重")}
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="numbers-and-punctuation"
-              editable={!busy}
-            />
-            <TextField
-              label={tr("Sort order", "排序")}
-              value={order}
-              onChangeText={setOrder}
-              keyboardType="numbers-and-punctuation"
-              editable={!busy}
-            />
+
+            <View className="flex-row gap-3">
+              <View className="flex-1">
+                <TextField
+                  label={t('more.siteRules.urgencyWeight')}
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="numbers-and-punctuation"
+                  editable={!busy}
+                />
+              </View>
+              <View className="flex-1">
+                <TextField
+                  label={t('more.siteRules.sortOrder')}
+                  value={order}
+                  onChangeText={setOrder}
+                  keyboardType="numbers-and-punctuation"
+                  editable={!busy}
+                />
+              </View>
+            </View>
+
             <Button
-              label={tr("Save rule", "保存规则")}
-              onPress={save}
+              label={t('more.siteRules.saveRule')}
+              onPress={() => void save()}
               loading={busy}
             />
             <Button
-              label={tr("Cancel", "取消")}
+              className="mt-2"
               variant="secondary"
+              label={t('more.siteRules.cancel')}
               onPress={() => setEditing(false)}
               disabled={busy}
             />
+          </Card>
+        ) : (
+          <Button
+            label={t('more.siteRules.addCategory')}
+            onPress={() => edit()}
+            disabled={busy}
+            className="mb-4"
+          />
+        )}
+
+        <SegmentedControl
+          className="mb-4"
+          value={filter}
+          onChange={(value) => setFilter(value)}
+          options={filterOptions}
+        />
+
+        {rules === null && busy ? (
+          <StateView variant="loading" title={t('more.siteRules.loading')} />
+        ) : visible.length === 0 ? (
+          <StateView
+            variant="empty"
+            icon={ListFilter}
+            title={t('more.siteRules.emptyTitle')}
+            description={t('more.siteRules.emptyDesc')}
+            actionLabel={t('more.siteRules.addCategory')}
+            onAction={() => edit()}
+          />
+        ) : (
+          <View className="gap-2.5">
+            {visible.map((rule) => (
+              <Card key={rule.id}>
+                <View className="flex-row items-start justify-between gap-2">
+                  <View className="flex-1">
+                    <Text className="text-[14px] font-semibold text-ink">
+                      {rule.category}
+                    </Text>
+                    <View className="mt-1.5 flex-row items-center gap-2">
+                      <Pill
+                        tone="neutral"
+                        label={t(`more.sites.types.${rule.siteType}`)}
+                      />
+                      <Text className="text-[10.5px] text-dashboard-caption">
+                        {t('more.siteRules.ordering', {
+                          order: rule.sortOrder,
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                  <View
+                    className="items-center justify-center rounded-lg px-3 py-2"
+                    style={{ backgroundColor: dashboardColors.statMintSoft }}
+                  >
+                    <Text
+                      className="text-[15px] font-bold"
+                      style={{ color: dashboardColors.statMintDeep }}
+                    >
+                      {rule.urgencyWeight}
+                    </Text>
+                    <Text
+                      className="text-[8.5px] font-semibold uppercase"
+                      style={{ color: dashboardColors.statMintDeep, letterSpacing: 0.5 }}
+                    >
+                      {t('more.siteRules.weightShort')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="mt-3 flex-row gap-2 border-t border-dashboard-card-line pt-3">
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={busy}
+                    onPress={() => edit(rule)}
+                    className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-dashboard-card-line py-2 active:opacity-70"
+                  >
+                    <Pencil color={dashboardColors.teal} size={13} />
+                    <Text className="text-[11px] font-semibold text-ink">
+                      {t('more.siteRules.edit')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={busy}
+                    onPress={() =>
+                      Alert.alert(
+                        t('more.siteRules.deleteTitle'),
+                        t('more.siteRules.deleteMessage', {
+                          category: rule.category,
+                          type: t(`more.sites.types.${rule.siteType}`),
+                        }),
+                        [
+                          { text: t('more.siteRules.cancel'), style: 'cancel' },
+                          {
+                            text: t('more.siteRules.deleteConfirm'),
+                            style: 'destructive',
+                            onPress: () => void remove(rule),
+                          },
+                        ],
+                      )
+                    }
+                    className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-dashboard-card-line py-2 active:opacity-70"
+                  >
+                    <Trash2 color={dashboardColors.statCoralDeep} size={13} />
+                    <Text
+                      className="text-[11px] font-semibold"
+                      style={{ color: dashboardColors.statCoralDeep }}
+                    >
+                      {t('more.siteRules.delete')}
+                    </Text>
+                  </Pressable>
+                </View>
+              </Card>
+            ))}
           </View>
         )}
-        <Text>{tr("Filter by site type", "按站点类型筛选")}</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {(["all", ...types] as const).map((type) => (
-            <Button
-              key={type}
-              label={type === "all" ? tr("All", "全部") : type}
-              variant={filter === type ? "cta" : "secondary"}
-              onPress={() => setFilter(type)}
-            />
-          ))}
-        </View>
-        {visible.map((rule) => (
-          <View
-            key={rule.id}
-            className="gap-2 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4"
-          >
-            <Text className="font-bold text-ink">{rule.category}</Text>
-            <Text>
-              {rule.siteType} · {tr("Urgency weight", "紧急权重")}:{" "}
-              {rule.urgencyWeight} · {tr("Sort order", "排序")}:{" "}
-              {rule.sortOrder}
-            </Text>
-            <View className="flex-row gap-2">
-              <Button
-                label={tr("Edit", "编辑")}
-                variant="secondary"
-                onPress={() => edit(rule)}
-                disabled={busy}
-              />
-              <Button
-                label={tr("Delete", "删除")}
-                variant="secondary"
-                disabled={busy}
-                onPress={() =>
-                  Alert.alert(
-                    tr("Delete rule?", "删除规则？"),
-                    tr(
-                      `Permanently delete ${rule.category} for all ${rule.siteType} sites?`,
-                      `永久删除所有 ${rule.siteType} 站点的 ${rule.category} 分类？`,
-                    ),
-                    [
-                      { text: tr("Cancel", "取消"), style: "cancel" },
-                      {
-                        text: tr("Delete permanently", "永久删除"),
-                        style: "destructive",
-                        onPress: () => void remove(rule),
-                      },
-                    ],
-                  )
-                }
-              />
-            </View>
-          </View>
-        ))}
-        {!busy && !error && visible.length === 0 && (
-          <Text>
-            {tr("No rules for this site type.", "此站点类型没有规则。")}
+
+        <View className="mt-4 flex-row items-start gap-2">
+          <Plus color={dashboardColors.statMintDeep} size={13} />
+          <Text className="flex-1 text-[10px] leading-[1.6] text-dashboard-caption">
+            {t('more.siteRules.footerHint')}
           </Text>
-        )}
+        </View>
       </ScrollView>
     </Screen>
   );

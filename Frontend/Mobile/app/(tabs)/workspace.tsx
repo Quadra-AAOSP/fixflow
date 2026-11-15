@@ -16,22 +16,26 @@ import {
 } from 'lucide-react-native';
 
 import { HomeNotificationBell } from '@/components/dashboard/HomeNotificationBell';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { SiteSwitcher } from '@/components/ui/SiteSwitcher';
 import { StateView } from '@/components/ui/StateView';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { UrgencyChip } from '@/components/ui/UrgencyChip';
+import { useToast } from '@/components/ui/useToastContext';
 import { TradeProfile } from '@/components/technician/TradeProfile';
 import { dashboardColors, themeColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError } from '@/lib/apiClient';
-import { listReports } from '@/services/reports';
+import { claimReport, listReports } from '@/services/reports';
 import { listTechnicianContracts } from '@/services/technician';
 import { useTechnicianAvailability } from '@/stores/availability';
 import { useCurrentSite } from '@/stores/site';
 import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
 import type { Report } from '@/types';
-import { isClaimable, statusGroup } from '@/utils/maintenance';
+import { humanize } from '@/utils/format';
+import { effectiveUrgency, isClaimable, statusGroup } from '@/utils/maintenance';
 
 /**
  * Landing page for `technician` accounts. Mirrors `TechnicianView.vue`:
@@ -54,6 +58,12 @@ export default function WorkspaceScreen() {
   } = useTechnicianAvailability();
   const [reports, setReports] = useState<Report[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Contract-site names for the open jobs preview (technicians usually have no
+  // account site, so names cannot be resolved from the site directory alone).
+  const [siteNames, setSiteNames] = useState<Record<number, string>>({});
+  const [contractSiteCount, setContractSiteCount] = useState<number | null>(null);
+  const [claimingId, setClaimingId] = useState<number | null>(null);
+  const { showToast } = useToast();
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -62,6 +72,10 @@ export default function WorkspaceScreen() {
       // Technicians usually have no account site, so their work comes from the
       // sites they hold contracts with. Fan out across those sites and merge.
       const contracts = await listTechnicianContracts();
+      setContractSiteCount(contracts.length);
+      setSiteNames(
+        Object.fromEntries(contracts.map((contract) => [contract.siteId, contract.siteName])),
+      );
       const siteIds = Array.from(
         new Set([
           ...contracts.map((contract) => contract.siteId),
@@ -69,10 +83,22 @@ export default function WorkspaceScreen() {
         ]),
       );
       const pages = await Promise.all(
-        siteIds.map((siteId) => listReports({ siteId })),
+        siteIds.map((siteId) =>
+          listReports({ siteId }).catch((err) => {
+            // An account site the technician is not contracted to answers 403;
+            // that must not blank the whole workspace.
+            if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+              return null;
+            }
+            throw err;
+          }),
+        ),
       );
       const merged = new Map<number, Report>();
-      for (const report of pages.flat()) merged.set(report.id, report);
+      for (const page of pages) {
+        if (!page) continue;
+        for (const report of page) merged.set(report.id, report);
+      }
       setReports(Array.from(merged.values()));
     } catch (err) {
       setError(
@@ -102,6 +128,23 @@ export default function WorkspaceScreen() {
   );
 
   const openJobs = (reports ?? []).filter(isClaimable);
+
+  async function onClaim(id: number) {
+    if (claimingId !== null) return;
+    setClaimingId(id);
+    try {
+      await claimReport(id);
+      showToast(t('openJobs.claimed'), 'success');
+      await load();
+    } catch (err) {
+      showToast(
+        err instanceof ApiError ? err.message : t('openJobs.claimFailed'),
+        'error',
+      );
+    } finally {
+      setClaimingId(null);
+    }
+  }
 
   return (
     <Screen>
@@ -227,7 +270,9 @@ export default function WorkspaceScreen() {
                 {reports === null
                   ? t('workspace.openJobsLoading')
                   : openJobs.length === 0
-                    ? t('workspace.openJobsEmpty')
+                    ? contractSiteCount === 0
+                      ? t('openJobs.noContractsDesc')
+                      : t('workspace.openJobsEmpty')
                     : t('workspace.openJobsSummary', {
                         count: openJobs.length,
                         plural: openJobs.length === 1 ? '' : 's',
@@ -235,10 +280,65 @@ export default function WorkspaceScreen() {
               </Text>
             </View>
           </View>
+          {/* Unassigned reports at the technician's contract sites. Claiming
+              flips the report to `assigned`, so it leaves this list on reload. */}
+          {openJobs.length > 0 ? (
+            <View className="mt-3">
+              {openJobs.slice(0, 3).map((report) => (
+                <View
+                  key={report.id}
+                  className="mb-2 rounded-lg border border-dashboard-card-line bg-dashboard-card-bg p-3"
+                >
+                  <Pressable
+                    onPress={() => router.push(`/reports/${report.id}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('assignments.openA11y', {
+                      description: report.description,
+                    })}
+                    className="active:opacity-80"
+                  >
+                    <View className="mb-1 flex-row items-center justify-between">
+                      <Text
+                        className="text-[10px] font-medium uppercase tracking-wide text-dashboard-subtitle"
+                        numberOfLines={1}
+                      >
+                        {humanize(report.category)}
+                      </Text>
+                      <StatusBadge status={report.status} />
+                    </View>
+                    <Text className="text-[12px] text-ink" numberOfLines={2}>
+                      {report.description}
+                    </Text>
+                    <View className="mt-2 flex-row items-center justify-between gap-2">
+                      <UrgencyChip level={effectiveUrgency(report)} />
+                      <Text
+                        className="flex-1 text-right text-[10px] text-dashboard-subtitle"
+                        numberOfLines={1}
+                      >
+                        {report.siteId === null ? '' : siteNames[report.siteId] ?? ''}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Button
+                    variant="cta"
+                    className="mt-2 min-h-0 py-2"
+                    label={
+                      claimingId === report.id
+                        ? t('openJobs.claiming')
+                        : t('openJobs.claim')
+                    }
+                    loading={claimingId === report.id}
+                    disabled={claimingId !== null}
+                    onPress={() => void onClaim(report.id)}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : null}
           <Pressable
             accessibilityRole="link"
             onPress={() => router.push('/technician/open-jobs')}
-            className="mt-3 flex-row items-center gap-1 self-start active:opacity-70"
+            className="mt-1 flex-row items-center gap-1 self-start active:opacity-70"
           >
             <Text
               className="text-[11px] font-semibold"

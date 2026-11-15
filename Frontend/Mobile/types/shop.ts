@@ -129,7 +129,7 @@ export type ShopOrder = {
   shippingPhone: string;
   shippingAddress: string;
   checkoutUrl: string | null;
-  paymentStatus: ShopPaymentStatus;
+  paymentStatus: ShopPaymentStatus | null;
   createdAt: string;
   updatedAt: string;
   fulfillmentStatus: ShopFulfillmentStatus | null;

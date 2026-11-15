@@ -1,8 +1,10 @@
-import { AI_REQUEST_OPTIONS, api } from '@/lib/apiClient';
+import { AI_REQUEST_OPTIONS, ApiError, api } from '@/lib/apiClient';
 import { endpoints } from '@/lib/endpoints';
+import { listSites } from './sites';
 import type {
   ContractDecisionPayload,
   RankingMode,
+  Site,
   TechnicianAvailabilityResponse,
   TechnicianContract,
   TechnicianContractPayload,
@@ -65,6 +67,29 @@ export function createTechnicianContractRequest(
     endpoints.contractRequests.create,
     payload,
   );
+}
+
+/** Leave a site: removes the technician's own contract (unticking the site). */
+export function revokeOwnContract(contractId: number): Promise<void> {
+  return api.del<void>(`/api/technician-contracts/${contractId}`);
+}
+
+/**
+ * Every site a technician can ask to join. The generic site list is scoped to
+ * the caller's account site, which would hide the very sites they want to
+ * apply to.
+ */
+export async function listApplicableSites(): Promise<Site[]> {
+  try {
+    return await api.get<Site[]>(endpoints.contractRequests.sites);
+  } catch (err) {
+    // Older backends do not have the directory endpoint yet; fall back to the
+    // scoped list rather than breaking the whole application screen.
+    if (err instanceof ApiError && err.status === 404) {
+      return listSites();
+    }
+    throw err;
+  }
 }
 
 /**

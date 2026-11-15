@@ -105,6 +105,19 @@ public class ReportController {
 		return reportService.get(id, principal);
 	}
 
+	/**
+	 * Super-admin oversight: tell every administrator of the report's site that
+	 * nobody has picked this report up yet. Returns how many admins were
+	 * notified so the client can confirm delivery.
+	 */
+	@PostMapping("/{id}/notify-site-admin")
+	public ReportService.NotifySiteAdminsResult notifySiteAdmin(
+			@PathVariable Long id,
+			@AuthenticationPrincipal AppUserDetails principal
+	) {
+		return reportService.notifySiteAdmin(id, principal);
+	}
+
 	@PutMapping("/{id}")
 	public ReportResponse update(@PathVariable Long id, @Valid @RequestBody UpdateReportRequest request,
 			@AuthenticationPrincipal AppUserDetails principal) {

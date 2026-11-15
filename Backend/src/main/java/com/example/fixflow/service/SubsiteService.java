@@ -58,7 +58,8 @@ public class SubsiteService {
         return SubsiteResponse.from(subsites.save(subsite));
     }
     @Transactional public SubsiteAlertResponse requestAddition(Long siteId, SubsiteAlertRequest request, AppUserDetails actor) {
-        assertCanView(siteId, actor);
+        if (actor.getRole() != UserRole.super_admin && (actor.getSiteId() == null || !actor.getSiteId().equals(siteId))) throw new ApiException(HttpStatus.FORBIDDEN.value(), "Only this site's members can request buildings");
+        if (!alerts.findBySite_IdAndStatusOrderByCreatedAtAsc(siteId, Status.pending).isEmpty()) throw new ApiException(HttpStatus.CONFLICT.value(), "A building request is already pending for this site");
         com.example.fixflow.domain.SubsiteRequest alert = new com.example.fixflow.domain.SubsiteRequest();
         alert.setSite(site(siteId));
         alert.setRequestedBy(user(actor.getId()));

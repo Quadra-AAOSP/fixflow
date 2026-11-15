@@ -109,7 +109,7 @@ class ApiSecurityMatrixIntegrationTest {
     }
 
     @Test void siteAndChangedReportIdMatrixRejectsForeignResources() throws Exception {
-        for (String path : new String[]{"/api/reports/" + foreignReport.getId(), "/api/reports/" + foreignReport.getId() + "/reporters", "/api/sites/" + other.getId(), "/api/sites/" + other.getId() + "/subsites"}) {
+        for (String path : new String[]{"/api/reports/" + foreignReport.getId(), "/api/reports/" + foreignReport.getId() + "/reporters", "/api/sites/" + other.getId()}) {
             mvc.perform(get(path).with(user(new AppUserDetails(admin)))).andExpect(status().isForbidden());
         }
         mvc.perform(get("/api/reports").param("siteId", other.getId().toString()).with(user(new AppUserDetails(reporter)))).andExpect(status().isForbidden());

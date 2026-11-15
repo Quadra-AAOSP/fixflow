@@ -23,6 +23,22 @@ const FALLBACK_TIMEOUT_MS = 5_000;
 let selectedBase: Promise<string> | undefined;
 let csrfFlight: Promise<{ headerName: string; token: string }> | undefined;
 
+type UnauthorizedHandler = (path: string) => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/**
+ * The backend answers 401 "Authentication required" when the session cookie is
+ * gone (expired, or the API restarted). Without this hook a screen that is
+ * already open just shows that raw message and looks broken while the app
+ * still believes the user is signed in. The auth store registers a handler
+ * here so every 401 (outside `/api/auth/*`) immediately forces a re-login or
+ * a clean sign-out.
+ */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
+  unauthorizedHandler = handler;
+}
+
 function csrfToken(signal: AbortSignal): Promise<{ headerName: string; token: string }> {
   csrfFlight ??= request<{ headerName: string; token: string }>('/api/auth/csrf',
     { method: 'GET', signal }).then(value => {
@@ -168,7 +184,13 @@ async function request<T>(
       signal,
     });
     if (!response.ok) {
-      throw await parseError(response);
+      const error = await parseError(response);
+      // `/api/auth/*` 401s are expected (bad login, restore probe) and are
+      // handled by the auth store itself.
+      if (response.status === 401 && !path.startsWith('/api/auth/')) {
+        unauthorizedHandler?.(path);
+      }
+      throw error;
     }
     if (response.status === 204) {
       return undefined as T;

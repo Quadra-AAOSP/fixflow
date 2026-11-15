@@ -6,6 +6,7 @@ import {
   Bell,
   Building2,
   ChevronRight,
+  FileSignature,
   Mail,
   Phone,
   Settings,
@@ -17,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
+import { TradeProfile } from '@/components/technician/TradeProfile';
 import { roleLabels } from '@/constants/access';
 import { dashboardColors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -253,6 +255,37 @@ export default function ProfileScreen() {
               </Pressable>
             </Card>
           ) : null}
+
+          {/* Verification + terms: the two things a super admin checks before
+              approving an account, reachable straight from the profile. */}
+          {user.role === 'technician' ? (
+            <Card padded={false} className="mb-4 overflow-hidden rounded-[16px]">
+              <View className="px-4 pb-1 pt-4">
+                <Text className="text-[12.5px] font-semibold text-ink">
+                  {t('profile.verification.title')}
+                </Text>
+                <Text className="mt-0.5 text-[11px] leading-[1.5] text-dashboard-caption">
+                  {t('profile.verification.kicker')}
+                </Text>
+              </View>
+              <ShortcutRow
+                icon={ShieldCheck}
+                label={t('profile.verification.submission')}
+                onPress={() => router.push('/more/my-verification')}
+              />
+              <ShortcutRow
+                icon={FileSignature}
+                label={t('profile.verification.terms')}
+                onPress={() => router.push('/technician/terms')}
+                last
+              />
+            </Card>
+          ) : null}
+
+          {/* Technician skills — trade / specialty / proficiency selection
+              (GET + POST /api/technician-skills), the same component the
+              workspace screen uses. Only rendered for technicians. */}
+          {user.role === 'technician' ? <TradeProfile /> : null}
 
           {/* Preferences — availability for technicians, session echo for
               everyone else. */}

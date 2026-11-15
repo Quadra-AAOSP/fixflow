@@ -12,6 +12,7 @@ export type MoreMenuItemKey =
   | 'verificationReviews'
   | 'marketplace'
   | 'myAdminApplication'
+  | 'allReports'
   | 'siteSetup'
   | 'siteRules'
   | 'sites'
@@ -35,8 +36,11 @@ export const MORE_MENU_ROLE_VISIBILITY: Record<MoreMenuItemKey, UserRole[]> = {
   marketplace: ['admin', 'super_admin', 'technician'],
   siteApplications: ['super_admin'],
   verificationReviews: ['super_admin'],
+  // Cross-site report oversight + "notify the site admin" nudge.
+  allReports: ['super_admin'],
   myAdminApplication: ['reporter'],
-  siteSetup: ['super_admin'],
+  // Site setup = manage buildings (subsites) for the current site — site-bound admins only.
+  siteSetup: ['admin'],
   sites: ['admin', 'super_admin'],
   siteRules: ['admin', 'super_admin'],
   teamAccess: ['admin', 'super_admin'],

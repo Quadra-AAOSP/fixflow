@@ -11,6 +11,8 @@ import jakarta.persistence.LockModeType;
 
 public interface TechnicianContractApplicationRepository extends JpaRepository<TechnicianContractApplication, Long> {
     boolean existsByTechnician_IdAndSite_Id(Long technicianId, Long siteId);
+    boolean existsByTechnician_IdAndSite_IdAndStatus(Long technicianId, Long siteId,
+            TechnicianContractApplication.Status status);
     List<TechnicianContractApplication> findByTechnician_IdOrderByCreatedAtDesc(Long technicianId);
     List<TechnicianContractApplication> findBySite_IdOrderByCreatedAtDesc(Long siteId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)

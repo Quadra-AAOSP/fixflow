@@ -479,12 +479,15 @@ function AskModal({
       visible={visible}
       onRequestClose={onClose}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('components.modalSheet.close')}
-        onPress={onClose}
-        className="flex-1 items-center justify-center bg-black/40 px-6"
-      >
+      <View className="flex-1 items-center justify-center bg-black/40 px-6">
+        {/* The dismiss target is a sibling, not the wrapper: nesting Pressables
+            renders <button> inside <button> on web. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('components.modalSheet.close')}
+          onPress={onClose}
+          className="absolute inset-0"
+        />
         <View className="w-full rounded-[14px] bg-card p-4">
           <View className="mb-2 flex-row items-center gap-1.5">
             <Sparkles color={dashboardColors.statMintDeep} size={14} />
@@ -540,7 +543,7 @@ function AskModal({
             </Pressable>
           </View>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }

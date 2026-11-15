@@ -1,16 +1,17 @@
 import { Image, Pressable, Text, View } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { Package, Plus } from 'lucide-react-native';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCartStore } from '@/stores/cart';
+import { useToast } from '@/components/ui/useToastContext';
 
 import { shopColors } from '@/constants/theme';
 import type { ShopProduct } from '@/types';
-import { formatMoney, safeImageUrl } from '@/utils/shop';
-
-// Same editorial photography the web shop uses as its fallback tiles
-// (`ShopView.vue` `ProductImage`). Kept at module-level so it's reused.
-const FALLBACK_IMAGE =
-  'https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=600';
+import {
+  basketCount,
+  formatMoney,
+} from '@/utils/shop';
+import { productImageSource } from '@/utils/shopImages';
 
 type ProductCardProps = {
   product: ShopProduct;
@@ -41,10 +42,23 @@ export function ProductCard({
   onPress = () => {},
 }: ProductCardProps) {
   const { t } = useTranslation('common');
+  const { showToast } = useToast();
   const addToBasket = useCartStore((state) => state.addToBasket);
+  const basketLines = useCartStore((state) => state.basket);
 
-  const imageUri = safeImageUrl(product.imageUrl) ?? FALLBACK_IMAGE;
+  // Photos for the demo catalogue are bundled with the app; a product added
+  // later can still supply a URL. Neither one available, or the remote URL
+  // fails, falls back to the neutral Package-icon placeholder — never a
+  // substitute photo that misrepresents the product.
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageSource = imageFailed ? null : productImageSource(product);
   const outOfStock = product.stock <= 0;
+  // The web disables the card's + button once the basket already holds the
+  // product's full stock (no silent clamping); we mirror that here.
+  const inBasket =
+    basketLines.find((line) => line.product.id === product.id)?.quantity ?? 0;
+  const atCap = inBasket >= product.stock;
+  const addDisabled = outOfStock || atCap;
 
   return (
     <View className={CARD_CLASS}>
@@ -59,12 +73,31 @@ export function ProductCard({
           className="w-full items-center justify-center bg-shop-image-bg"
           style={{ aspectRatio: IMAGE_ASPECT_RATIO }}
         >
-          <Image
-            source={{ uri: imageUri }}
-            className="h-full w-full"
-            resizeMode="cover"
-            accessibilityIgnoresInvertColors
-          />
+          {imageSource ? (
+            <Image
+              source={imageSource}
+              // Explicit fill: bundled assets carry intrinsic pixel sizes that
+              // react-native-web prefers over the `h-full w-full` classes.
+              style={{ width: '100%', height: '100%' }}
+              className="h-full w-full"
+              resizeMode="cover"
+              onError={() => setImageFailed(true)}
+              accessibilityIgnoresInvertColors
+            />
+          ) : (
+            <View
+              className="items-center gap-1"
+              accessibilityRole="image"
+              accessibilityLabel={t('more.shop.noImageFor', {
+                name: product.name,
+              })}
+            >
+              <Package color={shopColors.footText} size={32} />
+              <Text className="text-[10px] text-muted">
+                {t('more.shop.noImageShort')}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View className="p-3">
@@ -108,22 +141,34 @@ export function ProductCard({
           >
             {outOfStock
               ? t('more.shop.outOfStock')
-              : t('more.shop.inStock')}
+              : t('more.shop.inStockCount', { count: product.stock })}
           </Text>
         </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('more.shop.addToBasket')}
-          disabled={outOfStock}
-          onPress={() => addToBasket(product, 1)}
+          disabled={addDisabled}
+          onPress={() => {
+            addToBasket(product, 1);
+            // Same feedback the web shop toasts after an add, including the
+            // updated basket size so the user knows the tap registered.
+            showToast(
+              t('more.shop.addedToBasket', {
+                name: product.name,
+                count: basketCount(basketLines) + 1,
+                plural: basketCount(basketLines) + 1 === 1 ? '' : 's',
+              }),
+              'success',
+            );
+          }}
           hitSlop={10}
           className="h-8 w-8 items-center justify-center rounded-full"
           style={{
             backgroundColor: shopColors.mint,
-            opacity: outOfStock ? 0.48 : 1,
+            opacity: addDisabled ? 0.48 : 1,
           }}
         >
-          <Plus color={shopColors.ink} size={16} />
+          <Plus color={shopColors.mintInk} size={16} />
         </Pressable>
       </View>
     </View>

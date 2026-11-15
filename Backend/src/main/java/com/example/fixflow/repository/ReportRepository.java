@@ -73,6 +73,33 @@ public interface ReportRepository extends JpaRepository<Report, Long>, org.sprin
 			Pageable pageable
 	);
 
+	/**
+	 * Every open report on the platform, newest first. Used by the super-admin
+	 * oversight view, where "all sites" is a legitimate scope rather than a
+	 * missing siteId. The ordering is deliberately timeline-based (not
+	 * urgency-weight based) because the reader is triaging across sites.
+	 */
+	@Query(
+			value = """
+					select r from Report r
+					where r.status <> :confirmed
+					  and r.archivedAt is null
+					  and (:category is null or r.category = :category)
+					order by r.createdAt desc, r.id desc
+					""",
+			countQuery = """
+					select count(r) from Report r
+					where r.status <> :confirmed
+					  and r.archivedAt is null
+					  and (:category is null or r.category = :category)
+					"""
+	)
+	Page<Report> findOpenAllSites(
+			@Param("category") String category,
+			@Param("confirmed") ReportStatus confirmed,
+			Pageable pageable
+	);
+
 	@Query("""
 			select r from Report r
 			join fetch r.site

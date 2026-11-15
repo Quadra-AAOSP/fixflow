@@ -75,8 +75,11 @@ fixflow:
   reporting:
     require-site-setup: ${REPORTING_REQUIRE_SITE_SETUP:true}
   technician-terms:
+    # Published by default so technicians can accept them and super admins can
+    # approve verifications. Prefer the API document endpoint; absolute HTML
+    # agreements URLs remain supported via env override.
     version: ${TECHNICIAN_TERMS_VERSION:2026-11-03}
-    document-url: ${TECHNICIAN_TERMS_DOCUMENT_URL:http://localhost:8080/agreements/technician/2026-11-03.html}
+    document-url: ${TECHNICIAN_TERMS_DOCUMENT_URL:/api/technician-terms/document}
     required: ${TECHNICIAN_TERMS_REQUIRED:true}
   session:
     absolute-timeout: ${SESSION_ABSOLUTE_TIMEOUT:12h}

@@ -5,6 +5,7 @@ import {
   Briefcase,
   Building2,
   FileText,
+  Globe,
   Handshake,
   NotepadText,
   ShieldCheck,
@@ -87,6 +88,12 @@ export default function MoreScreen() {
     marketplace: { icon: Briefcase, titleKey: 'marketplace.title', subtitleKey: null, onPress: () => router.push('/more/marketplace') },
     siteApplications: { icon: Building2, titleKey: 'review.siteReviews', subtitleKey: null, onPress: () => router.push('/more/site-applications') },
     verificationReviews: { icon: UserCheck, titleKey: 'review.verificationReviews', subtitleKey: null, onPress: () => router.push('/more/verification-reviews') },
+    allReports: {
+      icon: Globe,
+      titleKey: 'more.menu.allReportsTitle',
+      subtitleKey: 'more.menu.allReportsSubtitle',
+      onPress: () => router.push('/more/all-reports'),
+    },
     myAdminApplication: {
       icon: ShieldCheck,
       titleKey: 'more.menu.myAdminApplicationTitle',
@@ -156,6 +163,7 @@ export default function MoreScreen() {
   const workspaceKeys: ItemKey[] = ['openJobs', 'jobOffers', 'contractsTechnician', 'myVerification', 'marketplace'];
   const applicationKeys: ItemKey[] = ['myAdminApplication'];
   const adminKeys: ItemKey[] = [
+    'allReports',
     'siteSetup',
     'sites',
     'siteRules',

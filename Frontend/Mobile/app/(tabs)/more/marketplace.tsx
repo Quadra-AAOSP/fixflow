@@ -1,12 +1,22 @@
 import { SiteVetting } from '@/components/technician/SiteVetting';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  CalendarClock,
+  Clock,
+  MapPin,
+  Megaphone,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Action, Field } from '@/components/ReviewControls';
+import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
 import { useAuth } from '@/hooks/useAuth';
+import { dashboardColors } from '@/constants/theme';
 import {
   actOnJobApplication, applyForJob, cancelJobAssignment, closeJob, listJobApplications, listJobs, publishJob, searchJobsWithAi,
   type MarketplaceApplication, type MarketplaceListing,
@@ -58,6 +68,11 @@ export default function MarketplaceScreen() {
   );
   const sourceNotPublishable = source !== undefined && publishableReports !== null
     && !publishable.some(report => report.id === source);
+  const visibleJobs = jobs.filter(job =>
+    (aiIds === null || aiIds.includes(job.id))
+    && [job.summary, job.broadLocation, job.timing, job.category, job.specialty, job.urgency]
+      .filter(Boolean).join(' ').toLocaleLowerCase()
+      .includes(search.trim().toLocaleLowerCase()));
 
   // Keep the selection in sync when the screen is already mounted (tab kept
   // alive) and a report detail pushes a new `reportId`.
@@ -152,46 +167,121 @@ export default function MarketplaceScreen() {
       <Stack.Screen options={{ title: t('marketplace.title') }} />
       <ScrollView contentContainerClassName="p-5 pb-10" keyboardShouldPersistTaps="handled">
         {!isAdmin && !isTechnician ? <Text>{t('review.denied')}</Text> : <>
-          <Text className="mb-2 text-xl font-bold text-ink">{t('marketplace.title')}</Text>
-          <Text className="mb-3 text-ink">{t(isAdmin ? 'marketplace.adminIntro' : 'marketplace.technicianIntro')}</Text>
-          <Action label={t('review.refresh')} disabled={busy} onPress={() => void run(refresh)} />
-          {busy ? <Text accessibilityLiveRegion="polite">{t('review.loading')}</Text> : null}
-          {error ? <Text accessibilityRole="alert" className="my-2 text-red-700">{error}</Text> : null}
-          {message ? <Text accessibilityLiveRegion="polite" className="my-2 text-ink">{message}</Text> : null}
+          <View className="mb-4 flex-row items-start justify-between gap-3">
+            <View className="flex-1">
+              <Text className="text-[22px] font-bold leading-tight text-ink" style={{ letterSpacing: -0.4 }}>
+                {t('marketplace.title')}
+              </Text>
+              <Text className="mt-1 text-[12px] leading-[1.6] text-dashboard-subtitle">
+                {t(isAdmin ? 'marketplace.adminIntro' : 'marketplace.technicianIntro')}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('marketplace.refresh')}
+              disabled={busy}
+              onPress={() => void run(refresh)}
+              className="flex-row items-center gap-1.5 rounded-full border px-3 py-2 active:opacity-70"
+              style={{
+                borderColor: dashboardColors.cardLine,
+                backgroundColor: dashboardColors.pillBg,
+                opacity: busy ? 0.5 : 1,
+              }}
+            >
+              <RefreshCw color={dashboardColors.teal} size={14} />
+              <Text className="text-[11px] font-semibold" style={{ color: dashboardColors.teal }}>
+                {t('marketplace.refresh')}
+              </Text>
+            </Pressable>
+          </View>
+          {busy ? <Text className="mb-2 text-[11px]" style={{ color: dashboardColors.caption }}>{t('review.loading')}</Text> : null}
+          {error ? (
+            <View className="mb-3 rounded-xl p-3" style={{ backgroundColor: dashboardColors.statCoralSoft }}>
+              <Text accessibilityRole="alert" className="text-[12px] leading-[1.6]" style={{ color: dashboardColors.statCoralDeep }}>
+                {error}
+              </Text>
+            </View>
+          ) : null}
+          {message ? (
+            <View className="mb-3 rounded-xl p-3" style={{ backgroundColor: dashboardColors.statMintSoft }}>
+              <Text accessibilityLiveRegion="polite" className="text-[12px] leading-[1.6]" style={{ color: dashboardColors.statMintDeep }}>
+                {message}
+              </Text>
+            </View>
+          ) : null}
           {isTechnician && verification && verification !== 'verified' ? (
-            <View className="my-2">
-              <Text className="text-ink">{t('marketplace.verificationRequired')}</Text>
-              <Action label={t('review.myVerification')} onPress={() => router.push('/more/my-verification')} />
+            <View className="mb-3 rounded-xl p-3" style={{ backgroundColor: dashboardColors.statCitronSoft }}>
+              <Text className="text-[12px] leading-[1.6]" style={{ color: dashboardColors.statCitronDeep }}>
+                {t('marketplace.verificationRequired')}
+              </Text>
+              <Button className="mt-2 self-start" variant="secondary" label={t('review.myVerification')}
+                onPress={() => router.push('/more/my-verification')} />
             </View>
           ) : null}
           {isTechnician && termsRequired ? (
-            <View className="my-2">
-              <Text className="text-ink">{t('marketplace.termsRequired')}</Text>
-              <Action label={t('workspace.terms')} onPress={() => router.push('/technician/terms')} />
+            <View className="mb-3 rounded-xl p-3" style={{ backgroundColor: dashboardColors.statCitronSoft }}>
+              <Text className="text-[12px] leading-[1.6]" style={{ color: dashboardColors.statCitronDeep }}>
+                {t('marketplace.termsRequired')}
+              </Text>
+              <Button className="mt-2 self-start" variant="secondary" label={t('workspace.terms')}
+                onPress={() => router.push('/technician/terms')} />
             </View>
           ) : null}
           {isAdmin ? (
-            <View className="my-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
-              <Text className="mb-1 font-bold text-ink">{t('marketplace.chooseReport')}</Text>
-              <Text className="mb-2 text-ink">{t('marketplace.chooseReportHint')}</Text>
+            <View className="my-3 rounded-2xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
+              <View className="mb-1 flex-row items-center gap-2">
+                <Megaphone color={dashboardColors.teal} size={16} />
+                <Text className="text-[14px] font-bold text-ink">{t('marketplace.chooseReport')}</Text>
+              </View>
+              <Text className="mb-3 text-[11.5px] leading-[1.6] text-dashboard-subtitle">{t('marketplace.chooseReportHint')}</Text>
               {publishableReports === null ? (
-                <Text className="text-ink">{t('review.loading')}</Text>
+                <Text className="text-[12px]" style={{ color: dashboardColors.caption }}>{t('review.loading')}</Text>
               ) : publishable.length === 0 ? (
-                <Text className="text-ink">{t('marketplace.noReportsToPublish')}</Text>
-              ) : publishable.map(report => (
-                <View key={report.id} className="my-2 rounded-lg border border-dashboard-card-line p-3">
-                  <Text className="font-bold text-ink">{t('marketplace.reportOption', { id: report.id })}</Text>
-                  <Text className="mb-1 text-ink" numberOfLines={2}>{report.description}</Text>
-                  <Text className="mb-2 text-ink">{report.category}</Text>
-                  <Action
-                    label={source === report.id ? t('marketplace.selectedReport') : t('marketplace.selectReport')}
-                    disabled={busy || source === report.id}
+                <Text className="text-[12px] leading-[1.6]" style={{ color: dashboardColors.caption }}>{t('marketplace.noReportsToPublish')}</Text>
+              ) : publishable.map(report => {
+                const selected = source === report.id;
+                return (
+                  <Pressable
+                    key={report.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    disabled={busy}
                     onPress={() => setSource(report.id)}
-                  />
-                </View>
-              ))}
+                    className="mb-2 rounded-xl border p-3 active:opacity-80"
+                    style={{
+                      borderColor: selected ? dashboardColors.teal : dashboardColors.cardLine,
+                      backgroundColor: selected ? dashboardColors.tealSoft : 'transparent',
+                    }}
+                  >
+                    <View className="flex-row items-center justify-between gap-2">
+                      <Text className="text-[12px] font-bold text-ink">{t('marketplace.reportOption', { id: report.id })}</Text>
+                      <View className="flex-row items-center gap-2">
+                        <View className="rounded-full px-2 py-[2px]" style={{ backgroundColor: dashboardColors.pillBg }}>
+                          <Text className="text-[9.5px] font-semibold uppercase" style={{ color: dashboardColors.subtitle, letterSpacing: 0.5 }}>
+                            {report.category}
+                          </Text>
+                        </View>
+                        <View
+                          className="h-[18px] w-[18px] items-center justify-center rounded-full border-2"
+                          style={{ borderColor: selected ? dashboardColors.teal : dashboardColors.cardLine }}
+                        >
+                          {selected ? <View className="h-2 w-2 rounded-full" style={{ backgroundColor: dashboardColors.teal }} /> : null}
+                        </View>
+                      </View>
+                    </View>
+                    <Text className="mt-1 text-[11.5px] leading-[1.5] text-dashboard-subtitle" numberOfLines={2}>
+                      {report.description}
+                    </Text>
+                    {selected ? (
+                      <Text className="mt-1 text-[10px] font-semibold" style={{ color: dashboardColors.teal }}>
+                        {t('marketplace.selectedReport')}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
               {sourceNotPublishable ? (
-                <Text className="my-2 text-ink">{t('marketplace.reportNotPublishable')}</Text>
+                <Text className="my-2 text-[11px]" style={{ color: dashboardColors.statCoralDeep }}>{t('marketplace.reportNotPublishable')}</Text>
               ) : null}
             </View>
           ) : null}
@@ -255,29 +345,89 @@ export default function MarketplaceScreen() {
               ) : null}
             </View>
           ) : null}
-          {isTechnician ? <View>
-            <Field label="Describe jobs you are looking for" value={aiQuery} maxLength={500} onChangeText={setAiQuery} />
-            <Action label="Search with AI" disabled={busy || !aiQuery.trim()} onPress={() => void run(async () => {
-              const result = await searchJobsWithAi(aiQuery.trim());
-              setAiIds(result.listings.map(job => job.id)); setSearch('');
-              setAiMessage((result.fallback ? 'AI unavailable; using manual keyword search. ' : 'AI filters: ') + Object.values(result.filters).filter(Boolean).join(', '));
-            })} />
-            <Action label="Clear AI search" onPress={() => { setAiIds(null); setAiMessage(''); }} />
-            {aiMessage ? <Text accessibilityLiveRegion="polite">{aiMessage}</Text> : null}
+          {isTechnician ? <View className="my-3 rounded-2xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
+            <View className="mb-1 flex-row items-center gap-2">
+              <Sparkles color={dashboardColors.teal} size={16} />
+              <Text className="text-[14px] font-bold text-ink">{t('marketplace.aiTitle')}</Text>
+            </View>
+            <Text className="mb-2 text-[11.5px] leading-[1.6] text-dashboard-subtitle">{t('marketplace.aiHint')}</Text>
+            <Field label={t('marketplace.aiField')} value={aiQuery} maxLength={500} onChangeText={setAiQuery} />
+            <View className="mt-2 flex-row gap-2">
+              <Button className="flex-1" label={t('marketplace.aiSearch')} loading={busy} disabled={busy || !aiQuery.trim()} onPress={() => void run(async () => {
+                const result = await searchJobsWithAi(aiQuery.trim());
+                setAiIds(result.listings.map(job => job.id)); setSearch('');
+                const filters = Object.values(result.filters).filter(Boolean).join(', ');
+                setAiMessage(`${result.fallback ? t('marketplace.aiFallback') : t('marketplace.aiFilters')}${filters ? ` ${filters}` : ''}`);
+              })} />
+              <Button className="flex-1" variant="secondary" label={t('marketplace.aiClear')} disabled={busy}
+                onPress={() => { setAiIds(null); setAiMessage(''); }} />
+            </View>
+            {aiMessage ? <Text accessibilityLiveRegion="polite" className="mt-2 text-[11px] leading-[1.6]" style={{ color: dashboardColors.subtitle }}>{aiMessage}</Text> : null}
           </View> : null}
-          <SearchField value={search} onChangeText={setSearch} placeholder="Manual keyword search" />
-          {!busy && jobs.length === 0 ? <Text className="my-3 text-ink">{t('marketplace.empty')}</Text> : null}
-          {jobs.filter(job => (aiIds === null || aiIds.includes(job.id)) && [job.summary, job.broadLocation, job.timing, job.category, job.specialty, job.urgency].filter(Boolean).join(' ').toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).map(job => {
+          <View className="mb-2 mt-4 flex-row items-end justify-between gap-2">
+            <Text className="text-[10px] font-semibold uppercase" style={{ color: dashboardColors.caption, letterSpacing: 1.2 }}>
+              {t('marketplace.listingsHeader')}
+            </Text>
+            <Text className="text-[10.5px]" style={{ color: dashboardColors.caption }}>
+              {t('marketplace.results', { count: visibleJobs.length })}
+            </Text>
+          </View>
+          <SearchField value={search} onChangeText={setSearch} placeholder={t('marketplace.searchPlaceholder')} />
+          {!busy && jobs.length === 0 ? (
+            <View className="my-6 items-center rounded-2xl border border-dashed p-6" style={{ borderColor: dashboardColors.cardLine }}>
+              <Text className="text-center text-[12.5px] leading-[1.7]" style={{ color: dashboardColors.caption }}>
+                {t('marketplace.empty')}
+              </Text>
+            </View>
+          ) : null}
+          {!busy && jobs.length > 0 && visibleJobs.length === 0 ? (
+            <Text className="my-6 text-center text-[12px]" style={{ color: dashboardColors.caption }}>
+              {t('marketplace.noMatches')}
+            </Text>
+          ) : null}
+          {visibleJobs.map(job => {
             const own = job.myApplication;
             const note = notes[job.id] ?? '';
             const accessibleReportId = isAdmin || own?.status === 'accepted' ? job.reportId : null;
+            const chip = listingChip(job.status);
             return (
-              <View key={job.id} className="my-3 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
-                <Text className="mb-2 text-lg font-bold text-ink">{job.summary}</Text>
-                <Text className="text-ink">{job.broadLocation} · {job.timing}</Text>
-                <Text className="text-ink">{[job.category, job.specialty, job.urgency].filter(Boolean).join(' · ')}</Text>
+              <View key={job.id} className="my-3 rounded-2xl border border-dashboard-card-line bg-dashboard-card-bg p-4">
+                {/* Card header — summary + status pill. */}
+                <View className="mb-2 flex-row items-start justify-between gap-2">
+                  <Text className="flex-1 text-[15px] font-bold leading-snug text-ink" style={{ letterSpacing: -0.2 }}>{job.summary}</Text>
+                  <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: chip.bg }}>
+                    <Text className="text-[10px] font-semibold uppercase" style={{ color: chip.ink, letterSpacing: 0.6 }}>{t(`marketplace.states.${job.status}`)}</Text>
+                  </View>
+                </View>
+                {/* Meta row — location, timing, urgency. */}
+                <View className="mb-2 flex-row flex-wrap items-center gap-1.5">
+                  {job.broadLocation ? (
+                    <View className="flex-row items-center gap-1 rounded-full px-2 py-1" style={{ backgroundColor: dashboardColors.pillBg }}>
+                      <MapPin color={dashboardColors.subtitle} size={11} />
+                      <Text className="text-[10.5px]" style={{ color: dashboardColors.subtitle }} numberOfLines={1}>{job.broadLocation}</Text>
+                    </View>
+                  ) : null}
+                  {job.timing ? (
+                    <View className="flex-row items-center gap-1 rounded-full px-2 py-1" style={{ backgroundColor: dashboardColors.pillBg }}>
+                      <Clock color={dashboardColors.subtitle} size={11} />
+                      <Text className="text-[10.5px]" style={{ color: dashboardColors.subtitle }}>{job.timing}</Text>
+                    </View>
+                  ) : null}
+                  {job.urgency ? (
+                    <View className="rounded-full px-2 py-1" style={{ backgroundColor: urgencyChip(job.urgency).bg }}>
+                      <Text className="text-[9.5px] font-bold uppercase" style={{ color: urgencyChip(job.urgency).ink, letterSpacing: 0.5 }}>
+                        {job.urgency}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                {(job.category || job.specialty) ? (
+                  <Text className="mb-1 text-[11px] font-medium" style={{ color: dashboardColors.subtitle }}>
+                    {[job.category, job.specialty].filter(Boolean).join(' · ')}
+                  </Text>
+                ) : null}
                 {job.amountMinor > 0 ? (
-                  <Text className="text-ink">
+                  <Text className="mb-1 text-[12px] font-semibold text-ink">
                     {t('marketplace.listingPay', {
                       amount: (job.amountMinor / 100).toLocaleString(undefined, {
                         style: 'currency',
@@ -286,14 +436,54 @@ export default function MarketplaceScreen() {
                     })}
                   </Text>
                 ) : null}
-                <Text className="text-ink">{t(`marketplace.states.${job.status}`)}</Text>
-                {job.status === 'open' ? <Text>{t('marketplace.listingDeadline', { date: new Date(job.expiresAt).toLocaleString() })}</Text> : null}
-                {accessibleReportId !== null ? <Action label={t('marketplace.openReport')} onPress={() => openReport(accessibleReportId)} /> : null}
+                {job.status === 'open' ? (
+                  <View className="mt-0.5 flex-row items-center gap-1.5">
+                    <CalendarClock color={dashboardColors.caption} size={12} />
+                    <Text className="text-[10.5px]" style={{ color: dashboardColors.caption }}>
+                      {t('marketplace.listingDeadline', { date: new Date(job.expiresAt).toLocaleString() })}
+                    </Text>
+                  </View>
+                ) : null}
+                {/* Work owner — who holds the offer / the assignment right now. */}
+                {isAdmin && job.assignedTechnicianName ? (
+                  <View className="mt-2 self-start rounded-lg px-2.5 py-1.5" style={{ backgroundColor: dashboardColors.tealSoft }}>
+                    <Text className="text-[11px] font-semibold" style={{ color: dashboardColors.teal }}>
+                      {t(job.status === 'assigned' ? 'marketplace.assignedTo' : 'marketplace.offerTo', { name: job.assignedTechnicianName })}
+                    </Text>
+                  </View>
+                ) : null}
+                {/* Progress pipeline — mirrors the order tracker. */}
+                {isAdmin && ['open', 'offered', 'assigned'].includes(job.status) ? (
+                  <ListingPipeline status={job.status} t={t} />
+                ) : null}
+                {accessibleReportId !== null ? (
+                  <Button className="mt-1 self-start" variant="secondary" label={t('marketplace.openReport')}
+                    onPress={() => openReport(accessibleReportId)} />
+                ) : null}
                 {isAdmin ? <>
-                  <Text className="my-2 font-semibold text-ink">
-                    {t('marketplace.applicantCount', { count: (job.applications ?? []).length })}
-                  </Text>
-                  <Action label={t('marketplace.refreshApplicants')} disabled={busy} onPress={() => refreshApplicants(job.id)} />
+                  {/* Applicants toggle — the header carries the open/closed state
+                      and the live applicant count once loaded. */}
+                  <View className="mt-2 border-t border-dashboard-card-line pt-3">
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: reviewJob === job.id }}
+                      disabled={busy}
+                      onPress={() => (reviewJob === job.id ? setReviewJob(undefined) : review(job.id))}
+                      className="flex-row items-center justify-between rounded-lg px-3 py-2.5"
+                      style={{ backgroundColor: dashboardColors.pillBg, opacity: busy ? 0.5 : 1 }}
+                    >
+                      <Text className="font-semibold text-ink">
+                        {reviewJob === job.id ? t('marketplace.applicantsHide') : t('marketplace.applicants')}
+                      </Text>
+                      {reviewJob === job.id && applications.length > 0 ? (
+                        <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: dashboardColors.statMintSoft }}>
+                          <Text className="text-[10px] font-semibold" style={{ color: dashboardColors.statMintDeep }}>
+                            {t('marketplace.applicantsCount', { count: applications.length })}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </Pressable>
+                  </View>
                   {openStates.includes(job.status) ? <Action
                     label={t(closingJob === job.id ? 'marketplace.confirmClose' : 'marketplace.close')}
                     disabled={busy} onPress={() => {
@@ -311,62 +501,83 @@ export default function MarketplaceScreen() {
                     <Action label={t('marketplace.keepAssignment')} disabled={busy} onPress={() => setCancellingJob(undefined)} />
                   </View> : <Action label={t('marketplace.cancelAssignment')} disabled={busy}
                     onPress={() => { setCancellingJob(job.id); setCancellationReason(''); }} /> : null}
-                  {(job.applications ?? []).length === 0 ? <Text>{t('marketplace.noApplicants')}</Text> : null}
-                  {(job.applications ?? []).map(application => (
-                    <View key={application.id} className="my-2 border-t border-dashboard-card-line pt-3">
-                      <Text className="font-bold text-ink">{application.technicianName} · {t(`marketplace.states.${application.status}`)}</Text>
-                      <Text className="text-ink">{application.note}</Text>
-                      {application.proposedAmountMinor != null && application.proposedAmountMinor > 0 ? (
-                        <Text className="text-ink">
-                          {t('marketplace.proposedPay', {
-                            amount: (application.proposedAmountMinor / 100).toLocaleString(undefined, {
-                              style: 'currency',
-                              currency: job.currency || 'USD',
-                            }),
-                          })}
+                  {reviewJob === job.id ? (
+                    <View className="mt-3 rounded-2xl p-3" style={{ backgroundColor: dashboardColors.tealSoft }}>
+                      {/* Failures (vetting not recorded, technician unverified,
+                          stale listing…) surface here, next to the offer button
+                          that caused them — not just at the top of the screen. */}
+                      {error ? (
+                        <Text accessibilityRole="alert" className="mb-2 rounded-lg p-2 text-[12px] leading-4" style={{ backgroundColor: dashboardColors.statCoralSoft, color: dashboardColors.statCoralDeep }}>
+                          {error}
                         </Text>
                       ) : null}
-                      {user?.siteId ? <SiteVetting siteId={user.siteId} technicianId={application.technicianId} admin /> : null}
-                      <Text className="text-ink">{t('marketplace.workload', {
-                        active: application.activeCases, completed: application.completedJobs,
-                        cancellations: application.cancellations,
-                        rating: application.averageRating?.toFixed(1) ?? t('marketplace.noRating'),
-                      })}</Text>
-                      {application.reviewedTrades ? <Text className="text-ink">{t('marketplace.reviewedTrades', { value: application.reviewedTrades })}</Text> : null}
-                      {application.reviewedQualifications ? <Text className="text-ink">{t('marketplace.reviewedQualifications', { value: application.reviewedQualifications })}</Text> : null}
-                      {job.status === 'open' && application.status === 'pending' ? <>
-                        {candidate === application.id ? <Text className="my-2 text-ink">{t('marketplace.safety')}</Text> : null}
-                        <Action label={t(candidate === application.id ? 'marketplace.confirmSelect' : 'marketplace.select')}
-                          disabled={busy} onPress={() => {
-                            if (candidate !== application.id) setCandidate(application.id);
-                            else mutate(async () => {
-                              await actOnJobApplication(job.id, application.id, 'select');
-                              setCandidate(undefined);
-                            }, 'marketplace.selected');
-                          }} />
-                      </> : null}
+                      {applications.length === 0 ? (
+                        <Text className="py-2 text-center text-[12px]" style={{ color: dashboardColors.subtitle }}>
+                          {t('marketplace.noApplicants')}
+                        </Text>
+                      ) : null}
+                      {applications.map(application => (
+                        <ApplicantCard
+                          key={application.id}
+                          application={application}
+                          offering={job.status === 'open' && application.status === 'pending'}
+                          candidate={candidate === application.id}
+                          busy={busy}
+                          siteId={job.siteId ?? user?.siteId ?? null}
+                          t={t}
+                          onSelect={() => setCandidate(application.id)}
+                          onSend={() => mutate(async () => {
+                            await actOnJobApplication(job.id, application.id, 'select');
+                            setCandidate(undefined);
+                          }, 'marketplace.selected')}
+                          onCancel={() => setCandidate(undefined)}
+                        />
+                      ))}
                     </View>
-                  ))}
+                  ) : null}
                 </> : <>
-                  {!own && job.status === 'open' ? <>
-                    <Field label={t('marketplace.note')} value={note} maxLength={1000} multiline
-                      onChangeText={value => setNotes(previous => ({ ...previous, [job.id]: value }))} />
-                    <Action label={t('marketplace.apply')}
-                      disabled={busy || !note.trim() || (verification !== null && verification !== 'verified') || termsRequired}
-                      onPress={() => mutate(() => applyForJob(job.id, note.trim()), 'marketplace.applied')} />
-                  </> : null}
-                  {own ? <>
-                    <Text className="font-semibold text-ink">{t('marketplace.applicationStatus', { status: t(`marketplace.states.${own.status}`) })}</Text>
-                    {own.status === 'pending' ? <Action label={t('marketplace.withdraw')} disabled={busy}
-                      onPress={() => mutate(() => actOnJobApplication(job.id, own.id, 'withdraw'), 'marketplace.withdrawn')} /> : null}
-                    {own.status === 'offered' ? <>
-                      {own.offerExpiresAt ? <Text>{t('marketplace.offerDeadline', { date: new Date(own.offerExpiresAt).toLocaleString() })}</Text> : null}
-                      <Action label={t('marketplace.accept')} disabled={busy}
-                        onPress={() => mutate(() => actOnJobApplication(job.id, own.id, 'accept'), 'marketplace.accepted')} />
-                      <Action label={t('marketplace.decline')} disabled={busy}
-                        onPress={() => mutate(() => actOnJobApplication(job.id, own.id, 'decline'), 'marketplace.declined')} />
+                  <View className="mt-2 border-t border-dashboard-card-line pt-3">
+                    {!own && job.status === 'open' ? <>
+                      <Field label={t('marketplace.note')} value={note} maxLength={1000} multiline
+                        onChangeText={value => setNotes(previous => ({ ...previous, [job.id]: value }))} />
+                      <Button className="mt-1" label={t('marketplace.apply')}
+                        disabled={busy || !note.trim() || (verification !== null && verification !== 'verified') || termsRequired}
+                        onPress={() => mutate(() => applyForJob(job.id, note.trim()), 'marketplace.applied')} />
                     </> : null}
-                  </> : null}
+                    {own ? <>
+                      <View className="mb-1 flex-row items-center justify-between gap-2">
+                        <Text className="text-[11px] font-semibold uppercase" style={{ color: dashboardColors.caption, letterSpacing: 0.8 }}>
+                          {t('marketplace.applicationStatusLabel')}
+                        </Text>
+                        <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: applicationChip(own.status).bg }}>
+                          <Text className="text-[10px] font-semibold uppercase" style={{ color: applicationChip(own.status).ink, letterSpacing: 0.5 }}>
+                            {t(`marketplace.states.${own.status}`)}
+                          </Text>
+                        </View>
+                      </View>
+                      <ApplicationPipeline status={own.status} t={t} />
+                      {own.status === 'pending' ? (
+                        <Button className="mt-1 self-start" variant="secondary" label={t('marketplace.withdraw')} disabled={busy}
+                          onPress={() => mutate(() => actOnJobApplication(job.id, own.id, 'withdraw'), 'marketplace.withdrawn')} />
+                      ) : null}
+                      {own.status === 'offered' ? <>
+                        {own.offerExpiresAt ? (
+                          <View className="mt-1 flex-row items-center gap-1.5">
+                            <CalendarClock color={dashboardColors.caption} size={12} />
+                            <Text className="text-[10.5px]" style={{ color: dashboardColors.caption }}>
+                              {t('marketplace.offerDeadline', { date: new Date(own.offerExpiresAt).toLocaleString() })}
+                            </Text>
+                          </View>
+                        ) : null}
+                        <View className="mt-2 flex-row gap-2">
+                          <Button className="flex-1" label={t('marketplace.accept')} disabled={busy}
+                            onPress={() => mutate(() => actOnJobApplication(job.id, own.id, 'accept'), 'marketplace.accepted')} />
+                          <Button className="flex-1" variant="secondary" label={t('marketplace.decline')} disabled={busy}
+                            onPress={() => mutate(() => actOnJobApplication(job.id, own.id, 'decline'), 'marketplace.declined')} />
+                        </View>
+                      </> : null}
+                    </> : null}
+                  </View>
                 </>}
               </View>
             );
@@ -374,6 +585,227 @@ export default function MarketplaceScreen() {
         </>}
       </ScrollView>
     </Screen>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Applicants review — card per candidate                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Mini progress pipeline shared by admin listing cards (Published → Offer
+    sent → Assigned) and technician application cards (Applied → Offer →
+    Accepted). Teal = completed steps, teal label = current step. */
+function StepPipeline({ steps, current, t }: { steps: readonly string[]; current: number; t: (key: string, options?: Record<string, unknown>) => string }) {
+  return (
+    <View className="mt-2.5 flex-row items-start">
+      {steps.map((step, index) => (
+        <View
+          key={step}
+          className="flex-row items-start"
+          style={{ flex: index < steps.length - 1 ? 1 : undefined }}
+        >
+          <View className="items-center" style={{ width: 74 }}>
+            <View className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: index <= current ? dashboardColors.teal : dashboardColors.cardLine }} />
+            <Text className="mt-1 text-center text-[9px] leading-3" style={{ color: index <= current ? dashboardColors.teal : dashboardColors.caption }}>
+              {t(`marketplace.pipeline.${step}`)}
+            </Text>
+          </View>
+          {index < steps.length - 1 ? (
+            <View className="mt-1 h-0.5 flex-1" style={{ backgroundColor: index < current ? dashboardColors.teal : dashboardColors.cardLine }} />
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const LISTING_STEPS = ['published', 'offer', 'assigned'] as const;
+const APPLICATION_STEPS = ['applied', 'offer', 'accepted'] as const;
+
+/** Admin listing card pipeline. */
+function ListingPipeline({ status, t }: { status: MarketplaceListing['status']; t: (key: string, options?: Record<string, unknown>) => string }) {
+  return (
+    <StepPipeline
+      steps={LISTING_STEPS}
+      current={status === 'assigned' ? 2 : status === 'offered' ? 1 : 0}
+      t={t}
+    />
+  );
+}
+
+/** Technician application card pipeline. Ended applications (declined,
+    withdrawn, rejected, expired, cancelled) get no pipeline — the status
+    text already says why it stopped. */
+function ApplicationPipeline({ status, t }: { status: MarketplaceApplication['status']; t: (key: string, options?: Record<string, unknown>) => string }) {
+  if (!['pending', 'offered', 'accepted'].includes(status)) return null;
+  return (
+    <StepPipeline
+      steps={APPLICATION_STEPS}
+      current={status === 'accepted' ? 2 : status === 'offered' ? 1 : 0}
+      t={t}
+    />
+  );
+}
+
+/** Urgency pill colour: coral = critical, citron = high, mint = medium, quiet = low. */
+function urgencyChip(urgency: string): { bg: string; ink: string } {
+  switch (urgency.toLowerCase()) {
+    case 'critical':
+      return { bg: dashboardColors.statCoralSoft, ink: dashboardColors.statCoralDeep };
+    case 'high':
+      return { bg: dashboardColors.statCitronSoft, ink: dashboardColors.statCitronDeep };
+    case 'medium':
+      return { bg: dashboardColors.statMintSoft, ink: dashboardColors.statMintDeep };
+    default:
+      return { bg: dashboardColors.pillBg, ink: dashboardColors.caption };
+  }
+}
+
+/** Listing pill colour: mint = live, citron = offer pending, quiet = settled. */
+function listingChip(status: MarketplaceListing['status']): { bg: string; ink: string } {
+  switch (status) {
+    case 'open':
+      return { bg: dashboardColors.statMintSoft, ink: dashboardColors.statMintDeep };
+    case 'offered':
+      return { bg: dashboardColors.statCitronSoft, ink: dashboardColors.statCitronDeep };
+    case 'assigned':
+      return { bg: dashboardColors.tealSoft, ink: dashboardColors.teal };
+    default:
+      return { bg: 'transparent', ink: dashboardColors.caption };
+  }
+}
+
+/** Applicant pill colour: citron = needs the admin's decision, mint = offer in
+    flight, teal = working the job, quiet = ended. */
+function applicationChip(status: MarketplaceApplication['status']): { bg: string; ink: string } {
+  switch (status) {
+    case 'pending':
+      return { bg: dashboardColors.statCitronSoft, ink: dashboardColors.statCitronDeep };
+    case 'offered':
+      return { bg: dashboardColors.statMintSoft, ink: dashboardColors.statMintDeep };
+    case 'accepted':
+      return { bg: dashboardColors.tealSoft, ink: dashboardColors.teal };
+    default:
+      return { bg: 'transparent', ink: dashboardColors.caption };
+  }
+}
+
+type ApplicantProps = {
+  application: MarketplaceApplication;
+  offering: boolean;
+  candidate: boolean;
+  busy: boolean;
+  siteId: number | null;
+  t: (key: string, options?: Record<string, unknown>) => string;
+  onSelect: () => void;
+  onSend: () => void;
+  onCancel: () => void;
+};
+
+function ApplicantCard({ application, offering, candidate, busy, siteId, t, onSelect, onSend, onCancel }: ApplicantProps) {
+  const chip = applicationChip(application.status);
+  const initials = application.technicianName
+    .split(/\s+/).filter(Boolean).slice(0, 2)
+    .map(word => word.charAt(0).toUpperCase()).join('') || '?';
+  const stats = [
+    { label: t('marketplace.statActive'), value: String(application.activeCases) },
+    { label: t('marketplace.statCompleted'), value: String(application.completedJobs) },
+    { label: t('marketplace.statCancellations'), value: String(application.cancellations) },
+    { label: t('marketplace.statRating'), value: application.averageRating?.toFixed(1) ?? t('marketplace.noRating') },
+  ];
+  return (
+    <View className="mb-2.5 rounded-xl border border-dashboard-card-line bg-dashboard-card-bg p-3">
+      {/* Identity row — initials avatar, name, status pill. */}
+      <View className="flex-row items-center gap-2.5">
+        <View className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: dashboardColors.tealSoft }}>
+          <Text className="text-[12px] font-bold" style={{ color: dashboardColors.teal }}>{initials}</Text>
+        </View>
+        <Text className="flex-1 text-[14px] font-bold text-ink" numberOfLines={1}>
+          {application.technicianName}
+        </Text>
+        <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: chip.bg }}>
+          <Text className="text-[10px] font-semibold uppercase" style={{ color: chip.ink, letterSpacing: 0.5 }}>
+            {t(`marketplace.states.${application.status}`)}
+          </Text>
+        </View>
+      </View>
+      {/* Application note, quoted. */}
+      {application.note ? (
+        <View className="mt-2.5 rounded-lg py-1 pl-2.5" style={{ borderLeftWidth: 2, borderLeftColor: dashboardColors.teal }}>
+          <Text className="text-[12px] italic leading-4 text-ink">“{application.note}”</Text>
+        </View>
+      ) : null}
+      {application.proposedAmountMinor != null && application.proposedAmountMinor > 0 ? (
+        <Text className="mt-2 text-[12px] font-semibold text-ink">
+          {t('marketplace.proposedPay', {
+            amount: (application.proposedAmountMinor / 100).toLocaleString(undefined, {
+              style: 'currency',
+              currency: 'USD',
+            }),
+          })}
+        </Text>
+      ) : null}
+      {/* Workload snapshot. */}
+      <View className="mt-2.5 flex-row flex-wrap gap-1.5">
+        {stats.map(stat => (
+          <View key={stat.label} className="rounded-md px-2 py-1" style={{ backgroundColor: dashboardColors.tealSoft }}>
+            <Text className="text-[10px]" style={{ color: dashboardColors.subtitle }}>
+              {stat.label} <Text className="font-semibold text-ink">{stat.value}</Text>
+            </Text>
+          </View>
+        ))}
+      </View>
+      {/* Vetted profile highlights. */}
+      {application.reviewedTrades || application.reviewedQualifications ? (
+        <View className="mt-2 flex-row flex-wrap gap-1.5">
+          {application.reviewedTrades ? (
+            <View className="rounded-md px-2 py-1" style={{ backgroundColor: dashboardColors.statMintSoft }}>
+              <Text className="text-[10px] font-medium" style={{ color: dashboardColors.statMintDeep }}>
+                {t('marketplace.reviewedTrades', { value: application.reviewedTrades })}
+              </Text>
+            </View>
+          ) : null}
+          {application.reviewedQualifications ? (
+            <View className="rounded-md px-2 py-1" style={{ backgroundColor: dashboardColors.statMintSoft }}>
+              <Text className="text-[10px] font-medium" style={{ color: dashboardColors.statMintDeep }}>
+                {t('marketplace.reviewedQualifications', { value: application.reviewedQualifications })}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+      {/* Site vetting record stays expandable inside the card. */}
+      {siteId !== null ? (
+        <View className="mt-2.5">
+          <SiteVetting siteId={siteId} technicianId={application.technicianId} admin />
+        </View>
+      ) : null}
+      {/* Offer flow — select, then a warning banner with send / cancel. */}
+      {offering ? (
+        candidate ? (
+          <View className="mt-3 rounded-xl p-3" style={{ backgroundColor: dashboardColors.statCitronSoft }}>
+            <Text className="text-[12px] leading-4" style={{ color: dashboardColors.statCitronDeep }}>
+              {t('marketplace.safety')}
+            </Text>
+            <Text className="mt-1.5 text-[11px] leading-4" style={{ color: dashboardColors.statCitronDeep }}>
+              {t('marketplace.safetyHint')}
+            </Text>
+            <View className="mt-2 flex-row gap-2">
+              <View className="flex-1">
+                <Action label={t('marketplace.sendOffer')} disabled={busy} onPress={onSend} />
+              </View>
+              <View className="flex-1">
+                <Action label={t('marketplace.cancel')} disabled={busy} onPress={onCancel} />
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View className="mt-2.5">
+            <Action label={t('marketplace.select')} disabled={busy} onPress={onSelect} />
+          </View>
+        )
+      ) : null}
+    </View>
   );
 }
 

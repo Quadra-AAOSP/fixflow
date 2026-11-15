@@ -95,6 +95,9 @@ export const endpoints = {
     /** POST — ranked candidates and active-case counts. */
     technicianRanking: (id: number | string) =>
       `/api/reports/${id}/technician-ranking`,
+    /** POST — super-admin nudge: notify the site's admins about an unattended report. */
+    notifySiteAdmin: (id: number | string) =>
+      `/api/reports/${id}/notify-site-admin`,
     photos: {
       list: '/api/reports/{id}/photos',
       upload: '/api/reports/{id}/photos',
@@ -142,6 +145,8 @@ export const endpoints = {
   contractRequests: {
     list: '/api/technician-contract-requests',
     create: '/api/technician-contract-requests',
+    /** GET — every site a technician may apply to. */
+    sites: '/api/technician-contract-requests/sites',
     bySite: (siteId: number | string) =>
       `/api/technician-contract-requests?siteId=${encodeURIComponent(siteId)}`,
     decide: (id: number | string) =>

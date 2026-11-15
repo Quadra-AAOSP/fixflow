@@ -747,7 +747,7 @@ export default function ReportDetailScreen() {
   // Report creator, joined participants, and staff/admin/super_admin may
   // confirm or reopen. Technicians, shop managers, and non-participant
   // reporters cannot — the server enforces this as 403.
-  const canConfirmReopen = report.policy.participant || report.policy.canAssign;
+  const canConfirmReopen = report.policy.participant || report.policy.canAssign || report.createdByUserId === user?.id;
 
   const awaitingConfirmation = report.status === 'resolved_pending_confirmation';
   const reopenable =
@@ -768,7 +768,15 @@ export default function ReportDetailScreen() {
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t('reports.detail.allReports')}
-            onPress={() => router.back()}
+            onPress={() => {
+              // Pop when there is history; on a cold entry (deep link / web
+              // refresh) land on the right list for the role.
+              if (router.canGoBack()) {
+                router.back();
+                return;
+              }
+              router.replace(user?.role === 'technician' ? '/workspace' : '/reports');
+            }}
             className="flex-row items-center gap-1 active:opacity-70"
           >
             <ArrowLeft color={dashboardColors.teal} size={15} />
@@ -1679,12 +1687,20 @@ export default function ReportDetailScreen() {
         animationType="fade"
         onRequestClose={() => setPreviewPhoto(null)}
       >
-        <Pressable
-          onPress={() => setPreviewPhoto(null)}
+        <View
           className="flex-1 items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.9)' }}
         >
+          {/* Backdrop is a sibling so web does not nest <button> in <button>. */}
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('components.modalSheet.close')}
+            onPress={() => setPreviewPhoto(null)}
+            className="absolute inset-0"
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('components.modalSheet.close')}
             onPress={() => setPreviewPhoto(null)}
             className="absolute right-4 top-4 z-10 h-9 w-9 items-center justify-center rounded-full"
             style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
@@ -1698,7 +1714,7 @@ export default function ReportDetailScreen() {
               style={{ resizeMode: 'contain', aspectRatio: 1 }}
             />
           ) : null}
-        </Pressable>
+        </View>
       </Modal>
     </Screen>
   );

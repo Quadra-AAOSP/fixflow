@@ -159,7 +159,9 @@ public class ReportPhotoService {
 			return report;
 		}
 
-		if (actor.getRole() != UserRole.super_admin) {
+		boolean creator = report.getCreatedBy() != null
+				&& report.getCreatedBy().getId().equals(actor.getId());
+		if (actor.getRole() != UserRole.super_admin && !creator) {
 			if (actor.getSiteId() == null || !actor.getSiteId().equals(report.getSite().getId())) {
 				throw new ApiException(HttpStatus.FORBIDDEN.value(),
 						"Not allowed to view this site's reports");
@@ -170,8 +172,6 @@ public class ReportPhotoService {
 			case staff, admin, super_admin -> {
 			}
 			case reporter -> {
-				boolean creator = report.getCreatedBy() != null
-						&& report.getCreatedBy().getId().equals(actor.getId());
 				boolean participant = reportReporterRepository.existsByReportIdAndUserId(
 						reportId, actor.getId());
 				if (!creator && !participant) {

@@ -23,7 +23,7 @@ public class NotificationController {
         this.notifications = notifications;
     }
 
-    public record Item(Long id, Long reportId, Type type, Instant createdAt) { }
+    public record Item(Long id, Long reportId, Long referenceId, Type type, Instant createdAt) { }
     public record Inbox(List<Item> content, boolean hasMore) { }
 
     @GetMapping
@@ -34,6 +34,6 @@ public class NotificationController {
         }
         var result = notifications.findByRecipientIdOrderByIdDesc(actor.getId(), PageRequest.of(page, 20));
         return new Inbox(result.map(row -> new Item(row.getId(), row.getReportId(),
-                row.getType(), row.getCreatedAt())).getContent(), result.hasNext());
+                row.getReferenceId(), row.getType(), row.getCreatedAt())).getContent(), result.hasNext());
     }
 }

@@ -3,6 +3,13 @@ import type { ShopCartItemPayload, ShopProduct } from '@/types';
 export { formatMoney } from './format';
 
 /**
+ * Editorial placeholder shown when a catalogue product has no usable image —
+ * the same photography the web shop's `ProductImage` fallback uses.
+ */
+export const PRODUCT_FALLBACK_IMAGE =
+  'https://images.pexels.com/photos/11398216/pexels-photo-11398216.jpeg?auto=compress&cs=tinysrgb&w=600';
+
+/**
  * Returns a URI safe to hand to `<Image>`, or `null`.
  *
  * The web build restricts images to `https` because a browser refuses mixed
@@ -89,3 +96,24 @@ export function toCartPayload(lines: BasketLine[]): ShopCartItemPayload[] {
 
 export const canConfirmReceipt = (name: string, received: boolean) => received && name.trim().length > 0 && name.trim().length <= 160;
 export const canShopPurchase = (role: string | undefined) => role !== 'shop_manager' && role !== 'reporter';
+
+/**
+ * Short, quotable order reference. The API keys orders by a UUID, which is
+ * unreadable in a title bar or a support conversation — the last eight hex
+ * characters stay unique enough for humans and keep the full id available on
+ * the detail screen.
+ */
+export function shortOrderRef(orderId: string): string {
+  return orderId.replace(/-/g, '').slice(-8).toUpperCase();
+}
+
+/**
+ * True when the provider's checkout URL points at a local sandbox page (the
+ * dev payment provider) instead of a hosted gateway. Parsed with a regex
+ * because Hermes has no full WHATWG `URL` implementation.
+ */
+export function isSandboxCheckoutUrl(url: string | null | undefined): boolean {
+  if (!url) return true;
+  const host = /^https?:\/\/([^/:?#]+)/i.exec(url)?.[1]?.toLowerCase() ?? '';
+  return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0';
+}

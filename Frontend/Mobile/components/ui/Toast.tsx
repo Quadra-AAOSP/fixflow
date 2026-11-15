@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, Animated } from 'react-native';
+
+import { colors } from '@/constants/theme';
 
 type ToastProps = {
   message: string;
@@ -8,8 +10,13 @@ type ToastProps = {
   onClose: () => void;
 };
 
+/**
+ * Floating feedback banner. Colours resolve through the mode-aware palette
+ * during render, so the toast follows the active light/dark theme instead of
+ * flashing a light pastel card over a dark screen.
+ */
 const Toast = ({ message, type = 'info', visible, onClose }: ToastProps) => {
-  const fadeAnim = new Animated.Value(0);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     if (visible) {
@@ -21,7 +28,7 @@ const Toast = ({ message, type = 'info', visible, onClose }: ToastProps) => {
     } else {
       fadeAnim.setValue(0);
     }
-  }, [visible]);
+  }, [fadeAnim, visible]);
 
   const handleClose = () => {
     Animated.timing(fadeAnim, {
@@ -35,57 +42,49 @@ const Toast = ({ message, type = 'info', visible, onClose }: ToastProps) => {
 
   if (!visible) return null;
 
+  const tone =
+    type === 'success'
+      ? { bg: colors.successSoft, ink: colors.successInk }
+      : type === 'error'
+        ? { bg: colors.dangerSoft, ink: colors.dangerInk }
+        : { bg: colors.infoSoft, ink: colors.infoInk };
+
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      <View style={[styles.toast, styles[type]]}>
-        <Text style={styles.message}>{message}</Text>
-        <Text style={styles.closeButton} onPress={handleClose}>×</Text>
+    <Animated.View
+      style={{
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        opacity: fadeAnim,
+      }}
+    >
+      <View
+        accessibilityRole="alert"
+        style={{
+          padding: 15,
+          borderRadius: 8,
+          marginHorizontal: 16,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: tone.bg,
+          borderLeftWidth: 4,
+          borderLeftColor: tone.ink,
+        }}
+      >
+        <Text style={{ flex: 1, fontSize: 14, color: colors.ink }}>{message}</Text>
+        <Text
+          accessibilityRole="button"
+          onPress={handleClose}
+          style={{ fontSize: 18, padding: 5, color: tone.ink }}
+        >
+          ×
+        </Text>
       </View>
     </Animated.View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: 20,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-  },
-  toast: {
-    padding: 15,
-    borderRadius: 8,
-    marginHorizontal: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  info: {
-    backgroundColor: '#E3F2FD',
-    borderLeftWidth: 4,
-    borderLeftColor: '#2196F3',
-  },
-  success: {
-    backgroundColor: '#E8F5E9',
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
-  error: {
-    backgroundColor: '#FFEBEE',
-    borderLeftWidth: 4,
-    borderLeftColor: '#F44336',
-  },
-  message: {
-    flex: 1,
-    fontSize: 14,
-  },
-  closeButton: {
-    fontSize: 18,
-    color: '#757575',
-    padding: 5,
-  },
-});
-
 export default Toast;
-

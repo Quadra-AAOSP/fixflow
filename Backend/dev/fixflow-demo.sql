@@ -1,6 +1,9 @@
 -- FixFlow standalone MySQL dump for local demos / disposable containers.
 -- Contains schema.sql + demo-data.sql verbatim.
 
+CREATE DATABASE IF NOT EXISTS `fixflow_demo` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `fixflow_demo`;
+
 -- FixFlow domain schema (MySQL 8+).
 -- CREATE-only, idempotent. Never drops data. Reference rows use INSERT IGNORE.
 
@@ -235,15 +238,14 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE TABLE IF NOT EXISTS report_notifications (
     id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     recipient_id BIGINT UNSIGNED NOT NULL,
-    report_id    BIGINT UNSIGNED NOT NULL,
+    report_id    BIGINT UNSIGNED NULL,
+    reference_id BIGINT UNSIGNED NULL,
     type         VARCHAR(32) NOT NULL,
     created_at   TIMESTAMP(6) NOT NULL,
     PRIMARY KEY (id),
     KEY idx_report_notification_inbox (recipient_id, id),
     CONSTRAINT fk_report_notification_recipient
-        FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_report_notification_report
-        FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+        FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS report_photos (

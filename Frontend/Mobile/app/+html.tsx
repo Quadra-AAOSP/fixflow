@@ -19,21 +19,35 @@ export default function Root({ children }: { children: ReactNode }) {
         */}
         <ScrollViewStyleReset />
 
+        {/*
+          Apply the stored colour scheme before first paint. Without this the
+          page renders with the light background until React mounts, which
+          flashes white on every reload in dark mode.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+
         {/* Using raw CSS styles as an escape-hatch to ensure the background color never flickers in dark-mode. */}
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
-        {/* Add any additional <head> elements that you want globally available on web... */}
+        {/* Add any additional <head> elements you want globally available on web... */}
       </head>
       <body>{children}</body>
     </html>
   );
 }
 
+const themeBootstrap = `
+(function () {
+  try {
+    var stored = window.localStorage.getItem('fixflow:theme-mode');
+    var dark = stored === 'dark' || (!stored && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList[dark ? 'add' : 'remove']('dark');
+  } catch (e) {}
+})();`;
+
 const responsiveBackground = `
 body {
-  background-color: #fff;
+  background-color: #fcfdfc;
 }
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #000;
-  }
+html.dark body {
+  background-color: #111317;
 }`;

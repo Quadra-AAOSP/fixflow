@@ -20,4 +20,9 @@ describe('More menu role visibility', () => {
     expect(isMoreMenuItemVisible('jobOffers', 'technician')).toBe(true);
     expect(isMoreMenuItemVisible('jobOffers', 'admin')).toBe(false);
   });
+
+  it('exposes all-reports oversight to super_admin only', () => {
+    expect(isMoreMenuItemVisible('allReports', 'super_admin')).toBe(true);
+    expect(isMoreMenuItemVisible('allReports', 'admin')).toBe(false);
+  });
 });
