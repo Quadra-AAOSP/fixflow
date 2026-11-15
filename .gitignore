@@ -82,3 +82,5 @@ Backend/docker/production.env
 Backend/docker.env
 Backend/production.env
 docs/
+# Root-level local backend secrets (do not commit)
+backend.env
