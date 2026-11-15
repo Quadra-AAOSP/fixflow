@@ -59,19 +59,12 @@ function mimeFromFilename(name: string): string {
   return 'application/octet-stream';
 }
 
-function normalizeFileUri(uri: string): string {
-  if (!uri) return uri;
-  if (uri.startsWith('file://') || uri.startsWith('content://') || uri.startsWith('ph://')) {
-    return uri;
-  }
-  return `file://${uri}`;
-}
-
 /**
  * Upload a PDF/Word/text file for site terms or the site contract.
- * Backend stores the file and persists its storage path on the site row.
+ * Backend writes the bytes to local storage and saves the object path on the site.
+ * Callers should pick with `copyToCacheDirectory: true` so the URI is readable.
  */
-export async function uploadSiteDocument(
+export function uploadSiteDocument(
   siteId: number,
   kind: SiteDocumentKind,
   file: { uri: string; name: string; mimeType?: string | null },
@@ -81,21 +74,12 @@ export async function uploadSiteDocument(
     file.mimeType && file.mimeType !== 'application/octet-stream'
       ? file.mimeType
       : mimeFromFilename(name);
-
-  let uri = normalizeFileUri(file.uri);
-  // iOS document-picker URIs can be short-lived File Provider paths; copy into
-  // app cache so FormData can always read bytes for the multipart upload.
-  try {
-    const FileSystem = await import('expo-file-system/legacy');
-    const cacheDir = FileSystem.cacheDirectory;
-    if (cacheDir) {
-      const dest = `${cacheDir}site-${kind}-${Date.now()}-${name}`;
-      await FileSystem.copyAsync({ from: uri, to: dest });
-      uri = dest;
-    }
-  } catch {
-    // Fall back to the picker URI when cache copy is unavailable.
-  }
+  const uri =
+    file.uri.startsWith('file://')
+    || file.uri.startsWith('content://')
+    || file.uri.startsWith('ph://')
+      ? file.uri
+      : `file://${file.uri}`;
 
   const form = new FormData();
   // React Native FormData expects `{ uri, name, type }`, not a web Blob.
