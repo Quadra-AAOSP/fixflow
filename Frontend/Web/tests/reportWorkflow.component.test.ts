@@ -81,3 +81,18 @@ it('discards an old private history response after changing report scope', async
   finish([{ id: 10, fromStatus: null, toStatus: 'open', changedByUserId: 54, note: 'Private old report note', createdAt: '' }]); await flushPromises();
   expect(wrapper.text()).not.toContain('Private old report note');
 });
+it('keeps workflow history visible across soft report status refreshes', async () => {
+  vi.mocked(api.listWorkflowHistory).mockResolvedValue([
+    { id: 1, fromStatus: null, toStatus: 'assigned', changedByUserId: 54, note: 'Assigned for repair', createdAt: '2026-11-04T00:00:00Z' },
+  ]);
+  await render();
+  expect(wrapper.text()).toContain('Assigned for repair');
+  const calls = vi.mocked(api.listWorkflowHistory).mock.calls.length;
+  await wrapper.setProps({
+    report: report({ status: 'in_progress', assignedTechnicianId: 54 }),
+  });
+  await flushPromises();
+  expect(vi.mocked(api.listWorkflowHistory).mock.calls.length).toBe(calls);
+  expect(wrapper.text()).toContain('Assigned for repair');
+  expect(wrapper.text()).not.toContain('Loading workflow');
+});

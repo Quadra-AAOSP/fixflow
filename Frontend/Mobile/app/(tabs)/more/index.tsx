@@ -201,7 +201,7 @@ export default function MoreScreen() {
         : null;
 
   return (
-    <Screen>
+    <Screen safeTop>
       <ScrollView
         contentContainerClassName="px-5 pb-8 pt-4"
         keyboardShouldPersistTaps="handled"

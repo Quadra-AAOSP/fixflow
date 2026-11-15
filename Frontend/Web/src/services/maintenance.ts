@@ -14,6 +14,14 @@ export async function listReportPage(siteId: number, pageNumber = 0, signal?: Ab
   }
   return page;
 }
+/** Technician workspace: reports currently assigned to the signed-in technician (any site). */
+export async function listMyAssignedReports(signal?: AbortSignal) {
+  const page = await request<ReportPage>('/api/reports?mine=true&page=0&size=100', { signal });
+  if (!Array.isArray(page.content)) {
+    throw new Error('The assigned-work response is incomplete. Please refresh.');
+  }
+  return page.content;
+}
 export const listReports = async (siteId: number, signal?: AbortSignal) => {
   const reports = new Map<number, Report>();
   let pageNumber = 0;

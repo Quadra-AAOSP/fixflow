@@ -35,7 +35,9 @@ beforeEach(async () => {
   vi.mocked(api.getReport).mockResolvedValue(privateReport);
   vi.mocked(api.listReporters).mockRejectedValue(new ApiError(403, 'Reporter identities unavailable'));
   const realtime = useRealtimeStore(); realtime.start(vi.fn());
-  transport.callbacks.state('connected'); transport.callbacks.connected(); await flushPromises();
+  transport.callbacks.state('connected'); transport.callbacks.connected();
+  await new Promise(resolve => setTimeout(resolve, 850));
+  await flushPromises();
 });
 afterEach(() => { wrapper?.unmount(); useRealtimeStore().stop(); setLocale('en'); });
 async function render() {
@@ -52,20 +54,15 @@ async function render() {
   } } });
   await flushPromises(); return router;
 }
-it('shows the selected technician route and preserves the mounted panels when switching', async () => {
+it('shows contracted assignment and marketplace publish panels for site admins', async () => {
   useAuthStore().user = { ...actor, role: 'admin', siteId: 71 };
   vi.mocked(api.getReport).mockResolvedValue(report({ id: 2, siteId: 71, status: 'open', assignedTechnicianId: null,
     policy: { canSeeSensitive: true, participant: false, canAssign: true, canJoin: false, statusGroup: 'open', effectiveUrgency: 'medium', urgent: false, inAssignmentQueue: false } }));
   await render();
-  const select = wrapper.get('.ranking-route select');
-  expect(select.element.value).toBe('contracted');
-  const assignment = wrapper.get('technician-assignment-panel-stub');
-  expect(assignment.attributes('style') ?? '').not.toContain('display: none');
-  expect(select.findAll('option').map(option => option.attributes('value'))).toEqual(['contracted', 'marketplace']);
-  await select.setValue('marketplace');
+  expect(wrapper.text()).toContain('Find a technician');
+  expect(wrapper.find('technician-assignment-panel-stub').exists()).toBe(true);
   expect(wrapper.get('[aria-label="Draft summary"]').exists()).toBe(true);
   await wrapper.get('[aria-label="Draft summary"]').setValue('Retained draft');
-  await select.setValue('contracted'); await select.setValue('marketplace');
   expect((wrapper.get('[aria-label="Draft summary"]').element as HTMLInputElement).value).toBe('Retained draft');
 });
 it('preserves the marketplace draft during a realtime refresh and removes it on access revocation', async () => {
@@ -74,16 +71,13 @@ it('preserves the marketplace draft during a realtime refresh and removes it on 
     policy: { canSeeSensitive: true, participant: false, canAssign: true, canJoin: false, statusGroup: 'open', effectiveUrgency: 'medium', urgent: false, inAssignmentQueue: false } });
   vi.mocked(api.getReport).mockResolvedValue(marketplaceReport);
   await render();
-  await wrapper.get('.ranking-route select').setValue('marketplace');
   await wrapper.get('[aria-label="Draft summary"]').setValue('Draft repair');
   let finish!: (value: typeof marketplaceReport) => void;
   vi.mocked(api.getReport).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
   useRealtimeStore().refreshRevision++;
   await nextTick();
-  expect(wrapper.get('.ranking-route select').element.value).toBe('marketplace');
   expect((wrapper.get('[aria-label="Draft summary"]').element as HTMLInputElement).value).toBe('Draft repair');
   finish(marketplaceReport); await flushPromises();
-  expect(wrapper.get('.ranking-route select').element.value).toBe('marketplace');
   expect((wrapper.get('[aria-label="Draft summary"]').element as HTMLInputElement).value).toBe('Draft repair');
   useRealtimeStore().accessRevision++;
   await nextTick();
@@ -117,14 +111,20 @@ describe('private report detail revocation', () => {
     vi.mocked(api.getReport).mockRejectedValueOnce(new ApiError(403, 'Only the currently assigned technician may view this report'));
     finishAccess({ ...actor }); await flushPromises(); expectNoPrivateContent();
   });
-  it('drops report content while a disconnected socket’s session is being rechecked', async () => {
+  it('keeps the report visible during a socket flap and refreshes after reconnect', async () => {
     await render(); expect(wrapper.text()).toContain('PRIVATE DESCRIPTION');
-    let finish!: (value: typeof actor) => void;
-    vi.mocked(authApi.getMe).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
     transport.callbacks.state('offline'); transport.callbacks.disconnected(); await nextTick();
-    expectNoPrivateContent();
-    vi.mocked(api.getReport).mockResolvedValueOnce(report({ id: 2, description: 'New authorized response', address: null }));
-    finish({ ...actor }); await flushPromises();
+    expect(wrapper.text()).toContain('PRIVATE DESCRIPTION');
+    vi.mocked(api.getReport).mockResolvedValueOnce(report({
+      id: 2,
+      description: 'New authorized response',
+      address: null,
+      assignedTechnicianId: 54,
+      policy: privateReport.policy,
+    }));
+    transport.callbacks.state('connected'); transport.callbacks.connected();
+    await new Promise(resolve => setTimeout(resolve, 850));
+    await flushPromises();
     expect(wrapper.text()).toContain('New authorized response');
     expect(wrapper.text()).not.toContain('PRIVATE ADDRESS');
   });

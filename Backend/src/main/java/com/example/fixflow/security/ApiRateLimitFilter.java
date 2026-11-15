@@ -51,7 +51,9 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
             scope = "authentication"; limit = authentication; ipOnly = true;
         } else if (method.equals("GET") && path.equals("/api/auth/csrf")) {
             scope = "token"; limit = bootstrap; ipOnly = true;
-        } else if (method.equals("POST") && path.matches("/api/reports/[0-9]+/(classify|technician-ranking|vision)")) {
+        } else if (method.equals("POST") && path.matches("/api/reports/[0-9]+/(classify|vision)")) {
+            // Deterministic technician-ranking is cheap DB work and is requested on every
+            // report-detail load; keep it on the general write budget, not the tiny AI quota.
             scope = "ai"; limit = ai;
         } else if (path.startsWith("/api/") && !java.util.Set.of("GET", "HEAD", "OPTIONS").contains(method)
                 && !path.equals("/api/auth/logout")) {

@@ -263,14 +263,14 @@ export default function AssignmentsScreen() {
   if (!currentSite && !isTechnician) {
     if (siteLoading) {
       return (
-        <Screen>
+        <Screen safeTop>
           <StateView variant="loading" title={t('assignments.loadingSite')} />
         </Screen>
       );
     }
     if (siteError) {
       return (
-        <Screen>
+        <Screen safeTop>
           <StateView
             variant="error"
             title={t('assignments.couldNotLoadTitle')}
@@ -284,7 +284,7 @@ export default function AssignmentsScreen() {
       );
     }
     return (
-      <Screen>
+      <Screen safeTop>
         <StateView
           variant="empty"
           icon={Wrench}
@@ -297,7 +297,7 @@ export default function AssignmentsScreen() {
 
   if (error && reports === null) {
     return (
-      <Screen>
+      <Screen safeTop>
         <StateView
           variant="error"
           title={t('assignments.couldNotLoadTitle')}
@@ -315,7 +315,7 @@ export default function AssignmentsScreen() {
     // Technician UI splits into two explicit sections so the queue is legible
     // at a glance â€” "Assigned to me" and "Available to claim".
     return (
-      <Screen>
+      <Screen safeTop>
         <ScrollView
           contentContainerClassName="grow px-5 pb-6 pt-4"
           keyboardShouldPersistTaps="handled"
@@ -406,7 +406,7 @@ export default function AssignmentsScreen() {
   // -------- Non-technician UI (staff/admin/super_admin) --------
 
   return (
-    <Screen>
+    <Screen safeTop>
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}

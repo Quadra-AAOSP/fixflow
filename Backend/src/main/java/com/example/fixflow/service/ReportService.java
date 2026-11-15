@@ -213,14 +213,19 @@ public class ReportService {
 
 	@Transactional(readOnly = true)
 	public ReportPageResponse list(Long siteId, String category, boolean mine, int page, int size, AppUserDetails actor) {
-		// "Mine" spans every site the actor has filed at, including sites other
-		// than their account site. Used by the mobile Track reports view.
+		// "Mine" for reporters = reports they filed (any site). For technicians =
+		// reports currently assigned to them (contracted or marketplace), so the
+		// workspace can load work without an account siteId.
 		if (mine) {
-			List<ReportResponse> mineContent = reportRepository.findDetailedByCreatorId(actor.getId()).stream()
-					.filter(report -> report.getVisibility() != ReportVisibility.PRIVATE
-							|| canSeeSensitive(actor, report))
-					.map(report -> response(report, actor))
-					.toList();
+			List<ReportResponse> mineContent = actor.getRole() == UserRole.technician
+					? reportRepository.findDetailedByAssignedTechnicianId(actor.getId()).stream()
+							.map(report -> response(report, actor))
+							.toList()
+					: reportRepository.findDetailedByCreatorId(actor.getId()).stream()
+							.filter(report -> report.getVisibility() != ReportVisibility.PRIVATE
+									|| canSeeSensitive(actor, report))
+							.map(report -> response(report, actor))
+							.toList();
 			return new ReportPageResponse(mineContent, 0, mineContent.size(), mineContent.size(), 1);
 		}
 		Long scopedSiteId = resolveSiteForList(actor, siteId);

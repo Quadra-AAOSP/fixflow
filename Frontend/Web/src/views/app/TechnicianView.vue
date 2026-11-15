@@ -4,18 +4,37 @@ import { useLocale } from "@/i18n";
 import TechnicianTermsPanel from "@/components/TechnicianTermsPanel.vue";
 import TechnicianAvailabilityPanel from "@/components/technician/TechnicianAvailabilityPanel.vue";
 import TechnicianVerificationPanel from "@/components/technician/TechnicianVerificationPanel.vue";
-import { computed } from "vue";
+import TechnicianJobOffersPanel from "@/components/technician/TechnicianJobOffersPanel.vue";
+import { onMounted, ref } from "vue";
 import { Handshake, UserRound, ArrowRight } from "@lucide/vue";
 import { useAuth } from "@/composables/useAuth";
-import { useMaintenanceStore } from "@/stores/maintenance";
+import { listMyAssignedReports } from "@/services/maintenance";
+import { errorMessage } from "@/services/api";
+import type { Report } from "@/types/maintenance";
+import { formatDate, humanize } from "@/utils/maintenance";
+
 const { t } = useLocale();
 const { user } = useAuth();
-const data = useMaintenanceStore();
-const accessibleAssigned = computed(() =>
-  data.reports.filter(
-    (report) => report.assignedTechnicianId === user.value?.id,
-  ),
-);
+const assigned = ref<Report[] | null>(null);
+const assignedError = ref("");
+const loadingAssigned = ref(false);
+
+async function loadAssigned() {
+  loadingAssigned.value = true;
+  assignedError.value = "";
+  try {
+    assigned.value = await listMyAssignedReports();
+  } catch (err) {
+    assigned.value = [];
+    assignedError.value = errorMessage(err);
+  } finally {
+    loadingAssigned.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadAssigned();
+});
 </script>
 <template>
   <div class="tech-page">
@@ -37,43 +56,59 @@ const accessibleAssigned = computed(() =>
         >{{ t("Manage trade details") }} →</RouterLink
       >
     </header>
-    <p
-      v-if="data.reportsLoaded && data.reportPage + 1 < data.totalReportPages"
-      class="dialog-intro"
-    >
-      {{
-        t(
-          "Report counts and results cover loaded reports. Open Reports to load more.",
-        )
-      }}
-      <RouterLink to="/reports">{{ t("Reports") }}</RouterLink>
-    </p>
     <div class="tech-work-grid">
       <section class="dashboard-card tech-work-card">
-        <h2>{{ t("Assigned work") }}</h2>
+        <div class="tech-card-heading">
+          <h2>{{ t("Assigned work") }}</h2>
+          <button
+            type="button"
+            class="text-action"
+            :disabled="loadingAssigned"
+            @click="loadAssigned"
+          >
+            {{ t("Refresh") }}
+          </button>
+        </div>
         <LoadingStatus
-          v-if="data.loading"
+          v-if="loadingAssigned && assigned == null"
           :label="t('Loading available work…')"
         />
-        <p v-else-if="data.reportsError" class="live-error" role="alert">
-          {{ t(data.reportsError) }}
-          <button type="button" class="text-action" @click="data.refresh()">
+        <p v-else-if="assignedError" class="live-error" role="alert">
+          {{ t(assignedError) }}
+          <button type="button" class="text-action" @click="loadAssigned">
             {{ t("Retry") }}
           </button>
         </p>
-        <p v-else-if="data.reportsLoaded">
-          {{
-            t("{count} reports are assigned to you at {site}.", {
-              count: accessibleAssigned.length,
-              site: data.selectedSite?.name || t("Not available"),
-            })
-          }}
-        </p>
-        <p v-else>
-          {{ t("No site-scoped work is available for this account.") }}
-        </p>
+        <template v-else-if="assigned">
+          <p>
+            {{
+              t("{count} reports are assigned to you.", {
+                count: assigned.length,
+              })
+            }}
+          </p>
+          <ul v-if="assigned.length" class="assigned-list">
+            <li v-for="report in assigned" :key="report.id">
+              <RouterLink class="text-action" :to="`/reports/${report.id}`">
+                {{ t("Report #{id}", { id: report.id }) }}
+              </RouterLink>
+              <span
+                >{{ t(humanize(report.status)) }} ·
+                {{ t(humanize(report.category)) }} ·
+                {{ formatDate(report.updatedAt, true) }}</span
+              >
+            </li>
+          </ul>
+          <p v-else>
+            {{
+              t(
+                "No assigned reports yet. Accept a paid offer below, or open a marketplace job that was awarded to you.",
+              )
+            }}
+          </p>
+        </template>
         <RouterLink
-          v-if="data.reportsLoaded"
+          v-if="assigned?.length"
           to="/reports"
           class="text-action"
           >{{ t("View assigned reports →") }}</RouterLink
@@ -93,6 +128,7 @@ const accessibleAssigned = computed(() =>
         /></RouterLink>
       </section>
     </div>
+    <TechnicianJobOffersPanel @changed="loadAssigned" />
     <section class="tech-section" aria-labelledby="eligibility-title">
       <div class="tech-section-heading">
         <h2 id="eligibility-title">{{ t("Eligibility and availability") }}</h2>
@@ -181,16 +217,38 @@ const accessibleAssigned = computed(() =>
 .tech-site-grid article {
   padding: 22px;
 }
+.tech-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
 .tech-work-card h2,
 .tech-site-grid h3 {
   font-size: 18px;
   font-weight: 700;
+  margin: 0;
 }
 .tech-work-card p,
 .tech-site-grid p {
   color: #52677b;
   line-height: 1.6;
   margin: 10px 0 18px;
+}
+.assigned-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.assigned-list li {
+  display: grid;
+  gap: 4px;
+}
+.assigned-list span {
+  color: #62778a;
+  font-size: 13px;
 }
 .tech-site-grid h3 {
   margin-top: 14px;

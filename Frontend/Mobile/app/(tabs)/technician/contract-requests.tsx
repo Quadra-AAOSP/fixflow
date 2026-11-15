@@ -198,7 +198,7 @@ export default function TechnicianContractRequestsScreen() {
   }
 
   return (
-    <Screen>
+    <Screen safeTop>
       <ScrollView
         contentContainerClassName="px-5 pb-12 pt-2"
         showsVerticalScrollIndicator={false}

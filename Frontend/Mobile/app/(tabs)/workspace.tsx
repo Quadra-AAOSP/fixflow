@@ -147,7 +147,7 @@ export default function WorkspaceScreen() {
   }
 
   return (
-    <Screen>
+    <Screen safeTop>
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
         <HomeNotificationBell />
         {/* Welcome banner — mirrors the web's `.welcome-banner` block

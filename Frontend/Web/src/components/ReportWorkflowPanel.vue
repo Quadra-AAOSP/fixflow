@@ -23,25 +23,36 @@ const history = ref<api.WorkflowHistory[] | null>(null); const resolutions = ref
 const ratings = ref<api.WorkflowRating[] | null>(null);
 const readErrors = ref<Array<{ label: string; error: string }>>([]);
 let generation = 0; onBeforeUnmount(() => generation++);
-async function loadDetails() {
+async function loadDetails(quiet = false) {
   const current = ++generation; const reportId = props.report.id;
-  history.value = null; resolutions.value = null; ratings.value = null; readErrors.value = [];
-  loading.value = true;
+  if (!quiet) {
+    history.value = null; resolutions.value = null; ratings.value = null; readErrors.value = [];
+    loading.value = true;
+  }
   const results = await Promise.allSettled([api.listWorkflowHistory(reportId), api.listWorkflowResolutions(reportId), api.listWorkflowRatings(reportId)]);
   if (current !== generation) return false;
   const targets = [history, resolutions, ratings]; const labels = ['Report history', 'Repair resolutions', 'Repair ratings'];
+  const nextErrors: Array<{ label: string; error: string }> = [];
   results.forEach((result, index) => {
-    if (result.status === 'rejected') readErrors.value.push({ label: labels[index]!, error: errorMessage(result.reason) });
+    if (result.status === 'rejected') nextErrors.push({ label: labels[index]!, error: errorMessage(result.reason) });
     else (targets[index] as { value: unknown }).value = result.value;
   });
-  loading.value = false;
+  readErrors.value = nextErrors;
+  if (!quiet) loading.value = false;
   return true;
 }
-watch(() => [props.report.id, props.report.status, props.report.assignedTechnicianId, props.report.policy?.canSeeSensitive, props.report.policy?.participant, user.value?.id, user.value?.role], () => {
-  description.value = ''; escalation.value = ''; urgencyReason.value = ''; resolutionId.value = ''; score.value = ''; feedback.value = ''; error.value = ''; message.value = '';
-  urgency.value = props.report.finalUrgency ?? props.report.reporterUrgency;
-  void loadDetails();
-}, { immediate: true });
+// Watch primitive sources (not a fresh array) so soft report object replacements
+// from realtime do not clear Repair workflow and flash "Loading workflow…".
+watch(
+  [() => props.report.id, () => user.value?.id, () => user.value?.role],
+  () => {
+    description.value = ''; escalation.value = ''; urgencyReason.value = ''; resolutionId.value = ''; score.value = ''; feedback.value = ''; error.value = ''; message.value = '';
+    urgency.value = props.report.finalUrgency ?? props.report.reporterUrgency;
+    void loadDetails(false);
+  },
+  { immediate: true },
+);
+watch(() => props.report.finalUrgency ?? props.report.reporterUrgency, value => { urgency.value = value; });
 async function perform(action: 'start' | 'resolve' | 'escalate' | 'urgency' | 'rate') {
   if (busy.value || props.disabled || loading.value) return;
   if (action === 'start' && !canStart.value || action === 'resolve' && !canResolve.value || action === 'escalate' && !canEscalate.value || action === 'urgency' && (!operator.value || props.report.status === 'confirmed') || action === 'rate' && !canRate.value) return;
@@ -55,9 +66,15 @@ async function perform(action: 'start' | 'resolve' | 'escalate' | 'urgency' | 'r
     if (action === 'urgency') saved = await api.overrideReportUrgency(reportId, urgency.value, urgencyReason.value);
     if (action === 'rate') await api.rateReportResolution(reportId, Number(resolutionId.value), Number(score.value), feedback.value);
     if (current !== generation) return;
-    if (saved) { if (saved.id !== reportId) throw new Error('The report response did not match the requested report.'); emit('saved', saved); }
-    else { if (!await loadDetails()) return; resolutionId.value = ''; score.value = ''; feedback.value = ''; }
-    if (!saved) message.value = 'Saved by the service.';
+    if (saved) {
+      if (saved.id !== reportId) throw new Error('The report response did not match the requested report.');
+      emit('saved', saved);
+      await loadDetails(true);
+    } else {
+      if (!await loadDetails(true)) return;
+      resolutionId.value = ''; score.value = ''; feedback.value = '';
+      message.value = 'Saved by the service.';
+    }
   } catch (err) { if (current === generation) error.value = errorMessage(err); }
   finally { busy.value = false; emit('busy', false); }
 }
@@ -67,7 +84,7 @@ async function perform(action: 'start' | 'resolve' | 'escalate' | 'urgency' | 'r
     <h2>{{ t('Repair workflow') }}</h2>
     <p v-if="error" role="alert" class="live-error">{{ t(error) }}</p><p v-if="message" role="status">{{ t(message) }}</p>
     <p v-if="loading" role="status">{{ t('Loading workflow…') }}</p>
-    <p v-for="failure in readErrors" :key="failure.label" role="alert" class="live-error">{{ t(failure.label) }}: {{ t(failure.error) }} <button type="button" class="text-action" :disabled="busy || disabled || loading" @click="loadDetails">{{ t('Retry') }}</button></p>
+    <p v-for="failure in readErrors" :key="failure.label" role="alert" class="live-error">{{ t(failure.label) }}: {{ t(failure.error) }} <button type="button" class="text-action" :disabled="busy || disabled || loading" @click="loadDetails(false)">{{ t('Retry') }}</button></p>
     <fieldset :disabled="busy || disabled || loading" class="workflow-actions">
       <button v-if="canStart" type="button" class="report-issue-button" @click="perform('start')">{{ t('Start work') }}</button>
       <form v-if="canResolve" @submit.prevent="perform('resolve')"><label>{{ t('Work completed and resolution details') }}<textarea v-model="description" required maxlength="10000" rows="4" /></label><button type="submit" class="report-issue-button">{{ t('Submit resolution for confirmation') }}</button></form>

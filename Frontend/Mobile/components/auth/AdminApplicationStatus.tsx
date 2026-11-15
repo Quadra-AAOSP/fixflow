@@ -74,7 +74,7 @@ export default function AdminApplicationStatus({ applicationOnly = false }: { ap
   // Signed-in but never applied — deep link or stale menu entry.
   if (!applicationOnly && !loading && application === null && !error && user?.adminApplication == null) {
     return (
-      <Screen>
+      <Screen safeTop={applicationOnly}>
         <StateView
           variant="empty"
           icon={ShieldCheck}
@@ -120,7 +120,7 @@ export default function AdminApplicationStatus({ applicationOnly = false }: { ap
   const StatusIcon = statusBlock.icon;
 
   return (
-    <Screen>
+    <Screen safeTop={applicationOnly}>
       <ScrollView contentContainerClassName="px-5 pb-12 pt-4">
         <View className="mb-4 flex-row items-start justify-between">
           <View className="flex-1 pr-3">

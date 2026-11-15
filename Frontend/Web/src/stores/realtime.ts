@@ -22,8 +22,10 @@ export const useRealtimeStore = defineStore('realtime', () => {
   let physicalConnection = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let syncFlight: Promise<void> | undefined;
+  let syncTimer: ReturnType<typeof setTimeout> | undefined;
   const pendingReports = new Set<number>();
   let expire: () => void = () => {};
+  const SYNC_SETTLE_MS = 800;
 
   function subscriptions() {
     client?.setSubscriptions([
@@ -40,9 +42,18 @@ export const useRealtimeStore = defineStore('realtime', () => {
     subscriptions();
   }
   function invalidate() {
-    clearTimeout(timer); timer = undefined; pendingReports.clear();
+    clearTimeout(timer); timer = undefined;
+    clearTimeout(syncTimer); syncTimer = undefined;
+    pendingReports.clear();
     siteId = null; reportId = null; subscriptions();
     data.reset(); accessReason.value = 'revoked'; accessRevision.value++;
+  }
+  function scheduleSynchronize(current: number) {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      syncTimer = undefined;
+      if (current === generation && client && physicalConnection) void synchronize();
+    }, SYNC_SETTLE_MS);
   }
   function synchronize() {
     if (syncFlight || !client) return syncFlight;
@@ -88,16 +99,28 @@ export const useRealtimeStore = defineStore('realtime', () => {
           physicalConnection = value === 'connected';
           state.value = value === 'connected' ? 'connecting' : value;
         },
-        connected() { if (current === generation) void synchronize(); },
-        disconnected() {
-          if (current !== generation) return;
-          // Recheck private report access without destroying the site or report draft.
-          reportId = null; subscriptions();
-          data.clearReportPages();
-          accessReason.value = 'disconnect'; accessRevision.value++;
-          void synchronize();
+        connected() {
+          // Wait for the socket to stay up before REST sync — flaps used to
+          // re-fetch the open report (and flash Repair workflow) every second.
+          if (current === generation) scheduleSynchronize(current);
         },
-        revoked() { if (current === generation) { invalidate(); void synchronize(); } },
+        disconnected() {
+          clearTimeout(syncTimer); syncTimer = undefined;
+        },
+        revoked(destination) {
+          if (current !== generation) return;
+          // Report detail access loss must clear private caches. A site channel
+          // revoke only drops that subscription — it must not wipe the open report.
+          if (destination.startsWith('/reports/')) {
+            invalidate();
+            void synchronize();
+            return;
+          }
+          if (destination.startsWith('/sites/')) {
+            siteId = null;
+            subscriptions();
+          }
+        },
         event(event) {
           if (current !== generation) return;
           pendingReports.add(event.reportId);
@@ -109,7 +132,9 @@ export const useRealtimeStore = defineStore('realtime', () => {
     } catch { state.value = 'offline'; }
   }
   function stop() {
-    generation++; clearTimeout(timer); timer = undefined; pendingReports.clear(); syncFlight = undefined;
+    generation++; clearTimeout(timer); timer = undefined;
+    clearTimeout(syncTimer); syncTimer = undefined;
+    pendingReports.clear(); syncFlight = undefined;
     const previous = client; client = null; previous?.stop();
     siteId = null; reportId = null; physicalConnection = false;
     state.value = 'stopped'; changedReportIds.value = null;

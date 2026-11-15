@@ -43,23 +43,53 @@ beforeEach(() => {
 afterEach(() => { useRealtimeStore().stop(); vi.useRealTimers(); });
 async function connect() {
   const store = useRealtimeStore(); const expire = vi.fn();
-  store.start(expire); harness.callbacks.state('connected'); harness.callbacks.connected(); await flushPromises();
+  store.start(expire); harness.callbacks.state('connected'); harness.callbacks.connected();
+  await vi.advanceTimersByTimeAsync(800); await flushPromises();
   return { store, expire };
 }
 describe('realtime REST synchronization and private cache lifecycle', () => {
-  it('preserves the selected site and taxonomy during a temporary disconnect', async () => {
+  it('preserves site data and does not revoke access on a temporary disconnect', async () => {
     const { store } = await connect();
     const data = useMaintenanceStore();
-    let finish!: (value: typeof user) => void;
-    vi.mocked(authApi.getMe).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-    const previous = store.accessRevision;
+    const previousAccess = store.accessRevision;
+    const previousRefresh = store.refreshRevision;
     harness.callbacks.state('offline'); harness.callbacks.disconnected();
     expect(data.selectedSiteId).toBe(7);
     expect(data.sites).toHaveLength(1);
-    expect(data.reports).toEqual([]);
-    expect(store.accessRevision).toBe(previous + 1);
-    finish(user); await flushPromises();
+    expect(data.reports).toHaveLength(1);
+    expect(store.accessRevision).toBe(previousAccess);
+    expect(store.refreshRevision).toBe(previousRefresh);
+    harness.callbacks.state('connected'); harness.callbacks.connected();
+    await vi.advanceTimersByTimeAsync(800); await flushPromises();
     expect(data.selectedSiteId).toBe(7);
+    expect(store.refreshRevision).toBe(previousRefresh + 1);
+  });
+  it('does not wipe caches when only a site channel is revoked', async () => {
+    const { store } = await connect();
+    store.setSite(7);
+    store.setReport(report({
+      policy: {
+        canSeeSensitive: true, participant: true, canAssign: true, canJoin: false,
+        statusGroup: 'open', effectiveUrgency: 'medium', urgent: false, inAssignmentQueue: false,
+      },
+    }));
+    const previousAccess = store.accessRevision;
+    harness.callbacks.revoked('/sites/7/events');
+    expect(store.accessRevision).toBe(previousAccess);
+    expect(useMaintenanceStore().reports).toHaveLength(1);
+    expect(harness.client.setSubscriptions).toHaveBeenLastCalledWith(['/reports/1/events']);
+  });
+  it('cancels a pending reconnect sync when the socket flaps again', async () => {
+    const { store } = await connect();
+    const previousRefresh = store.refreshRevision;
+    vi.mocked(authApi.getMe).mockClear();
+    harness.callbacks.state('offline'); harness.callbacks.disconnected();
+    harness.callbacks.state('connected'); harness.callbacks.connected();
+    await vi.advanceTimersByTimeAsync(400);
+    harness.callbacks.state('offline'); harness.callbacks.disconnected();
+    await vi.advanceTimersByTimeAsync(800); await flushPromises();
+    expect(authApi.getMe).not.toHaveBeenCalled();
+    expect(store.refreshRevision).toBe(previousRefresh);
   });
   it('revalidates the session before refreshing and subscribes only to readable report details', async () => {
     const { store } = await connect();
@@ -93,10 +123,12 @@ describe('realtime REST synchronization and private cache lifecycle', () => {
     finish(user); await flushPromises();
     expect(store.refreshRevision).toBe(2);
   });
-  it('expires the frontend session when a closed socket reveals an expired cookie', async () => {
+  it('expires the frontend session when reconnect finds an expired cookie', async () => {
     const { store, expire } = await connect();
     vi.mocked(authApi.getMe).mockRejectedValueOnce(new ApiError(401, 'Session expired'));
-    harness.callbacks.disconnected(); await flushPromises();
+    harness.callbacks.state('offline'); harness.callbacks.disconnected();
+    harness.callbacks.state('connected'); harness.callbacks.connected();
+    await vi.advanceTimersByTimeAsync(800); await flushPromises();
     expect(expire).toHaveBeenCalledOnce(); expect(store.state).toBe('stopped');
     expect(useMaintenanceStore().reports).toEqual([]);
   });

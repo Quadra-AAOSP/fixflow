@@ -50,10 +50,10 @@ class ApiRateLimitFilterTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(new AppUserDetails(user), null, List.of()));
         request(filter, "POST", "/api/reports/1/classify", "peer");
-        assertThat(request(filter, "POST", "/api/reports/2/technician-ranking", "different-peer").getStatus()).isEqualTo(429);
+        assertThat(request(filter, "POST", "/api/reports/2/vision", "different-peer").getStatus()).isEqualTo(429);
+        assertThat(request(filter, "POST", "/api/reports/2/technician-ranking", "different-peer").getStatus()).isEqualTo(200);
         request(filter, "POST", "/api/reports", "peer");
-        request(filter, "PUT", "/api/sites/1", "peer");
-        assertThat(request(filter, "DELETE", "/api/reports/1/photos/2", "peer").getStatus()).isEqualTo(429);
+        assertThat(request(filter, "PUT", "/api/sites/1", "peer").getStatus()).isEqualTo(429);
         user.setId(2L);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(new AppUserDetails(user), null, List.of()));

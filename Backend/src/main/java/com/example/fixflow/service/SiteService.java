@@ -1,5 +1,6 @@
 package com.example.fixflow.service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import com.example.fixflow.dto.SiteRequest;
 import com.example.fixflow.dto.SiteResponse;
 import com.example.fixflow.dto.SiteRuleResponse;
 import com.example.fixflow.repository.SiteRepository;
+import com.example.fixflow.repository.TechnicianContractRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.web.ApiException;
 
@@ -20,16 +22,29 @@ public class SiteService {
 
 	private final SiteRepository siteRepository;
 	private final SiteRuleService siteRuleService;
+	private final TechnicianContractRepository contracts;
 
-	public SiteService(SiteRepository siteRepository, SiteRuleService siteRuleService) {
+	public SiteService(SiteRepository siteRepository, SiteRuleService siteRuleService,
+			TechnicianContractRepository contracts) {
 		this.siteRepository = siteRepository;
 		this.siteRuleService = siteRuleService;
+		this.contracts = contracts;
 	}
 
 	@Transactional(readOnly = true)
 	public List<SiteResponse> list(AppUserDetails actor) {
 		if (actor.getRole() == UserRole.super_admin) {
 			return siteRepository.findAll().stream().map(SiteResponse::from).toList();
+		}
+		// Technicians are not account-scoped to one site; expose contracted sites
+		// so the web workspace / reports queue can load site-scoped pages.
+		if (actor.getRole() == UserRole.technician) {
+			var unique = new LinkedHashMap<Long, SiteResponse>();
+			for (var contract : contracts.findByTechnicianIdsWithSite(List.of(actor.getId()))) {
+				Site site = contract.getSite();
+				unique.putIfAbsent(site.getId(), SiteResponse.from(site));
+			}
+			return List.copyOf(unique.values());
 		}
 		if (actor.getSiteId() == null) {
 			return List.of();
@@ -109,6 +124,12 @@ public class SiteService {
 			return;
 		}
 		if (actor.getSiteId() != null && actor.getSiteId().equals(site.getId())) {
+			return;
+		}
+		// Contracted technicians may list these sites for workspace/report pages and
+		// must also be able to authorize the matching realtime site subscription.
+		if (actor.getRole() == UserRole.technician
+				&& contracts.existsByTechnician_IdAndSite_Id(actor.getId(), site.getId())) {
 			return;
 		}
 		throw new ApiException(HttpStatus.FORBIDDEN.value(), "Not allowed to view this site");

@@ -201,7 +201,7 @@ export default function OpenJobsScreen() {
   ]);
 
   return (
-    <Screen>
+    <Screen safeTop>
       <FlatList
         data={rows}
         keyExtractor={(item) =>

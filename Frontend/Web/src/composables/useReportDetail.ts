@@ -408,6 +408,7 @@ export function useReportDetail() {
   watch(
     () => realtime.accessRevision,
     () => {
+      // Fired on true revocation / logout — not on transient socket loss.
       if (realtime.accessReason !== 'disconnect') resolutionDraft.value = '';
       generation++;
       report.value = null;
@@ -431,7 +432,7 @@ export function useReportDetail() {
         realtime.changedReportIds === null ||
         realtime.changedReportIds.includes(Number(route.params.id))
       ) {
-        void load(true);
+        void load(!!report.value);
       }
     },
   );
