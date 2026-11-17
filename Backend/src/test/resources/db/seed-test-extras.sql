@@ -1,3 +1,10 @@
+-- Match the MySQL default for seeded technician skills.
+ALTER TABLE technician_skills ALTER COLUMN proficiency SET DEFAULT 2.5;
+
+-- Match MySQL defaults for the seeded marketplace listing.
+ALTER TABLE marketplace_listings ALTER COLUMN amount_minor SET DEFAULT 0;
+ALTER TABLE marketplace_listings ALTER COLUMN currency SET DEFAULT 'USD';
+
 -- Match the MySQL default used by SQL fixtures that omit report visibility.
 ALTER TABLE reports ALTER COLUMN visibility SET DEFAULT 'public';
 

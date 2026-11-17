@@ -4,6 +4,7 @@ import com.example.fixflow.domain.*;
 import com.example.fixflow.audit.*;
 import com.example.fixflow.repository.*;
 import com.example.fixflow.security.AppUserDetails;
+import com.example.fixflow.service.TechnicianTermsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +22,7 @@ class TechnicianVerificationApiIntegrationTest {
     @Autowired UserRepository users;
     @Autowired TechnicianVerificationRepository records;
     @Autowired TechnicianVerificationAuditRepository audits;
+    @Autowired TechnicianTermsService terms;
 
     User account(UserRole role) {
         User user=new User(); user.setEmail("verification-"+System.nanoTime()+"@test.invalid");
@@ -44,6 +46,12 @@ class TechnicianVerificationApiIntegrationTest {
         String decision="{\"status\":\"verified\",\"reason\":\"Manual checks completed\",\"identityChecked\":true,\"emailChecked\":true,\"phoneChecked\":true,\"tradeChecked\":true,\"version\":"+version+"}";
         mvc.perform(post(decisionPath).with(user(new AppUserDetails(technician))).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(decision))
                 .andExpect(status().isForbidden());
+        mvc.perform(post(decisionPath).with(user(new AppUserDetails(superAdmin))).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(decision))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/technician-terms/accept").with(user(new AppUserDetails(technician))).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"version\":\"" + terms.currentTerms().currentVersion() + "\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.acceptedCurrentVersion").value(true));
         mvc.perform(post(decisionPath).with(user(new AppUserDetails(superAdmin))).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(decision))
                 .andExpect(status().isOk()).andExpect(jsonPath("status").value("verified"));
         mvc.perform(post(decisionPath).with(user(new AppUserDetails(superAdmin))).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(decision))

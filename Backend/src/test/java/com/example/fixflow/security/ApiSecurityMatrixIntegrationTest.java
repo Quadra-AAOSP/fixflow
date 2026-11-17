@@ -21,11 +21,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import com.example.fixflow.domain.*;
 import com.example.fixflow.repository.*;
+import com.example.fixflow.service.TechnicianTermsService;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:api-security-matrix;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")
 class ApiSecurityMatrixIntegrationTest {
     @Autowired WebApplicationContext context;
     @Autowired SiteRepository sites;
+    @Autowired SiteRuleRepository rules;
+    @Autowired TechnicianTermsService terms;
     @Autowired UserRepository users;
     @Autowired ReportRepository reports;
     @Autowired SubsiteRepository subsites;
@@ -40,6 +43,12 @@ class ApiSecurityMatrixIntegrationTest {
 
     @BeforeEach void setup() {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
+        if (!rules.existsBySiteTypeAndCategory(SiteType.school, "plumbing")) {
+            SiteRule rule = new SiteRule();
+            rule.setSiteType(SiteType.school);
+            rule.setCategory("plumbing");
+            rules.save(rule);
+        }
         own = site("Own"); other = site("Other");
         reporter = account(UserRole.reporter, own); admin = account(UserRole.admin, own);
         otherAdmin = account(UserRole.admin, other); technician = account(UserRole.technician, null);
@@ -49,7 +58,7 @@ class ApiSecurityMatrixIntegrationTest {
     }
 
     private Site site(String name) {
-        Site site = new Site(); site.setName(name); site.setType(SiteType.school);
+        Site site = new Site(); site.setName(name + "-" + java.util.UUID.randomUUID()); site.setType(SiteType.school);
         site.setContractStatus(ContractStatus.uncontracted); return sites.save(site);
     }
     private User account(UserRole role, Site site) {
@@ -130,6 +139,9 @@ class ApiSecurityMatrixIntegrationTest {
     }
 
     @Test void contractWorkflowApprovesAtomicallyAndRejectsDuplicateDecision() throws Exception {
+        own.setContractFlatFeeMinor(50000L);
+        sites.save(own);
+        terms.recordAcceptance(technician, terms.currentTerms().currentVersion());
         mvc.perform(post("/api/technician-contract-requests").with(user(new AppUserDetails(technician))).contentType(MediaType.APPLICATION_JSON).content("{\"siteId\":" + own.getId() + ",\"note\":\"Available\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("pending"));
         var a = applications.findByTechnician_IdOrderByCreatedAtDesc(technician.getId()).get(0);
@@ -255,7 +267,7 @@ class ApiSecurityMatrixIntegrationTest {
                 + "\"role\":\"technician\",\"phone\":\"123456789\",\"address\":\"Test address\","
                 + "\"trades\":\"plumbing\",\"experience\":\"3 years\",\"qualifications\":\"Licensed\","
                 + "\"acceptTechnicianTerms\":true,\"technicianTermsVersion\":\"test-v1\","
-                + "\"skills\":[{\"category\":\"plumbing\",\"proficiency\":4}],\"siteId\":";
+                + "\"skills\":[{\"category\":\"plumbing\"}],\"siteId\":";
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(base + own.getId() + "}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(base + "null}"))

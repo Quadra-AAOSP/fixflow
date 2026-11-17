@@ -26,10 +26,12 @@ import com.example.fixflow.domain.ReportStatus;
 import com.example.fixflow.domain.SiteAdminApplication;
 import com.example.fixflow.domain.Site;
 import com.example.fixflow.domain.SiteType;
+import com.example.fixflow.domain.SiteRule;
 import com.example.fixflow.domain.TechnicianTermsAcceptance;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.SiteRepository;
+import com.example.fixflow.repository.SiteRuleRepository;
 import com.example.fixflow.repository.ReportRepository;
 import com.example.fixflow.repository.SiteAdminApplicationRepository;
 import com.example.fixflow.repository.TechnicianTermsAcceptanceRepository;
@@ -45,6 +47,8 @@ class ReportConstraintIntegrationTest {
 
 	@Autowired
 	private SiteRepository siteRepository;
+	@Autowired
+	private SiteRuleRepository siteRules;
 	@Autowired
 	private ReportRepository reports;
 	@Autowired
@@ -71,20 +75,21 @@ class ReportConstraintIntegrationTest {
 		mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
 				.apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
 				.build();
-		site = siteRepository.findAll().stream().findFirst().orElseGet(() -> {
-			Site created = new Site();
-			created.setName("School One");
-			created.setType(SiteType.school);
-			created.setContractStatus(ContractStatus.contracted);
-			created.setContractFlatFeeMinor(50000L);
-			created.setContractFeeCurrency("USD");
-			return siteRepository.save(created);
-		});
-		if (site.getContractFlatFeeMinor() == null) {
-			site.setContractFlatFeeMinor(50000L);
-			site.setContractFeeCurrency("USD");
-			site = siteRepository.save(site);
+		for (String category : java.util.List.of("plumbing", "hvac", "electrical")) {
+			if (!siteRules.existsBySiteTypeAndCategory(SiteType.school, category)) {
+				SiteRule rule = new SiteRule();
+				rule.setSiteType(SiteType.school);
+				rule.setCategory(category);
+				siteRules.save(rule);
+			}
 		}
+		site = new Site();
+		site.setName("Constraint test school " + System.nanoTime());
+		site.setType(SiteType.school);
+		site.setContractStatus(ContractStatus.contracted);
+		site.setContractFlatFeeMinor(50000L);
+		site.setContractFeeCurrency("USD");
+		site = siteRepository.save(site);
 		reporterA = createUser("reporter-a", UserRole.reporter, site);
 		reporterB = createUser("reporter-b", UserRole.reporter, site);
 		staff = createUser("staff", UserRole.staff, site);

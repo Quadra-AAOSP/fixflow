@@ -25,6 +25,7 @@ import com.example.fixflow.web.ApiException;
 class OnboardingCompletionIntegrationTest {
     @Autowired WebApplicationContext context;
     @Autowired SiteRepository sites;
+    @Autowired SiteRuleRepository siteRules;
     @Autowired UserRepository users;
     @Autowired SubsiteRepository subsites;
     @Autowired ReportRepository reports;
@@ -37,7 +38,17 @@ class OnboardingCompletionIntegrationTest {
     private Subsite building;
     @BeforeEach void setup() {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
+        if (!siteRules.existsBySiteTypeAndCategory(SiteType.school, "plumbing")) {
+            SiteRule rule = new SiteRule();
+            rule.setSiteType(SiteType.school);
+            rule.setCategory("plumbing");
+            siteRules.save(rule);
+        }
         site = site("Campus"); foreign = site("Other");
+        site.setAddress("Campus test address");
+        site.setTermsText("Test site terms");
+        site.setContractTermsText("Test site contract terms");
+        site = sites.save(site);
         admin = account(UserRole.admin, site); reporter = account(UserRole.reporter, site);
         technician = account(UserRole.technician, null); foreignAdmin = account(UserRole.admin, foreign);
         building = new Subsite(); building.setSite(site); building.setLabel("E5"); building.setName("Classroom building");

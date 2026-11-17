@@ -11,7 +11,7 @@ class ProductionConfigurationTest {
         var sources = new YamlPropertySourceLoader().load("production",
                 new FileSystemResource(Path.of("src/main/resources/application.yaml")));
         var config = sources.getFirst();
-        assertThat(config.getProperty("spring.servlet.multipart.max-file-size")).isEqualTo("5MB");
+        assertThat(config.getProperty("spring.servlet.multipart.max-file-size")).isEqualTo("10MB");
         assertThat(config.getProperty("spring.servlet.multipart.max-request-size")).isEqualTo("30MB");
         assertThat(config.getProperty("server.servlet.session.cookie.http-only")).isEqualTo(true);
         assertThat(config.getProperty("server.servlet.session.cookie.same-site")).isEqualTo("lax");

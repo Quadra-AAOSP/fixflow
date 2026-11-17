@@ -43,7 +43,7 @@ class TechnicianRankingIntegrationTest {
         VettingFixture.eligible(outsider, site, admin, termsFixture, verificationFixture, vettingFixture);
         contract(technician, site); skill(technician); skill(outsider); available(technician);
     }
-    Site site() { Site s = new Site(); s.setName("Ranking"); s.setType(SiteType.school); s.setContractStatus(ContractStatus.contracted); return sites.save(s); }
+    Site site() { Site s = new Site(); s.setName("Ranking" + "-" + java.util.UUID.randomUUID()); s.setType(SiteType.school); s.setContractStatus(ContractStatus.contracted); return sites.save(s); }
     User userAccount(UserRole role, Site scope) {
         User u = new User(); u.setEmail(UUID.randomUUID() + "@example.test"); u.setPasswordHash("unused");
         u.setFirstName("Test"); u.setLastName("User"); u.setRole(role); u.setSite(scope); return users.save(u);

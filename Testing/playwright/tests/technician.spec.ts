@@ -65,7 +65,7 @@ test.describe('Technician workspace @technician', () => {
     await expect(candidate).toBeVisible({ timeout: 45_000 });
     await candidate.check();
     await admin.page.getByRole('button', { name: /Save assignment/i }).click();
-    await expect(admin.page.getByRole('status')).toContainText(/assignment saved/i);
+    await expect(admin.page.getByRole('status').filter({ hasText: /assignment saved/i })).toBeVisible();
 
     // Capture assigned technician id from detail grid if shown as Technician #id
     const techCell = admin.page.locator('dt', { hasText: /^Technician$/i }).locator('..').locator('dd');

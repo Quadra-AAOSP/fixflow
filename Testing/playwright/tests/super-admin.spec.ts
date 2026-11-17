@@ -42,7 +42,7 @@ test.describe('Super admin platform ops @super_admin', () => {
     await expect(session.page.getByRole('heading', { name: /Team access/i })).toBeVisible();
     await expect(session.page.getByText(/Create approved site-administrator, staff, and shop-manager/i)).toBeVisible();
 
-    await session.page.getByLabel(/^Role$/i).selectOption({ label: /Staff/i });
+    await session.page.getByLabel(/^Role$/i).selectOption('staff');
     const site = session.page.getByLabel(/^Site$/i);
     await expect(site).toBeVisible();
     await site.selectOption({ index: 1 });
@@ -55,7 +55,7 @@ test.describe('Super admin platform ops @super_admin', () => {
     await session.page.getByLabel(/Initial password/i).fill(email);
 
     await session.page.getByRole('button', { name: /Create approved account/i }).click();
-    await expect(session.page.getByRole('status')).toContainText(/account created|can now sign in/i, { timeout: 30_000 });
+    await expect(session.page.getByRole('status').filter({ hasText: /account created|can now sign in/i })).toBeVisible({ timeout: 30_000 });
     await session.context.close();
   });
 });

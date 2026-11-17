@@ -26,6 +26,7 @@ import com.example.fixflow.security.AppUserDetails;
 class ClassificationApiIntegrationTest {
     @Autowired WebApplicationContext context;
     @Autowired SiteRepository sites;
+    @Autowired SiteRuleRepository rules;
     @Autowired UserRepository users;
     @Autowired ReportRepository reports;
     @MockitoBean OpenRouterAi provider;
@@ -34,8 +35,17 @@ class ClassificationApiIntegrationTest {
     private User admin;
     private Report report;
     @BeforeEach void setup() {
+        // The H2 test schema does not load the production site taxonomy.
+        for (String category : java.util.List.of("general", "plumbing", "electrical")) {
+            if (rules.findBySiteTypeAndCategory(SiteType.school, category).isEmpty()) {
+                SiteRule rule = new SiteRule();
+                rule.setSiteType(SiteType.school);
+                rule.setCategory(category);
+                rules.save(rule);
+            }
+        }
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
-        site = new Site(); site.setName("Classification campus"); site.setType(SiteType.school);
+        site = new Site(); site.setName("Classification campus" + "-" + java.util.UUID.randomUUID()); site.setType(SiteType.school);
         site.setContractStatus(ContractStatus.uncontracted); site = sites.save(site);
         admin = account(UserRole.admin, site);
         report = new Report(); report.setSite(site); report.setCreatedBy(admin); report.setDescription("Pipe leak");
@@ -75,7 +85,7 @@ class ClassificationApiIntegrationTest {
     }
     @Test void noSessionWrongSiteAndMissingIdNeverInvokeProvider() throws Exception {
         mvc.perform(post(endpoint())).andExpect(status().isUnauthorized());
-        Site other = new Site(); other.setName("Other"); other.setType(SiteType.school);
+        Site other = new Site(); other.setName("Other" + "-" + java.util.UUID.randomUUID()); other.setType(SiteType.school);
         other.setContractStatus(ContractStatus.uncontracted); other = sites.save(other);
         mvc.perform(post(endpoint()).with(user(new AppUserDetails(account(UserRole.admin, other)))))
                 .andExpect(status().isForbidden());

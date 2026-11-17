@@ -28,6 +28,8 @@ class SeederModeTest {
 
 	private final ApplicationContextRunner defaultAccountsContext = new ApplicationContextRunner()
 			.withUserConfiguration(DefaultAccountsLoader.class)
+			.withBean(com.example.fixflow.repository.SiteRepository.class,
+					() -> mock(com.example.fixflow.repository.SiteRepository.class))
 			.withBean(UserRepository.class, () -> mock(UserRepository.class))
 			.withBean(PasswordEncoder.class, BCryptPasswordEncoder::new);
 

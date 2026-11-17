@@ -17,10 +17,10 @@ test.describe('Staff / admin operations @staff @admin', () => {
     await openReport(admin.page, reportId);
 
     await expect(admin.page.getByRole('heading', { name: /Override urgency/i })).toBeVisible();
-    await admin.page.getByLabel(/Final urgency/i).selectOption({ label: /High/i });
+    await admin.page.getByLabel(/Final urgency/i).selectOption('high');
     await admin.page.getByLabel(/Override reason/i).fill('Site safety walkthrough requires higher priority.');
     await admin.page.getByRole('button', { name: /Save urgency override/i }).click();
-    await expect(admin.page.getByRole('status')).toContainText(/Final urgency updated/i);
+    await expect(admin.page.getByRole('status').filter({ hasText: /Final urgency updated/i })).toBeVisible();
     await admin.context.close();
   });
 
@@ -32,10 +32,10 @@ test.describe('Staff / admin operations @staff @admin', () => {
     const staff = await authenticatedContext(browser, accounts.staff1Site1, baseURL);
     await openReport(staff.page, reportId);
 
-    await expect(staff.page.getByRole('heading', { name: /Find a technician|Assign a technician/i })).toBeVisible();
+    await expect(staff.page.getByRole('heading', { name: 'Assign a technician', exact: true })).toBeVisible();
     const route = staff.page.getByLabel(/Technician route/i);
     if (await route.count()) {
-      await route.selectOption({ label: /Assign a contracted technician/i });
+      await route.selectOption({ label: 'Assign a contracted technician' });
     }
 
     await expect(staff.page.getByRole('heading', { name: /Assign a technician|Reassign technician/i })).toBeVisible();
@@ -43,7 +43,7 @@ test.describe('Staff / admin operations @staff @admin', () => {
     await expect(candidate).toBeVisible({ timeout: 45_000 });
     await candidate.check();
     await staff.page.getByRole('button', { name: /Save assignment/i }).click();
-    await expect(staff.page.getByRole('status')).toContainText(/assignment saved/i);
+    await expect(staff.page.getByRole('status').filter({ hasText: /assignment saved/i })).toBeVisible();
     await staff.context.close();
   });
 
@@ -60,7 +60,7 @@ test.describe('Staff / admin operations @staff @admin', () => {
     if (await candidate.count()) {
       await candidate.check();
       await admin.page.getByRole('button', { name: /Save assignment/i }).click();
-      await expect(admin.page.getByRole('status')).toContainText(/assignment saved/i);
+      await expect(admin.page.getByRole('status').filter({ hasText: /assignment saved/i })).toBeVisible();
     }
 
     const escalateSummary = admin.page.getByText(/Raise a safety or work concern/i);

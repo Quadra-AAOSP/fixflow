@@ -1,0 +1,37 @@
+newman
+
+FixFlow | API smoke demo
+
+→ Read authentication policy
+  GET http://127.0.0.1:8080/api/auth/policy [200 OK, 1.08kB, 74ms]
+  √  HTTP 200
+  √  Response matches the API contract
+
+→ Get CSRF challenge
+  GET http://127.0.0.1:8080/api/auth/csrf [200 OK, 841B, 47ms]
+  √  HTTP 200
+  √  Response matches the API contract
+
+→ Reject unauthenticated account access
+  GET http://127.0.0.1:8080/api/auth/me [401 Unauthorized, 906B, 29ms]
+  √  HTTP 401
+
+┌─────────────────────────┬───────────────────┬──────────────────┐
+│                         │          executed │           failed │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              iterations │                 1 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│                requests │                 3 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│            test-scripts │                 3 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│      prerequest-scripts │                 0 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              assertions │                 5 │                0 │
+├─────────────────────────┴───────────────────┴──────────────────┤
+│ total run duration: 374ms                                      │
+├────────────────────────────────────────────────────────────────┤
+│ total data received: 751B (approx)                             │
+├────────────────────────────────────────────────────────────────┤
+│ average response time: 50ms [min: 29ms, max: 74ms, s.d.: 18ms] │
+└────────────────────────────────────────────────────────────────┘

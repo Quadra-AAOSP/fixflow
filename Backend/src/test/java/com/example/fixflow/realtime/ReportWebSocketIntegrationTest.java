@@ -26,6 +26,7 @@ import com.example.fixflow.repository.*;
 import com.example.fixflow.security.AppUserDetails;
 import com.example.fixflow.security.SessionExpiryFilter;
 import com.example.fixflow.service.ReportService;
+import com.example.fixflow.service.TechnicianTermsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -48,6 +49,7 @@ class ReportWebSocketIntegrationTest {
     @Autowired com.example.fixflow.repository.SiteTechnicianVettingRepository vettings;
     @Autowired PasswordEncoder encoder;
     @Autowired ReportService service;
+    @Autowired TechnicianTermsService terms;
     @Autowired PlatformTransactionManager transactions;
     @Autowired org.springframework.context.ApplicationEventPublisher events;
     @Autowired @SuppressWarnings("rawtypes") SessionRepository sessions;
@@ -70,8 +72,9 @@ class ReportWebSocketIntegrationTest {
         qualify(technician);
         report = report(site, owner);
     }
-    /** Assignment requires a verified platform record and a current site vetting approval. */
+    /** Assignment requires current terms, platform verification and site vetting. */
     private void qualify(User technician) {
+        terms.recordAcceptance(technician, terms.currentTerms().currentVersion());
         var record = new com.example.fixflow.domain.TechnicianVerification();
         record.setTechnicianId(technician.getId()); record.setStatus("verified"); record.setTrades("Plumbing");
         record.setIdentityChecked(true); record.setEmailChecked(true); record.setPhoneChecked(true); record.setTradeChecked(true);
@@ -91,7 +94,7 @@ class ReportWebSocketIntegrationTest {
         contracts.save(contract);
     }
     private Site site(String name) {
-        Site s = new Site(); s.setName(name); s.setType(SiteType.school);
+        Site s = new Site(); s.setName(name + "-" + java.util.UUID.randomUUID()); s.setType(SiteType.school);
         s.setContractStatus(ContractStatus.contracted); return sites.save(s);
     }
     private User account(UserRole role, Site scope) {

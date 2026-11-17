@@ -15,18 +15,18 @@ test.describe('Reporter report lifecycle @reporter', () => {
     const description = `Leak near sink ${uniqueTag('report')}`;
     const reportId = await createPublicReport(creator.page, description);
     await expect(creator.page.getByText(description)).toBeVisible();
-    await expect(creator.page.getByText(/Public within your site/i)).toBeVisible();
+    await expect(creator.page.getByText('Public within your site', { exact: true })).toBeVisible();
     await expect(creator.page.getByText(/People joined/i)).toBeVisible();
     await creator.context.close();
 
     const joiner = await authenticatedContext(browser, accounts.reporter2Site1, baseURL);
     await openReport(joiner.page, reportId);
     await joiner.page.getByRole('button', { name: /This issue affects me too/i }).click();
-    await expect(joiner.page.getByRole('status')).toContainText(/attached to this report/i);
+    await expect(joiner.page.getByRole('status').filter({ hasText: /attached to this report/i })).toBeVisible();
     await expect(joiner.page.getByText(/^You$/)).toBeVisible();
 
     await joiner.page.getByRole('button', { name: /Leave report/i }).click();
-    await expect(joiner.page.getByRole('status')).toContainText(/left this report/i);
+    await expect(joiner.page.getByRole('status').filter({ hasText: /left this report/i })).toBeVisible();
     await expect(joiner.page.getByRole('button', { name: /This issue affects me too/i })).toBeVisible();
     await joiner.context.close();
   });
@@ -51,8 +51,8 @@ test.describe('Reporter report lifecycle @reporter', () => {
   test('optional photos field is available on create form @reporter @photos', async ({ browser, baseURL }) => {
     const session = await authenticatedContext(browser, accounts.reporter1Site1, baseURL);
     await session.page.goto('/reports/new');
-    await expect(session.page.getByLabel(/Photos \(optional\)/i)).toBeVisible({ timeout: 30_000 });
-    await expect(session.page.getByText(/Up to 5 photos/i)).toBeVisible();
+    await expect(session.page.getByText('Choose photo', { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(session.page.getByText(/5 MiB each/i)).toBeVisible();
     await session.context.close();
   });
 });

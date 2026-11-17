@@ -30,7 +30,7 @@ test.describe('Join boosts calculated urgency @join-urgency', () => {
       const join = session.page.getByRole('button', { name: /This issue affects me too/i });
       if (await join.count()) {
         await join.click();
-        await expect(session.page.getByRole('status')).toContainText(/attached/i);
+        await expect(session.page.getByRole('status').filter({ hasText: /attached/i })).toBeVisible();
       }
       await session.context.close();
     }

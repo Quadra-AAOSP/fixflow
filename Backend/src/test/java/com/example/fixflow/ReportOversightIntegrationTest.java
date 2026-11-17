@@ -22,10 +22,12 @@ import org.springframework.web.context.WebApplicationContext;
 import com.example.fixflow.domain.ContractStatus;
 import com.example.fixflow.domain.Site;
 import com.example.fixflow.domain.SiteType;
+import com.example.fixflow.domain.SiteRule;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.ReportRepository;
 import com.example.fixflow.repository.SiteRepository;
+import com.example.fixflow.repository.SiteRuleRepository;
 import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.security.AppUserDetails;
 import com.jayway.jsonpath.JsonPath;
@@ -41,6 +43,8 @@ class ReportOversightIntegrationTest {
 	private WebApplicationContext webApplicationContext;
 	@Autowired
 	private SiteRepository siteRepository;
+	@Autowired
+	private SiteRuleRepository siteRules;
 	@Autowired
 	private ReportRepository reports;
 	@Autowired
@@ -63,6 +67,12 @@ class ReportOversightIntegrationTest {
 				.apply(springSecurity())
 				.defaultRequest(get("/").with(csrf()))
 				.build();
+		if (!siteRules.existsBySiteTypeAndCategory(SiteType.school, "plumbing")) {
+			SiteRule rule = new SiteRule();
+			rule.setSiteType(SiteType.school);
+			rule.setCategory("plumbing");
+			siteRules.save(rule);
+		}
 		firstSite = createSite("Oversight site A");
 		secondSite = createSite("Oversight site B");
 		superAdmin = createUser("oversight-super", UserRole.super_admin, null);
@@ -168,7 +178,7 @@ class ReportOversightIntegrationTest {
 
 	private Site createSite(String name) {
 		Site site = new Site();
-		site.setName(name);
+		site.setName(name + "-" + java.util.UUID.randomUUID());
 		site.setType(SiteType.school);
 		site.setContractStatus(ContractStatus.contracted);
 		return siteRepository.save(site);

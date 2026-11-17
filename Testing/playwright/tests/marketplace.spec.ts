@@ -29,7 +29,7 @@ test.describe('Marketplace publish → apply → offer → accept @marketplace',
     await admin.page.getByLabel(/Pay amount/i).fill('100');
     await admin.page.getByLabel(/no private details/i).check();
     await admin.page.getByRole('button', { name: /Publish job listing/i }).click();
-    await expect(admin.page.getByRole('status')).toContainText(/published/i);
+    await expect(admin.page.getByRole('status').filter({ hasText: /published/i })).toBeVisible();
 
     await admin.page.goto('/marketplace');
     await expect(admin.page.getByRole('heading', { name: /Job marketplace/i })).toBeVisible();
@@ -50,7 +50,7 @@ test.describe('Marketplace publish → apply → offer → accept @marketplace',
     await admin.page.getByLabel(/Pay amount/i).fill('100');
     await admin.page.getByLabel(/no private details/i).check();
     await admin.page.getByRole('button', { name: /Publish job listing/i }).click();
-    await expect(admin.page.getByRole('status')).toContainText(/published/i);
+    await expect(admin.page.getByRole('status').filter({ hasText: /published/i })).toBeVisible();
     await admin.context.close();
 
     const tech = await authenticatedContext(browser, accounts.technician2Site1, baseURL);

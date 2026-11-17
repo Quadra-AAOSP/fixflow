@@ -49,7 +49,7 @@ class ReportAssistantIntegrationTest {
                 .defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
                         .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
                 .build();
-        site = new Site(); site.setName("Assistant campus"); site.setType(SiteType.school);
+        site = new Site(); site.setName("Assistant campus" + "-" + java.util.UUID.randomUUID()); site.setType(SiteType.school);
         site.setContractStatus(ContractStatus.contracted); site = sites.save(site);
         actor = new User(); actor.setEmail("assistant-" + System.nanoTime() + "@example.test");
         actor.setFirstName("Test"); actor.setLastName("Reporter"); actor.setPasswordHash("unused");
@@ -171,7 +171,7 @@ class ReportAssistantIntegrationTest {
                                 List.of(new ReportAssistantService.Turn("user", "hi"))))))
                 .andExpect(status().isForbidden());
 
-        Site otherSite = new Site(); otherSite.setName("Other campus"); otherSite.setType(SiteType.school);
+        Site otherSite = new Site(); otherSite.setName("Other campus" + "-" + java.util.UUID.randomUUID()); otherSite.setType(SiteType.school);
         otherSite.setContractStatus(ContractStatus.contracted); otherSite = sites.save(otherSite);
         User foreign = newUser(UserRole.reporter, otherSite);
         mvc.perform(post("/api/reports/" + report.getId() + "/assistant")

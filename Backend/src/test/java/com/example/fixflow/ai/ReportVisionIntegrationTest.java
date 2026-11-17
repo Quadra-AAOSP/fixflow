@@ -35,6 +35,7 @@ class ReportVisionIntegrationTest {
     @Autowired WebApplicationContext context;
     @Autowired ReportVisionService service;
     @Autowired SiteRepository sites;
+    @Autowired SiteRuleRepository rules;
     @Autowired UserRepository users;
     @Autowired ReportRepository reports;
     @Autowired ReportVisionJobRepository jobs;
@@ -44,9 +45,18 @@ class ReportVisionIntegrationTest {
     private Report report;
 
     @BeforeEach void setup() {
+        // The H2 test schema does not load the production site taxonomy.
+        for (String category : java.util.List.of("general", "plumbing", "electrical")) {
+            if (rules.findBySiteTypeAndCategory(SiteType.school, category).isEmpty()) {
+                SiteRule rule = new SiteRule();
+                rule.setSiteType(SiteType.school);
+                rule.setCategory(category);
+                rules.save(rule);
+            }
+        }
         when(provider.visionEnabled()).thenReturn(true);
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
-        Site site = new Site(); site.setName("Vision campus"); site.setType(SiteType.school);
+        Site site = new Site(); site.setName("Vision campus" + "-" + java.util.UUID.randomUUID()); site.setType(SiteType.school);
         site.setContractStatus(ContractStatus.contracted); site = sites.save(site);
         actor = new User(); actor.setEmail("vision-" + System.nanoTime() + "@example.test");
         actor.setFirstName("Test"); actor.setLastName("Reporter"); actor.setPasswordHash("unused");

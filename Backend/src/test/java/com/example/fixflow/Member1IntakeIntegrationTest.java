@@ -28,10 +28,12 @@ import com.example.fixflow.domain.ContractStatus;
 import com.example.fixflow.domain.ReportStatus;
 import com.example.fixflow.domain.Site;
 import com.example.fixflow.domain.SiteType;
+import com.example.fixflow.domain.SiteRule;
 import com.example.fixflow.domain.User;
 import com.example.fixflow.domain.UserRole;
 import com.example.fixflow.repository.ReportRepository;
 import com.example.fixflow.repository.SiteRepository;
+import com.example.fixflow.repository.SiteRuleRepository;
 import com.example.fixflow.audit.StatusHistoryRepository;
 import com.example.fixflow.repository.UserRepository;
 import com.example.fixflow.security.AppUserDetails;
@@ -47,6 +49,8 @@ class Member1IntakeIntegrationTest {
 	private WebApplicationContext webApplicationContext;
 	@Autowired
 	private SiteRepository siteRepository;
+	@Autowired
+	private SiteRuleRepository siteRules;
 	@Autowired
 	private UserRepository userRepository;
 	@Autowired
@@ -67,6 +71,12 @@ class Member1IntakeIntegrationTest {
 	@BeforeEach
 	void setUp() {
 		mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())).build();
+		if (!siteRules.existsBySiteTypeAndCategory(SiteType.school, "plumbing")) {
+			SiteRule rule = new SiteRule();
+			rule.setSiteType(SiteType.school);
+			rule.setCategory("plumbing");
+			siteRules.save(rule);
+		}
 		site = new Site();
 		site.setName("Member1 Site " + System.nanoTime());
 		site.setType(SiteType.school);

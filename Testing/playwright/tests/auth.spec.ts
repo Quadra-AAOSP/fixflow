@@ -56,7 +56,7 @@ test.describe('Auth workflows', () => {
     // Either lands in reporter home, or shows post-create sign-in guidance.
     await expect(
       page.getByRole('heading', { name: /Your account is ready|My reports|Report/i }).or(
-        page.getByText(/automatic sign-in did not finish|sign in/i),
+        page.getByText(/automatic sign-in did not finish/i),
       ),
     ).toBeVisible({ timeout: 45_000 });
   });
@@ -78,11 +78,11 @@ test.describe('Auth workflows', () => {
     await page.getByLabel('Password').fill(email);
     await page.getByLabel(/Contact phone/i).fill('+10000000000');
     await page.getByLabel(/Business or correspondence address/i).fill('1 Test Street');
-    await page.getByRole('button', { name: /Create account & add trade/i }).click();
+    await page.getByRole('button', { name: /Create technician account/i }).click();
 
     await expect(
       page.getByRole('heading', { name: /Your account is ready|My workspace|Your trade/i }).or(
-        page.getByText(/automatic sign-in did not finish|sign in/i),
+        page.getByText(/automatic sign-in did not finish/i),
       ),
     ).toBeVisible({ timeout: 45_000 });
   });

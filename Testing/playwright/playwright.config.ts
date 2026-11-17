@@ -1,37 +1,35 @@
 import { defineConfig } from '@playwright/test';
+import { resolve } from 'node:path';
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173';
-const startWebServer = process.env.PLAYWRIGHT_WEB_SERVER === 'true';
-
+const web = process.env.VUE_WEB_URL ?? 'http://localhost:5173';
+const backend = process.env.BACKEND_URL ?? 'http://localhost:8080';
+const browser = process.env.PLAYWRIGHT_BROWSER === 'firefox' ? 'firefox' : 'chromium';
+const headless = process.env.PLAYWRIGHT_HEADLESS === 'true';
+if (new URL(web).hostname !== new URL(backend).hostname) {
+  throw new Error('Use the same hostname for VUE_WEB_URL and BACKEND_URL.');
+}
 export default defineConfig({
-  testDir: './tests',
-  fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: 0,
+  testDir: './rewrite',
   workers: 1,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  retries: 0,
   timeout: 90_000,
-  expect: { timeout: 15_000 },
+  reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report-rewrite' }]],
+  outputDir: 'test-results-rewrite',
   use: {
-    baseURL,
-    trace: 'off',
-    screenshot: 'only-on-failure',
-    video: 'off',
-    locale: 'en-US',
+    baseURL: web, browserName: browser, channel: browser === 'chromium' ? 'msedge' : undefined,
+    headless, viewport: null, screenshot: 'only-on-failure', video: 'off', trace: 'off',
+    launchOptions: {
+      slowMo: Number(process.env.SLOW_MO_MS ?? 500),
+      args: browser === 'chromium' && !headless ? ['--start-maximized'] : [],
+    },
   },
-  projects: [
-    { name: 'edge', use: { channel: 'msedge', headless: false, viewport: null, launchOptions: { args: ['--start-maximized'], slowMo: Number(process.env.SLOW_MO_MS ?? 500) } } },
-  ],
-  // Optional: start Vite when PLAYWRIGHT_WEB_SERVER=true.
-  // Backend (API on :8080, proxied by Vite) must already be running with SEED_DEMO_DATA=true.
-  ...(startWebServer
-    ? {
-        webServer: {
-          command: 'npm run dev --prefix ../../Frontend/Web',
-          url: baseURL,
-          reuseExistingServer: !process.env.CI,
-          timeout: 120_000,
-        },
-      }
-    : {}),
+  webServer: process.env.START_VUE === 'false' || process.argv.includes('--list') ? undefined : {
+    command: `npm run dev -- --host ${new URL(web).hostname} --port ${new URL(web).port || 5173} --strictPort`,
+    cwd: resolve(__dirname, '../../Frontend/Web'),
+    url: web,
+    env: { API_PROXY_TARGET: backend },
+    reuseExistingServer: true,
+    timeout: 90_000,
+  },
 });
+
